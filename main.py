@@ -315,7 +315,10 @@ class ProxyScraperChecker:
         for proto, proxies in self.proxies.items():
             working = len(proxies)
             total = self.proxies_count[proto]
-            percentage = working / total * 100
+            try:
+                percentage = (working / total)
+            except ZeroDivisionError:
+                percentage = 0
             table.add_row(
                 proto.upper(), f"{working} ({percentage:.1f}%)", str(total)
             )

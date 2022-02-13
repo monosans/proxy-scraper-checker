@@ -1,5 +1,10 @@
 # YYYY-MM-DD
 
+## 2022-02-13
+
+- Print absolute path instead of relative.
+- Improve regex.
+
 ## 2022-02-12
 
 - Replace `maxminddb` with geolocation API.

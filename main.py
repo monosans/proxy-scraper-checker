@@ -25,8 +25,8 @@ import config
 
 class Proxy:
     def __init__(self, socket_address: str, ip: str) -> None:
-        self.SOCKET_ADDRESS = socket_address
-        self.IP = ip
+        self.socket_address = socket_address
+        self.ip = ip
         self.is_anonymous: Optional[bool] = None
         self.geolocation: str = "::None::None::None"
         self.timeout = float("inf")
@@ -36,15 +36,32 @@ class Proxy:
         region = info.get("regionName") or None
         city = info.get("city") or None
         self.geolocation = f"::{country}::{region}::{city}"
-        self.is_anonymous = self.IP != info.get("query")
+        self.is_anonymous = self.ip != info.get("query")
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Proxy):
             return NotImplemented
-        return self.SOCKET_ADDRESS == other.SOCKET_ADDRESS
+        return self.socket_address == other.socket_address
 
     def __hash__(self) -> int:
-        return hash(("socket_address", self.SOCKET_ADDRESS))
+        return hash(("socket_address", self.socket_address))
+
+
+class Folder:
+    def __init__(self, folder_name: str, path: Path) -> None:
+        self.folder = folder_name
+        self.path = path / folder_name
+        self.for_anonymous = "anon" in folder_name
+        self.for_geolocation = "geo" in folder_name
+
+    def remove(self) -> None:
+        try:
+            rmtree(self.path)
+        except FileNotFoundError:
+            pass
+
+    def create(self) -> None:
+        self.path.mkdir(parents=True, exist_ok=True)
 
 
 class ProxyScraperChecker:
@@ -71,30 +88,35 @@ class ProxyScraperChecker:
             timeout (float): How many seconds to wait for the connection.
             max_connections (int): Maximum concurrent connections.
             sort_by_speed (bool): Set to False to sort proxies alphabetically.
-            geolocation (bool): Add geolocation info for each proxy.
-            anonymous (bool): Check if proxies are anonymous.
             save_path (str): Path to the folder where the proxy folders will be
                 saved.
         """
+        path = Path(save_path)
+        folders = (
+            ("proxies", proxies),
+            ("proxies_anonymous", proxies_anonymous),
+            ("proxies_geolocation", proxies_geolocation),
+            ("proxies_geolocation_anonymous", proxies_geolocation_anonymous),
+        )
+        self.folders = [
+            Folder(folder, path) for folder, enabled in folders if enabled
+        ]
+        if not self.folders:
+            raise ValueError("all folders are disabled in the config")
+
         octet = r"(?:\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"
         port = (
             r"(?:\d|[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{3}"
             + r"|65[0-4]\d{2}|655[0-2]\d|6553[0-5])"
         )
-        self.REGEX = re.compile(
+        self.regex = re.compile(
             rf"(?:^|\D)(({octet}\.{octet}\.{octet}\.{octet}):{port})(?:\D|$)"
         )
-        self.sem = asyncio.Semaphore(max_connections)
-        self.SORT_BY_SPEED = sort_by_speed
-        self.FOLDERS = {
-            "proxies": proxies,
-            "proxies_anonymous": proxies_anonymous,
-            "proxies_geolocation": proxies_geolocation,
-            "proxies_geolocation_anonymous": proxies_geolocation_anonymous,
-        }
-        self.TIMEOUT = timeout
-        self.PATH = save_path
-        self.SOURCES = {
+
+        self.sort_by_speed = sort_by_speed
+        self.timeout = timeout
+        self.path = save_path
+        self.sources = {
             proto: (sources,)
             if isinstance(sources, str)
             else frozenset(sources)
@@ -106,10 +128,11 @@ class ProxyScraperChecker:
             if sources
         }
         self.proxies: Dict[str, Set[Proxy]] = {
-            proto: set() for proto in self.SOURCES
+            proto: set() for proto in self.sources
         }
-        self.proxies_count = {proto: 0 for proto in self.SOURCES}
+        self.proxies_count = {proto: 0 for proto in self.sources}
         self.c = console or Console()
+        self.sem = asyncio.Semaphore(max_connections)
 
     async def fetch_source(
         self,
@@ -131,7 +154,7 @@ class ProxyScraperChecker:
         except Exception as e:
             self.c.print(f"{source}: {e}")
         else:
-            for proxy in self.REGEX.finditer(text):
+            for proxy in self.regex.finditer(text):
                 self.proxies[proto].add(Proxy(proxy.group(1), proxy.group(2)))
         progress.update(task, advance=1)
 
@@ -144,15 +167,15 @@ class ProxyScraperChecker:
                 start = perf_counter()
                 async with ClientSession(
                     connector=ProxyConnector.from_url(
-                        f"{proto}://{proxy.SOCKET_ADDRESS}"
+                        f"{proto}://{proxy.socket_address}"
                     )
                 ) as session:
                     async with session.get(
-                        "http://ip-api.com/json/", timeout=self.TIMEOUT
+                        "http://ip-api.com/json/", timeout=self.timeout
                     ) as r:
                         res = (
                             None
-                            if r.status in {400, 403, 404, 429, 503}
+                            if r.status in {403, 404, 429}
                             else await r.json()
                         )
         except Exception as e:
@@ -161,6 +184,7 @@ class ProxyScraperChecker:
                 self.c.print(
                     "[red]Please, set MAX_CONNECTIONS to lower value."
                 )
+
             self.proxies[proto].remove(proxy)
         else:
             proxy.timeout = perf_counter() - start
@@ -175,14 +199,14 @@ class ProxyScraperChecker:
                     f"[yellow]Scraper [red]:: [green]{proto.upper()}",
                     total=len(sources),
                 )
-                for proto, sources in self.SOURCES.items()
+                for proto, sources in self.sources.items()
             }
             async with ClientSession() as session:
                 coroutines = (
                     self.fetch_source(
                         session, source, proto, progress, tasks[proto]
                     )
-                    for proto, sources in self.SOURCES.items()
+                    for proto, sources in self.sources.items()
                     for source in sources
                 )
                 await asyncio.gather(*coroutines)
@@ -210,28 +234,22 @@ class ProxyScraperChecker:
 
     def save_proxies(self) -> None:
         """Delete old proxies and save new ones."""
-        path = Path(self.PATH)
-        dirs = tuple(path / dir for dir in self.FOLDERS)
-        for dir in dirs:
-            try:
-                rmtree(dir)
-            except FileNotFoundError:
-                pass
         sorted_proxies = self.sorted_proxies.items()
-        for dir, folder in zip(dirs, self.FOLDERS):
-            if not self.FOLDERS[folder]:
-                continue
-            dir.mkdir(parents=True, exist_ok=True)
+        for folder in self.folders:
+            folder.remove()
+            folder.create()
             for proto, proxies in sorted_proxies:
                 text = "\n".join(
                     "{}{}".format(
-                        proxy.SOCKET_ADDRESS,
-                        proxy.geolocation if "geolocation" in folder else "",
+                        proxy.socket_address,
+                        proxy.geolocation if folder.for_geolocation else "",
                     )
                     for proxy in proxies
-                    if (proxy.is_anonymous if "anonymous" in folder else True)
+                    if (proxy.is_anonymous if folder.for_anonymous else True)
                 )
-                (dir / f"{proto}.txt").write_text(text, encoding="utf-8")
+                (folder.path / f"{proto}.txt").write_text(
+                    text, encoding="utf-8"
+                )
 
     async def main(self) -> None:
         await self.fetch_all_sources()
@@ -253,7 +271,7 @@ class ProxyScraperChecker:
         self.save_proxies()
         self.c.print(
             "[green]Proxy folders have been created in the "
-            + (f"{self.PATH} folder" if self.PATH else "current directory")
+            + (f"{self.path} folder" if self.path else "current directory")
             + ".\nThank you for using proxy-scraper-checker :)"
         )
 
@@ -266,11 +284,13 @@ class ProxyScraperChecker:
         }
 
     @property
-    def _sorting_key(self) -> Callable[[Proxy], Union[float, Tuple[int, ...]]]:
-        if self.SORT_BY_SPEED:
+    def _sorting_key(
+        self,
+    ) -> Union[Callable[[Proxy], float], Callable[[Proxy], Tuple[int, ...]]]:
+        if self.sort_by_speed:
             return lambda proxy: proxy.timeout
         return lambda proxy: tuple(
-            map(int, proxy.SOCKET_ADDRESS.replace(":", ".").split("."))
+            map(int, proxy.socket_address.replace(":", ".").split("."))
         )
 
     @property
@@ -286,13 +306,6 @@ class ProxyScraperChecker:
 
 
 async def main() -> None:
-    if not (
-        config.PROXIES
-        or config.PROXIES_ANONYMOUS
-        or config.PROXIES_GEOLOCATION
-        or config.PROXIES_GEOLOCATION_ANONYMOUS
-    ):
-        raise ValueError("all folders are disabled in the config")
     await ProxyScraperChecker(
         timeout=config.TIMEOUT,
         max_connections=config.MAX_CONNECTIONS,

@@ -25,6 +25,10 @@ import config
 
 class Proxy:
     def __init__(self, socket_address: str, ip: str) -> None:
+        """
+        Args:
+            socket_address: ip:port
+        """
         self.socket_address = socket_address
         self.ip = ip
         self.is_anonymous: Optional[bool] = None
@@ -32,6 +36,11 @@ class Proxy:
         self.timeout = float("inf")
 
     def update(self, info: Dict[str, str]) -> None:
+        """Set geolocation and is_anonymous.
+
+        Args:
+            info: Response from http://ip-api.com/json.
+        """
         country = info.get("country") or None
         region = info.get("regionName") or None
         city = info.get("city") or None
@@ -83,12 +92,13 @@ class ProxyScraperChecker:
         socks5_sources: Optional[Iterable[str]],
         console: Optional[Console] = None,
     ) -> None:
-        """
+        """HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
+
         Args:
-            timeout (float): How many seconds to wait for the connection.
-            max_connections (int): Maximum concurrent connections.
-            sort_by_speed (bool): Set to False to sort proxies alphabetically.
-            save_path (str): Path to the folder where the proxy folders will be
+            timeout: How many seconds to wait for the connection.
+            max_connections: Maximum concurrent connections.
+            sort_by_speed: Set to False to sort proxies alphabetically.
+            save_path: Path to the folder where the proxy folders will be
                 saved.
         """
         path = Path(save_path)
@@ -114,7 +124,6 @@ class ProxyScraperChecker:
 
         self.sort_by_speed = sort_by_speed
         self.timeout = timeout
-        self.path = save_path
         self.sources = {
             proto: (sources,)
             if isinstance(sources, str)
@@ -144,8 +153,8 @@ class ProxyScraperChecker:
         """Get proxies from source.
 
         Args:
-            source (str): Proxy list URL.
-            proto (str): http/socks4/socks5.
+            source: Proxy list URL.
+            proto: http/socks4/socks5.
         """
         try:
             async with session.get(source.strip(), timeout=15) as r:

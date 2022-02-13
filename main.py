@@ -101,7 +101,7 @@ class ProxyScraperChecker:
             save_path: Path to the folder where the proxy folders will be
                 saved.
         """
-        path = Path(save_path)
+        self.path = Path(save_path)
         folders = (
             ("proxies", proxies),
             ("proxies_anonymous", proxies_anonymous),
@@ -109,7 +109,7 @@ class ProxyScraperChecker:
             ("proxies_geolocation_anonymous", proxies_geolocation_anonymous),
         )
         self.folders = [
-            Folder(folder, path) for folder, enabled in folders if enabled
+            Folder(folder, self.path) for folder, enabled in folders if enabled
         ]
         if not self.folders:
             raise ValueError("all folders are disabled in the config")
@@ -279,8 +279,8 @@ class ProxyScraperChecker:
         self.save_proxies()
         self.c.print(
             "[green]Proxy folders have been created in the "
-            + (f"{self.path} folder" if self.path else "current directory")
-            + ".\nThank you for using proxy-scraper-checker :)"
+            + f"{self.path.absolute()} folder."
+            + "\nThank you for using proxy-scraper-checker :)"
         )
 
     @property

@@ -3,7 +3,7 @@
 # How many seconds to wait for the proxy to make a connection.
 # The higher this number, the longer the check will take
 # and the more proxies you will receive.
-TIMEOUT = 2
+TIMEOUT = 5
 
 # Maximum concurrent connections.
 # Don't set higher than 900, please.

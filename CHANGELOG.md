@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-02-14
+
+- Delete disabled folders when saving proxies.
+
 ## 2022-02-13
 
 - Print absolute path instead of relative.

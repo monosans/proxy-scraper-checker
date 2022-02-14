@@ -58,7 +58,7 @@ class Proxy:
 
 class Folder:
     def __init__(self, folder_name: str, path: Path) -> None:
-        self.folder = folder_name
+        self.folder_name = folder_name
         self.path = path / folder_name
         self.for_anonymous = "anon" in folder_name
         self.for_geolocation = "geo" in folder_name
@@ -102,16 +102,21 @@ class ProxyScraperChecker:
                 saved.
         """
         self.path = Path(save_path)
-        folders = (
-            ("proxies", proxies),
-            ("proxies_anonymous", proxies_anonymous),
-            ("proxies_geolocation", proxies_geolocation),
-            ("proxies_geolocation_anonymous", proxies_geolocation_anonymous),
-        )
-        self.folders = [
-            Folder(folder, self.path) for folder, enabled in folders if enabled
+        folders_mapping = {
+            "proxies": proxies,
+            "proxies_anonymous": proxies_anonymous,
+            "proxies_geolocation": proxies_geolocation,
+            "proxies_geolocation_anonymous": proxies_geolocation_anonymous,
+        }
+        self.all_folders = [
+            Folder(folder_name, self.path) for folder_name in folders_mapping
         ]
-        if not self.folders:
+        self.enabled_folders = [
+            folder
+            for folder in self.all_folders
+            if folders_mapping[folder.folder_name]
+        ]
+        if not self.enabled_folders:
             raise ValueError("all folders are disabled in the config")
 
         regex = r"(?:^|\D)(({0}\.{1}\.{1}\.{1}):{2})(?:\D|$)".format(
@@ -243,8 +248,9 @@ class ProxyScraperChecker:
     def save_proxies(self) -> None:
         """Delete old proxies and save new ones."""
         sorted_proxies = self.sorted_proxies.items()
-        for folder in self.folders:
+        for folder in self.all_folders:
             folder.remove()
+        for folder in self.enabled_folders:
             folder.create()
             for proto, proxies in sorted_proxies:
                 text = "\n".join(

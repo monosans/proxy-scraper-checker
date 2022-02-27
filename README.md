@@ -11,8 +11,6 @@ HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
 For a version that uses Python's built-in `logging` instead of [rich](https://github.com/willmcgugan/rich), see the [simple-output](https://github.com/monosans/proxy-scraper-checker/tree/simple-output) branch.
 
-You can get proxies obtained using this script in [monosans/proxy-list](https://github.com/monosans/proxy-list).
-
 ## Usage
 
 - Make sure `Python` version is 3.7 or higher.

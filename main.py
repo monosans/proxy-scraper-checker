@@ -314,7 +314,7 @@ class ProxyScraperChecker:
             BarColumn(),
             TextColumn("[progress.percentage]{task.percentage:3.0f}%"),
             TextColumn("[blue][{task.completed}/{task.total}]"),
-            TimeRemainingColumn(),
+            TimeRemainingColumn(compact=True),
             console=self.c,
         )
 

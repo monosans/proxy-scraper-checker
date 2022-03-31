@@ -4,6 +4,7 @@
 
 - Show a message if there is no proxies in the source.
 - Add more sources.
+- Set default `TIMEOUT` to 10.
 
 ## 2022-02-14
 

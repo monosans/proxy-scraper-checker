@@ -161,14 +161,21 @@ class ProxyScraperChecker:
             source: Proxy list URL.
             proto: http/socks4/socks5.
         """
+        source = source.strip()
         try:
-            async with session.get(source.strip(), timeout=15) as r:
+            async with session.get(source, timeout=15) as r:
                 text = await r.text(encoding="utf-8")
         except Exception as e:
             self.c.print(f"{source}: {e}")
         else:
-            for proxy in self.regex.finditer(text):
-                self.proxies[proto].add(Proxy(proxy.group(1), proxy.group(2)))
+            proxies = tuple(self.regex.finditer(text))
+            if proxies:
+                for proxy in proxies:
+                    self.proxies[proto].add(
+                        Proxy(proxy.group(1), proxy.group(2))
+                    )
+            else:
+                self.c.print(f"No proxies found on {source}")
         progress.update(task, advance=1)
 
     async def check_proxy(

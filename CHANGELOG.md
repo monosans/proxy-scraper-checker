@@ -1,5 +1,10 @@
 # YYYY-MM-DD
 
+## 2022-03-31
+
+- Show a message if there is no proxies in the source.
+- Add more sources.
+
 ## 2022-02-14
 
 - Delete disabled folders when saving proxies.

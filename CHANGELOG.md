@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-04-07
+
+- Add `multi line` flag to regex.
+
 ## 2022-04-03
 
 - Add more sources.

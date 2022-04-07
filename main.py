@@ -125,7 +125,7 @@ class ProxyScraperChecker:
             r"(?:\d|[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{3}"
             + r"|65[0-4]\d{2}|655[0-2]\d|6553[0-5])",  # 0-65535
         )
-        self.regex = re.compile(regex)
+        self.regex = re.compile(regex, flags=re.M)
 
         self.sort_by_speed = sort_by_speed
         self.timeout = timeout

@@ -24,7 +24,7 @@ PROXIES = True
 # Anonymous proxies.
 PROXIES_ANONYMOUS = True
 # Same as PROXIES, but including exit-node's geolocation.
-# Geolocation format is ip:port::Country::Region::City
+# Geolocation format is ip:port|Country|Region|City
 PROXIES_GEOLOCATION = True
 # Same as PROXIES_GEOLOCATION, but including exit-node's geolocation.
 PROXIES_GEOLOCATION_ANONYMOUS = True

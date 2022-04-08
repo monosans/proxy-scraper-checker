@@ -32,7 +32,7 @@ class Proxy:
         self.socket_address = socket_address
         self.ip = ip
         self.is_anonymous: Optional[bool] = None
-        self.geolocation: str = "::None::None::None"
+        self.geolocation: str = "|None|None|None"
         self.timeout = float("inf")
 
     def update(self, info: Dict[str, str]) -> None:
@@ -44,7 +44,7 @@ class Proxy:
         country = info.get("country") or None
         region = info.get("regionName") or None
         city = info.get("city") or None
-        self.geolocation = f"::{country}::{region}::{city}"
+        self.geolocation = f"|{country}|{region}|{city}"
         self.is_anonymous = self.ip != info.get("query")
 
     def __eq__(self, other: object) -> bool:

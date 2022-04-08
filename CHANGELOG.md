@@ -1,5 +1,10 @@
 # YYYY-MM-DD
 
+## 2022-04-08
+
+- Use `|` as geolocation separator.
+- Use `?` instead of `None` if geolocation is unknown.
+
 ## 2022-04-07
 
 - Add `multi line` flag to regex.

@@ -195,7 +195,7 @@ class ProxyScraperChecker:
                     ) as r:
                         res = (
                             None
-                            if r.status in {403, 404, 429}
+                            if r.status in {404, 429}
                             else await r.json()
                         )
         except Exception as e:

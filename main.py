@@ -24,6 +24,14 @@ import config
 
 
 class Proxy:
+    __slots__ = (
+        "socket_address",
+        "ip",
+        "is_anonymous",
+        "geolocation",
+        "timeout",
+    )
+
     def __init__(self, socket_address: str, ip: str) -> None:
         """
         Args:
@@ -57,6 +65,8 @@ class Proxy:
 
 
 class Folder:
+    __slots__ = ("folder_name", "path", "for_anonymous", "for_geolocation")
+
     def __init__(self, folder_name: str, path: Path) -> None:
         self.folder_name = folder_name
         self.path = path / folder_name
@@ -75,6 +85,20 @@ class Folder:
 
 class ProxyScraperChecker:
     """HTTP, SOCKS4, SOCKS5 proxies scraper and checker."""
+
+    __slots__ = (
+        "path",
+        "all_folders",
+        "enabled_folders",
+        "regex",
+        "sort_by_speed",
+        "timeout",
+        "sources",
+        "proxies",
+        "proxies_count",
+        "c",
+        "sem",
+    )
 
     def __init__(
         self,
@@ -194,9 +218,7 @@ class ProxyScraperChecker:
                         "http://ip-api.com/json/", timeout=self.timeout
                     ) as r:
                         res = (
-                            None
-                            if r.status in {404, 429}
-                            else await r.json()
+                            None if r.status in {404, 429} else await r.json()
                         )
         except Exception as e:
             # Too many open files

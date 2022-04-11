@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-04-11
+
+- Add `__slots__` attribute to all objects.
+
 ## 2022-04-08
 
 - Use `|` as geolocation separator.

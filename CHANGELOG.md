@@ -3,6 +3,7 @@
 ## 2022-04-11
 
 - Add `__slots__` attribute to all objects.
+- Improve regex.
 
 ## 2022-04-08
 

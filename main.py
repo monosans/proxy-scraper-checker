@@ -143,13 +143,13 @@ class ProxyScraperChecker:
         if not self.enabled_folders:
             raise ValueError("all folders are disabled in the config")
 
-        regex = r"(?:^|\D)(({0}\.{1}\.{1}\.{1}):{2})(?:\D|$)".format(
+        regex = r"(?:^|\D)?(({0}\.{1}\.{1}\.{1}):{2})(?:\D|$)".format(
             r"(?:[1-9]|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])",  # 1-255
             r"(?:\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])",  # 0-255
             r"(?:\d|[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{3}"
             + r"|65[0-4]\d{2}|655[0-2]\d|6553[0-5])",  # 0-65535
         )
-        self.regex = re.compile(regex, flags=re.M)
+        self.regex = re.compile(regex)
 
         self.sort_by_speed = sort_by_speed
         self.timeout = timeout

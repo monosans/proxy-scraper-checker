@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import re
+from configparser import ConfigParser
 from pathlib import Path
 from random import shuffle
 from shutil import rmtree
 from time import perf_counter
-from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
@@ -19,8 +20,6 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from rich.table import Table
-
-import config
 
 
 class Proxy:
@@ -111,9 +110,9 @@ class ProxyScraperChecker:
         proxies_anonymous: bool,
         proxies_geolocation: bool,
         proxies_geolocation_anonymous: bool,
-        http_sources: Optional[Iterable[str]],
-        socks4_sources: Optional[Iterable[str]],
-        socks5_sources: Optional[Iterable[str]],
+        http_sources: Optional[str],
+        socks4_sources: Optional[str],
+        socks5_sources: Optional[str],
         console: Optional[Console] = None,
     ) -> None:
         """HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
@@ -154,9 +153,7 @@ class ProxyScraperChecker:
         self.sort_by_speed = sort_by_speed
         self.timeout = timeout
         self.sources = {
-            proto: (sources,)
-            if isinstance(sources, str)
-            else frozenset(sources)
+            proto: frozenset(filter(None, sources.splitlines()))
             for proto, sources in (
                 ("http", http_sources),
                 ("socks4", socks4_sources),
@@ -349,23 +346,32 @@ class ProxyScraperChecker:
 
 
 async def main() -> None:
+    cfg = ConfigParser(interpolation=None)
+    cfg.read("config.ini", encoding="utf-8")
+    general = cfg["General"]
+    folders = cfg["Folders"].getboolean
+    http = cfg["HTTP"]
+    socks4 = cfg["SOCKS4"]
+    socks5 = cfg["SOCKS5"]
     await ProxyScraperChecker(
-        timeout=config.TIMEOUT,
-        max_connections=config.MAX_CONNECTIONS,
-        sort_by_speed=config.SORT_BY_SPEED,
-        save_path=config.SAVE_PATH,
-        proxies=config.PROXIES,
-        proxies_anonymous=config.PROXIES_ANONYMOUS,
-        proxies_geolocation=config.PROXIES_GEOLOCATION,
-        proxies_geolocation_anonymous=config.PROXIES_GEOLOCATION_ANONYMOUS,
-        http_sources=config.HTTP_SOURCES
-        if config.HTTP and config.HTTP_SOURCES
+        timeout=general.getfloat("Timeout", 10),
+        max_connections=general.getint("MaxConnections"),
+        sort_by_speed=general.getboolean("SortBySpeed", True),
+        save_path=general.get("SavePath", ""),
+        proxies=folders("proxies", True),
+        proxies_anonymous=folders("proxies_anonymous", True),
+        proxies_geolocation=folders("proxies_geolocation", True),
+        proxies_geolocation_anonymous=folders(
+            "proxies_geolocation_anonymous", True
+        ),
+        http_sources=http.get("Sources")
+        if http.getboolean("Enabled")
         else None,
-        socks4_sources=config.SOCKS4_SOURCES
-        if config.SOCKS4 and config.SOCKS4_SOURCES
+        socks4_sources=socks4.get("Sources")
+        if socks4.getboolean("Enabled")
         else None,
-        socks5_sources=config.SOCKS5_SOURCES
-        if config.SOCKS5 and config.SOCKS5_SOURCES
+        socks5_sources=socks5.get("Sources")
+        if socks5.getboolean("Enabled")
         else None,
     ).main()
 

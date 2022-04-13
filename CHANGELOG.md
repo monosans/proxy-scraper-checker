@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-04-13
+
+- `config.py` -> `config.ini`.
+
 ## 2022-04-11
 
 - Add `__slots__` attribute to all objects.

@@ -185,7 +185,7 @@ class ProxyScraperChecker:
         source = source.strip()
         try:
             async with session.get(source, timeout=15) as r:
-                text = await r.text(encoding="utf-8")
+                text = await r.text()
         except Exception as e:
             self.c.print(f"{source}: {e}")
         else:

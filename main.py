@@ -377,4 +377,10 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    try:
+        import uvloop
+    except ImportError:
+        pass
+    else:
+        uvloop.install()
     asyncio.run(main())

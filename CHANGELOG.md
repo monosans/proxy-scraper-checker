@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-05-10
+
+- Add `uvloop` for non-Windows platforms to improve performance.
+
 ## 2022-04-27
 
 - Add more sources.

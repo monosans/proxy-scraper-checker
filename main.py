@@ -39,7 +39,7 @@ class Proxy:
         self.socket_address = socket_address
         self.ip = ip
         self.is_anonymous: Optional[bool] = None
-        self.geolocation: str = "|?|?|?"
+        self.geolocation = "|?|?|?"
         self.timeout = float("inf")
 
     def update(self, info: Mapping[str, str]) -> None:
@@ -131,14 +131,14 @@ class ProxyScraperChecker:
             "proxies_geolocation": proxies_geolocation,
             "proxies_geolocation_anonymous": proxies_geolocation_anonymous,
         }
-        self.all_folders = [
+        self.all_folders = tuple(
             Folder(folder_name, self.path) for folder_name in folders_mapping
-        ]
-        self.enabled_folders = [
+        )
+        self.enabled_folders = tuple(
             folder
             for folder in self.all_folders
             if folders_mapping[folder.folder_name]
-        ]
+        )
         if not self.enabled_folders:
             raise ValueError("all folders are disabled in the config")
 
@@ -192,9 +192,8 @@ class ProxyScraperChecker:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
                 for proxy in proxies:
-                    self.proxies[proto].add(
-                        Proxy(proxy.group(1), proxy.group(2))
-                    )
+                    p = Proxy(proxy.group(1), proxy.group(2))
+                    self.proxies[proto].add(p)
             else:
                 self.c.print(f"No proxies found on {source}")
         progress.update(task, advance=1)
@@ -205,12 +204,10 @@ class ProxyScraperChecker:
         """Check if proxy is alive."""
         try:
             async with self.sem:
+                proxy_url = f"{proto}://{proxy.socket_address}"
+                connector = ProxyConnector.from_url(proxy_url)
                 start = perf_counter()
-                async with ClientSession(
-                    connector=ProxyConnector.from_url(
-                        f"{proto}://{proxy.socket_address}"
-                    )
-                ) as session:
+                async with ClientSession(connector=connector) as session:
                     async with session.get(
                         "http://ip-api.com/json/", timeout=self.timeout
                     ) as r:
@@ -287,9 +284,8 @@ class ProxyScraperChecker:
                     for proxy in proxies
                     if (proxy.is_anonymous if folder.for_anonymous else True)
                 )
-                (folder.path / f"{proto}.txt").write_text(
-                    text, encoding="utf-8"
-                )
+                file = folder.path / f"{proto}.txt"
+                file.write_text(text, encoding="utf-8")
 
     async def main(self) -> None:
         await self.fetch_all_sources()

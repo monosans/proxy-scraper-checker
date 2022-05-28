@@ -7,7 +7,7 @@ from pathlib import Path
 from random import shuffle
 from shutil import rmtree
 from time import perf_counter
-from typing import Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Callable, Dict, List, Mapping, Optional, Set, Tuple, Union
 
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
@@ -42,7 +42,7 @@ class Proxy:
         self.geolocation: str = "|?|?|?"
         self.timeout = float("inf")
 
-    def update(self, info: Dict[str, str]) -> None:
+    def update(self, info: Mapping[str, str]) -> None:
         """Set geolocation and is_anonymous.
 
         Args:

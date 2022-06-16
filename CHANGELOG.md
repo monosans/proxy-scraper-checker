@@ -1,5 +1,10 @@
 # YYYY-MM-DD
 
+## 2022-06-16
+
+- Edit uvloop marker.
+- Improve sorting code.
+
 ## 2022-05-28
 
 - Remove some sources.

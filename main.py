@@ -351,7 +351,7 @@ async def main() -> None:
     socks5 = cfg["SOCKS5"]
     await ProxyScraperChecker(
         timeout=general.getfloat("Timeout", 10),
-        max_connections=general.getint("MaxConnections"),
+        max_connections=general.getint("MaxConnections", 900),
         sort_by_speed=general.getboolean("SortBySpeed", True),
         save_path=general.get("SavePath", ""),
         proxies=folders("proxies", True),
@@ -361,13 +361,13 @@ async def main() -> None:
             "proxies_geolocation_anonymous", True
         ),
         http_sources=http.get("Sources")
-        if http.getboolean("Enabled")
+        if http.getboolean("Enabled", True)
         else None,
         socks4_sources=socks4.get("Sources")
-        if socks4.getboolean("Enabled")
+        if socks4.getboolean("Enabled", True)
         else None,
         socks5_sources=socks5.get("Sources")
-        if socks5.getboolean("Enabled")
+        if socks5.getboolean("Enabled", True)
         else None,
     ).main()
 

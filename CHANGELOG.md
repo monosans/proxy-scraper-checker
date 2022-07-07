@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-07-07
+
+- Add `User-Agent` header when fetching sources.
+
 ## 2022-06-16
 
 - Edit uvloop marker.

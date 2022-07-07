@@ -3,6 +3,7 @@
 ## 2022-07-07
 
 - Add `User-Agent` header when fetching sources.
+- Add more sources.
 
 ## 2022-06-16
 

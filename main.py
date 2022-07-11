@@ -47,7 +47,7 @@ class Proxy:
         """Set geolocation and is_anonymous.
 
         Args:
-            info: Response from http://ip-api.com/json.
+            info: Response from ip-api.com.
         """
         country = info.get("country") or "?"
         region = info.get("regionName") or "?"
@@ -65,10 +65,9 @@ class Proxy:
 
 
 class Folder:
-    __slots__ = ("folder_name", "path", "for_anonymous", "for_geolocation")
+    __slots__ = ("path", "for_anonymous", "for_geolocation")
 
-    def __init__(self, folder_name: str, path: Path) -> None:
-        self.folder_name = folder_name
+    def __init__(self, path: Path, folder_name: str) -> None:
         self.path = path / folder_name
         self.for_anonymous = "anon" in folder_name
         self.for_geolocation = "geo" in folder_name
@@ -95,17 +94,17 @@ class ProxyScraperChecker:
     """HTTP, SOCKS4, SOCKS5 proxies scraper and checker."""
 
     __slots__ = (
-        "path",
         "all_folders",
+        "console",
         "enabled_folders",
-        "regex",
-        "sort_by_speed",
-        "timeout",
-        "sources",
-        "proxies",
+        "path",
         "proxies_count",
-        "c",
+        "proxies",
+        "regex",
         "sem",
+        "sort_by_speed",
+        "sources",
+        "timeout",
     )
 
     def __init__(
@@ -127,11 +126,15 @@ class ProxyScraperChecker:
         """HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
         Args:
-            timeout: How many seconds to wait for the connection.
-            max_connections: Maximum concurrent connections.
+            timeout: How many seconds to wait for the connection. The
+                higher the number, the longer the check will take and
+                the more proxies you get.
+            max_connections: Maximum concurrent connections. Don't set
+                higher than 900, please.
             sort_by_speed: Set to False to sort proxies alphabetically.
-            save_path: Path to the folder where the proxy folders will be
-                saved.
+            save_path: Path to the folder where the proxy folders will
+                be saved. Leave empty to save the proxies to the current
+                directory.
         """
         self.path = Path(save_path)
         folders_mapping = {
@@ -141,12 +144,12 @@ class ProxyScraperChecker:
             "proxies_geolocation_anonymous": proxies_geolocation_anonymous,
         }
         self.all_folders = tuple(
-            Folder(folder_name, self.path) for folder_name in folders_mapping
+            Folder(self.path, folder_name) for folder_name in folders_mapping
         )
         self.enabled_folders = tuple(
             folder
             for folder in self.all_folders
-            if folders_mapping[folder.folder_name]
+            if folders_mapping[folder.path.name]
         )
         if not self.enabled_folders:
             raise ValueError("all folders are disabled in the config")
@@ -184,7 +187,7 @@ class ProxyScraperChecker:
             proto: set() for proto in self.sources
         }
         self.proxies_count = {proto: 0 for proto in self.sources}
-        self.c = console or Console()
+        self.console = console or Console()
         self.sem = asyncio.Semaphore(max_connections)
 
     async def fetch_source(
@@ -206,7 +209,7 @@ class ProxyScraperChecker:
             async with session.get(source, timeout=15) as r:
                 text = await r.text()
         except Exception as e:
-            self.c.print(f"{source}: {e}")
+            self.console.print(f"Error when fetching {source}: {e}")
         else:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
@@ -214,7 +217,7 @@ class ProxyScraperChecker:
                     p = Proxy(proxy.group(1), proxy.group(2))
                     self.proxies[proto].add(p)
             else:
-                self.c.print(f"No proxies found on {source}")
+                self.console.print(f"No proxies found on {source}")
         progress.update(task, advance=1)
 
     async def check_proxy(
@@ -228,15 +231,14 @@ class ProxyScraperChecker:
                 start = perf_counter()
                 async with ClientSession(connector=connector) as session:
                     async with session.get(
-                        "http://ip-api.com/json/", timeout=self.timeout
+                        "http://ip-api.com/json/?fields=8217",
+                        timeout=self.timeout,
                     ) as r:
-                        res = (
-                            None if r.status in {404, 429} else await r.json()
-                        )
+                        res = await r.json() if r.status == 200 else None
         except Exception as e:
             # Too many open files
             if isinstance(e, OSError) and e.errno == 24:
-                self.c.print(
+                self.console.print(
                     "[red]Please, set MAX_CONNECTIONS to lower value."
                 )
 
@@ -247,51 +249,49 @@ class ProxyScraperChecker:
                 proxy.update(res)
         progress.update(task, advance=1)
 
-    async def fetch_all_sources(self) -> None:
-        with self._progress as progress:
-            tasks = {
-                proto: progress.add_task(
-                    f"[yellow]Scraper [red]:: [green]{proto.upper()}",
-                    total=len(sources),
+    async def fetch_all_sources(self, progress: Progress) -> None:
+        tasks = {
+            proto: progress.add_task(
+                f"[yellow]Scraper [red]:: [green]{proto.upper()}",
+                total=len(sources),
+            )
+            for proto, sources in self.sources.items()
+        }
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; rv:102.0)"
+                + " Gecko/20100101 Firefox/102.0"
+            )
+        }
+        async with ClientSession(headers=headers) as session:
+            coroutines = (
+                self.fetch_source(
+                    session, source, proto, progress, tasks[proto]
                 )
                 for proto, sources in self.sources.items()
-            }
-            headers = {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; rv:102.0)"
-                    + " Gecko/20100101 Firefox/102.0"
-                )
-            }
-            async with ClientSession(headers=headers) as session:
-                coroutines = (
-                    self.fetch_source(
-                        session, source, proto, progress, tasks[proto]
-                    )
-                    for proto, sources in self.sources.items()
-                    for source in sources
-                )
-                await asyncio.gather(*coroutines)
+                for source in sources
+            )
+            await asyncio.gather(*coroutines)
 
         # Remember total count so we could print it in the table
         for proto, proxies in self.proxies.items():
             self.proxies_count[proto] = len(proxies)
 
-    async def check_all_proxies(self) -> None:
-        with self._progress as progress:
-            tasks = {
-                proto: progress.add_task(
-                    f"[yellow]Checker [red]:: [green]{proto.upper()}",
-                    total=len(proxies),
-                )
-                for proto, proxies in self.proxies.items()
-            }
-            coroutines = [
-                self.check_proxy(proxy, proto, progress, tasks[proto])
-                for proto, proxies in self.proxies.items()
-                for proxy in proxies
-            ]
-            shuffle(coroutines)
-            await asyncio.gather(*coroutines)
+    async def check_all_proxies(self, progress: Progress) -> None:
+        tasks = {
+            proto: progress.add_task(
+                f"[yellow]Checker [red]:: [green]{proto.upper()}",
+                total=len(proxies),
+            )
+            for proto, proxies in self.proxies.items()
+        }
+        coroutines = [
+            self.check_proxy(proxy, proto, progress, tasks[proto])
+            for proto, proxies in self.proxies.items()
+            for proxy in proxies
+        ]
+        shuffle(coroutines)
+        await asyncio.gather(*coroutines)
 
     def save_proxies(self) -> None:
         """Delete old proxies and save new ones."""
@@ -313,8 +313,9 @@ class ProxyScraperChecker:
                 file.write_text(text, encoding="utf-8")
 
     async def main(self) -> None:
-        await self.fetch_all_sources()
-        await self.check_all_proxies()
+        with self._progress as progress:
+            await self.fetch_all_sources(progress)
+            await self.check_all_proxies(progress)
 
         table = Table()
         table.add_column("Protocol", style="cyan")
@@ -327,10 +328,10 @@ class ProxyScraperChecker:
             table.add_row(
                 proto.upper(), f"{working} ({percentage:.1f}%)", str(total)
             )
-        self.c.print(table)
+        self.console.print(table)
 
         self.save_proxies()
-        self.c.print(
+        self.console.print(
             "[green]Proxy folders have been created in the "
             + f"{self.path.absolute()} folder."
             + "\nThank you for using proxy-scraper-checker :)"
@@ -338,9 +339,9 @@ class ProxyScraperChecker:
 
     @property
     def sorted_proxies(self) -> dict[str, list[Proxy]]:
-        key: (
-            Callable[[Proxy], float] | Callable[[Proxy], tuple[int, ...]]
-        ) = (speed_sorting_key if self.sort_by_speed else alphabet_sorting_key)
+        key: Callable[[Proxy], float] | Callable[[Proxy], tuple[int, ...]] = (
+            speed_sorting_key if self.sort_by_speed else alphabet_sorting_key
+        )
         return {
             proto: sorted(proxies, key=key)
             for proto, proxies in self.proxies.items()
@@ -354,7 +355,7 @@ class ProxyScraperChecker:
             TextColumn("[progress.percentage]{task.percentage:3.0f}%"),
             TextColumn("[blue][{task.completed}/{task.total}]"),
             TimeRemainingColumn(compact=True),
-            console=self.c,
+            console=self.console,
         )
 
 

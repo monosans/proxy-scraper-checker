@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-07-11
+
+- Many minor improvements.
+
 ## 2022-07-07
 
 - Add `User-Agent` header when fetching sources.

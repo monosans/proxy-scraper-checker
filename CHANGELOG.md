@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-07-16
+
+- Remove broken sources.
+
 ## 2022-07-11
 
 - Many minor improvements.

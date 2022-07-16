@@ -3,6 +3,7 @@
 ## 2022-07-16
 
 - Remove broken sources.
+- Improve errors output.
 
 ## 2022-07-11
 

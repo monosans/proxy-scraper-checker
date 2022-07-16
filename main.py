@@ -207,9 +207,10 @@ class ProxyScraperChecker:
         source = source.strip()
         try:
             async with session.get(source, timeout=15) as r:
+                status = r.status
                 text = await r.text()
-        except Exception as e:
-            self.console.print(f"Error when fetching {source}: {e}")
+        except Exception:
+            self.console.print(f"{source} - error")
         else:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
@@ -217,7 +218,10 @@ class ProxyScraperChecker:
                     p = Proxy(proxy.group(1), proxy.group(2))
                     self.proxies[proto].add(p)
             else:
-                self.console.print(f"No proxies found on {source}")
+                msg = f"{source} - no proxies found"
+                if status != 200:
+                    msg += f" (status code {status})"
+                self.console.print(msg)
         progress.update(task, advance=1)
 
     async def check_proxy(

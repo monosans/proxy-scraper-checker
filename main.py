@@ -337,7 +337,7 @@ class ProxyScraperChecker:
         self.save_proxies()
         self.console.print(
             "[green]Proxy folders have been created in the "
-            + f"{self.path.absolute()} folder."
+            + f"{self.path.resolve()} folder."
             + "\nThank you for using proxy-scraper-checker :)"
         )
 

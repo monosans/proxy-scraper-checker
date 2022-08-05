@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-08-05
+
+- Add more sources.
+
 ## 2022-07-16
 
 - Remove broken sources.

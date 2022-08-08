@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-08-08
+
+- Improve errors output.
+
 ## 2022-08-05
 
 - Add more sources.

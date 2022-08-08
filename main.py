@@ -43,17 +43,17 @@ class Proxy:
         self.geolocation = "|?|?|?"
         self.timeout = float("inf")
 
-    def update(self, info: Mapping[str, str]) -> None:
+    def update(self, data: Mapping[str, str]) -> None:
         """Set geolocation and is_anonymous.
 
         Args:
-            info: Response from ip-api.com.
+            data: Response from ip-api.com.
         """
-        country = info.get("country") or "?"
-        region = info.get("regionName") or "?"
-        city = info.get("city") or "?"
+        country = data.get("country") or "?"
+        region = data.get("regionName") or "?"
+        city = data.get("city") or "?"
         self.geolocation = f"|{country}|{region}|{city}"
-        self.is_anonymous = self.ip != info.get("query")
+        self.is_anonymous = self.ip != data.get("query")
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Proxy):
@@ -206,21 +206,25 @@ class ProxyScraperChecker:
         """
         source = source.strip()
         try:
-            async with session.get(source, timeout=15) as r:
-                status = r.status
-                text = await r.text()
-        except Exception:
-            self.console.print(f"{source} - error")
+            async with session.get(source, timeout=15) as response:
+                status = response.status
+                text = await response.text()
+        except Exception as e:
+            msg = f"{source} | Error"
+            exc_str = str(e)
+            if exc_str and exc_str != source:
+                msg += f": {exc_str}"
+            self.console.print(msg)
         else:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
                 for proxy in proxies:
-                    p = Proxy(proxy.group(1), proxy.group(2))
-                    self.proxies[proto].add(p)
+                    proxy_obj = Proxy(proxy.group(1), proxy.group(2))
+                    self.proxies[proto].add(proxy_obj)
             else:
-                msg = f"{source} - no proxies found"
+                msg = f"{source} | No proxies found"
                 if status != 200:
-                    msg += f" (status code {status})"
+                    msg += f" | Status code {status}"
                 self.console.print(msg)
         progress.update(task, advance=1)
 
@@ -237,8 +241,12 @@ class ProxyScraperChecker:
                     async with session.get(
                         "http://ip-api.com/json/?fields=8217",
                         timeout=self.timeout,
-                    ) as r:
-                        res = await r.json() if r.status == 200 else None
+                    ) as response:
+                        data = (
+                            await response.json()
+                            if response.status == 200
+                            else None
+                        )
         except Exception as e:
             # Too many open files
             if isinstance(e, OSError) and e.errno == 24:
@@ -249,8 +257,8 @@ class ProxyScraperChecker:
             self.proxies[proto].remove(proxy)
         else:
             proxy.timeout = perf_counter() - start
-            if res:
-                proxy.update(res)
+            if data:
+                proxy.update(data)
         progress.update(task, advance=1)
 
     async def fetch_all_sources(self, progress: Progress) -> None:

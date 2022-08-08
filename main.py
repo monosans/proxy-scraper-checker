@@ -306,10 +306,9 @@ class ProxyScraperChecker:
             folder.create()
             for proto, proxies in sorted_proxies:
                 text = "\n".join(
-                    "{}{}".format(
-                        proxy.socket_address,
-                        proxy.geolocation if folder.for_geolocation else "",
-                    )
+                    proxy.socket_address + proxy.geolocation
+                    if folder.for_geolocation
+                    else proxy.socket_address
                     for proxy in proxies
                     if (proxy.is_anonymous if folder.for_anonymous else True)
                 )

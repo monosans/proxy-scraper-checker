@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import sys
 from configparser import ConfigParser
 from pathlib import Path
 from random import shuffle
@@ -374,7 +375,7 @@ async def main() -> None:
     cfg = ConfigParser(interpolation=None)
     cfg.read("config.ini", encoding="utf-8")
     general = cfg["General"]
-    folders = cfg["Folders"].getboolean
+    folders = cfg["Folders"]
     http = cfg["HTTP"]
     socks4 = cfg["SOCKS4"]
     socks5 = cfg["SOCKS5"]
@@ -383,10 +384,10 @@ async def main() -> None:
         max_connections=general.getint("MaxConnections", 900),
         sort_by_speed=general.getboolean("SortBySpeed", True),
         save_path=general.get("SavePath", ""),
-        proxies=folders("proxies", True),
-        proxies_anonymous=folders("proxies_anonymous", True),
-        proxies_geolocation=folders("proxies_geolocation", True),
-        proxies_geolocation_anonymous=folders(
+        proxies=folders.getboolean("proxies", True),
+        proxies_anonymous=folders.getboolean("proxies_anonymous", True),
+        proxies_geolocation=folders.getboolean("proxies_geolocation", True),
+        proxies_geolocation_anonymous=folders.getboolean(
             "proxies_geolocation_anonymous", True
         ),
         http_sources=http.get("Sources")
@@ -402,10 +403,14 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    try:
-        import uvloop
-    except ImportError:
-        pass
-    else:
-        uvloop.install()
+    if sys.implementation.name == "cpython" and sys.platform in {
+        "darwin",
+        "linux",
+    }:
+        try:
+            import uvloop
+        except ImportError:
+            pass
+        else:
+            uvloop.install()
     asyncio.run(main())

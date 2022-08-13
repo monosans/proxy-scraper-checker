@@ -8,7 +8,7 @@ from pathlib import Path
 from random import shuffle
 from shutil import rmtree
 from time import perf_counter
-from typing import Callable, Mapping
+from typing import Callable, Dict, List, Mapping, Optional, Set, Tuple, Union
 
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
@@ -39,7 +39,7 @@ class Proxy:
         """
         self.socket_address = socket_address
         self.ip = ip
-        self.is_anonymous: bool | None = None
+        self.is_anonymous: Optional[bool] = None
         self.geolocation = "|?|?|?"
         self.timeout = float("inf")
 
@@ -86,7 +86,7 @@ def speed_sorting_key(proxy: Proxy) -> float:
     return proxy.timeout
 
 
-def alphabet_sorting_key(proxy: Proxy) -> tuple[int, ...]:
+def alphabet_sorting_key(proxy: Proxy) -> Tuple[int, ...]:
     return tuple(map(int, proxy.socket_address.replace(":", ".").split(".")))
 
 
@@ -118,10 +118,10 @@ class ProxyScraperChecker:
         proxies_anonymous: bool,
         proxies_geolocation: bool,
         proxies_geolocation_anonymous: bool,
-        http_sources: str | None,
-        socks4_sources: str | None,
-        socks5_sources: str | None,
-        console: Console | None = None,
+        http_sources: Optional[str],
+        socks4_sources: Optional[str],
+        socks5_sources: Optional[str],
+        console: Optional[Console] = None,
     ) -> None:
         """HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
@@ -183,7 +183,7 @@ class ProxyScraperChecker:
             )
             if sources
         }
-        self.proxies: dict[str, set[Proxy]] = {
+        self.proxies: Dict[str, Set[Proxy]] = {
             proto: set() for proto in self.sources
         }
         self.proxies_count = {proto: 0 for proto in self.sources}
@@ -349,10 +349,10 @@ class ProxyScraperChecker:
         )
 
     @property
-    def sorted_proxies(self) -> dict[str, list[Proxy]]:
-        key: Callable[[Proxy], float] | Callable[[Proxy], tuple[int, ...]] = (
-            speed_sorting_key if self.sort_by_speed else alphabet_sorting_key
-        )
+    def sorted_proxies(self) -> Dict[str, List[Proxy]]:
+        key: Union[
+            Callable[[Proxy], float], Callable[[Proxy], Tuple[int, ...]]
+        ] = (speed_sorting_key if self.sort_by_speed else alphabet_sorting_key)
         return {
             proto: sorted(proxies, key=key)
             for proto, proxies in self.proxies.items()

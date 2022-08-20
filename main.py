@@ -54,7 +54,10 @@ class Proxy:
         region = data.get("regionName") or "?"
         city = data.get("city") or "?"
         self.geolocation = f"|{country}|{region}|{city}"
-        self.is_anonymous = self.ip != data.get("query")
+
+        query = data.get("query")
+        if query:
+            self.is_anonymous = self.ip != query
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Proxy):

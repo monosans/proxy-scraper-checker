@@ -2,7 +2,8 @@
 
 ## 2022-08-20
 
-- Treat proxy as non-working if status code >= 400
+- Treat proxy as non-working if status code >= 400.
+- Fix a theoretically possible bug when checking for anonymity.
 
 ## 2022-08-08
 

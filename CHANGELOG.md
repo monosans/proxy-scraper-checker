@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-08-20
+
+- Treat proxy as non-working if status code >= 400
+
 ## 2022-08-08
 
 - Improve errors output.

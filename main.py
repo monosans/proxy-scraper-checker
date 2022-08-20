@@ -236,18 +236,15 @@ class ProxyScraperChecker:
         try:
             async with self.sem:
                 proxy_url = f"{proto}://{proxy.socket_address}"
-                connector = ProxyConnector.from_url(proxy_url)
                 start = perf_counter()
-                async with ClientSession(connector=connector) as session:
-                    async with session.get(
-                        "http://ip-api.com/json/?fields=8217",
-                        timeout=self.timeout,
-                    ) as response:
-                        data = (
-                            await response.json()
-                            if response.status == 200
-                            else None
-                        )
+                async with ProxyConnector.from_url(proxy_url) as connector:
+                    async with ClientSession(connector=connector) as session:
+                        async with session.get(
+                            "http://ip-api.com/json/?fields=8217",
+                            timeout=self.timeout,
+                            raise_for_status=True,
+                        ) as response:
+                            data = await response.json()
         except Exception as e:
             # Too many open files
             if isinstance(e, OSError) and e.errno == 24:
@@ -258,8 +255,7 @@ class ProxyScraperChecker:
             self.proxies[proto].remove(proxy)
         else:
             proxy.timeout = perf_counter() - start
-            if data:
-                proxy.update(data)
+            proxy.update(data)
         progress.update(task, advance=1)
 
     async def fetch_all_sources(self, progress: Progress) -> None:

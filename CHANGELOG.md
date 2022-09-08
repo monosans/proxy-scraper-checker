@@ -3,6 +3,7 @@
 ## 2022-09-08
 
 - Make Proxy hashing faster.
+- Remove the ineffective source.
 
 ## 2022-08-23
 

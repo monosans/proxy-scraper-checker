@@ -65,7 +65,7 @@ class Proxy:
         return self.socket_address == other.socket_address
 
     def __hash__(self) -> int:
-        return hash(("socket_address", self.socket_address))
+        return hash(self.socket_address)
 
 
 class Folder:

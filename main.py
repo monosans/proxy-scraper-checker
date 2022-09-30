@@ -86,11 +86,11 @@ class Folder:
         self.path.mkdir(parents=True, exist_ok=True)
 
 
-def speed_sorting_key(proxy: Proxy) -> float:
+def timeout_sort_key(proxy: Proxy) -> float:
     return proxy.timeout
 
 
-def alphabet_sorting_key(proxy: Proxy) -> Tuple[int, ...]:
+def natural_sort_key(proxy: Proxy) -> Tuple[int, ...]:
     return tuple(map(int, proxy.socket_address.replace(":", ".").split(".")))
 
 
@@ -352,7 +352,7 @@ class ProxyScraperChecker:
     def sorted_proxies(self) -> Dict[str, List[Proxy]]:
         key: Union[
             Callable[[Proxy], float], Callable[[Proxy], Tuple[int, ...]]
-        ] = (speed_sorting_key if self.sort_by_speed else alphabet_sorting_key)
+        ] = (timeout_sort_key if self.sort_by_speed else natural_sort_key)
         return {
             proto: sorted(proxies, key=key)
             for proto, proxies in self.proxies.items()

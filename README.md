@@ -15,9 +15,9 @@ You can get proxies obtained using this script in [monosans/proxy-list](https://
 
 ## Installation and usage
 
-- Install [Python](https://python.org/downloads) (Windows 7 requires Python 3.8.X). During installation, be sure to check the box `Add Python to PATH`.
 - Download and unpack [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
 - Edit `config.ini` according to your preference.
+- Install [Python](https://python.org/downloads) (Windows 7 requires Python 3.8.X). During installation, be sure to check the box `Add Python to PATH`.
 - Install dependencies and run the script. There are 2 ways to do this:
   - Automatic:
     - On Windows run `start.cmd`

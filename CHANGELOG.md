@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-10-17
+
+- Remove useless source.
+
 ## 2022-09-10
 
 - Add more sources.

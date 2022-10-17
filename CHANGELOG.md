@@ -2,6 +2,7 @@
 
 ## 2022-10-17
 
+- Treat a proxy as invalid if ip-api returns an invalid response.
 - Remove useless source.
 
 ## 2022-09-10

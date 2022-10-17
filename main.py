@@ -26,12 +26,13 @@ from rich.table import Table
 
 class Proxy:
     __slots__ = (
-        "socket_address",
+        "geolocation",
         "ip",
         "is_anonymous",
-        "geolocation",
+        "socket_address",
         "timeout",
     )
+    timeout: float
 
     def __init__(self, socket_address: str, ip: str) -> None:
         """
@@ -40,9 +41,6 @@ class Proxy:
         """
         self.socket_address = socket_address
         self.ip = ip
-        self.is_anonymous: Optional[bool] = None
-        self.geolocation = "|?|?|?"
-        self.timeout = float("inf")
 
     def update(self, data: Mapping[str, str]) -> None:
         """Set geolocation and is_anonymous.
@@ -50,14 +48,10 @@ class Proxy:
         Args:
             data: Response from ip-api.com.
         """
-        country = data.get("country") or "?"
-        region = data.get("regionName") or "?"
-        city = data.get("city") or "?"
-        self.geolocation = f"|{country}|{region}|{city}"
-
-        query = data.get("query")
-        if query:
-            self.is_anonymous = self.ip != query
+        self.is_anonymous = self.ip != data["query"]
+        self.geolocation = "|{}|{}|{}".format(
+            data["country"], data["regionName"], data["city"]
+        )
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Proxy):
@@ -69,7 +63,7 @@ class Proxy:
 
 
 class Folder:
-    __slots__ = ("path", "for_anonymous", "for_geolocation")
+    __slots__ = ("for_anonymous", "for_geolocation", "path")
 
     def __init__(self, path: Path, folder_name: str) -> None:
         self.path = path / folder_name
@@ -248,6 +242,8 @@ class ProxyScraperChecker:
                             raise_for_status=True,
                         ) as response:
                             data = await response.json()
+            proxy.timeout = perf_counter() - start
+            proxy.update(data)
         except Exception as e:
             # Too many open files
             if isinstance(e, OSError) and e.errno == 24:
@@ -256,9 +252,6 @@ class ProxyScraperChecker:
                 )
 
             self.proxies[proto].remove(proxy)
-        else:
-            proxy.timeout = perf_counter() - start
-            proxy.update(data)
         progress.update(task, advance=1)
 
     async def fetch_all_sources(self, progress: Progress) -> None:

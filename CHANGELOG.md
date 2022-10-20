@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-10-20
+
+- Refactor progress bar.
+
 ## 2022-10-17
 
 - Treat a proxy as invalid if ip-api returns an invalid response.

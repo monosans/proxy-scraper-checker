@@ -16,10 +16,11 @@ from aiohttp_socks import ProxyConnector
 from rich.console import Console
 from rich.progress import (
     BarColumn,
+    MofNCompleteColumn,
     Progress,
     TaskID,
+    TaskProgressColumn,
     TextColumn,
-    TimeRemainingColumn,
 )
 from rich.table import Table
 
@@ -356,9 +357,8 @@ class ProxyScraperChecker:
         return Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:3.0f}%"),
-            TextColumn("[blue][{task.completed}/{task.total}]"),
-            TimeRemainingColumn(compact=True),
+            TaskProgressColumn(),
+            MofNCompleteColumn(),
             console=self.console,
         )
 

@@ -3,6 +3,7 @@
 ## 2022-10-20
 
 - Refactor progress bar.
+- Update User Agent.
 
 ## 2022-10-17
 

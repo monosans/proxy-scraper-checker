@@ -9,7 +9,7 @@ from pathlib import Path
 from random import shuffle
 from shutil import rmtree
 from time import perf_counter
-from typing import Callable, Dict, List, Mapping, Optional, Set, Tuple, Union
+from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
@@ -33,7 +33,6 @@ class Proxy:
         "socket_address",
         "timeout",
     )
-    timeout: float
 
     def __init__(self, socket_address: str, ip: str) -> None:
         """
@@ -43,12 +42,21 @@ class Proxy:
         self.socket_address = socket_address
         self.ip = ip
 
-    def update(self, data: Mapping[str, str]) -> None:
-        """Set geolocation and is_anonymous.
-
-        Args:
-            data: Response from ip-api.com.
-        """
+    async def check(
+        self, sem: asyncio.Semaphore, proto: str, timeout: float
+    ) -> None:
+        async with sem:
+            proxy_url = f"{proto}://{self.socket_address}"
+            start = perf_counter()
+            async with ProxyConnector.from_url(proxy_url) as connector:
+                async with ClientSession(connector=connector) as session:
+                    async with session.get(
+                        "http://ip-api.com/json/?fields=8217",
+                        timeout=timeout,
+                        raise_for_status=True,
+                    ) as response:
+                        data = await response.json()
+        self.timeout = perf_counter() - start
         self.is_anonymous = self.ip != data["query"]
         self.geolocation = "|{}|{}|{}".format(
             data["country"], data["regionName"], data["city"]
@@ -153,7 +161,7 @@ class ProxyScraperChecker:
         if not self.enabled_folders:
             raise ValueError("all folders are disabled in the config")
 
-        regex = (
+        self.regex = re.compile(
             r"(?:^|\D)?(("
             + r"(?:[1-9]|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 1-255
             + r"\."
@@ -169,7 +177,6 @@ class ProxyScraperChecker:
             )  # 0-65535
             + r")(?:\D|$)"
         )
-        self.regex = re.compile(regex)
 
         self.sort_by_speed = sort_by_speed
         self.timeout = timeout
@@ -232,19 +239,7 @@ class ProxyScraperChecker:
     ) -> None:
         """Check if proxy is alive."""
         try:
-            async with self.sem:
-                proxy_url = f"{proto}://{proxy.socket_address}"
-                start = perf_counter()
-                async with ProxyConnector.from_url(proxy_url) as connector:
-                    async with ClientSession(connector=connector) as session:
-                        async with session.get(
-                            "http://ip-api.com/json/?fields=8217",
-                            timeout=self.timeout,
-                            raise_for_status=True,
-                        ) as response:
-                            data = await response.json()
-            proxy.timeout = perf_counter() - start
-            proxy.update(data)
+            await proxy.check(self.sem, proto, self.timeout)
         except Exception as e:
             # Too many open files
             if isinstance(e, OSError) and e.errno == 24:

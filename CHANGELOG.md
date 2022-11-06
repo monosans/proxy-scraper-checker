@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2022-11-06
+
+- Add more sources.
+
 ## 2022-10-20
 
 - Refactor progress bar.

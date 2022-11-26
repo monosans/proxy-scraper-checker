@@ -357,6 +357,11 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+### Python Patch ###
+# Poetry local configuration file - https://python-poetry.org/docs/configuration/#local-configuration
+poetry.toml
+
+
 ### SublimeText ###
 # Cache files for Sublime Text
 *.tmlanguage.cache

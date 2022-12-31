@@ -34,7 +34,7 @@ class Proxy:
         "timeout",
     )
 
-    def __init__(self, socket_address: str, ip: str) -> None:
+    def __init__(self, *, socket_address: str, ip: str) -> None:
         """
         Args:
             socket_address: ip:port
@@ -43,7 +43,7 @@ class Proxy:
         self.ip = ip
 
     async def check(
-        self, sem: asyncio.Semaphore, proto: str, timeout: float
+        self, *, sem: asyncio.Semaphore, proto: str, timeout: float
     ) -> None:
         async with sem:
             proxy_url = f"{proto}://{self.socket_address}"
@@ -74,7 +74,7 @@ class Proxy:
 class Folder:
     __slots__ = ("for_anonymous", "for_geolocation", "path")
 
-    def __init__(self, path: Path, folder_name: str) -> None:
+    def __init__(self, *, path: Path, folder_name: str) -> None:
         self.path = path / folder_name
         self.for_anonymous = "anon" in folder_name
         self.for_geolocation = "geo" in folder_name
@@ -151,7 +151,8 @@ class ProxyScraperChecker:
             "proxies_geolocation_anonymous": proxies_geolocation_anonymous,
         }
         self.all_folders = tuple(
-            Folder(self.path, folder_name) for folder_name in folders_mapping
+            Folder(path=self.path, folder_name=folder_name)
+            for folder_name in folders_mapping
         )
         self.enabled_folders = tuple(
             folder
@@ -198,6 +199,7 @@ class ProxyScraperChecker:
 
     async def fetch_source(
         self,
+        *,
         session: ClientSession,
         source: str,
         proto: str,
@@ -225,7 +227,9 @@ class ProxyScraperChecker:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
                 for proxy in proxies:
-                    proxy_obj = Proxy(proxy.group(1), proxy.group(2))
+                    proxy_obj = Proxy(
+                        socket_address=proxy.group(1), ip=proxy.group(2)
+                    )
                     self.proxies[proto].add(proxy_obj)
             else:
                 msg = f"{source} | No proxies found"
@@ -235,11 +239,11 @@ class ProxyScraperChecker:
         progress.update(task, advance=1)
 
     async def check_proxy(
-        self, proxy: Proxy, proto: str, progress: Progress, task: TaskID
+        self, *, proxy: Proxy, proto: str, progress: Progress, task: TaskID
     ) -> None:
         """Check if proxy is alive."""
         try:
-            await proxy.check(self.sem, proto, self.timeout)
+            await proxy.check(sem=self.sem, proto=proto, timeout=self.timeout)
         except Exception as e:
             # Too many open files
             if isinstance(e, OSError) and e.errno == 24:
@@ -267,7 +271,11 @@ class ProxyScraperChecker:
         async with ClientSession(headers=headers) as session:
             coroutines = (
                 self.fetch_source(
-                    session, source, proto, progress, tasks[proto]
+                    session=session,
+                    source=source,
+                    proto=proto,
+                    progress=progress,
+                    task=tasks[proto],
                 )
                 for proto, sources in self.sources.items()
                 for source in sources
@@ -287,7 +295,9 @@ class ProxyScraperChecker:
             for proto, proxies in self.proxies.items()
         }
         coroutines = [
-            self.check_proxy(proxy, proto, progress, tasks[proto])
+            self.check_proxy(
+                proxy=proxy, proto=proto, progress=progress, task=tasks[proto]
+            )
             for proto, proxies in self.proxies.items()
             for proxy in proxies
         ]

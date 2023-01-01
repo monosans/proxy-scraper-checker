@@ -200,11 +200,7 @@ class ProxyScraperChecker:
                 status = response.status
                 text = await response.text()
         except Exception as e:
-            msg = source
-            exc_str = str(e)
-            if exc_str and exc_str != source:
-                msg += f": {exc_str}"
-            logger.error(msg)
+            logger.error("%s | %s | %s", source, e.__class__.__name__, e)
         else:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
@@ -214,10 +210,11 @@ class ProxyScraperChecker:
                     )
                     self.proxies[proto].add(proxy_obj)
             else:
-                msg = f"{source} | No proxies found"
-                if status != 200:
-                    msg += f" | Status code {status}"
-                logger.warning(msg)
+                logger.warning(
+                    "%s | No proxies found | HTTP status code %d",
+                    source,
+                    status,
+                )
         progress.update(task, advance=1)
 
     async def check_proxy(
@@ -229,7 +226,7 @@ class ProxyScraperChecker:
         except Exception as e:
             # Too many open files
             if isinstance(e, OSError) and e.errno == 24:
-                logging.error("Please, set MAX_CONNECTIONS to lower value.")
+                logging.error("Please, set MaxConnections to lower value.")
 
             self.proxies[proto].remove(proxy)
         progress.update(task, advance=1)

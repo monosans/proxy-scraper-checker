@@ -200,7 +200,7 @@ class ProxyScraperChecker:
                 status = response.status
                 text = await response.text()
         except Exception as e:
-            logger.error("%s | %s | %s", source, e.__class__.__name__, e)
+            logger.error("%s | %s | %s", source, e.__class__.__qualname__, e)
         else:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
@@ -335,9 +335,9 @@ class ProxyScraperChecker:
         for proto, proxies in self.proxies.items():
             working = len(proxies)
             total = self.proxies_count[proto]
-            percentage = working / total * 100 if total else 0
+            percentage = working / total if total else 0
             table.add_row(
-                proto.upper(), f"{working} ({percentage:.1f}%)", str(total)
+                proto.upper(), f"{working} ({percentage:.1%})", str(total)
             )
         return table
 

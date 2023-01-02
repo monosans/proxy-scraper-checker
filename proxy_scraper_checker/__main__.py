@@ -29,9 +29,13 @@ def configure_logging(console: Console) -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
         handlers=(
             RichHandler(
-                console=console, show_path=False, rich_tracebacks=True
+                console=console,
+                omit_repeated_times=False,
+                show_path=False,
+                rich_tracebacks=True,
             ),
         ),
     )

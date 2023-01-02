@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Hashable
 from time import perf_counter
 
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
 
 
-class Proxy:
+class Proxy(Hashable):
     __slots__ = (
         "geolocation",
         "ip",

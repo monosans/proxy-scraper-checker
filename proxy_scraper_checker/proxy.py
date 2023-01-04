@@ -4,6 +4,7 @@ import asyncio
 from time import perf_counter
 
 from aiohttp import ClientSession
+from aiohttp.abc import AbstractCookieJar
 from aiohttp_socks import ProxyConnector, ProxyType
 
 
@@ -15,12 +16,19 @@ class Proxy:
         self.port = port
 
     async def check(
-        self, *, sem: asyncio.Semaphore, proto: str, timeout: float
+        self,
+        *,
+        sem: asyncio.Semaphore,
+        cookie_jar: AbstractCookieJar,
+        proto: str,
+        timeout: float,
     ) -> None:
         async with sem:
             start = perf_counter()
             async with self.get_connector(proto) as connector:
-                async with ClientSession(connector=connector) as session:
+                async with ClientSession(
+                    connector=connector, cookie_jar=cookie_jar
+                ) as session:
                     async with session.get(
                         "http://ip-api.com/json/?fields=8217",
                         timeout=timeout,

@@ -18,7 +18,7 @@ from typing import (
     Union,
 )
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, DummyCookieJar
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -46,6 +46,7 @@ class ProxyScraperChecker:
     __slots__ = (
         "all_folders",
         "console",
+        "cookie_jar",
         "enabled_folders",
         "path",
         "proxies_count",
@@ -132,6 +133,7 @@ class ProxyScraperChecker:
             proto: set() for proto in self.sources
         }
         self.proxies_count = {proto: 0 for proto in self.sources}
+        self.cookie_jar = DummyCookieJar()
         self.console = console or Console()
         self.sem = asyncio.Semaphore(max_connections)
 
@@ -189,7 +191,6 @@ class ProxyScraperChecker:
             source: Proxy list URL.
             proto: HTTP/SOCKS4/SOCKS5.
         """
-        source = source.strip()
         try:
             async with session.get(source, timeout=15) as response:
                 status = response.status
@@ -217,11 +218,16 @@ class ProxyScraperChecker:
     ) -> None:
         """Check if proxy is alive."""
         try:
-            await proxy.check(sem=self.sem, proto=proto, timeout=self.timeout)
+            await proxy.check(
+                sem=self.sem,
+                cookie_jar=self.cookie_jar,
+                proto=proto,
+                timeout=self.timeout,
+            )
         except Exception as e:
             # Too many open files
             if isinstance(e, OSError) and e.errno == 24:
-                logging.error("Please, set MaxConnections to lower value.")
+                logger.error("Please, set MaxConnections to lower value.")
 
             self.proxies[proto].remove(proxy)
         progress.update(task, advance=1)
@@ -239,7 +245,9 @@ class ProxyScraperChecker:
                 + " Gecko/20100101 Firefox/108.0"
             )
         }
-        async with ClientSession(headers=headers) as session:
+        async with ClientSession(
+            headers=headers, cookie_jar=self.cookie_jar
+        ) as session:
             coroutines = (
                 self.fetch_source(
                     session=session,

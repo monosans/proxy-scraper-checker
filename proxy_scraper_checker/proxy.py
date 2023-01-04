@@ -4,33 +4,22 @@ import asyncio
 from time import perf_counter
 
 from aiohttp import ClientSession
-from aiohttp_socks import ProxyConnector
+from aiohttp_socks import ProxyConnector, ProxyType
 
 
 class Proxy:
-    __slots__ = (
-        "geolocation",
-        "ip",
-        "is_anonymous",
-        "socket_address",
-        "timeout",
-    )
+    __slots__ = ("geolocation", "host", "is_anonymous", "port", "timeout")
 
-    def __init__(self, *, socket_address: str, ip: str) -> None:
-        """
-        Args:
-            socket_address: ip:port
-        """
-        self.socket_address = socket_address
-        self.ip = ip
+    def __init__(self, *, host: str, port: int) -> None:
+        self.host = host
+        self.port = port
 
     async def check(
         self, *, sem: asyncio.Semaphore, proto: str, timeout: float
     ) -> None:
         async with sem:
-            proxy_url = f"{proto}://{self.socket_address}"
             start = perf_counter()
-            async with ProxyConnector.from_url(proxy_url) as connector:
+            async with self.get_connector(proto) as connector:
                 async with ClientSession(connector=connector) as session:
                     async with session.get(
                         "http://ip-api.com/json/?fields=8217",
@@ -39,15 +28,27 @@ class Proxy:
                     ) as response:
                         data = await response.json()
         self.timeout = perf_counter() - start
-        self.is_anonymous = self.ip != data["query"]
+        self.is_anonymous = self.host != data["query"]
         self.geolocation = "|{}|{}|{}".format(
             data["country"], data["regionName"], data["city"]
         )
 
+    def get_connector(self, proto: str) -> ProxyConnector:
+        return ProxyConnector(
+            proxy_type=getattr(ProxyType, proto),
+            host=self.host,
+            port=self.port,
+        )
+
+    def as_str(self, include_geolocation: bool) -> str:
+        if include_geolocation:
+            return f"{self.host}:{self.port}{self.geolocation}"
+        return f"{self.host}:{self.port}"
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Proxy):
             return NotImplemented
-        return self.socket_address == other.socket_address
+        return self.host == other.host and self.port == other.port
 
     def __hash__(self) -> int:
-        return hash(self.socket_address)
+        return hash((self.host, self.port))

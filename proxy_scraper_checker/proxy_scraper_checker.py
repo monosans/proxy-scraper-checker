@@ -107,7 +107,7 @@ class ProxyScraperChecker:
 
         self.regex = re.compile(
             r"(?:^|\D)?(("
-            + r"(?:[1-9]|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 1-255
+            + r"?:[1-9]|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 1-255
             + r"\."
             + r"(?:\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 0-255
             + r"\."
@@ -116,10 +116,10 @@ class ProxyScraperChecker:
             + r"(?:\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 0-255
             + r"):"
             + (
-                r"(?:\d|[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{3}"
+                r"(\d|[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{3}"
                 + r"|65[0-4]\d{2}|655[0-2]\d|6553[0-5])"
             )  # 0-65535
-            + r")(?:\D|$)"
+            + r"(?:\D|$)"
         )
 
         self.sort_by_speed = sort_by_speed
@@ -127,9 +127,9 @@ class ProxyScraperChecker:
         self.sources = {
             proto: frozenset(filter(None, sources.splitlines()))
             for proto, sources in (
-                ("http", http_sources),
-                ("socks4", socks4_sources),
-                ("socks5", socks5_sources),
+                ("HTTP", http_sources),
+                ("SOCKS4", socks4_sources),
+                ("SOCKS5", socks5_sources),
             )
             if sources
         }
@@ -192,7 +192,7 @@ class ProxyScraperChecker:
 
         Args:
             source: Proxy list URL.
-            proto: http/socks4/socks5.
+            proto: HTTP/SOCKS4/SOCKS5.
         """
         source = source.strip()
         try:
@@ -206,7 +206,7 @@ class ProxyScraperChecker:
             if proxies:
                 for proxy in proxies:
                     proxy_obj = Proxy(
-                        socket_address=proxy.group(1), ip=proxy.group(2)
+                        host=proxy.group(1), port=int(proxy.group(2))
                     )
                     self.proxies[proto].add(proxy_obj)
             else:
@@ -234,8 +234,7 @@ class ProxyScraperChecker:
     async def fetch_all_sources(self, progress: Progress) -> None:
         tasks = {
             proto: progress.add_task(
-                f"[yellow]Scraper [red]:: [green]{proto.upper()}",
-                total=len(sources),
+                f"[yellow]Scraper [red]:: [green]{proto}", total=len(sources)
             )
             for proto, sources in self.sources.items()
         }
@@ -266,8 +265,7 @@ class ProxyScraperChecker:
     async def check_all_proxies(self, progress: Progress) -> None:
         tasks = {
             proto: progress.add_task(
-                f"[yellow]Checker [red]:: [green]{proto.upper()}",
-                total=len(proxies),
+                f"[yellow]Checker [red]:: [green]{proto}", total=len(proxies)
             )
             for proto, proxies in self.proxies.items()
         }
@@ -290,13 +288,11 @@ class ProxyScraperChecker:
             folder.create()
             for proto, proxies in sorted_proxies:
                 text = "\n".join(
-                    proxy.socket_address + proxy.geolocation
-                    if folder.for_geolocation
-                    else proxy.socket_address
+                    proxy.as_str(include_geolocation=folder.for_geolocation)
                     for proxy in proxies
                     if (proxy.is_anonymous if folder.for_anonymous else True)
                 )
-                file = folder.path / f"{proto}.txt"
+                file = folder.path / f"{proto.lower()}.txt"
                 file.write_text(text, encoding="utf-8")
 
     async def run(self) -> None:
@@ -336,9 +332,7 @@ class ProxyScraperChecker:
             working = len(proxies)
             total = self.proxies_count[proto]
             percentage = working / total if total else 0
-            table.add_row(
-                proto.upper(), f"{working} ({percentage:.1%})", str(total)
-            )
+            table.add_row(proto, f"{working} ({percentage:.1%})", str(total))
         return table
 
     def _get_progress_bar(self) -> Progress:

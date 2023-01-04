@@ -10,4 +10,4 @@ def timeout_sort_key(proxy: Proxy) -> float:
 
 
 def natural_sort_key(proxy: Proxy) -> Tuple[int, ...]:
-    return tuple(map(int, proxy.socket_address.replace(":", ".").split(".")))
+    return (*map(int, proxy.host.split(".")), proxy.port)

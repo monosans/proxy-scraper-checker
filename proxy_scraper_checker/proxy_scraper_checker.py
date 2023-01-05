@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import resource
 import sys
 from configparser import ConfigParser
 from pathlib import Path
@@ -44,6 +43,8 @@ TProxyScraperChecker = TypeVar(
 
 def validate_max_connections(value: int) -> int:
     if sys.platform != "win32":
+        import resource
+
         soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
         if soft_limit < hard_limit:
             resource.setrlimit(

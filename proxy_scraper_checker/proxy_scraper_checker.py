@@ -99,11 +99,13 @@ class ProxyScraperChecker:
         """HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
         Args:
-            timeout: How many seconds to wait for the connection. The
-                higher the number, the longer the check will take and
-                the more proxies you get.
-            max_connections: Maximum concurrent connections. Don't set
-                higher than 900, please.
+            timeout: How many seconds to wait for the proxy to make a
+                connection. The higher the number, the longer the check will
+                take and the more proxies you get.
+            max_connections: Maximum concurrent connections.
+                Windows supports maximum of 512.
+                On *nix operating systems, this restriction is much looser.
+                The limit on *nix can be seen with the command ulimit -Hn.
             sort_by_speed: Set to False to sort proxies alphabetically.
             save_path: Path to the folder where the proxy folders will
                 be saved. Leave empty to save the proxies to the current
@@ -176,8 +178,8 @@ class ProxyScraperChecker:
         socks4 = cfg["SOCKS4"]
         socks5 = cfg["SOCKS5"]
         return cls(
-            timeout=general.getfloat("Timeout", 10),
-            max_connections=general.getint("MaxConnections", 900),
+            timeout=general.getfloat("Timeout", 5),
+            max_connections=general.getint("MaxConnections", 512),
             sort_by_speed=general.getboolean("SortBySpeed", True),
             save_path=general.get("SavePath", ""),
             proxies=folders.getboolean("proxies", True),

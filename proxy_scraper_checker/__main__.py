@@ -11,8 +11,10 @@ from rich.logging import RichHandler
 from .proxy_scraper_checker import ProxyScraperChecker
 
 
-def install_uvloop() -> None:
-    if sys.implementation.name == "cpython" and sys.platform in {
+def set_event_loop_policy() -> None:
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    elif sys.implementation.name == "cpython" and sys.platform in {
         "darwin",
         "linux",
     }:
@@ -42,7 +44,7 @@ def configure_logging(console: Console) -> None:
 
 
 def main() -> None:
-    install_uvloop()
+    set_event_loop_policy()
 
     console = Console()
     configure_logging(console)

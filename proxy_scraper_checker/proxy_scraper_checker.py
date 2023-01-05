@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import resource
+import sys
 from configparser import ConfigParser
 from pathlib import Path
 from random import shuffle
@@ -38,6 +40,25 @@ logger = logging.getLogger(__name__)
 TProxyScraperChecker = TypeVar(
     "TProxyScraperChecker", bound="ProxyScraperChecker"
 )
+
+
+def validate_max_connections(value: int) -> int:
+    if sys.platform != "win32":
+        soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+        if soft_limit < hard_limit:
+            resource.setrlimit(
+                resource.RLIMIT_NOFILE, (hard_limit, hard_limit)
+            )
+    elif value > 512 and isinstance(
+        asyncio.get_event_loop_policy(), asyncio.WindowsSelectorEventLoopPolicy
+    ):
+        logger.warning(
+            "MaxConnections value is too high. "
+            + "Windows supports a maximum of 512. "
+            + "The config value will be ignored and 512 will be used."
+        )
+        return 512
+    return value
 
 
 class ProxyScraperChecker:
@@ -135,6 +156,8 @@ class ProxyScraperChecker:
         self.proxies_count = {proto: 0 for proto in self.sources}
         self.cookie_jar = DummyCookieJar()
         self.console = console or Console()
+
+        max_connections = validate_max_connections(max_connections)
         self.sem = asyncio.Semaphore(max_connections)
 
     @classmethod

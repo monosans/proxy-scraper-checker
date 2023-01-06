@@ -43,9 +43,7 @@ class Proxy:
 
     def get_connector(self, proto: str) -> ProxyConnector:
         return ProxyConnector(
-            proxy_type=getattr(ProxyType, proto),
-            host=self.host,
-            port=self.port,
+            proxy_type=ProxyType[proto], host=self.host, port=self.port
         )
 
     def as_str(self, include_geolocation: bool) -> str:

@@ -149,7 +149,7 @@ class ProxyScraperChecker:
         )
 
         self.sort_by_speed = sort_by_speed
-        self.timeout = ClientTimeout(total=timeout, sock_connect=timeout)
+        self.timeout = ClientTimeout(total=timeout, sock_connect=float("inf"))
         self.source_timeout = source_timeout
         self.sources = {
             proto: frozenset(filter(None, sources.splitlines()))

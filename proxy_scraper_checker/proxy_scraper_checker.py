@@ -19,7 +19,7 @@ from typing import (
     Union,
 )
 
-from aiohttp import ClientSession, DummyCookieJar
+from aiohttp import ClientSession, ClientTimeout, DummyCookieJar
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -143,7 +143,7 @@ class ProxyScraperChecker:
         )
 
         self.sort_by_speed = sort_by_speed
-        self.timeout = timeout
+        self.timeout = ClientTimeout(total=timeout, sock_connect=timeout)
         self.sources = {
             proto: frozenset(filter(None, sources.splitlines()))
             for proto, sources in (
@@ -218,7 +218,7 @@ class ProxyScraperChecker:
             proto: HTTP/SOCKS4/SOCKS5.
         """
         try:
-            async with session.get(source, timeout=15) as response:
+            async with session.get(source) as response:
                 status = response.status
                 text = await response.text()
         except Exception as e:
@@ -272,7 +272,9 @@ class ProxyScraperChecker:
             )
         }
         async with ClientSession(
-            headers=headers, cookie_jar=self.cookie_jar
+            headers=headers,
+            cookie_jar=self.cookie_jar,
+            timeout=ClientTimeout(total=15),
         ) as session:
             coroutines = (
                 self.fetch_source(

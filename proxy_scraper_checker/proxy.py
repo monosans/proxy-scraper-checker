@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from time import perf_counter
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from aiohttp.abc import AbstractCookieJar
 from aiohttp_socks import ProxyConnector, ProxyType
 
@@ -21,17 +21,16 @@ class Proxy:
         sem: asyncio.Semaphore,
         cookie_jar: AbstractCookieJar,
         proto: str,
-        timeout: float,
+        timeout: ClientTimeout,
     ) -> None:
         async with sem:
             start = perf_counter()
             async with self.get_connector(proto) as connector:
                 async with ClientSession(
-                    connector=connector, cookie_jar=cookie_jar
+                    connector=connector, cookie_jar=cookie_jar, timeout=timeout
                 ) as session:
                     async with session.get(
                         "http://ip-api.com/json/?fields=8217",
-                        timeout=timeout,
                         raise_for_status=True,
                     ) as response:
                         data = await response.json()

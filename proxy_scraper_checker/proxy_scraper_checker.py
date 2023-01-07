@@ -76,6 +76,7 @@ class ProxyScraperChecker:
         "regex",
         "sem",
         "sort_by_speed",
+        "source_timeout",
         "sources",
         "timeout",
     )
@@ -84,6 +85,7 @@ class ProxyScraperChecker:
         self,
         *,
         timeout: float,
+        source_timeout: float,
         max_connections: int,
         sort_by_speed: bool,
         save_path: str,
@@ -99,9 +101,11 @@ class ProxyScraperChecker:
         """HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
         Args:
-            timeout: How many seconds to wait for the proxy to make a
-                connection. The higher the number, the longer the check will
-                take and the more proxies you get.
+            timeout: The number of seconds to wait for a proxied request.
+                The higher the number, the longer the check will take
+                and the more proxies you get.
+            source_timeout: The number of seconds to wait for the proxy
+                to be downloaded from the source.
             max_connections: Maximum concurrent connections.
                 Windows supports maximum of 512.
                 On *nix operating systems, this restriction is much looser.
@@ -144,6 +148,7 @@ class ProxyScraperChecker:
 
         self.sort_by_speed = sort_by_speed
         self.timeout = ClientTimeout(total=timeout, sock_connect=timeout)
+        self.source_timeout = source_timeout
         self.sources = {
             proto: frozenset(filter(None, sources.splitlines()))
             for proto, sources in (
@@ -179,6 +184,7 @@ class ProxyScraperChecker:
         socks5 = cfg["SOCKS5"]
         return cls(
             timeout=general.getfloat("Timeout", 5),
+            source_timeout=general.getfloat("SourceTimeout", 15),
             max_connections=general.getint("MaxConnections", 512),
             sort_by_speed=general.getboolean("SortBySpeed", True),
             save_path=general.get("SavePath", ""),
@@ -274,7 +280,7 @@ class ProxyScraperChecker:
         async with ClientSession(
             headers=headers,
             cookie_jar=self.cookie_jar,
-            timeout=ClientTimeout(total=15),
+            timeout=ClientTimeout(total=self.source_timeout),
         ) as session:
             coroutines = (
                 self.fetch_source(

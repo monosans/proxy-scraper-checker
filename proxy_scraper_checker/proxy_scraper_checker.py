@@ -110,6 +110,8 @@ class ProxyScraperChecker:
                 Windows supports maximum of 512.
                 On *nix operating systems, this restriction is much looser.
                 The limit on *nix can be seen with the command ulimit -Hn.
+                Every 1000 connections increase the program's RAM consumption
+                during proxy checking by about 20 MB.
             sort_by_speed: Set to False to sort proxies alphabetically.
             save_path: Path to the folder where the proxy folders will
                 be saved. Leave empty to save the proxies to the current

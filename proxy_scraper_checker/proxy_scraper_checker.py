@@ -104,7 +104,7 @@ class ProxyScraperChecker:
             timeout: The number of seconds to wait for a proxied request.
                 The higher the number, the longer the check will take
                 and the more proxies you get.
-            source_timeout: The number of seconds to wait for the proxy
+            source_timeout: The number of seconds to wait for the proxies
                 to be downloaded from the source.
             max_connections: Maximum concurrent connections.
                 Windows supports maximum of 512.

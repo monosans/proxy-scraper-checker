@@ -20,6 +20,7 @@ from typing import (
 )
 
 from aiohttp import ClientSession, ClientTimeout, DummyCookieJar
+from aiohttp_socks import ProxyType
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -66,10 +67,9 @@ class ProxyScraperChecker:
     """HTTP, SOCKS4, SOCKS5 proxies scraper and checker."""
 
     __slots__ = (
-        "all_folders",
         "console",
         "cookie_jar",
-        "enabled_folders",
+        "folders",
         "path",
         "proxies_count",
         "proxies",
@@ -88,14 +88,9 @@ class ProxyScraperChecker:
         source_timeout: float,
         max_connections: int,
         sort_by_speed: bool,
-        save_path: str,
-        proxies: bool,
-        proxies_anonymous: bool,
-        proxies_geolocation: bool,
-        proxies_geolocation_anonymous: bool,
-        http_sources: Optional[str],
-        socks4_sources: Optional[str],
-        socks5_sources: Optional[str],
+        save_path: Path,
+        folders: Tuple[Folder, ...],
+        sources: Dict[ProxyType, Optional[str]],
         console: Optional[Console] = None,
     ) -> None:
         """HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
@@ -118,23 +113,10 @@ class ProxyScraperChecker:
                 be saved. Leave empty to save the proxies to the current
                 directory.
         """
-        self.path = Path(save_path)
-        folders_mapping = {
-            "proxies": proxies,
-            "proxies_anonymous": proxies_anonymous,
-            "proxies_geolocation": proxies_geolocation,
-            "proxies_geolocation_anonymous": proxies_geolocation_anonymous,
-        }
-        self.all_folders = tuple(
-            Folder(path=self.path, folder_name=folder_name)
-            for folder_name in folders_mapping
-        )
-        self.enabled_folders = tuple(
-            folder
-            for folder in self.all_folders
-            if folders_mapping[folder.path.name]
-        )
-        if not self.enabled_folders:
+        self.path = save_path
+
+        self.folders = folders
+        if not any(folder for folder in self.folders if folder.is_enabled):
             raise ValueError("all folders are disabled in the config")
 
         self.regex = re.compile(
@@ -154,17 +136,12 @@ class ProxyScraperChecker:
         self.source_timeout = source_timeout
         self.sources = {
             proto: frozenset(filter(None, sources.splitlines()))
-            for proto, sources in (
-                ("HTTP", http_sources),
-                ("SOCKS4", socks4_sources),
-                ("SOCKS5", socks5_sources),
-            )
+            for proto, sources in sources.items()
             if sources
         }
-        self.proxies: Dict[str, Set[Proxy]] = {
+        self.proxies: Dict[ProxyType, Set[Proxy]] = {
             proto: set() for proto in self.sources
         }
-        self.proxies_count = {proto: 0 for proto in self.sources}
         self.cookie_jar = DummyCookieJar()
         self.console = console or Console()
 
@@ -185,29 +162,52 @@ class ProxyScraperChecker:
         http = cfg["HTTP"]
         socks4 = cfg["SOCKS4"]
         socks5 = cfg["SOCKS5"]
+        save_path = Path(general.get("SavePath", ""))
         return cls(
             timeout=general.getfloat("Timeout", 5),
             source_timeout=general.getfloat("SourceTimeout", 15),
             max_connections=general.getint("MaxConnections", 512),
             sort_by_speed=general.getboolean("SortBySpeed", True),
-            save_path=general.get("SavePath", ""),
-            proxies=folders.getboolean("proxies", True),
-            proxies_anonymous=folders.getboolean("proxies_anonymous", True),
-            proxies_geolocation=folders.getboolean(
-                "proxies_geolocation", True
+            save_path=save_path,
+            folders=(
+                Folder(
+                    path=save_path / "proxies",
+                    is_enabled=folders.getboolean("proxies", True),
+                    for_anonymous=False,
+                    for_geolocation=False,
+                ),
+                Folder(
+                    path=save_path / "proxies_anonymous",
+                    is_enabled=folders.getboolean("proxies_anonymous", True),
+                    for_anonymous=True,
+                    for_geolocation=False,
+                ),
+                Folder(
+                    path=save_path / "proxies_geolocation",
+                    is_enabled=folders.getboolean("proxies_geolocation", True),
+                    for_anonymous=False,
+                    for_geolocation=True,
+                ),
+                Folder(
+                    path=save_path / "proxies_geolocation_anonymous",
+                    is_enabled=folders.getboolean(
+                        "proxies_geolocation_anonymous", True
+                    ),
+                    for_anonymous=True,
+                    for_geolocation=True,
+                ),
             ),
-            proxies_geolocation_anonymous=folders.getboolean(
-                "proxies_geolocation_anonymous", True
-            ),
-            http_sources=http.get("Sources")
-            if http.getboolean("Enabled", True)
-            else None,
-            socks4_sources=socks4.get("Sources")
-            if socks4.getboolean("Enabled", True)
-            else None,
-            socks5_sources=socks5.get("Sources")
-            if socks5.getboolean("Enabled", True)
-            else None,
+            sources={
+                ProxyType.HTTP: http.get("Sources")
+                if http.getboolean("Enabled", True)
+                else None,
+                ProxyType.SOCKS4: socks4.get("Sources")
+                if socks4.getboolean("Enabled", True)
+                else None,
+                ProxyType.SOCKS5: socks5.get("Sources")
+                if socks5.getboolean("Enabled", True)
+                else None,
+            },
             console=console,
         )
 
@@ -216,7 +216,7 @@ class ProxyScraperChecker:
         *,
         session: ClientSession,
         source: str,
-        proto: str,
+        proto: ProxyType,
         progress: Progress,
         task: TaskID,
     ) -> None:
@@ -224,7 +224,6 @@ class ProxyScraperChecker:
 
         Args:
             source: Proxy list URL.
-            proto: HTTP/SOCKS4/SOCKS5.
         """
         try:
             async with session.get(source) as response:
@@ -249,7 +248,12 @@ class ProxyScraperChecker:
         progress.update(task, advance=1)
 
     async def check_proxy(
-        self, *, proxy: Proxy, proto: str, progress: Progress, task: TaskID
+        self,
+        *,
+        proxy: Proxy,
+        proto: ProxyType,
+        progress: Progress,
+        task: TaskID,
     ) -> None:
         """Check if proxy is alive."""
         try:
@@ -270,7 +274,8 @@ class ProxyScraperChecker:
     async def fetch_all_sources(self, progress: Progress) -> None:
         tasks = {
             proto: progress.add_task(
-                f"[yellow]Scraper [red]:: [green]{proto}", total=len(sources)
+                f"[yellow]Scraper [red]:: [green]{proto.name}",
+                total=len(sources),
             )
             for proto, sources in self.sources.items()
         }
@@ -298,14 +303,15 @@ class ProxyScraperChecker:
             )
             await asyncio.gather(*coroutines)
 
-        # Remember total count so we could print it in the table
-        for proto, proxies in self.proxies.items():
-            self.proxies_count[proto] = len(proxies)
+        self.proxies_count = {
+            proto: len(proxies) for proto, proxies in self.proxies.items()
+        }
 
     async def check_all_proxies(self, progress: Progress) -> None:
         tasks = {
             proto: progress.add_task(
-                f"[yellow]Checker [red]:: [green]{proto}", total=len(proxies)
+                f"[yellow]Checker [red]:: [green]{proto.name}",
+                total=len(proxies),
             )
             for proto, proxies in self.proxies.items()
         }
@@ -322,9 +328,11 @@ class ProxyScraperChecker:
     def save_proxies(self) -> None:
         """Delete old proxies and save new ones."""
         sorted_proxies = self.get_sorted_proxies().items()
-        for folder in self.all_folders:
+        for folder in self.folders:
             folder.remove()
-        for folder in self.enabled_folders:
+        for folder in self.folders:
+            if not folder.is_enabled:
+                continue
             folder.create()
             for proto, proxies in sorted_proxies:
                 text = "\n".join(
@@ -332,7 +340,7 @@ class ProxyScraperChecker:
                     for proxy in proxies
                     if (proxy.is_anonymous if folder.for_anonymous else True)
                 )
-                file = folder.path / f"{proto.lower()}.txt"
+                file = folder.path / f"{proto.name.lower()}.txt"
                 file.write_text(text, encoding="utf-8")
 
     async def run(self) -> None:
@@ -350,7 +358,7 @@ class ProxyScraperChecker:
             self.path.resolve(),
         )
 
-    def get_sorted_proxies(self) -> Dict[str, List[Proxy]]:
+    def get_sorted_proxies(self) -> Dict[ProxyType, List[Proxy]]:
         key: Union[
             Callable[[Proxy], float], Callable[[Proxy], Tuple[int, ...]]
         ] = (
@@ -372,7 +380,9 @@ class ProxyScraperChecker:
             working = len(proxies)
             total = self.proxies_count[proto]
             percentage = working / total if total else 0
-            table.add_row(proto, f"{working} ({percentage:.1%})", str(total))
+            table.add_row(
+                proto.name, f"{working} ({percentage:.1%})", str(total)
+            )
         return table
 
     def _get_progress_bar(self) -> Progress:

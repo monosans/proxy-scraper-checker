@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from shutil import rmtree
 
 
+@dataclass(frozen=True)
 class Folder:
-    __slots__ = ("for_anonymous", "for_geolocation", "path")
-
-    def __init__(self, *, path: Path, folder_name: str) -> None:
-        self.path = path / folder_name
-        self.for_anonymous = "anon" in folder_name
-        self.for_geolocation = "geo" in folder_name
+    path: Path
+    is_enabled: bool
+    for_anonymous: bool
+    for_geolocation: bool
 
     def remove(self) -> None:
         try:

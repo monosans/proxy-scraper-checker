@@ -20,7 +20,7 @@ class Proxy:
         *,
         sem: asyncio.Semaphore,
         cookie_jar: AbstractCookieJar,
-        proto: str,
+        proto: ProxyType,
         timeout: ClientTimeout,
     ) -> None:
         async with sem:
@@ -40,10 +40,8 @@ class Proxy:
             data["country"], data["regionName"], data["city"]
         )
 
-    def get_connector(self, proto: str) -> ProxyConnector:
-        return ProxyConnector(
-            proxy_type=ProxyType[proto], host=self.host, port=self.port
-        )
+    def get_connector(self, proto: ProxyType) -> ProxyConnector:
+        return ProxyConnector(proxy_type=proto, host=self.host, port=self.port)
 
     def as_str(self, include_geolocation: bool) -> str:
         if include_geolocation:

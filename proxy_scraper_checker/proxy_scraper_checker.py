@@ -18,6 +18,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from urllib.parse import urlparse
 
 from aiohttp import ClientSession, ClientTimeout, DummyCookieJar
 from aiohttp_socks import ProxyType
@@ -32,6 +33,7 @@ from rich.progress import (
 from rich.table import Table
 
 from . import sort
+from .constants import USER_AGENT
 from .folder import Folder
 from .proxy import Proxy
 
@@ -67,6 +69,7 @@ class ProxyScraperChecker:
     """HTTP, SOCKS4, SOCKS5 proxies scraper and checker."""
 
     __slots__ = (
+        "check_website",
         "console",
         "cookie_jar",
         "folders",
@@ -87,6 +90,7 @@ class ProxyScraperChecker:
         timeout: float,
         source_timeout: float,
         max_connections: int,
+        check_website: str,
         sort_by_speed: bool,
         save_path: Path,
         folders: Tuple[Folder, ...],
@@ -108,17 +112,37 @@ class ProxyScraperChecker:
                 Don't be in a hurry to set high values.
                 Make sure you have enough RAM first, gradually
                 increasing the default value.
+            check_website: URL to which to send a request to check the proxy.
+                If not equal to 'default', it will not be possible
+                to determine the anonymity and geolocation of the proxies.
             sort_by_speed: Set to False to sort proxies alphabetically.
             save_path: Path to the folder where the proxy folders will
                 be saved. Leave empty to save the proxies to the current
                 directory.
         """
-        self.path = save_path
-
         self.folders = folders
-        if not any(folder for folder in self.folders if folder.is_enabled):
-            raise ValueError("all folders are disabled in the config")
+        self.check_website = check_website
 
+        if self.check_website != "default":
+            parsed_url = urlparse(check_website)
+            if not parsed_url.scheme or not parsed_url.netloc:
+                logger.error("Invalid CheckWebsite URL: %s", check_website)
+                sys.exit(1)
+
+            logger.info(
+                "CheckWebsite is not 'default', "
+                + "so it will not be possible to determine "
+                + "the anonymity and geolocation of the proxies"
+            )
+            for folder in self.folders:
+                folder.is_enabled = (
+                    not folder.for_anonymous and not folder.for_geolocation
+                )
+        elif not any(folder for folder in self.folders if folder.is_enabled):
+            logger.error("All folders are disabled in the config")
+            sys.exit(1)
+
+        self.path = save_path
         self.regex = re.compile(
             r"(?:^|\D)?("
             + r"(?:[1-9]|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 1-255
@@ -167,6 +191,7 @@ class ProxyScraperChecker:
             timeout=general.getfloat("Timeout", 5),
             source_timeout=general.getfloat("SourceTimeout", 15),
             max_connections=general.getint("MaxConnections", 512),
+            check_website=general.get("CheckWebsite", "default"),
             sort_by_speed=general.getboolean("SortBySpeed", True),
             save_path=save_path,
             folders=(
@@ -258,6 +283,7 @@ class ProxyScraperChecker:
         """Check if proxy is alive."""
         try:
             await proxy.check(
+                website=self.check_website,
                 sem=self.sem,
                 cookie_jar=self.cookie_jar,
                 proto=proto,
@@ -279,14 +305,8 @@ class ProxyScraperChecker:
             )
             for proto, sources in self.sources.items()
         }
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; rv:108.0)"
-                + " Gecko/20100101 Firefox/108.0"
-            )
-        }
         async with ClientSession(
-            headers=headers,
+            headers={"User-Agent": USER_AGENT},
             cookie_jar=self.cookie_jar,
             timeout=ClientTimeout(total=self.source_timeout),
         ) as session:

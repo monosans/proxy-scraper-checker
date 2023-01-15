@@ -5,9 +5,11 @@
 HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
 - Asynchronous.
-- Uses regex to search for proxies (ip:port format) on a web page, which allows you to pull out proxies even from json without making any changes to the code.
+- Uses regex to search for proxies (ip:port format) on a web page, allowing proxies to be extracted even from json without making changes to the code.
+- It is possible to specify the URL to which to send a request to check the proxy.
+- Can sort proxies by speed.
 - Supports determining the geolocation of the proxy exit node.
-- Can determine if a proxy is anonymous.
+- Can determine if the proxy is anonymous.
 
 You can get proxies obtained using this script in [monosans/proxy-list](https://github.com/monosans/proxy-list).
 

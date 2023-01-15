@@ -5,7 +5,7 @@ from pathlib import Path
 from shutil import rmtree
 
 
-@dataclass(frozen=True)
+@dataclass
 class Folder:
     path: Path
     is_enabled: bool

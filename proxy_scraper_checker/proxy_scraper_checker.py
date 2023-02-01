@@ -223,15 +223,21 @@ class ProxyScraperChecker:
                 ),
             ),
             sources={
-                ProxyType.HTTP: http.get("Sources")
-                if http.getboolean("Enabled", True)
-                else None,
-                ProxyType.SOCKS4: socks4.get("Sources")
-                if socks4.getboolean("Enabled", True)
-                else None,
-                ProxyType.SOCKS5: socks5.get("Sources")
-                if socks5.getboolean("Enabled", True)
-                else None,
+                ProxyType.HTTP: (
+                    http.get("Sources")
+                    if http.getboolean("Enabled", True)
+                    else None
+                ),
+                ProxyType.SOCKS4: (
+                    socks4.get("Sources")
+                    if socks4.getboolean("Enabled", True)
+                    else None
+                ),
+                ProxyType.SOCKS5: (
+                    socks5.get("Sources")
+                    if socks5.getboolean("Enabled", True)
+                    else None
+                ),
             },
             console=console,
         )

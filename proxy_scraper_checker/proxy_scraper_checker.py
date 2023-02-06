@@ -173,14 +173,12 @@ class ProxyScraperChecker:
         self.sem = asyncio.Semaphore(max_connections)
 
     @classmethod
-    def from_ini(
+    def from_configparser(
         cls: Type[TProxyScraperChecker],
-        file_name: str,
+        cfg: ConfigParser,
         *,
         console: Optional[Console] = None,
     ) -> TProxyScraperChecker:
-        cfg = ConfigParser(interpolation=None)
-        cfg.read(file_name, encoding="utf-8")
         general = cfg["General"]
         folders = cfg["Folders"]
         http = cfg["HTTP"]
@@ -261,7 +259,13 @@ class ProxyScraperChecker:
                 status = response.status
                 text = await response.text()
         except Exception as e:
-            logger.error("%s | %s | %s", source, e.__class__.__qualname__, e)
+            logger.error(
+                "%s | %s.%s | %s",
+                source,
+                e.__class__.__module__,
+                e.__class__.__qualname__,
+                e,
+            )
         else:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
@@ -300,6 +304,12 @@ class ProxyScraperChecker:
             if isinstance(e, OSError) and e.errno == 24:
                 logger.error("Please, set MaxConnections to lower value.")
 
+            logger.debug(
+                "%s.%s | %s",
+                e.__class__.__module__,
+                e.__class__.__qualname__,
+                e,
+            )
             self.proxies[proto].remove(proxy)
         progress.update(task, advance=1)
 

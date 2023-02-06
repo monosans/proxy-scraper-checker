@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+from configparser import ConfigParser
 
 import rich.traceback
 from rich.console import Console
@@ -26,10 +27,10 @@ def set_event_loop_policy() -> None:
             uvloop.install()
 
 
-def configure_logging(console: Console) -> None:
+def configure_logging(console: Console, *, debug: bool) -> None:
     rich.traceback.install(console=console)
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG if debug else logging.INFO,
         format="%(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=(
@@ -43,13 +44,21 @@ def configure_logging(console: Console) -> None:
     )
 
 
+def get_config(file: str) -> ConfigParser:
+    cfg = ConfigParser(interpolation=None)
+    cfg.read(file, encoding="utf-8")
+    return cfg
+
+
 def main() -> None:
     set_event_loop_policy()
 
-    console = Console()
-    configure_logging(console)
+    cfg = get_config("config.ini")
 
-    psc = ProxyScraperChecker.from_ini("config.ini", console=console)
+    console = Console()
+    configure_logging(console, debug=cfg["General"].getboolean("Debug", False))
+
+    psc = ProxyScraperChecker.from_configparser(cfg, console=console)
     asyncio.run(psc.run())
 
 

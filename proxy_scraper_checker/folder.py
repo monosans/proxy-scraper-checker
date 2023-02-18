@@ -5,8 +5,10 @@ from pathlib import Path
 from shutil import rmtree
 
 
-@dataclass
+@dataclass(repr=False, eq=False)
 class Folder:
+    __slots__ = ("path", "is_enabled", "for_anonymous", "for_geolocation")
+
     path: Path
     is_enabled: bool
     for_anonymous: bool

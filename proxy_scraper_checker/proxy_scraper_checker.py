@@ -3,13 +3,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import sys
 from configparser import ConfigParser
 from pathlib import Path
 from random import shuffle
 from typing import (
     Callable,
     Dict,
+    Iterable,
     List,
     Optional,
     Set,
@@ -18,7 +18,6 @@ from typing import (
     TypeVar,
     Union,
 )
-from urllib.parse import urlparse
 
 from aiohttp import ClientSession, ClientTimeout, DummyCookieJar
 from aiohttp_socks import ProxyType
@@ -32,9 +31,10 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from . import sort
+from . import sort, validators
 from .constants import USER_AGENT
 from .folder import Folder
+from .null_context import AsyncNullContext
 from .proxy import Proxy
 
 logger = logging.getLogger(__name__)
@@ -42,27 +42,6 @@ logger = logging.getLogger(__name__)
 TProxyScraperChecker = TypeVar(
     "TProxyScraperChecker", bound="ProxyScraperChecker"
 )
-
-
-def validate_max_connections(value: int) -> int:
-    if sys.platform != "win32":
-        import resource
-
-        soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
-        if soft_limit < hard_limit:
-            resource.setrlimit(
-                resource.RLIMIT_NOFILE, (hard_limit, hard_limit)
-            )
-    elif value > 512 and isinstance(
-        asyncio.get_event_loop_policy(), asyncio.WindowsSelectorEventLoopPolicy
-    ):
-        logger.warning(
-            "MaxConnections value is too high. "
-            + "Windows supports a maximum of 512. "
-            + "The config value will be ignored and 512 will be used."
-        )
-        return 512
-    return value
 
 
 class ProxyScraperChecker:
@@ -93,7 +72,7 @@ class ProxyScraperChecker:
         check_website: str,
         sort_by_speed: bool,
         save_path: Path,
-        folders: Tuple[Folder, ...],
+        folders: Iterable[Folder],
         sources: Dict[ProxyType, Optional[str]],
         console: Optional[Console] = None,
     ) -> None:
@@ -120,15 +99,24 @@ class ProxyScraperChecker:
                 be saved. Leave empty to save the proxies to the current
                 directory.
         """
-        self.folders = folders
+        validators.timeout(timeout)
+        self.timeout = ClientTimeout(total=timeout, sock_connect=float("inf"))
+
+        validators.source_timeout(source_timeout)
+        self.source_timeout = source_timeout
+
+        max_conn = validators.max_connections(max_connections)
+        self.sem: Union[asyncio.Semaphore, AsyncNullContext] = (
+            asyncio.Semaphore(max_conn) if max_conn else AsyncNullContext()
+        )
+
         self.check_website = check_website
+        self.sort_by_speed = sort_by_speed
+        self.path = save_path
+        self.folders = folders
 
         if self.check_website != "default":
-            parsed_url = urlparse(check_website)
-            if not parsed_url.scheme or not parsed_url.netloc:
-                logger.error("Invalid CheckWebsite URL: %s", check_website)
-                sys.exit(1)
-
+            validators.check_website(check_website)
             logger.info(
                 "CheckWebsite is not 'default', "
                 + "so it will not be possible to determine "
@@ -138,11 +126,21 @@ class ProxyScraperChecker:
                 folder.is_enabled = (
                     not folder.for_anonymous and not folder.for_geolocation
                 )
-        elif not any(folder for folder in self.folders if folder.is_enabled):
-            logger.error("All folders are disabled in the config")
-            sys.exit(1)
+        else:
+            validators.folders(self.folders)
 
-        self.path = save_path
+        self.sources = {
+            proto: frozenset(filter(None, sources.splitlines()))
+            for proto, sources in sources.items()
+            if sources
+        }
+        validators.sources(self.sources)
+        self.proxies: Dict[ProxyType, Set[Proxy]] = {
+            proto: set() for proto in self.sources
+        }
+
+        self.console = console or Console()
+        self.cookie_jar = DummyCookieJar()
         self.regex = re.compile(
             r"(?:^|\D)?("
             + r"(?:[1-9]|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 1-255
@@ -154,23 +152,6 @@ class ProxyScraperChecker:
             )  # 0-65535
             + r"(?:\D|$)"
         )
-
-        self.sort_by_speed = sort_by_speed
-        self.timeout = ClientTimeout(total=timeout, sock_connect=float("inf"))
-        self.source_timeout = source_timeout
-        self.sources = {
-            proto: frozenset(filter(None, sources.splitlines()))
-            for proto, sources in sources.items()
-            if sources
-        }
-        self.proxies: Dict[ProxyType, Set[Proxy]] = {
-            proto: set() for proto in self.sources
-        }
-        self.cookie_jar = DummyCookieJar()
-        self.console = console or Console()
-
-        max_connections = validate_max_connections(max_connections)
-        self.sem = asyncio.Semaphore(max_connections)
 
     @classmethod
     def from_configparser(
@@ -259,13 +240,24 @@ class ProxyScraperChecker:
                 status = response.status
                 text = await response.text()
         except Exception as e:
-            logger.error(
-                "%s | %s.%s | %s",
-                source,
-                e.__class__.__module__,
-                e.__class__.__qualname__,
-                e,
+            e_str = str(e)
+            args: Tuple[object, ...] = (
+                (
+                    "%s | %s.%s (%s)",
+                    source,
+                    e.__class__.__module__,
+                    e.__class__.__qualname__,
+                    e_str,
+                )
+                if e_str
+                else (
+                    "%s | %s.%s",
+                    source,
+                    e.__class__.__module__,
+                    e.__class__.__qualname__,
+                )
             )
+            logger.error(*args)
         else:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
@@ -275,11 +267,12 @@ class ProxyScraperChecker:
                     )
                     self.proxies[proto].add(proxy_obj)
             else:
-                logger.warning(
-                    "%s | No proxies found | HTTP status code %d",
-                    source,
-                    status,
+                args = (
+                    ("%s | No proxies found", source)
+                    if status == 200
+                    else ("%s | HTTP status code %d", source, status)
                 )
+                logger.warning(*args)
         progress.update(task, advance=1)
 
     async def check_proxy(

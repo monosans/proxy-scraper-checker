@@ -80,24 +80,26 @@ class ProxyScraperChecker:
 
         Args:
             timeout: The number of seconds to wait for a proxied request.
-                The higher the number, the longer the check will take
-                and the more proxies you get.
-            source_timeout: The number of seconds to wait for the proxies
-                to be downloaded from the source.
+                The higher the number, the longer the check will take and the
+                more proxies you get.
+            source_timeout: The number of seconds to wait for the proxies to be
+                downloaded from the source.
             max_connections: Maximum concurrent connections.
                 Windows supports maximum of 512.
                 On *nix operating systems, this restriction is much looser.
-                The limit on *nix can be seen with the command ulimit -Hn.
+                The limit on *nix can be seen with the command `ulimit -Hn`.
                 Don't be in a hurry to set high values.
-                Make sure you have enough RAM first, gradually
-                increasing the default value.
+                Make sure you have enough RAM first, gradually increasing the
+                default value.
+                If set to 0, the maximum value available for your OS will be
+                used.
             check_website: URL to which to send a request to check the proxy.
-                If not equal to 'default', it will not be possible
-                to determine the anonymity and geolocation of the proxies.
+                If not equal to 'default', it will not be possible to determine
+                the anonymity and geolocation of the proxies.
             sort_by_speed: Set to False to sort proxies alphabetically.
-            save_path: Path to the folder where the proxy folders will
-                be saved. Leave empty to save the proxies to the current
-                directory.
+            save_path: Path to the folder where the proxy folders will be
+                saved.
+                Leave empty to save the proxies to the current directory.
         """
         validators.timeout(timeout)
         self.timeout = ClientTimeout(total=timeout, sock_connect=float("inf"))

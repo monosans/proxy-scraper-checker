@@ -50,17 +50,16 @@ def get_config(file: str) -> ConfigParser:
     return cfg
 
 
-def main() -> None:
-    set_event_loop_policy()
-
+async def main() -> None:
     cfg = get_config("config.ini")
 
     console = Console()
     configure_logging(console, debug=cfg["General"].getboolean("Debug", False))
 
     psc = ProxyScraperChecker.from_configparser(cfg, console=console)
-    asyncio.run(psc.run())
+    await psc.run()
 
 
 if __name__ == "__main__":
-    main()
+    set_event_loop_policy()
+    asyncio.run(main())

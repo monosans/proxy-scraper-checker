@@ -22,13 +22,7 @@ from typing import (
 from aiohttp import ClientSession, ClientTimeout, DummyCookieJar
 from aiohttp_socks import ProxyType
 from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TaskID,
-    TextColumn,
-)
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TaskID, TextColumn
 from rich.table import Table
 
 from . import sort, validators
@@ -39,9 +33,7 @@ from .proxy import Proxy
 
 logger = logging.getLogger(__name__)
 
-TProxyScraperChecker = TypeVar(
-    "TProxyScraperChecker", bound="ProxyScraperChecker"
-)
+TProxyScraperChecker = TypeVar("TProxyScraperChecker", bound="ProxyScraperChecker")
 
 
 class ProxyScraperChecker:
@@ -121,8 +113,8 @@ class ProxyScraperChecker:
             validators.check_website(check_website)
             logger.info(
                 "CheckWebsite is not 'default', "
-                + "so it will not be possible to determine "
-                + "the anonymity and geolocation of the proxies"
+                "so it will not be possible to determine "
+                "the anonymity and geolocation of the proxies"
             )
             for folder in self.folders:
                 folder.is_enabled = (
@@ -145,12 +137,12 @@ class ProxyScraperChecker:
         self.cookie_jar = DummyCookieJar()
         self.regex = re.compile(
             r"(?:^|\D)?("
-            + r"(?:[1-9]|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 1-255
+            r"(?:[1-9]|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 1-255
             + r"\.(?:\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])" * 3  # 0-255
             + r"):"
             + (
                 r"(\d|[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{3}"
-                + r"|65[0-4]\d{2}|655[0-2]\d|6553[0-5])"
+                r"|65[0-4]\d{2}|655[0-2]\d|6553[0-5])"
             )  # 0-65535
             + r"(?:\D|$)"
         )
@@ -173,31 +165,35 @@ class ProxyScraperChecker:
             source_timeout=general.getfloat("SourceTimeout", 15),
             max_connections=general.getint("MaxConnections", 512),
             check_website=general.get("CheckWebsite", "default"),
-            sort_by_speed=general.getboolean("SortBySpeed", True),
+            sort_by_speed=general.getboolean("SortBySpeed", True),  # noqa: FBT003
             save_path=save_path,
             folders=(
                 Folder(
                     path=save_path / "proxies",
-                    is_enabled=folders.getboolean("proxies", True),
+                    is_enabled=folders.getboolean("proxies", True),  # noqa: FBT003
                     for_anonymous=False,
                     for_geolocation=False,
                 ),
                 Folder(
                     path=save_path / "proxies_anonymous",
-                    is_enabled=folders.getboolean("proxies_anonymous", True),
+                    is_enabled=folders.getboolean(
+                        "proxies_anonymous", True  # noqa: FBT003
+                    ),
                     for_anonymous=True,
                     for_geolocation=False,
                 ),
                 Folder(
                     path=save_path / "proxies_geolocation",
-                    is_enabled=folders.getboolean("proxies_geolocation", True),
+                    is_enabled=folders.getboolean(
+                        "proxies_geolocation", True  # noqa: FBT003
+                    ),
                     for_anonymous=False,
                     for_geolocation=True,
                 ),
                 Folder(
                     path=save_path / "proxies_geolocation_anonymous",
                     is_enabled=folders.getboolean(
-                        "proxies_geolocation_anonymous", True
+                        "proxies_geolocation_anonymous", True  # noqa: FBT003
                     ),
                     for_anonymous=True,
                     for_geolocation=True,
@@ -206,17 +202,17 @@ class ProxyScraperChecker:
             sources={
                 ProxyType.HTTP: (
                     http.get("Sources")
-                    if http.getboolean("Enabled", True)
+                    if http.getboolean("Enabled", True)  # noqa: FBT003
                     else None
                 ),
                 ProxyType.SOCKS4: (
                     socks4.get("Sources")
-                    if socks4.getboolean("Enabled", True)
+                    if socks4.getboolean("Enabled", True)  # noqa: FBT003
                     else None
                 ),
                 ProxyType.SOCKS5: (
                     socks5.get("Sources")
-                    if socks5.getboolean("Enabled", True)
+                    if socks5.getboolean("Enabled", True)  # noqa: FBT003
                     else None
                 ),
             },
@@ -264,26 +260,19 @@ class ProxyScraperChecker:
             proxies = tuple(self.regex.finditer(text))
             if proxies:
                 for proxy in proxies:
-                    proxy_obj = Proxy(
-                        host=proxy.group(1), port=int(proxy.group(2))
-                    )
+                    proxy_obj = Proxy(host=proxy.group(1), port=int(proxy.group(2)))
                     self.proxies[proto].add(proxy_obj)
             else:
                 args = (
                     ("%s | No proxies found", source)
-                    if status == 200
+                    if status == 200  # noqa: PLR2004
                     else ("%s | HTTP status code %d", source, status)
                 )
                 logger.warning(*args)
         progress.update(task, advance=1)
 
     async def check_proxy(
-        self,
-        *,
-        proxy: Proxy,
-        proto: ProxyType,
-        progress: Progress,
-        task: TaskID,
+        self, *, proxy: Proxy, proto: ProxyType, progress: Progress, task: TaskID
     ) -> None:
         """Check if proxy is alive."""
         try:
@@ -296,14 +285,11 @@ class ProxyScraperChecker:
             )
         except Exception as e:
             # Too many open files
-            if isinstance(e, OSError) and e.errno == 24:
+            if isinstance(e, OSError) and e.errno == 24:  # noqa: PLR2004
                 logger.error("Please, set MaxConnections to lower value.")
 
             logger.debug(
-                "%s.%s | %s",
-                e.__class__.__module__,
-                e.__class__.__qualname__,
-                e,
+                "%s.%s | %s", e.__class__.__module__, e.__class__.__qualname__, e
             )
             self.proxies[proto].remove(proxy)
         progress.update(task, advance=1)
@@ -311,8 +297,7 @@ class ProxyScraperChecker:
     async def fetch_all_sources(self, progress: Progress) -> None:
         tasks = {
             proto: progress.add_task(
-                f"[yellow]Scraper [red]:: [green]{proto.name}",
-                total=len(sources),
+                f"[yellow]Scraper [red]:: [green]{proto.name}", total=len(sources)
             )
             for proto, sources in self.sources.items()
         }
@@ -341,8 +326,7 @@ class ProxyScraperChecker:
     async def check_all_proxies(self, progress: Progress) -> None:
         tasks = {
             proto: progress.add_task(
-                f"[yellow]Checker [red]:: [green]{proto.name}",
-                total=len(proxies),
+                f"[yellow]Checker [red]:: [green]{proto.name}", total=len(proxies)
             )
             for proto, proxies in self.proxies.items()
         }
@@ -384,22 +368,19 @@ class ProxyScraperChecker:
 
         self.save_proxies()
         logger.info(
-            "Proxy folders have been created in the %s folder."
-            + "\nThank you for using proxy-scraper-checker :)",
+            (
+                "Proxy folders have been created in the %s folder."
+                "\nThank you for using proxy-scraper-checker :)"
+            ),
             self.path.resolve(),
         )
 
     def get_sorted_proxies(self) -> Dict[ProxyType, List[Proxy]]:
-        key: Union[
-            Callable[[Proxy], float], Callable[[Proxy], Tuple[int, ...]]
-        ] = (
-            sort.timeout_sort_key
-            if self.sort_by_speed
-            else sort.natural_sort_key
+        key: Union[Callable[[Proxy], float], Callable[[Proxy], Tuple[int, ...]]] = (
+            sort.timeout_sort_key if self.sort_by_speed else sort.natural_sort_key
         )
         return {
-            proto: sorted(proxies, key=key)
-            for proto, proxies in self.proxies.items()
+            proto: sorted(proxies, key=key) for proto, proxies in self.proxies.items()
         }
 
     def _get_results_table(self) -> Table:
@@ -411,9 +392,7 @@ class ProxyScraperChecker:
             working = len(proxies)
             total = self.proxies_count[proto]
             percentage = working / total if total else 0
-            table.add_row(
-                proto.name, f"{working} ({percentage:.1%})", str(total)
-            )
+            table.add_row(proto.name, f"{working} ({percentage:.1%})", str(total))
         return table
 
     def _get_progress_bar(self) -> Progress:

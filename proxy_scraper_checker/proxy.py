@@ -41,9 +41,7 @@ class Proxy:
                 cookie_jar=cookie_jar,
                 timeout=timeout,
                 headers=HEADERS,
-            ) as session, session.get(
-                website, raise_for_status=True
-            ) as response:
+            ) as session, session.get(website, raise_for_status=True) as response:
                 if website == DEFAULT_CHECK_WEBSITE:
                     await response.read()
         self.timeout = perf_counter() - start

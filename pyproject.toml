@@ -1,0 +1,78 @@
+[tool.black]
+target-version = ["py37"]
+skip-magic-trailing-comma = true
+preview = true
+
+[tool.mypy]
+ignore_missing_imports = true
+python_version = "3.7"
+disallow_subclassing_any = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+warn_unreachable = true
+local_partial_types = true
+enable_error_code = [
+    "redundant-self",
+    "redundant-expr",
+    "truthy-bool",
+    "truthy-iterable",
+    "ignore-without-code",
+    "unused-awaitable",
+]
+strict = true
+
+[tool.ruff]
+target-version = "py37"
+select = ["ALL"]
+ignore = [
+    "ANN",
+    "B008",
+    "BLE001",
+    "C901",
+    "COM",
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "D203",
+    "D205",
+    "D212",
+    "D213",
+    "D400",
+    "D407",
+    "D415",
+    "D417",
+    "DJ008",
+    "ERA001",
+    "PD901",
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    "PT012",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    "S110",
+    "S112",
+    "SIM105",
+    "TCH001",
+    "TCH002",
+    "TCH003",
+    "TID252",
+    "TRY400",
+]
+
+[tool.ruff.flake8-unused-arguments]
+ignore-variadic-names = true
+
+[tool.ruff.isort]
+combine-as-imports = true
+required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.pyupgrade]
+keep-runtime-typing = true

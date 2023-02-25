@@ -34,9 +34,11 @@ def max_connections(value: int) -> Optional[int]:
     if not max_supported or value <= max_supported:
         return value
     logger.warning(
-        "MaxConnections value is too high. "
-        + "Your OS supports a maximum of %d. "
-        + "The config value will be ignored and %d will be used.",
+        (
+            "MaxConnections value is too high. "
+            "Your OS supports a maximum of %d. "
+            "The config value will be ignored and %d will be used."
+        ),
         max_supported,
         max_supported,
     )
@@ -46,8 +48,7 @@ def max_connections(value: int) -> Optional[int]:
 def _get_supported_max_connections() -> Optional[int]:
     if sys.platform == "win32":
         if isinstance(
-            asyncio.get_event_loop_policy(),
-            asyncio.WindowsSelectorEventLoopPolicy,
+            asyncio.get_event_loop_policy(), asyncio.WindowsSelectorEventLoopPolicy
         ):
             return 512
         return None
@@ -74,4 +75,5 @@ def folders(value: Iterable[Folder]) -> None:
 
 def sources(value: Any) -> None:
     if not value:
-        raise ValueError("proxy sources list is empty")
+        msg = "proxy sources list is empty"
+        raise ValueError(msg)

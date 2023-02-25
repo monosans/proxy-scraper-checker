@@ -15,10 +15,7 @@ from .proxy_scraper_checker import ProxyScraperChecker
 def set_event_loop_policy() -> None:
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    elif sys.implementation.name == "cpython" and sys.platform in {
-        "darwin",
-        "linux",
-    }:
+    elif sys.implementation.name == "cpython" and sys.platform in {"darwin", "linux"}:
         try:
             import uvloop
         except ImportError:
@@ -54,7 +51,9 @@ async def main() -> None:
     cfg = get_config("config.ini")
 
     console = Console()
-    configure_logging(console, debug=cfg["General"].getboolean("Debug", False))
+    configure_logging(
+        console, debug=cfg["General"].getboolean("Debug", False)  # noqa: FBT003
+    )
 
     psc = ProxyScraperChecker.from_configparser(cfg, console=console)
     await psc.run()

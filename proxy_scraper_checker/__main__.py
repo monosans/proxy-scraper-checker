@@ -52,7 +52,7 @@ async def main() -> None:
 
     console = Console()
     configure_logging(
-        console, debug=cfg["General"].getboolean("Debug", False)  # noqa: FBT003
+        console, debug=cfg["General"].getboolean("Debug", False)
     )
 
     psc = ProxyScraperChecker.from_configparser(cfg, console=console)

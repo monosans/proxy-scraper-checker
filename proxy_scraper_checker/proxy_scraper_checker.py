@@ -176,17 +176,13 @@ class ProxyScraperChecker:
                 ),
                 Folder(
                     path=save_path / "proxies_anonymous",
-                    is_enabled=folders.getboolean(
-                        "proxies_anonymous", True
-                    ),
+                    is_enabled=folders.getboolean("proxies_anonymous", True),
                     for_anonymous=True,
                     for_geolocation=False,
                 ),
                 Folder(
                     path=save_path / "proxies_geolocation",
-                    is_enabled=folders.getboolean(
-                        "proxies_geolocation", True
-                    ),
+                    is_enabled=folders.getboolean("proxies_geolocation", True),
                     for_anonymous=False,
                     for_geolocation=True,
                 ),
@@ -201,9 +197,7 @@ class ProxyScraperChecker:
             ),
             sources={
                 ProxyType.HTTP: (
-                    http.get("Sources")
-                    if http.getboolean("Enabled", True)
-                    else None
+                    http.get("Sources") if http.getboolean("Enabled", True) else None
                 ),
                 ProxyType.SOCKS4: (
                     socks4.get("Sources")

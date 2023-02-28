@@ -165,35 +165,31 @@ class ProxyScraperChecker:
             source_timeout=general.getfloat("SourceTimeout", 15),
             max_connections=general.getint("MaxConnections", 512),
             check_website=general.get("CheckWebsite", "default"),
-            sort_by_speed=general.getboolean("SortBySpeed", True),  # noqa: FBT003
+            sort_by_speed=general.getboolean("SortBySpeed", True),
             save_path=save_path,
             folders=(
                 Folder(
                     path=save_path / "proxies",
-                    is_enabled=folders.getboolean("proxies", True),  # noqa: FBT003
+                    is_enabled=folders.getboolean("proxies", True),
                     for_anonymous=False,
                     for_geolocation=False,
                 ),
                 Folder(
                     path=save_path / "proxies_anonymous",
-                    is_enabled=folders.getboolean(
-                        "proxies_anonymous", True  # noqa: FBT003
-                    ),
+                    is_enabled=folders.getboolean("proxies_anonymous", True),
                     for_anonymous=True,
                     for_geolocation=False,
                 ),
                 Folder(
                     path=save_path / "proxies_geolocation",
-                    is_enabled=folders.getboolean(
-                        "proxies_geolocation", True  # noqa: FBT003
-                    ),
+                    is_enabled=folders.getboolean("proxies_geolocation", True),
                     for_anonymous=False,
                     for_geolocation=True,
                 ),
                 Folder(
                     path=save_path / "proxies_geolocation_anonymous",
                     is_enabled=folders.getboolean(
-                        "proxies_geolocation_anonymous", True  # noqa: FBT003
+                        "proxies_geolocation_anonymous", True
                     ),
                     for_anonymous=True,
                     for_geolocation=True,
@@ -201,18 +197,16 @@ class ProxyScraperChecker:
             ),
             sources={
                 ProxyType.HTTP: (
-                    http.get("Sources")
-                    if http.getboolean("Enabled", True)  # noqa: FBT003
-                    else None
+                    http.get("Sources") if http.getboolean("Enabled", True) else None
                 ),
                 ProxyType.SOCKS4: (
                     socks4.get("Sources")
-                    if socks4.getboolean("Enabled", True)  # noqa: FBT003
+                    if socks4.getboolean("Enabled", True)
                     else None
                 ),
                 ProxyType.SOCKS5: (
                     socks5.get("Sources")
-                    if socks5.getboolean("Enabled", True)  # noqa: FBT003
+                    if socks5.getboolean("Enabled", True)
                     else None
                 ),
             },

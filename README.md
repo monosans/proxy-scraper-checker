@@ -25,7 +25,7 @@ You can get proxies obtained using this script in [monosans/proxy-list](https://
     - On Unix-like OS run `start.sh`
   - Manual:
     <details>
-      <summary>Windows</summary>
+      <summary>Windows (click to expand)</summary>
 
     1. `cd` into the unpacked folder
 
@@ -43,7 +43,7 @@ You can get proxies obtained using this script in [monosans/proxy-list](https://
 
     </details>
     <details>
-      <summary>Unix-like OS</summary>
+      <summary>Unix-like OS (click to expand)</summary>
 
     1. `cd` into the unpacked folder
 

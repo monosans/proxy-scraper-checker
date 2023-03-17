@@ -55,9 +55,25 @@ def _get_supported_max_connections() -> Optional[int]:
     import resource
 
     soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
-    if soft_limit < hard_limit:
-        resource.setrlimit(resource.RLIMIT_NOFILE, (hard_limit, hard_limit))
-    return hard_limit
+    logger.debug(
+        "MaxConnections soft limit = %d, hard limit = %d, infinity = %d",
+        soft_limit,
+        hard_limit,
+        resource.RLIM_INFINITY,
+    )
+    if soft_limit != hard_limit:
+        try:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (hard_limit, hard_limit))
+        except ValueError:
+            logger.exception(
+                "Failed setting MaxConnections. Please make a bug report in the"
+                " Issues section of the GitHub repository."
+            )
+        else:
+            soft_limit = hard_limit
+    if soft_limit == resource.RLIM_INFINITY:
+        return None
+    return soft_limit
 
 
 def check_website(value: str) -> None:

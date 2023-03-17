@@ -19,13 +19,47 @@ You can get proxies obtained using this script in [monosans/proxy-list](https://
 - Edit `config.ini` according to your preference.
 - Install [Python](https://python.org/downloads) (minimum supported version is 3.7). During installation, be sure to check the box `Add Python to PATH`.
 - Install dependencies and run the script. There are 2 ways to do this:
+
   - Automatic:
     - On Windows run `start.cmd`
     - On Unix-like OS run `start.sh`
   - Manual:
+    <details>
+      <summary>Windows</summary>
+
     1. `cd` into the unpacked folder
-    1. Install dependencies with the command `python -m pip install -U --no-cache-dir --disable-pip-version-check pip setuptools wheel; python -m pip install -U --no-cache-dir --disable-pip-version-check -r requirements.txt`
-    1. Run with the command `python -m proxy_scraper_checker`
+
+    1. Install dependencies with the command:
+
+       ```bash
+       py -m pip install -U --no-cache-dir --disable-pip-version-check pip setuptools wheel; py -m pip install -U --no-cache-dir --disable-pip-version-check -r requirements.txt
+       ```
+
+    1. Run with the command:
+
+       ```bash
+       py -m proxy_scraper_checker
+       ```
+
+    </details>
+    <details>
+      <summary>Unix-like OS</summary>
+
+    1. `cd` into the unpacked folder
+
+    1. Install dependencies with the command:
+
+       ```bash
+       python3 -m pip install -U --no-cache-dir --disable-pip-version-check pip setuptools wheel && python3 -m pip install -U --no-cache-dir --disable-pip-version-check -r requirements.txt
+       ```
+
+    1. Run with the command:
+
+       ```bash
+       python3 -m proxy_scraper_checker
+       ```
+
+    </details>
 
 ## Folders description
 

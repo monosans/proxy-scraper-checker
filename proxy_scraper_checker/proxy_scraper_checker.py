@@ -231,6 +231,8 @@ class ProxyScraperChecker:
             async with session.get(source) as response:
                 status = response.status
                 text = await response.text()
+        except asyncio.TimeoutError:
+            logger.warning("%s | Timed out", source)
         except Exception as e:
             e_str = str(e)
             args: Tuple[object, ...] = (

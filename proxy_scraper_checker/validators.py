@@ -64,11 +64,8 @@ def _get_supported_max_connections() -> Optional[int]:
     if soft_limit != hard_limit:
         try:
             resource.setrlimit(resource.RLIMIT_NOFILE, (hard_limit, hard_limit))
-        except ValueError:
-            logger.exception(
-                "Failed setting MaxConnections. Please make a bug report in the"
-                " Issues section of the GitHub repository."
-            )
+        except ValueError as e:
+            logger.warning("Failed setting MaxConnections: %s", e)
         else:
             soft_limit = hard_limit
     if soft_limit == resource.RLIM_INFINITY:

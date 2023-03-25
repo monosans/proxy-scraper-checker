@@ -16,7 +16,7 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/monosans/pre-commit-prettier
-    rev: v2.8.5
+    rev: v2.8.7
     hooks:
       - id: prettier
 
@@ -26,7 +26,7 @@ repos:
       - id: black
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.257
+    rev: v0.0.259
     hooks:
       - id: ruff
         args: [--fix]

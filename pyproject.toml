@@ -81,4 +81,3 @@ required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.pyupgrade]
 keep-runtime-typing = true
-keep-runtime-typing = true

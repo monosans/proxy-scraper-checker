@@ -53,8 +53,7 @@ async def main() -> None:
     console = Console()
     configure_logging(console, debug=cfg["General"].getboolean("Debug", False))
 
-    psc = ProxyScraperChecker.from_configparser(cfg, console=console)
-    await psc.run()
+    await ProxyScraperChecker.from_configparser(cfg, console=console).run()
 
 
 if __name__ == "__main__":

@@ -358,6 +358,9 @@ class ProxyScraperChecker:
                 )
                 file = folder.path / f"{proto.name.lower()}.txt"
                 file.write_text(text, encoding="utf-8")
+        logger.info(
+            "Proxy folders have been created in the %s folder.", self.path.resolve()
+        )
 
     async def run(self) -> None:
         with self._get_progress_bar() as progress:
@@ -368,12 +371,9 @@ class ProxyScraperChecker:
         self.console.print(table)
 
         self.save_proxies()
+
         logger.info(
-            (
-                "Proxy folders have been created in the %s folder."
-                "\nThank you for using proxy-scraper-checker :)"
-            ),
-            self.path.resolve(),
+            "Thank you for using https://github.com/monosans/proxy-scraper-checker :)"
         )
 
     def get_sorted_proxies(self) -> Dict[ProxyType, List[Proxy]]:

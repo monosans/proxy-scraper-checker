@@ -46,7 +46,7 @@ class Proxy:
                     await response.read()
         self.timeout = perf_counter() - start
         if website == DEFAULT_CHECK_WEBSITE:
-            data = await response.json()
+            data = await response.json(content_type=None)
             self.is_anonymous = self.host != data["query"]
             self.geolocation = "|{}|{}|{}".format(
                 data["country"], data["regionName"], data["city"]

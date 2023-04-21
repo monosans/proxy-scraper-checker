@@ -364,6 +364,9 @@ poetry.toml
 # ruff
 .ruff_cache/
 
+# LSP config files
+pyrightconfig.json
+
 ### SublimeText ###
 # Cache files for Sublime Text
 *.tmlanguage.cache

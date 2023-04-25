@@ -17,7 +17,7 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/monosans/pre-commit-prettier
-    rev: v2.8.7
+    rev: v2.8.8
     hooks:
       - id: prettier
 

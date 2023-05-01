@@ -2,4 +2,4 @@ aiodns>=3.0,<4
 aiohttp-socks>=0.7,<0.9
 aiohttp>=3.8,<4
 rich>=12.3,<14
-uvloop>=0.16,<0.18; implementation_name == 'cpython' and (sys_platform == 'darwin' or sys_platform == 'linux')
+uvloop>=0.16,<0.18; implementation_name == "cpython" and (sys_platform == "darwin" or sys_platform == "linux")

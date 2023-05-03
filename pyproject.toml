@@ -29,7 +29,6 @@ target-version = "py37"
 select = ["ALL"]
 ignore = [
     "ANN",
-    "B008",
     "BLE001",
     "C901",
     "COM",

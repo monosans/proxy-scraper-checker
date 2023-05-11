@@ -1,8 +1,3 @@
-proxies/
-proxies_anonymous/
-proxies_geolocation/
-proxies_geolocation_anonymous/
-
 # Created by https://www.toptal.com/developers/gitignore/api/emacs,jetbrains+all,linux,macos,notepadpp,python,sublimetext,vim,visualstudiocode,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=emacs,jetbrains+all,linux,macos,notepadpp,python,sublimetext,vim,visualstudiocode,windows
 
@@ -466,3 +461,8 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/emacs,jetbrains+all,linux,macos,notepadpp,python,sublimetext,vim,visualstudiocode,windows
+
+proxies/
+proxies_anonymous/
+proxies_geolocation/
+proxies_geolocation_anonymous/

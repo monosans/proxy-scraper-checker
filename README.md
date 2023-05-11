@@ -1,5 +1,7 @@
 # proxy-scraper-checker
 
+[![CI](https://github.com/monosans/proxy-scraper-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/monosans/proxy-scraper-checker/actions/workflows/ci.yml)
+
 ![Screenshot](screenshot.png)
 
 HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
@@ -17,7 +19,7 @@ You can get proxies obtained using this script in [monosans/proxy-list](https://
 
 - Download and unpack [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
 - Edit `config.ini` according to your preference.
-- Install [Python](https://python.org/downloads) (minimum supported version is 3.7). During installation, be sure to check the box `Add Python to PATH`.
+- Install [Python](https://python.org/downloads) (minimum required version is 3.7).
 - Install dependencies and run the script. There are 2 ways to do this:
 
   - Automatic:

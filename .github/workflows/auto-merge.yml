@@ -1,0 +1,16 @@
+name: Auto-merge updates
+on: pull_request
+permissions:
+  contents: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+jobs:
+  auto-merge-updates:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'monosans' && startsWith(github.head_ref, 'update/') }}
+    steps:
+      - run: gh pr merge --auto --delete-branch --squash "${PR_URL}"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

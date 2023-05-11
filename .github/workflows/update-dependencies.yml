@@ -1,0 +1,29 @@
+name: Update dependencies
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 0 6 * * *
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - cmd: pipx run pre-commit autoupdate
+            commit-msg: Update .pre-commit-config.yaml
+            branch: update/pre-commit-config
+    steps:
+      - uses: actions/checkout@v3
+      - run: ${{ matrix.cmd }}
+      - uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.PAT }}
+          commit-message: ${{ matrix.commit-msg }}
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          branch: ${{ matrix.branch }}
+          title: ${{ matrix.commit-msg }}
+          body:

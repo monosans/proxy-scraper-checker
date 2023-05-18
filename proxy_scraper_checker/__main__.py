@@ -1,33 +1,34 @@
 from __future__ import annotations
 
-import asyncio
-import logging
-import sys
+from asyncio import set_event_loop_policy
+from logging import basicConfig, DEBUG, INFO
+from sys import platform, implementation
 from configparser import ConfigParser
 
-import rich.traceback
+from rich.traceback import install as rich_install
 from rich.console import Console
 from rich.logging import RichHandler
 
 from .proxy_scraper_checker import ProxyScraperChecker
 
 
-def set_event_loop_policy() -> None:
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    elif sys.implementation.name == "cpython" and sys.platform in {"darwin", "linux"}:
+def set_event_loop_policy_local() -> None:
+    if platform == "win32":
+        from asyncio import WindowsSelectorEventLoopPolicy
+        set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+    elif implementation.name == "cpython" and platform in {"darwin", "linux"}:
         try:
-            import uvloop
+            from uvloop import install
         except ImportError:
             pass
         else:
-            uvloop.install()
+            install()
 
 
 def configure_logging(console: Console, *, debug: bool) -> None:
-    rich.traceback.install(console=console)
-    logging.basicConfig(
-        level=logging.DEBUG if debug else logging.INFO,
+    rich_install(console=console)
+    basicConfig(
+        level=DEBUG if debug else INFO,
         format="%(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=(
@@ -57,5 +58,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    set_event_loop_policy()
+    set_event_loop_policy_local()
     asyncio.run(main())

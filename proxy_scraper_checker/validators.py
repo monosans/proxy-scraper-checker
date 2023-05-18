@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import asyncio
-import logging
-import sys
+from asyncio import get_event_loop_policy
+from logging import getLogger
+from sys import platform
 from typing import Any, Iterable, Optional
 from urllib.parse import urlparse
 
 from .folder import Folder
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 def timeout(value: float) -> None:
@@ -46,9 +46,10 @@ def max_connections(value: int) -> Optional[int]:
 
 
 def _get_supported_max_connections() -> Optional[int]:
-    if sys.platform == "win32":
+    if platform == "win32":
+        from asyncio import WindowsSelectorEventLoopPolicy
         if isinstance(
-            asyncio.get_event_loop_policy(), asyncio.WindowsSelectorEventLoopPolicy
+            get_event_loop_policy(), WindowsSelectorEventLoopPolicy
         ):
             return 512
         return None

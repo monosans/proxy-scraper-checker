@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import asyncio
-import logging
-import re
+from asyncio import Semaphore, TimeoutError, gather
+from logging import getLogger
+from re import compile
 from configparser import ConfigParser
 from pathlib import Path
 from random import shuffle
@@ -31,7 +31,7 @@ from .folder import Folder
 from .null_context import AsyncNullContext
 from .proxy import Proxy
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 TProxyScraperChecker = TypeVar("TProxyScraperChecker", bound="ProxyScraperChecker")
 
@@ -100,8 +100,8 @@ class ProxyScraperChecker:
         self.source_timeout = source_timeout
 
         max_conn = validators.max_connections(max_connections)
-        self.sem: Union[asyncio.Semaphore, AsyncNullContext] = (
-            asyncio.Semaphore(max_conn) if max_conn else AsyncNullContext()
+        self.sem: Union[Semaphore, AsyncNullContext] = (
+            Semaphore(max_conn) if max_conn else AsyncNullContext()
         )
 
         self.check_website = check_website
@@ -135,7 +135,7 @@ class ProxyScraperChecker:
 
         self.console = console or Console()
         self.cookie_jar = DummyCookieJar()
-        self.regex = re.compile(
+        self.regex = compile(
             r"(?:^|\D)?("
             r"(?:[1-9]|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])"  # 1-255
             + r"\.(?:\d|[1-9]\d|1\d{2}|2[0-4]\d|25[0-5])" * 3  # 0-255
@@ -231,7 +231,7 @@ class ProxyScraperChecker:
             async with session.get(source) as response:
                 await response.read()
             text = await response.text()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("%s | Timed out", source)
         except Exception as e:
             e_str = str(e)
@@ -318,7 +318,7 @@ class ProxyScraperChecker:
                 for proto, sources in self.sources.items()
                 for source in sources
             )
-            await asyncio.gather(*coroutines)
+            await gather(*coroutines)
 
         self.proxies_count = {
             proto: len(proxies) for proto, proxies in self.proxies.items()
@@ -339,7 +339,7 @@ class ProxyScraperChecker:
             for proxy in proxies
         ]
         shuffle(coroutines)
-        await asyncio.gather(*coroutines)
+        await gather(*coroutines)
 
     def save_proxies(self) -> None:
         """Delete old proxies and save new ones."""

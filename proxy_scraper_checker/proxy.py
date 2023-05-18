@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio
+from asyncio import Semaphore
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Union
@@ -27,7 +27,7 @@ class Proxy:
         self,
         *,
         website: str,
-        sem: Union[asyncio.Semaphore, AsyncNullContext],
+        sem: Union[Semaphore, AsyncNullContext],
         cookie_jar: AbstractCookieJar,
         proto: ProxyType,
         timeout: ClientTimeout,

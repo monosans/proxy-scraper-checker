@@ -13,7 +13,7 @@ HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 - Supports determining the geolocation of the proxy exit node.
 - Can determine if the proxy is anonymous.
 
-You can get proxies obtained using this script in [monosans/proxy-list](https://github.com/monosans/proxy-list).
+You can get proxies obtained using this script in [monosans/proxy-list](https://github.com/victorgeel/proxy-list-update).
 
 ## Installation and usage
 

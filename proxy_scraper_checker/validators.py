@@ -48,7 +48,8 @@ def max_connections(value: int) -> Optional[int]:
 def _get_supported_max_connections() -> Optional[int]:
     if sys.platform == "win32":
         if isinstance(
-            asyncio.get_event_loop_policy(), asyncio.WindowsSelectorEventLoopPolicy
+            asyncio.get_event_loop_policy(),
+            asyncio.WindowsSelectorEventLoopPolicy,
         ):
             return 512
         return None

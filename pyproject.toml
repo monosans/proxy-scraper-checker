@@ -56,6 +56,7 @@ ignore = [
     "ERA001",
     "FBT002",
     "PD901",
+    "PERF203",
     "PLR0911",
     "PLR0912",
     "PLR0913",
@@ -76,8 +77,6 @@ ignore = [
     "TCH003",
     "TID252",
     "TRY400",
-    "UP006",
-    "UP007",
 ]
 
 [tool.ruff.flake8-unused-arguments]
@@ -89,3 +88,6 @@ required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.pydocstyle]
 convention = "google"
+
+[tool.ruff.pyupgrade]
+keep-runtime-typing = true

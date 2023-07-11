@@ -34,11 +34,9 @@ def max_connections(value: int) -> Optional[int]:
     if not max_supported or value <= max_supported:
         return value
     logger.warning(
-        (
-            "MaxConnections value is too high. "
-            "Your OS supports a maximum of %d. "
-            "The config value will be ignored and %d will be used."
-        ),
+        "MaxConnections value is too high. "
+        "Your OS supports a maximum of %d. "
+        "The config value will be ignored and %d will be used.",
         max_supported,
         max_supported,
     )

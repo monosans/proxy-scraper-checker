@@ -1,6 +1,6 @@
 [tool.black]
-target-version = ["py37"]
 line-length = 80
+target-version = ["py37"]
 skip-magic-trailing-comma = true
 preview = true
 
@@ -12,13 +12,13 @@ disallow_untyped_decorators = false
 warn_unreachable = true
 local_partial_types = true
 enable_error_code = [
-    "redundant-self",
-    "redundant-expr",
-    "possibly-undefined",
-    "truthy-bool",
-    "truthy-iterable",
-    "ignore-without-code",
-    "unused-awaitable",
+  "redundant-self",
+  "redundant-expr",
+  "possibly-undefined",
+  "truthy-bool",
+  "truthy-iterable",
+  "ignore-without-code",
+  "unused-awaitable",
 ]
 strict = true
 
@@ -27,57 +27,58 @@ module = "aiohttp_socks.*"
 ignore_missing_imports = true
 
 [tool.ruff]
-target-version = "py37"
+ignore = [
+  "ANN",
+  "BLE001",
+  "C901",
+  "COM",
+  "D100",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D106",
+  "D107",
+  "D203",
+  "D205",
+  "D212",
+  "D213",
+  "D400",
+  "D401",
+  "D407",
+  "D415",
+  "D417",
+  "DJ008",
+  "ERA001",
+  "FBT002",
+  "PD901",
+  "PERF203",
+  "PLR0911",
+  "PLR0912",
+  "PLR0913",
+  "PLR0915",
+  "PT012",
+  "RUF001",
+  "RUF002",
+  "RUF003",
+  "RUF012",
+  "RUF013",
+  "S110",
+  "S112",
+  "S308",
+  "S311",
+  "SIM105",
+  "TCH001",
+  "TCH002",
+  "TCH003",
+  "TID252",
+  "TRY400",
+]
+ignore-init-module-imports = true
 line-length = 80
 select = ["ALL"]
-ignore = [
-    "ANN",
-    "BLE001",
-    "C901",
-    "COM",
-    "D100",
-    "D101",
-    "D102",
-    "D103",
-    "D104",
-    "D105",
-    "D106",
-    "D107",
-    "D203",
-    "D205",
-    "D212",
-    "D213",
-    "D400",
-    "D401",
-    "D407",
-    "D415",
-    "D417",
-    "DJ008",
-    "ERA001",
-    "FBT002",
-    "PD901",
-    "PERF203",
-    "PLR0911",
-    "PLR0912",
-    "PLR0913",
-    "PLR0915",
-    "PT012",
-    "RUF001",
-    "RUF002",
-    "RUF003",
-    "RUF012",
-    "RUF013",
-    "S110",
-    "S112",
-    "S308",
-    "S311",
-    "SIM105",
-    "TCH001",
-    "TCH002",
-    "TCH003",
-    "TID252",
-    "TRY400",
-]
+target-version = "py37"
 
 [tool.ruff.flake8-unused-arguments]
 ignore-variadic-names = true

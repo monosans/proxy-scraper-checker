@@ -80,6 +80,9 @@ line-length = 80
 select = ["ALL"]
 target-version = "py37"
 
+[tool.ruff.flake8-self]
+ignore-names = []
+
 [tool.ruff.flake8-unused-arguments]
 ignore-variadic-names = true
 

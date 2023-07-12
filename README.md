@@ -17,51 +17,29 @@ You can get proxies obtained using this script in [monosans/proxy-list](https://
 
 ## Installation and usage
 
+### Desktop
+
 - Download and unpack [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
-- Edit `config.ini` according to your preference.
+- Edit `config.ini` to your preference.
 - Install [Python](https://python.org/downloads) (minimum required version is 3.7).
-- Install dependencies and run the script. There are 2 ways to do this:
+- Run the script that installs dependencies and starts `proxy-scraper-checker`:
+  - On Windows run `start.cmd`
+  - On Unix-like operating systems run `start.sh`
 
-  - Automatic:
-    - On Windows run `start.cmd`
-    - On Unix-like OS run `start.sh`
-  - Manual:
-    <details>
-      <summary>Windows (click to expand)</summary>
+### Termux
 
-    1. `cd` into the unpacked folder
+To use `proxy-scraper-checker` in Termux, knowledge of the Unix command-line interface is required.
 
-    1. Install dependencies with the command:
-
-       ```bash
-       py -m pip install -U --no-cache-dir --disable-pip-version-check pip setuptools wheel; py -m pip install -U --no-cache-dir --disable-pip-version-check -r requirements.txt
-       ```
-
-    1. Run with the command:
-
-       ```bash
-       py -m proxy_scraper_checker
-       ```
-
-    </details>
-    <details>
-      <summary>Unix-like OS (click to expand)</summary>
-
-    1. `cd` into the unpacked folder
-
-    1. Install dependencies with the command:
-
-       ```bash
-       python3 -m pip install -U --no-cache-dir --disable-pip-version-check pip setuptools wheel && python3 -m pip install -U --no-cache-dir --disable-pip-version-check -r requirements.txt
-       ```
-
-    1. Run with the command:
-
-       ```bash
-       python3 -m proxy_scraper_checker
-       ```
-
-    </details>
+- Download Termux from [F-Droid](https://f-droid.org/en/packages/com.termux/). [Don't download it from Google Play](https://github.com/termux/termux-app#google-play-store-deprecated).
+- Run the following command (it will automatically update Termux packages, install Python, and download and install `proxy-scraper-checker`):
+  ```bash
+  bash <(curl 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/termux-install.sh')
+  ```
+- Edit `~/proxy-scraper-checker/config.ini` to your preference using a text editor (vim/nano).
+- To run `proxy-scraper-checker` use the following command:
+  ```bash
+  cd ~/proxy-scraper-checker && sh start-termux.sh
+  ```
 
 ## Folders description
 

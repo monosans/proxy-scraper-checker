@@ -1,5 +1,6 @@
 #!/bin/sh
-path=~/proxy-scraper-checker
+base_path=~
+path="${base_path}"/proxy-scraper-checker
 download_path="${PREFIX}"/tmp/proxy-scraper-checker.zip
 
 pkg upgrade --yes -o Dpkg::Options::='--force-confdef' &&
@@ -8,7 +9,8 @@ if [ -d "${path}" ]; then
     rm -rf --interactive=once "${path}"
 fi &&
 curl -fsSLo "${download_path}" 'https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip' &&
-unzip -jd "${path}" "${download_path}" &&
+unzip -d "${base_path}" "${download_path}" &&
+mv "${path}-main" "${path}" &&
 python3 -m pip install -U --no-cache-dir --disable-pip-version-check setuptools wheel &&
 python3 -m pip install -U --no-cache-dir --disable-pip-version-check -r "${path}"/requirements-termux.txt &&
 printf "proxy-scraper-checker installed successfully.\nRun 'cd %s && sh start-termux.sh'.\n" "${path}"

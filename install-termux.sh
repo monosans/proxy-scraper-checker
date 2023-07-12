@@ -5,7 +5,7 @@ download_path="${PREFIX}"/tmp/proxy-scraper-checker.zip
 pkg upgrade --yes -o Dpkg::Options::='--force-confdef' &&
 pkg install --yes python python-pip &&
 if [ -d "${path}" ]; then
-    rm -rfi "${path}"
+    rm -rf --interactive=once "${path}"
 fi &&
 curl -fsSLo "${download_path}" 'https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip' &&
 unzip -jd "${path}" "${download_path}" &&

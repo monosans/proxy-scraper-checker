@@ -33,7 +33,7 @@ To use `proxy-scraper-checker` in Termux, knowledge of the Unix command-line int
 - Download Termux from [F-Droid](https://f-droid.org/en/packages/com.termux/). [Don't download it from Google Play](https://github.com/termux/termux-app#google-play-store-deprecated).
 - Run the following command (it will automatically update Termux packages, install Python, and download and install `proxy-scraper-checker`):
   ```bash
-  bash <(curl 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/termux-install.sh')
+  bash <(curl -fsSL 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/install-termux.sh')
   ```
 - Edit `~/proxy-scraper-checker/config.ini` to your preference using a text editor (vim/nano).
 - To run `proxy-scraper-checker` use the following command:

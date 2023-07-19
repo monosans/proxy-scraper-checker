@@ -52,10 +52,6 @@ When the script finishes running, the following folders will be created (this be
 
 Geolocation format is `ip:port|Country|Region|City`.
 
-## Buy me a coffee
-
-Ask for details on [Telegram](https://t.me/monosans) or [VK](https://vk.com/id607137534).
-
 ## License
 
 [MIT](LICENSE)

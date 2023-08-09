@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 
 class AsyncNullContext:
     __slots__ = ()
@@ -9,5 +7,5 @@ class AsyncNullContext:
     async def __aenter__(self) -> None:
         pass
 
-    async def __aexit__(self, *_: Any) -> None:
+    async def __aexit__(self, *_: object) -> None:
         pass

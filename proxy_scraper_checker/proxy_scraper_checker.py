@@ -9,6 +9,7 @@ from random import shuffle
 from typing import (
     Callable,
     Dict,
+    FrozenSet,
     Iterable,
     List,
     Optional,
@@ -131,7 +132,7 @@ class ProxyScraperChecker:
         else:
             validators.folders(self.folders)
 
-        self.sources = {
+        self.sources: Dict[ProxyType, FrozenSet[str]] = {
             proto: frozenset(filter(None, sources.splitlines()))
             for proto, sources in sources.items()
             if sources

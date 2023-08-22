@@ -33,10 +33,9 @@ from rich.progress import (
 from rich.table import Table
 
 from . import sort, validators
-from .constants import USER_AGENT
 from .folder import Folder
 from .null_context import AsyncNullContext
-from .proxy import Proxy
+from .proxy import HEADERS, Proxy
 
 logger = logging.getLogger(__name__)
 
@@ -325,7 +324,7 @@ class ProxyScraperChecker:
             for proto, sources in self.sources.items()
         }
         async with ClientSession(
-            headers={"User-Agent": USER_AGENT},
+            headers=HEADERS,
             cookie_jar=self.cookie_jar,
             timeout=ClientTimeout(total=self.source_timeout),
         ) as session:

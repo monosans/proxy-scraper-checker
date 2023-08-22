@@ -3,17 +3,24 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from time import perf_counter
+from types import MappingProxyType
 from typing import Union
 
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp.abc import AbstractCookieJar
 from aiohttp_socks import ProxyConnector, ProxyType
 
-from .constants import USER_AGENT
 from .null_context import AsyncNullContext
 
 DEFAULT_CHECK_WEBSITE = "http://ip-api.com/json/?fields=8217"
-HEADERS = {"User-Agent": USER_AGENT}
+HEADERS = MappingProxyType(
+    {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; rv:109.0)"
+            " Gecko/20100101 Firefox/116.0"
+        )
+    }
+)
 
 
 @dataclass(repr=False, unsafe_hash=True)

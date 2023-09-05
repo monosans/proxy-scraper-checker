@@ -16,7 +16,7 @@ jobs:
             commit-msg: Update .pre-commit-config.yaml
             branch: update/pre-commit-config
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: ${{ matrix.cmd }}
       - uses: peter-evans/create-pull-request@v5
         with:

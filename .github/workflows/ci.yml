@@ -12,5 +12,5 @@ jobs:
   run-pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: pipx run pre-commit run --all-files

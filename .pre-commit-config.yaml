@@ -20,7 +20,7 @@ repos:
     rev: v3.0.3
     hooks:
       - id: prettier
-  - repo: https://github.com/psf/black
+  - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 23.9.0
     hooks:
       - id: black

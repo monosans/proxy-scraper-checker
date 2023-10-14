@@ -24,7 +24,7 @@ def set_event_loop_policy() -> None:
         except ImportError:
             pass
         else:
-            uvloop.install()
+            uvloop.install()  # type: ignore[attr-defined]
 
 
 def configure_logging(console: Console, *, debug: bool) -> None:

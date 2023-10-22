@@ -39,4 +39,4 @@ repos:
         additional_dependencies:
           - aiohttp<4
           - rich<14
-          - uvloop<0.19; implementation_name == "cpython" and (sys_platform == "darwin" or sys_platform == "linux")
+          - uvloop<0.20; implementation_name == "cpython" and (sys_platform == "darwin" or sys_platform == "linux")

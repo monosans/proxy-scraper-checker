@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import Any, Iterable, Optional
+from typing import Iterable, Optional
 from urllib.parse import urlparse
+
+from typing_extensions import Any
 
 from .folder import Folder
 

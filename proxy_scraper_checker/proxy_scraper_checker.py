@@ -15,8 +15,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Type,
-    TypeVar,
     Union,
 )
 
@@ -31,6 +29,7 @@ from rich.progress import (
     TextColumn,
 )
 from rich.table import Table
+from typing_extensions import Self
 
 from . import sort, validators
 from .folder import Folder
@@ -38,10 +37,6 @@ from .null_context import AsyncNullContext
 from .proxy import HEADERS, Proxy
 
 logger = logging.getLogger(__name__)
-
-TProxyScraperChecker = TypeVar(
-    "TProxyScraperChecker", bound="ProxyScraperChecker"
-)
 
 
 class ProxyScraperChecker:
@@ -157,11 +152,8 @@ class ProxyScraperChecker:
 
     @classmethod
     def from_configparser(
-        cls: Type[TProxyScraperChecker],
-        cfg: ConfigParser,
-        *,
-        console: Optional[Console] = None,
-    ) -> TProxyScraperChecker:
+        cls, cfg: ConfigParser, *, console: Optional[Console] = None
+    ) -> Self:
         general = cfg["General"]
         folders = cfg["Folders"]
         http = cfg["HTTP"]

@@ -1,9 +1,3 @@
-[tool.black]
-line-length = 80
-target-version = ["py37"]
-skip-magic-trailing-comma = true
-preview = true
-
 [tool.mypy]
 python_version = "3.8"
 disallow_subclassing_any = false
@@ -32,6 +26,7 @@ ignore = [
   "BLE001",
   "C901",
   "COM",
+  "CPY001",
   "D100",
   "D101",
   "D102",
@@ -50,14 +45,17 @@ ignore = [
   "D415",
   "D417",
   "DJ008",
+  "E203",
   "ERA001",
   "FBT002",
   "PD901",
   "PERF203",
+  "PLR0904",
   "PLR0911",
   "PLR0912",
   "PLR0913",
   "PLR0915",
+  "PLR0916",
   "PT012",
   "RUF001",
   "RUF002",
@@ -77,6 +75,7 @@ ignore = [
 ]
 ignore-init-module-imports = true
 line-length = 80
+preview = true
 select = ["ALL"]
 target-version = "py37"
 
@@ -85,6 +84,10 @@ ignore-names = []
 
 [tool.ruff.flake8-unused-arguments]
 ignore-variadic-names = true
+
+[tool.ruff.format]
+line-ending = "lf"
+skip-magic-trailing-comma = true
 
 [tool.ruff.isort]
 combine-as-imports = true

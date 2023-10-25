@@ -6,6 +6,7 @@ disallow_untyped_decorators = false
 warn_unreachable = true
 local_partial_types = true
 enable_error_code = [
+  "explicit-override",
   "redundant-self",
   "redundant-expr",
   "possibly-undefined",

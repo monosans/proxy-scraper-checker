@@ -23,10 +23,12 @@ ignore_missing_imports = true
 
 [tool.ruff]
 ignore = [
-  "ANN",
+  "ANN101",
+  "ANN102",
+  "ANN401",
   "BLE001",
   "C901",
-  "COM",
+  "COM812",
   "CPY001",
   "D100",
   "D101",
@@ -36,19 +38,12 @@ ignore = [
   "D105",
   "D106",
   "D107",
-  "D203",
-  "D205",
-  "D212",
-  "D213",
-  "D400",
-  "D401",
-  "D407",
   "D415",
   "D417",
   "DJ008",
   "E203",
   "ERA001",
-  "FBT002",
+  "ISC001",
   "PD901",
   "PERF203",
   "PLR0904",
@@ -61,8 +56,6 @@ ignore = [
   "RUF001",
   "RUF002",
   "RUF003",
-  "RUF012",
-  "RUF013",
   "S110",
   "S112",
   "S308",
@@ -93,6 +86,7 @@ skip-magic-trailing-comma = true
 [tool.ruff.isort]
 combine-as-imports = true
 required-imports = ["from __future__ import annotations"]
+split-on-trailing-comma = false
 
 [tool.ruff.pydocstyle]
 convention = "google"

@@ -20,7 +20,7 @@ def set_event_loop_policy() -> None:
         "linux",
     }:
         try:
-            import uvloop
+            import uvloop  # noqa: PLC0415
         except ImportError:
             pass
         else:

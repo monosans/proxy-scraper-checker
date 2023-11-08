@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: check-case-conflict
       - id: check-executables-have-shebangs
@@ -16,22 +16,19 @@ repos:
         args:
           - --fix=lf
       - id: trailing-whitespace
-  - repo: https://github.com/monosans/pre-commit-prettier
-    rev: v2.8.8
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.0.3
     hooks:
       - id: prettier
-  - repo: https://github.com/psf/black
-    rev: 23.3.0
-    hooks:
-      - id: black
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.272
+    rev: v0.1.4
     hooks:
       - id: ruff
         args:
           - --fix
+      - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.3.0
+    rev: v1.6.1
     hooks:
       - id: mypy
         args:
@@ -39,4 +36,5 @@ repos:
         additional_dependencies:
           - aiohttp<4
           - rich<14
-          - uvloop<0.18; implementation_name == "cpython" and (sys_platform == "darwin" or sys_platform == "linux")
+          - typing-extensions<5
+          - uvloop<0.20; implementation_name == "cpython" and (sys_platform == "darwin" or sys_platform == "linux")

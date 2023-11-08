@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import Any, Iterable, Optional
+from typing import Iterable, Optional
 from urllib.parse import urlparse
+
+from typing_extensions import Any
 
 from .folder import Folder
 
@@ -34,11 +36,9 @@ def max_connections(value: int) -> Optional[int]:
     if not max_supported or value <= max_supported:
         return value
     logger.warning(
-        (
-            "MaxConnections value is too high. "
-            "Your OS supports a maximum of %d. "
-            "The config value will be ignored and %d will be used."
-        ),
+        "MaxConnections value is too high. "
+        "Your OS supports a maximum of %d. "
+        "The config value will be ignored and %d will be used.",
         max_supported,
         max_supported,
     )
@@ -48,11 +48,12 @@ def max_connections(value: int) -> Optional[int]:
 def _get_supported_max_connections() -> Optional[int]:
     if sys.platform == "win32":
         if isinstance(
-            asyncio.get_event_loop_policy(), asyncio.WindowsSelectorEventLoopPolicy
+            asyncio.get_event_loop_policy(),
+            asyncio.WindowsSelectorEventLoopPolicy,
         ):
             return 512
         return None
-    import resource
+    import resource  # noqa: PLC0415
 
     soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
     logger.debug(

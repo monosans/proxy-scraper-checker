@@ -15,13 +15,16 @@ from .proxy_scraper_checker import ProxyScraperChecker
 def set_event_loop_policy() -> None:
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    elif sys.implementation.name == "cpython" and sys.platform in {"darwin", "linux"}:
+    elif sys.implementation.name == "cpython" and sys.platform in {
+        "darwin",
+        "linux",
+    }:
         try:
-            import uvloop
+            import uvloop  # noqa: PLC0415
         except ImportError:
             pass
         else:
-            uvloop.install()
+            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 def configure_logging(console: Console, *, debug: bool) -> None:
@@ -29,7 +32,7 @@ def configure_logging(console: Console, *, debug: bool) -> None:
     logging.basicConfig(
         level=logging.DEBUG if debug else logging.INFO,
         format="%(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        datefmt=logging.Formatter.default_time_format,
         handlers=(
             RichHandler(
                 console=console,

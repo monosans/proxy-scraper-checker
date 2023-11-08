@@ -24,4 +24,6 @@ To use `proxy-scraper-checker` in Termux, knowledge of the Unix command-line int
 - To run `proxy-scraper-checker` use the following command:
   ```bash
   cd ~/proxy-here-Noobs && sh start-termux.sh
+  or
+  cd /data/data/com.termux/files/home/proxy-here-Noobs && sh start-termux.sh
   ```

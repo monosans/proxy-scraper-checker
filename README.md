@@ -6,14 +6,8 @@
 
 HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
-- Asynchronous.
-- Uses regex to search for proxies (ip:port format) on a web page, allowing proxies to be extracted even from json without making changes to the code.
-- It is possible to specify the URL to which to send a request to check the proxy.
-- Can sort proxies by speed.
-- Supports determining the geolocation of the proxy exit node.
-- Can determine if the proxy is anonymous.
 
-You can get proxies obtained using this script in [monosans/proxy-list](https://github.com/victorgeel/proxy-list-update).
+You can get proxies obtained using this script in [victorgeel/proxy-list](https://github.com/victorgeel/proxy-list-update).
 
 ## Termux တစ်မျိုးပဲသုံး
 
@@ -31,18 +25,3 @@ To use `proxy-scraper-checker` in Termux, knowledge of the Unix command-line int
   ```bash
   cd ~/proxy-scraper-checker && sh start-termux.sh
   ```
-
-## Folders description
-
-When the script finishes running, the following folders will be created (this behavior can be changed in the config):
-
-- `proxies` - proxies with any anonymity level.
-- `proxies_anonymous` - anonymous proxies.
-- `proxies_geolocation` - same as `proxies`, but includes exit-node's geolocation.
-- `proxies_geolocation_anonymous` - same as `proxies_anonymous`, but includes exit-node's geolocation.
-
-Geolocation format is `ip:port|Country|Region|City`.
-
-## License
-
-[MIT](LICENSE)

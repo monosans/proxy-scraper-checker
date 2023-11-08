@@ -388,8 +388,8 @@ class ProxyScraperChecker:
         self.save_proxies()
 
         logger.info(
-            "Thank you for using "
-            "https://github.com/monosans/proxy-scraper-checker :)"
+            "လိုချင်တာတွေ့ရဲ့လား "
+            "တွေ့ရင်လစ်တော့လေ "
         )
 
     def get_sorted_proxies(self) -> Dict[ProxyType, List[Proxy]]:

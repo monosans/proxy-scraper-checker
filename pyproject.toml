@@ -1,12 +1,12 @@
 [tool.mypy]
 python_version = "3.8"
+platform = "linux"
 disallow_subclassing_any = false
 disallow_untyped_calls = false
 disallow_untyped_decorators = false
 warn_unreachable = true
 local_partial_types = true
 enable_error_code = [
-  "explicit-override",
   "redundant-self",
   "redundant-expr",
   "possibly-undefined",
@@ -14,6 +14,7 @@ enable_error_code = [
   "truthy-iterable",
   "ignore-without-code",
   "unused-awaitable",
+  "explicit-override",
 ]
 strict = true
 
@@ -94,4 +95,5 @@ split-on-trailing-comma = false
 convention = "google"
 
 [tool.ruff.pyupgrade]
+keep-runtime-typing = true
 keep-runtime-typing = true

@@ -96,4 +96,3 @@ convention = "google"
 
 [tool.ruff.pyupgrade]
 keep-runtime-typing = true
-keep-runtime-typing = true

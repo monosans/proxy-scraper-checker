@@ -1,4 +1,5 @@
 aiohttp-socks>=0.7,<0.9
-aiohttp>=3.8,<4
+aiohttp>=3.9.0b0,<4; python_version >= "3.12"
+aiohttp>=3.8,<4; python_version < "3.12"
 rich>=12.3,<14
 typing-extensions>=4.4,<5

@@ -3,21 +3,14 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from time import perf_counter
-from types import MappingProxyType
 from typing import Union
 
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp.abc import AbstractCookieJar
 from aiohttp_socks import ProxyConnector, ProxyType
 
+from .constants import HEADERS
 from .null_context import AsyncNullContext
-
-DEFAULT_CHECK_WEBSITE = "http://ip-api.com/json/?fields=8217"
-HEADERS = MappingProxyType({
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; rv:120.0) Gecko/20100101 Firefox/120.0"
-    )
-})
 
 
 @dataclass(repr=False, unsafe_hash=True)
@@ -35,9 +28,8 @@ class Proxy:
         cookie_jar: AbstractCookieJar,
         proto: ProxyType,
         timeout: ClientTimeout,
+        set_geolocation: bool,
     ) -> None:
-        if website == "default":
-            website = DEFAULT_CHECK_WEBSITE
         async with sem:
             start = perf_counter()
             connector = ProxyConnector(
@@ -51,14 +43,14 @@ class Proxy:
             ) as session, session.get(
                 website, raise_for_status=True
             ) as response:
-                if website == DEFAULT_CHECK_WEBSITE:
+                if set_geolocation:
                     await response.read()
         self.timeout = perf_counter() - start
-        if website == DEFAULT_CHECK_WEBSITE:
+        if set_geolocation:
             data = await response.json(content_type=None)
             self.is_anonymous = self.host != data["query"]
-            self.geolocation = "|{}|{}|{}".format(
-                data["country"], data["regionName"], data["city"]
+            self.geolocation = (
+                f"|{data['country']}|{data['regionName']}|{data['city']}"
             )
 
     def as_str(self, *, include_geolocation: bool) -> str:

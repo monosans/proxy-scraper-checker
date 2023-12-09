@@ -32,9 +32,10 @@ from rich.table import Table
 from typing_extensions import Self
 
 from . import sort, validators
+from .constants import DEFAULT_CHECK_WEBSITE, HEADERS
 from .folder import Folder
 from .null_context import AsyncNullContext
-from .proxy import HEADERS, Proxy
+from .proxy import Proxy
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ class ProxyScraperChecker:
         "console",
         "cookie_jar",
         "folders",
+        "geolocation_enabled",
         "path",
         "proxies_count",
         "proxies",
@@ -112,7 +114,12 @@ class ProxyScraperChecker:
         self.path = save_path
         self.folders = folders
 
-        if self.check_website != "default":
+        if self.check_website == "default":
+            self.check_website = DEFAULT_CHECK_WEBSITE
+
+        if self.check_website == DEFAULT_CHECK_WEBSITE:
+            validators.folders(self.folders)
+        else:
             validators.check_website(check_website)
             logger.info(
                 "CheckWebsite is not 'default', "
@@ -123,8 +130,13 @@ class ProxyScraperChecker:
                 folder.is_enabled = (
                     not folder.for_anonymous and not folder.for_geolocation
                 )
-        else:
-            validators.folders(self.folders)
+
+        self.geolocation_enabled = any(
+            self.check_website == DEFAULT_CHECK_WEBSITE
+            and folder.is_enabled
+            and folder.for_geolocation
+            for folder in self.folders
+        )
 
         self.sources: Dict[ProxyType, FrozenSet[str]] = {
             proto: frozenset(filter(None, sources.splitlines()))
@@ -292,6 +304,7 @@ class ProxyScraperChecker:
                 cookie_jar=self.cookie_jar,
                 proto=proto,
                 timeout=self.timeout,
+                set_geolocation=self.geolocation_enabled,
             )
         except Exception as e:
             # Too many open files

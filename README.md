@@ -41,6 +41,10 @@ To use `proxy-scraper-checker` in Termux, knowledge of the Unix command-line int
   cd ~/proxy-scraper-checker && sh start-termux.sh
   ```
 
+## Checking local proxy lists
+
+To check the local proxy lists, start the Python HTTP server on your local machine by running the `python -m http.server --bind localhost` command in the folder with the proxy lists. After that, add links to the appropriate files in `config.ini`.
+
 ## Folders description
 
 When the script finishes running, the following folders will be created (this behavior can be changed in the config):

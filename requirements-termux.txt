@@ -1,4 +1,0 @@
-aiohttp-socks>=0.7,<0.9
-aiohttp>=3.8,<4
-rich>=12.3,<14
-typing-extensions>=4.4,<5

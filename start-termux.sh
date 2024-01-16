@@ -1,4 +1,4 @@
 #!/bin/sh
-python3 -m pip install -U --no-cache-dir --disable-pip-version-check setuptools wheel &&
-python3 -m pip install -U --no-cache-dir --disable-pip-version-check -r requirements-termux.txt &&
-python3 -m proxy_scraper_checker
+python3 -m venv --upgrade-deps .venv &&
+.venv/bin/python3 -m pip install -U --disable-pip-version-check --editable . &&
+.venv/bin/python3 -m proxy_scraper_checker

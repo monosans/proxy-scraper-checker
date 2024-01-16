@@ -6,6 +6,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
   cancel-in-progress: true
 jobs:
+  auto-merge-dependabot:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - id: dependabot-metadata
+        uses: dependabot/fetch-metadata@v1
+      - if: ${{ steps.dependabot-metadata.outputs.update-type != 'version-update:semver-major' }}
+        run: gh pr merge --auto --delete-branch --squash "${PR_URL}"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   auto-merge-updates:
     runs-on: ubuntu-latest
     if: ${{ github.actor == 'monosans' && startsWith(github.head_ref, 'update/') }}

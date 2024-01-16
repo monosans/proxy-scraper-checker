@@ -6,27 +6,37 @@
 
 HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
-- Asynchronous.
-- Uses regex to search for proxies (ip:port format) on a web page, allowing proxies to be extracted even from json without making changes to the code.
-- It is possible to specify the URL to which to send a request to check the proxy.
-- Can sort proxies by speed.
-- Supports determining the geolocation of the proxy exit node.
 - Can determine if the proxy is anonymous.
+- Supports determining the geolocation of the proxy exit node.
+- Can sort proxies by speed.
+- Uses regex to find proxies of format `protocol://username:password@ip:port` on a web page or in a local file, allowing proxies to be extracted even from json without code changes.
+- Supports proxies with authentication.
+- It is possible to specify the URL to which to send a request to check the proxy.
+- Supports saving to plain text and json.
+- Asynchronous.
 
-You can get proxies obtained using this script in [monosans/proxy-list](https://github.com/monosans/proxy-list).
+You can get proxies obtained using this project in [monosans/proxy-list](https://github.com/monosans/proxy-list).
 
 ## Installation and usage
 
-### Desktop
+### Pre-compiled binary
 
+This is the easiest way, but it is only available for x64 Windows, macOS and Linux. Just download the archive for your OS from <https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview>, unzip it, edit `config.toml` and run the executable.
+
+If Windows Defender detects an executable file as a virus, please read [this](https://github.com/Nuitka/Nuitka/issues/2495#issuecomment-1762836583).
+
+### Running from source code
+
+#### Desktop
+
+- Install [Python](https://python.org/downloads). The minimum version required is 3.8. The recommended version is 3.11, because 3.12 may not install some libraries in the absence of a C compiler.
 - Download and unpack [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
-- Edit `config.ini` to your preference.
-- Install [Python](https://python.org/downloads) (minimum required version is 3.7).
+- Edit `config.toml` to your preference.
 - Run the script that installs dependencies and starts `proxy-scraper-checker`:
   - On Windows run `start.cmd`
   - On Unix-like operating systems run `start.sh`
 
-### Termux
+#### Termux
 
 To use `proxy-scraper-checker` in Termux, knowledge of the Unix command-line interface is required.
 
@@ -35,27 +45,18 @@ To use `proxy-scraper-checker` in Termux, knowledge of the Unix command-line int
   ```bash
   bash <(curl -fsSL 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/install-termux.sh')
   ```
-- Edit `~/proxy-scraper-checker/config.ini` to your preference using a text editor (vim/nano).
+- Edit `~/proxy-scraper-checker/config.toml` to your preference using a text editor (vim/nano).
 - To run `proxy-scraper-checker` use the following command:
   ```bash
   cd ~/proxy-scraper-checker && sh start-termux.sh
   ```
 
-## Checking local proxy lists
+## Something else?
 
-To check the local proxy lists, start the Python HTTP server on your local machine by running the `python -m http.server --bind localhost` command in the folder with the proxy lists. After that, add links to the appropriate files in `config.ini`.
-
-## Folders description
-
-When the script finishes running, the following folders will be created (this behavior can be changed in the config):
-
-- `proxies` - proxies with any anonymity level.
-- `proxies_anonymous` - anonymous proxies.
-- `proxies_geolocation` - same as `proxies`, but includes exit-node's geolocation.
-- `proxies_geolocation_anonymous` - same as `proxies_anonymous`, but includes exit-node's geolocation.
-
-Geolocation format is `ip:port|Country|Region|City`.
+All other info is available in `config.toml` file.
 
 ## License
 
 [MIT](LICENSE)
+
+This product includes GeoLite2 Data created by MaxMind, available from <https://www.maxmind.com>.

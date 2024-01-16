@@ -1,59 +1,74 @@
 from __future__ import annotations
 
-import asyncio
-from dataclasses import dataclass
+from io import StringIO
 from time import perf_counter
-from typing import Union
+from typing import Optional
 
-from aiohttp import ClientSession, ClientTimeout
-from aiohttp.abc import AbstractCookieJar
+import attrs
+from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector, ProxyType
 
-from .constants import HEADERS
-from .null_context import AsyncNullContext
+from .http import (
+    HEADERS,
+    SSL_CONTEXT,
+    fallback_charset_resolver,
+    get_cookie_jar,
+)
+from .parsers import parse_ipv4
+from .settings import CheckWebsiteType, Settings
 
 
-@dataclass(repr=False, unsafe_hash=True)
+@attrs.define(
+    repr=False,
+    unsafe_hash=True,
+    weakref_slot=False,
+    kw_only=True,
+    eq=False,
+    getstate_setstate=False,
+    match_args=False,
+)
 class Proxy:
-    __slots__ = ("geolocation", "host", "is_anonymous", "port", "timeout")
-
+    protocol: ProxyType
     host: str
     port: int
+    username: Optional[str]
+    password: Optional[str]
+    timeout: float = attrs.field(hash=False, init=False)
+    exit_ip: str = attrs.field(hash=False, init=False)
 
-    async def check(
-        self,
-        *,
-        website: str,
-        sem: Union[asyncio.Semaphore, AsyncNullContext],
-        cookie_jar: AbstractCookieJar,
-        proto: ProxyType,
-        timeout: ClientTimeout,
-        set_geolocation: bool,
-    ) -> None:
-        async with sem:
+    async def check(self, *, settings: Settings) -> None:
+        async with settings.semaphore:
             start = perf_counter()
             connector = ProxyConnector(
-                proxy_type=proto, host=self.host, port=self.port
+                proxy_type=self.protocol,
+                host=self.host,
+                port=self.port,
+                username=self.username,
+                password=self.password,
+                ssl=SSL_CONTEXT,
             )
             async with ClientSession(
                 connector=connector,
-                cookie_jar=cookie_jar,
-                timeout=timeout,
                 headers=HEADERS,
+                cookie_jar=get_cookie_jar(),
+                timeout=settings.timeout,
+                fallback_charset_resolver=fallback_charset_resolver,
             ) as session, session.get(
-                website, raise_for_status=True
+                settings.check_website, raise_for_status=True
             ) as response:
-                if set_geolocation:
-                    await response.read()
+                await response.read()
         self.timeout = perf_counter() - start
-        if set_geolocation:
-            data = await response.json(content_type=None)
-            self.is_anonymous = self.host != data["query"]
-            self.geolocation = (
-                f"|{data['country']}|{data['regionName']}|{data['city']}"
-            )
+        if settings.check_website_type == CheckWebsiteType.HTTPBIN_IP:
+            r = await response.json(content_type=None)
+            self.exit_ip = r["origin"]
+        elif settings.check_website_type == CheckWebsiteType.PLAIN_IP:
+            self.exit_ip = parse_ipv4(await response.text())
 
-    def as_str(self, *, include_geolocation: bool) -> str:
-        if include_geolocation:
-            return f"{self.host}:{self.port}{self.geolocation}"
-        return f"{self.host}:{self.port}"
+    def as_str(self, *, include_protocol: bool) -> str:
+        with StringIO() as buf:
+            if include_protocol:
+                buf.write(f"{self.protocol.name.lower()}://")
+            if self.username is not None and self.password is not None:
+                buf.write(f"{self.username}:{self.password}@")
+            buf.write(f"{self.host}:{self.port}")
+            return buf.getvalue()

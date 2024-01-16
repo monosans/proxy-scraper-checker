@@ -1,3 +1,45 @@
+[tool.poetry]
+name = "proxy-scraper-checker"
+version = "0"
+description = ""
+license = "MIT"
+authors = ["monosans <hsyqixco@protonmail.com>"]
+repository = "https://github.com/monosans/proxy-scraper-checker"
+classifiers = ["Private :: Do Not Upload"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+aiodns = { version = ">=1.1.1,<4", optional = true }
+aiofiles = ">=0.8"
+aiohttp = "^3.8.6"
+aiohttp-socks = ">=0.7,<0.9"
+attrs = ">=22.2"
+brotli = { version = "^1", markers = "platform_python_implementation == 'CPython'" }
+brotlicffi = { version = "<2", markers = "platform_python_implementation != 'CPython'" }
+certifi = "*"
+charset-normalizer = ">=2,<4"
+maxminddb = ">=1.3,<3"
+platformdirs = "<5"
+rich = ">=12.3,<14"
+tomli = { version = "<3", python = "<3.11" }
+typing-extensions = { version = "^4.4", python = "<3.11" }
+uvloop = { version = ">=0.14,<0.20", optional = true, markers = "platform_python_implementation == 'CPython' and (sys_platform == 'darwin' or sys_platform == 'linux')" }
+
+[tool.poetry.extras]
+full = ["aiodns", "uvloop"]
+
+[tool.poetry.group.dev.dependencies]
+mypy = "1.8.0"
+ruff = "0.1.14"
+tomli = "2.0.1"
+types-aiofiles = "23.2.0.20240106"
+
+[tool.poetry.group.nuitka]
+optional = true
+
+[tool.poetry.group.nuitka.dependencies]
+nuitka = "1.9.7"
+
 [tool.mypy]
 python_version = "3.8"
 platform = "linux"
@@ -75,7 +117,7 @@ ignore-init-module-imports = true
 line-length = 80
 preview = true
 select = ["ALL"]
-target-version = "py37"
+target-version = "py38"
 
 [tool.ruff.flake8-self]
 ignore-names = []
@@ -97,3 +139,7 @@ convention = "google"
 
 [tool.ruff.pyupgrade]
 keep-runtime-typing = true
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

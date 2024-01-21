@@ -38,17 +38,16 @@ class ProxyStorage:
 
     def get_grouped(self) -> Dict[ProxyType, Tuple[Proxy, ...]]:
         key = sort.protocol_sort_key
-        groups = {
-            k: tuple(v)
-            for (_, k), v in itertools.groupby(
-                sorted(self._proxies, key=key), key=key
-            )
-        }
-        return {
-            proto: groups.get(proto, ())
+        d: Dict[ProxyType, Tuple[Proxy, ...]] = {
+            proto: ()
             for proto in sort.PROTOCOL_ORDER
             if proto in self.enabled_protocols
         }
+        for (_, proto), v in itertools.groupby(
+            sorted(self._proxies, key=key), key=key
+        ):
+            d[proto] = tuple(v)
+        return d
 
     def get_sorted(
         self,

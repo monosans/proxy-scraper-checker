@@ -5,8 +5,7 @@ from functools import lru_cache
 from types import MappingProxyType
 
 import certifi
-import charset_normalizer
-from aiohttp import ClientResponse, DummyCookieJar, hdrs
+from aiohttp import DummyCookieJar, hdrs
 
 SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 HEADERS: MappingProxyType[str, str] = MappingProxyType({
@@ -19,7 +18,3 @@ HEADERS: MappingProxyType[str, str] = MappingProxyType({
 @lru_cache(None)
 def get_cookie_jar() -> DummyCookieJar:
     return DummyCookieJar()
-
-
-def fallback_charset_resolver(r: ClientResponse, b: bytes) -> str:  # noqa: ARG001
-    return charset_normalizer.from_bytes(b)[0].encoding

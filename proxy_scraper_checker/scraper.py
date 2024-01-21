@@ -33,13 +33,12 @@ async def scrape_one(
     try:
         if is_url(source):
             async with session.get(source, timeout=timeout) as response:
-                await response.read()
-            text = await response.text()
+                content = await response.read()
         else:
             response = None
             async with aiofiles.open(source, "rb") as f:
                 content = await f.read()
-            text = bytes_decode(content)
+        text = bytes_decode(content)
     except Exception as e:
         logger.warning(
             "%s | %s.%s: %s",

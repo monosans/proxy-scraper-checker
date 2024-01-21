@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import enum
+import json
 import logging
 import math
 import sys
-from json import JSONDecodeError
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -28,6 +28,7 @@ from . import sort
 from .null_context import NullContext
 from .parsers import parse_ipv4
 from .typing_compat import Any, Literal, Self
+from .utils import bytes_decode
 
 if TYPE_CHECKING:
     from .proxy import Proxy
@@ -129,7 +130,8 @@ async def _get_check_website_type_and_real_ip(
 ]:
     try:
         async with session.get(check_website, raise_for_status=True) as r:
-            await r.read()
+            content = await r.read()
+        text = bytes_decode(content)
     except Exception:
         logger.exception(
             "Error when opening check_website without proxy, it will be "
@@ -137,15 +139,15 @@ async def _get_check_website_type_and_real_ip(
         )
         return CheckWebsiteType.UNKNOWN, None
     try:
-        content = await r.json(content_type=None)
-    except JSONDecodeError:
+        js = json.loads(text)
+    except json.JSONDecodeError:
         try:
-            return CheckWebsiteType.PLAIN_IP, parse_ipv4(await r.text())
+            return CheckWebsiteType.PLAIN_IP, parse_ipv4(text)
         except ValueError:
             pass
     else:
         try:
-            return CheckWebsiteType.HTTPBIN_IP, parse_ipv4(content["origin"])
+            return CheckWebsiteType.HTTPBIN_IP, parse_ipv4(js["origin"])
         except (KeyError, TypeError, ValueError):
             pass
     logger.warning(

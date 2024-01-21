@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import itertools
 from collections import Counter
-from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Set, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Set,
+    Tuple,
+)
 
 from aiohttp_socks import ProxyType
 
@@ -16,9 +25,9 @@ if TYPE_CHECKING:
 class ProxyStorage:
     __slots__ = ("_proxies", "enabled_protocols")
 
-    def __init__(self) -> None:
+    def __init__(self, *, protocols: Iterable[ProxyType]) -> None:
+        self.enabled_protocols = set(protocols)
         self._proxies: Set[Proxy] = set()
-        self.enabled_protocols: Set[ProxyType] = set()
 
     def add(self, proxy: Proxy, /) -> None:
         self.enabled_protocols.add(proxy.protocol)
@@ -29,16 +38,17 @@ class ProxyStorage:
 
     def get_grouped(self) -> Dict[ProxyType, Tuple[Proxy, ...]]:
         key = sort.protocol_sort_key
-        d: Dict[ProxyType, Tuple[Proxy, ...]] = {
-            proto: ()
+        groups = {
+            k: tuple(v)
+            for (_, k), v in itertools.groupby(
+                sorted(self._proxies, key=key), key=key
+            )
+        }
+        return {
+            proto: groups.get(proto, ())
             for proto in sort.PROTOCOL_ORDER
             if proto in self.enabled_protocols
         }
-        for (_, proto), v in itertools.groupby(
-            sorted(self._proxies, key=key), key=key
-        ):
-            d[proto] = tuple(v)
-        return d
 
     def get_sorted(
         self,

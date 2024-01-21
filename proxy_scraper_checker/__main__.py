@@ -97,14 +97,13 @@ async def main() -> None:
     console = Console()
     configure_logging(console=console, debug=cfg["debug"])
 
-    storage = ProxyStorage()
-
     async with ClientSession(
         connector=TCPConnector(ssl=http.SSL_CONTEXT),
         headers=http.HEADERS,
         cookie_jar=http.get_cookie_jar(),
     ) as session:
         settings = await Settings.from_mapping(cfg, session=session)
+        storage = ProxyStorage(protocols=settings.sources)
         with Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),

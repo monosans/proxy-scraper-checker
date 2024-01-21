@@ -376,7 +376,4 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/jetbrains+all,linux,macos,python,vim,visualstudiocode,windows
 
-proxies/
-proxies_anonymous/
-proxies_geolocation/
-proxies_geolocation_anonymous/
+out/

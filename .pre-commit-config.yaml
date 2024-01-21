@@ -35,6 +35,13 @@ repos:
           - --scripts-are-modules
         additional_dependencies:
           - aiohttp<4
+          - attrs
+          - certifi
+          - charset-normalizer<4
+          - maxminddb<3
+          - platformdirs<5
           - rich<14
-          - typing-extensions<5
-          - uvloop<0.20; implementation_name == "cpython" and (sys_platform == "darwin" or sys_platform == "linux")
+          - types-aiofiles
+          - typing-extensions<5; python_version < "3.11"
+          - tomli<3; python_version < "3.11"
+          - uvloop<0.20; platform_python_implementation == "CPython" and (sys_platform == "darwin" or sys_platform == "linux")

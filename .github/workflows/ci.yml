@@ -14,3 +14,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pipx run pre-commit run --all-files --show-diff-on-failure
+  build:
+    strategy:
+      matrix:
+        os:
+          - ubuntu
+          - macos
+          - windows
+      fail-fast: false
+    runs-on: ${{ matrix.os }}-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pipx install poetry
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: poetry
+          check-latest: true
+      - run: poetry install --only main,nuitka --sync --no-root --no-interaction
+      - run: poetry run --no-interaction python -m nuitka --onefile --python-flag='-m' --prefer-source-code --assume-yes-for-downloads --lto=yes proxy_scraper_checker
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifact-${{ matrix.os }}
+          path: |
+            config.toml
+            proxy_scraper_checker.bin
+            proxy_scraper_checker.exe
+          if-no-files-found: error

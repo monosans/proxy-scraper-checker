@@ -20,7 +20,6 @@ from .utils import bytes_decode
     unsafe_hash=True,
     weakref_slot=False,
     kw_only=True,
-    eq=False,
     getstate_setstate=False,
     match_args=False,
 )
@@ -30,8 +29,8 @@ class Proxy:
     port: int
     username: Optional[str]
     password: Optional[str]
-    timeout: float = attrs.field(hash=False, init=False)
-    exit_ip: str = attrs.field(hash=False, init=False)
+    timeout: float = attrs.field(init=False, eq=False)
+    exit_ip: str = attrs.field(init=False, eq=False)
 
     async def check(self, *, settings: Settings) -> None:
         async with settings.semaphore:

@@ -52,9 +52,7 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
         else None
     )
 
-    async with session.get(
-        GEODB_URL, headers=headers, raise_for_status=True
-    ) as response:
+    async with session.get(GEODB_URL, headers=headers) as response:
         if response.status == 304:  # noqa: PLR2004
             logger.info(
                 "Latest geolocation database is already cached at %s",

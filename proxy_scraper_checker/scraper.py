@@ -7,7 +7,7 @@ import logging
 import aiofiles
 import aiofiles.os
 import aiofiles.ospath
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientResponseError, ClientSession, ClientTimeout
 from aiohttp_socks import ProxyType
 from rich.progress import Progress, TaskID
 
@@ -41,6 +41,10 @@ async def scrape_one(
             async with aiofiles.open(source, "rb") as f:
                 content = await f.read()
             text = bytes_decode(content)
+    except ClientResponseError as e:
+        logger.warning(
+            "%s | HTTP status code %d: %s", source, e.status, e.message
+        )
     except Exception as e:
         logger.warning(
             "%s | %s.%s: %s",
@@ -54,12 +58,7 @@ async def scrape_one(
         try:
             proxy = next(proxies)
         except StopIteration:
-            if response and response.status != 200:  # noqa: PLR2004
-                logger.warning(
-                    "%s | HTTP status code %d", source, response.status
-                )
-            else:
-                logger.warning("%s | No proxies found", source)
+            logger.warning("%s | No proxies found", source)
         else:
             for proxy in itertools.chain((proxy,), proxies):  # noqa: B020
                 try:

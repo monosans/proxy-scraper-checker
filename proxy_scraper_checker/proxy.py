@@ -52,11 +52,10 @@ class Proxy:
                 connector=connector,
                 headers=HEADERS,
                 cookie_jar=get_cookie_jar(),
+                raise_for_status=True,
                 timeout=settings.timeout,
                 fallback_charset_resolver=fallback_charset_resolver,
-            ) as session, session.get(
-                settings.check_website, raise_for_status=True
-            ) as response:
+            ) as session, session.get(settings.check_website) as response:
                 content = await response.read()
         self.timeout = perf_counter() - start
         if settings.check_website_type == CheckWebsiteType.HTTPBIN_IP:

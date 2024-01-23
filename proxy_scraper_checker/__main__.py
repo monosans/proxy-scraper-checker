@@ -101,6 +101,7 @@ async def main() -> None:
         connector=TCPConnector(ssl=http.SSL_CONTEXT),
         headers=http.HEADERS,
         cookie_jar=http.get_cookie_jar(),
+        raise_for_status=True,
         fallback_charset_resolver=http.fallback_charset_resolver,
     ) as session:
         settings = await Settings.from_mapping(cfg, session=session)

@@ -129,9 +129,7 @@ async def _get_check_website_type_and_real_ip(
     Tuple[Literal[CheckWebsiteType.PLAIN_IP, CheckWebsiteType.HTTPBIN_IP], str],
 ]:
     try:
-        async with session.get(
-            check_website, raise_for_status=True
-        ) as response:
+        async with session.get(check_website) as response:
             content = await response.read()
         text = get_response_text(response=response, content=content)
     except Exception:

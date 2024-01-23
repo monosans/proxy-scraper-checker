@@ -9,10 +9,15 @@ import attrs
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector, ProxyType
 
-from .http import HEADERS, SSL_CONTEXT, get_cookie_jar
+from .http import (
+    HEADERS,
+    SSL_CONTEXT,
+    fallback_charset_resolver,
+    get_cookie_jar,
+    get_response_text,
+)
 from .parsers import parse_ipv4
 from .settings import CheckWebsiteType, Settings
-from .utils import bytes_decode
 
 
 @attrs.define(
@@ -48,16 +53,21 @@ class Proxy:
                 headers=HEADERS,
                 cookie_jar=get_cookie_jar(),
                 timeout=settings.timeout,
+                fallback_charset_resolver=fallback_charset_resolver,
             ) as session, session.get(
                 settings.check_website, raise_for_status=True
             ) as response:
                 content = await response.read()
         self.timeout = perf_counter() - start
         if settings.check_website_type == CheckWebsiteType.HTTPBIN_IP:
-            r = json.loads(bytes_decode(content))
+            r = json.loads(
+                get_response_text(response=response, content=content)
+            )
             self.exit_ip = r["origin"]
         elif settings.check_website_type == CheckWebsiteType.PLAIN_IP:
-            self.exit_ip = parse_ipv4(bytes_decode(content))
+            self.exit_ip = parse_ipv4(
+                get_response_text(response=response, content=content)
+            )
 
     def as_str(self, *, include_protocol: bool) -> str:
         with StringIO() as buf:

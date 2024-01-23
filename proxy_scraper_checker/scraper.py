@@ -11,6 +11,7 @@ from aiohttp import ClientSession, ClientTimeout
 from aiohttp_socks import ProxyType
 from rich.progress import Progress, TaskID
 
+from .http import get_response_text
 from .parsers import PROXY_REGEX
 from .proxy import Proxy
 from .settings import Settings
@@ -34,11 +35,12 @@ async def scrape_one(
         if is_url(source):
             async with session.get(source, timeout=timeout) as response:
                 content = await response.read()
+            text = get_response_text(response=response, content=content)
         else:
             response = None
             async with aiofiles.open(source, "rb") as f:
                 content = await f.read()
-        text = bytes_decode(content)
+            text = bytes_decode(content)
     except Exception as e:
         logger.warning(
             "%s | %s.%s: %s",

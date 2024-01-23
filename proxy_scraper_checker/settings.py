@@ -25,10 +25,10 @@ from aiohttp import ClientSession, ClientTimeout
 from aiohttp_socks import ProxyType
 
 from . import sort
+from .http import get_response_text
 from .null_context import NullContext
 from .parsers import parse_ipv4
 from .typing_compat import Any, Literal, Self
-from .utils import bytes_decode
 
 if TYPE_CHECKING:
     from .proxy import Proxy
@@ -129,9 +129,11 @@ async def _get_check_website_type_and_real_ip(
     Tuple[Literal[CheckWebsiteType.PLAIN_IP, CheckWebsiteType.HTTPBIN_IP], str],
 ]:
     try:
-        async with session.get(check_website, raise_for_status=True) as r:
-            content = await r.read()
-        text = bytes_decode(content)
+        async with session.get(
+            check_website, raise_for_status=True
+        ) as response:
+            content = await response.read()
+        text = get_response_text(response=response, content=content)
     except Exception:
         logger.exception(
             "Error when opening check_website without proxy, it will be "

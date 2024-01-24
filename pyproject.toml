@@ -118,6 +118,7 @@ line-length = 80
 preview = true
 select = ["ALL"]
 target-version = "py38"
+typing-modules = ["proxy_scraper_checker.typing_compat"]
 
 [tool.ruff.flake8-self]
 ignore-names = []

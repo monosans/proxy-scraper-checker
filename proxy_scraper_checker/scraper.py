@@ -94,17 +94,18 @@ async def scrape_all(
         for proto, sources in settings.sources.items()
     }
     timeout = ClientTimeout(total=settings.source_timeout)
-    coroutines = (
-        scrape_one(
-            progress=progress,
-            proto=proto,
-            session=session,
-            source=source,
-            storage=storage,
-            task=tasks[proto],
-            timeout=timeout,
+    await asyncio.gather(
+        *(
+            scrape_one(
+                progress=progress,
+                proto=proto,
+                session=session,
+                source=source,
+                storage=storage,
+                task=tasks[proto],
+                timeout=timeout,
+            )
+            for proto, sources in settings.sources.items()
+            for source in sources
         )
-        for proto, sources in settings.sources.items()
-        for source in sources
     )
-    await asyncio.gather(*coroutines)

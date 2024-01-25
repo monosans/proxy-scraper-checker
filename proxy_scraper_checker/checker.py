@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from random import shuffle
 from typing import Mapping
 
 from aiohttp_socks import ProxyType
@@ -53,15 +52,15 @@ async def check_all(
         for proto in sort.PROTOCOL_ORDER
         if proto in storage.enabled_protocols
     }
-    coroutines = [
-        check_one(
-            progress=progress,
-            proxy=proxy,
-            settings=settings,
-            storage=storage,
-            task=tasks[proxy.protocol],
+    await asyncio.gather(
+        *(
+            check_one(
+                progress=progress,
+                proxy=proxy,
+                settings=settings,
+                storage=storage,
+                task=tasks[proxy.protocol],
+            )
+            for proxy in storage
         )
-        for proxy in storage
-    ]
-    shuffle(coroutines)
-    await asyncio.gather(*coroutines)
+    )

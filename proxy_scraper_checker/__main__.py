@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import platform
 import sys
 from typing import TYPE_CHECKING, Dict, Mapping
 
@@ -37,7 +36,7 @@ logger = logging.getLogger(__name__)
 def set_event_loop_policy() -> None:
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    elif platform.python_implementation() == "CPython" and sys.platform in {
+    elif sys.implementation.name == "cpython" and sys.platform in {
         "darwin",
         "linux",
     }:

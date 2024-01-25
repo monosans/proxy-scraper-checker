@@ -44,4 +44,4 @@ repos:
           - types-aiofiles
           - typing-extensions<5; python_version < "3.11"
           - tomli<3; python_version < "3.11"
-          - uvloop<0.20; platform_python_implementation == "CPython" and (sys_platform == "darwin" or sys_platform == "linux")
+          - uvloop<0.20; implementation_name == "cpython" and (sys_platform == "darwin" or sys_platform == "linux")

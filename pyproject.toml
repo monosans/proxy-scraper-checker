@@ -9,7 +9,7 @@ classifiers = ["Private :: Do Not Upload"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-aiodns = { version = ">=1.1.1,<4", optional = true }
+aiodns = { version = ">=1.1,<4", optional = true }
 aiofiles = ">=0.8"
 aiohttp = "^3.8.6"
 aiohttp-socks = ">=0.7,<0.9"
@@ -26,7 +26,8 @@ typing-extensions = { version = "^4.4", python = "<3.11" }
 uvloop = { version = ">=0.14,<0.20", optional = true, markers = "platform_python_implementation == 'CPython' and (sys_platform == 'darwin' or sys_platform == 'linux')" }
 
 [tool.poetry.extras]
-full = ["aiodns", "uvloop"]
+non-termux = ["aiodns", "uvloop"]
+termux = []
 
 [tool.poetry.group.dev.dependencies]
 mypy = "1.8.0"

@@ -1276,9 +1276,10 @@ cffi = {version = ">=1.11", markers = "platform_python_implementation == \"PyPy\
 cffi = ["cffi (>=1.11)"]
 
 [extras]
-full = ["aiodns", "uvloop"]
+non-termux = ["aiodns", "uvloop"]
+termux = []
 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "651aba81e455691f377a564e1900723d09dc6e85d6f9b405613cddb7d0c09e1b"
+content-hash = "4e9ed735edd49c4e3fd13e3b61aab06e290edbf29069994f399277e675a0ca07"

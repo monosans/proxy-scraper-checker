@@ -1,14 +1,17 @@
 #!/bin/sh
-base_path=~
-path="${base_path}/proxy-scraper-checker"
-download_path="${PREFIX}/tmp/proxy-scraper-checker.zip"
 
-pkg upgrade --yes -o Dpkg::Options::='--force-confdef' &&
-pkg install --yes python python-pip &&
-if [ -d "${path}" ]; then
-    rm -rf --interactive=once "${path}"
-fi &&
-curl -fsSLo "${download_path}" 'https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip' &&
-unzip -d "${base_path}" "${download_path}" &&
-mv "${path}-main" "${path}" &&
-printf "proxy-scraper-checker installed successfully.\nRun 'cd %s && sh start-termux.sh'.\n" "${path}"
+set -eu
+
+project_name="proxy-scraper-checker"
+base_path="${HOME}"
+install_path="${base_path}/${project_name}"
+download_path="${TMPDIR}/${project_name}.zip"
+
+[ -d "${install_path}" ] && rm -rf --interactive=once "${install_path}"
+pkg upgrade --yes -o Dpkg::Options::='--force-confdef'
+pkg install --yes python python-pip
+curl -fsSLo "${download_path}" "https://github.com/monosans/${project_name}/archive/refs/heads/main.zip"
+unzip -d "${base_path}" "${download_path}"
+rm -f "${download_path}"
+mv "${install_path}-main" "${install_path}"
+printf "%s installed successfully.\nRun 'cd %s && sh start-termux.sh'.\n" "${project_name}" "${install_path}"

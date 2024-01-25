@@ -41,7 +41,7 @@ async def _save_geodb(
     async with aiofiles.open(GEODB_PATH, "wb") as geodb:
         async for chunk in response.content.iter_any():
             await geodb.write(chunk)
-            progress.update(task, advance=len(chunk))
+            progress.advance(task_id=task, advance=len(chunk))
 
 
 async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
@@ -64,8 +64,10 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
             progress=progress,
             response=response,
             task=progress.add_task(
-                "[yellow]Downloader[red] :: [green]GeoDB",
+                description="",
                 total=response.content_length,
+                col1="Downloader",
+                col2="GeoDB",
             ),
         )
     logger.info("Downloaded geolocation database to %s", GEODB_PATH)

@@ -77,7 +77,7 @@ async def scrape_one(
                         password=proxy.group("password"),
                     )
                 )
-    progress.update(task, advance=1)
+    progress.advance(task_id=task, advance=1)
 
 
 async def scrape_all(
@@ -87,9 +87,9 @@ async def scrape_all(
     settings: Settings,
     storage: ProxyStorage,
 ) -> None:
-    tasks = {
+    progress_tasks = {
         proto: progress.add_task(
-            f"[yellow]Scraper [red]:: [green]{proto.name}", total=len(sources)
+            description="", total=len(sources), col1="Scraper", col2=proto.name
         )
         for proto, sources in settings.sources.items()
     }
@@ -102,7 +102,7 @@ async def scrape_all(
                 session=session,
                 source=source,
                 storage=storage,
-                task=tasks[proto],
+                task=progress_tasks[proto],
                 timeout=timeout,
             )
             for proto, sources in settings.sources.items()

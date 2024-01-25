@@ -34,7 +34,7 @@ async def check_one(
             "%s.%s: %s", e.__class__.__module__, e.__class__.__qualname__, e
         )
         storage.remove(proxy)
-    progress.update(task, advance=1)
+    progress.advance(task_id=task, advance=1)
 
 
 async def check_all(
@@ -44,10 +44,12 @@ async def check_all(
     progress: Progress,
     proxies_count: Mapping[ProxyType, int],
 ) -> None:
-    tasks = {
+    progress_tasks = {
         proto: progress.add_task(
-            f"[yellow]Checker [red]:: [green]{proto.name}",
+            description="",
             total=proxies_count[proto],
+            col1="Checker",
+            col2=proto.name,
         )
         for proto in sort.PROTOCOL_ORDER
         if proto in storage.enabled_protocols
@@ -59,7 +61,7 @@ async def check_all(
                 proxy=proxy,
                 settings=settings,
                 storage=storage,
-                task=tasks[proxy.protocol],
+                task=progress_tasks[proxy.protocol],
             )
             for proxy in storage
         )

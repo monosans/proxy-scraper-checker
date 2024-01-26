@@ -43,7 +43,6 @@ nuitka = "1.9.7"
 
 [tool.mypy]
 python_version = "3.8"
-platform = "linux"
 disallow_subclassing_any = false
 disallow_untyped_calls = false
 disallow_untyped_decorators = false

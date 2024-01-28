@@ -36,7 +36,7 @@ class ProxyStorage:
         return d
 
     def get_count(self) -> Dict[ProxyType, int]:
-        return dict(Counter(proxy.protocol for proxy in self._proxies))
+        return dict(Counter(proxy.protocol for proxy in self))
 
     def __iter__(self) -> Iterator[Proxy]:
         return iter(self._proxies)

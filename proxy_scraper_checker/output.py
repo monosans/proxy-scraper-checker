@@ -66,7 +66,7 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
             ) as f:
                 json.dump(proxy_dicts, f, ensure_ascii=False, indent="\t")
     if settings.output_txt:
-        sorted_proxies = storage.get_sorted(key=settings.sorting_key)
+        sorted_proxies = sorted(storage, key=settings.sorting_key)
         grouped_proxies = tuple(
             (k, sorted(v, key=settings.sorting_key))
             for k, v in storage.get_grouped().items()

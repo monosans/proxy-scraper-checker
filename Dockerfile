@@ -35,7 +35,9 @@ RUN poetry export --without-hashes --only=main --extras=non-termux | \
 
 FROM python-base-stage as python-run-stage
 
-LABEL org.opencontainers.image.source="https://github.com/monosans/proxy-scraper-checker"
+LABEL \
+  org.opencontainers.image.source=https://github.com/monosans/proxy-scraper-checker \
+  org.opencontainers.image.licenses=MIT
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends -y tini \

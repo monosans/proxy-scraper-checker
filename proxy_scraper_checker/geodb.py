@@ -10,7 +10,7 @@ from aiohttp import ClientResponse, ClientSession, hdrs
 from rich.progress import Progress, TaskID
 
 from . import cache
-from .utils import bytes_decode
+from .utils import IS_DOCKER, bytes_decode
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,12 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
                 col2="GeoDB",
             ),
         )
-    logger.info("Downloaded geolocation database to %s", GEODB_PATH)
+    logger.info(
+        "Downloaded geolocation database to %s",
+        "proxy_scraper_checker_cache Docker volume"
+        if IS_DOCKER
+        else GEODB_PATH,
+    )
 
     if etag := response.headers.get(hdrs.ETAG):
         await _save_etag(etag)

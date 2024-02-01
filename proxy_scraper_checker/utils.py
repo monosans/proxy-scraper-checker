@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
 from urllib.parse import urlparse
 
 import charset_normalizer
+
+IS_DOCKER = os.getenv("IS_DOCKER") == "1"
 
 
 def is_url(value: str, /) -> bool:

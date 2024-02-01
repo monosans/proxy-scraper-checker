@@ -14,7 +14,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pipx run pre-commit run --all-files --show-diff-on-failure
-  build:
+  build-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker compose build --pull
+      - run: docker compose push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifact-docker
+          path: |
+            out/
+            config.toml
+            docker-compose.yml
+          if-no-files-found: error
+  build-executable:
     strategy:
       matrix:
         os:
@@ -31,7 +50,7 @@ jobs:
           python-version: "3.11"
           cache: poetry
           check-latest: true
-      - run: poetry install --only main,nuitka --sync --no-root --extras non-termux --no-interaction
+      - run: poetry install --only=main,nuitka --sync --no-root --extras=non-termux --no-interaction
       - run: poetry run --no-interaction python -m nuitka --onefile --python-flag='-m' --prefer-source-code --assume-yes-for-downloads proxy_scraper_checker
       - uses: actions/upload-artifact@v4
         with:

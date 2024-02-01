@@ -21,6 +21,7 @@ from typing import (
 from urllib.parse import urlparse
 
 import attrs
+import platformdirs
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp_socks import ProxyType
 
@@ -29,6 +30,7 @@ from .http import get_response_text
 from .null_context import NullContext
 from .parsers import parse_ipv4
 from .typing_compat import Any, Literal, Self
+from .utils import IS_DOCKER
 
 if TYPE_CHECKING:
     from .proxy import Proxy
@@ -272,7 +274,9 @@ class Settings:
             enable_geolocation=cfg["enable_geolocation"]
             and check_website_type.supports_geolocation,
             output_json=cfg["output"]["json"],
-            output_path=cfg["output"]["path"],
+            output_path=platformdirs.user_data_path("proxy_scraper_checker")
+            if IS_DOCKER
+            else cfg["output"]["path"],
             output_txt=cfg["output"]["txt"],
             real_ip=real_ip,
             semaphore=cfg["max_connections"],

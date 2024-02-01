@@ -1,0 +1,14 @@
+services:
+  app:
+    image: proxy-scraper-checker
+    build:
+      context: .
+      args:
+        - GID=${GID:-1000}
+        - UID=${UID:-1000}
+    tty: true
+    volumes:
+      - proxy_scraper_checker_cache:/home/app/.cache/proxy_scraper_checker
+      - ./out:/home/app/.local/share/proxy_scraper_checker
+volumes:
+  proxy_scraper_checker_cache:

@@ -1,0 +1,10 @@
+services:
+  app:
+    image: ghcr.io/monosans/proxy-scraper-checker
+    tty: true
+    volumes:
+      - proxy_scraper_checker_cache:/home/app/.cache/proxy_scraper_checker
+      - ./out:/home/app/.local/share/proxy_scraper_checker
+      - ./config.toml:/app/config.toml
+volumes:
+  proxy_scraper_checker_cache:

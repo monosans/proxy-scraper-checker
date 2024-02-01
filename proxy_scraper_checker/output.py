@@ -16,6 +16,7 @@ from .null_context import NullContext
 from .proxy import Proxy
 from .settings import Settings
 from .storage import ProxyStorage
+from .utils import IS_DOCKER
 
 logger = logging.getLogger(__name__)
 
@@ -96,5 +97,6 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                     text, encoding="utf-8"
                 )
     logger.info(
-        "Proxies have been saved to %s", settings.output_path.absolute()
+        "Proxies have been saved to %s",
+        "./out/" if IS_DOCKER else settings.output_path.absolute(),
     )

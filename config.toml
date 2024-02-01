@@ -37,6 +37,7 @@ debug = false
 [output]
 # Path to the folder where the proxies will be saved.
 # Leave blank to save the proxies to the current directory.
+# This option is ignored in Docker.
 path = "./out"
 
 json = true

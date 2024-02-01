@@ -19,11 +19,22 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 
 ## Installation and usage
 
-### Pre-compiled binary
+### Standalone executable
 
 This is the easiest way, but it is only available for x64 Windows, macOS and Linux. Just download the archive for your OS from [nightly.link](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview), unzip it, edit `config.toml` and run the executable.
 
 If Windows Defender detects an executable file as a virus, please read [this](https://github.com/Nuitka/Nuitka/issues/2495#issuecomment-1762836583).
+
+### Docker
+
+- [Install `Docker Compose`](https://docs.docker.com/compose/install/).
+- Download and unpack [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
+- Edit `config.toml` to your preference.
+- Run the following commands:
+  ```bash
+  docker compose build --pull
+  docker compose up --no-log-prefix
+  ```
 
 ### Running from source code
 

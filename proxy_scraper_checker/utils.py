@@ -20,7 +20,7 @@ def bytes_decode(value: bytes, /) -> str:
     return str(charset_normalizer.from_bytes(value)[0])
 
 
-async def check_writable(path: Union[Path, str], /) -> None:
-    if not await aiofiles.os.access(path, os.W_OK):
-        msg = f"{path} is not writable"
+async def check_access(path: Union[Path, str], /, *, mode: int) -> None:
+    if not await aiofiles.os.access(path, mode):
+        msg = f"{path} is not accessible"
         raise ValueError(msg)

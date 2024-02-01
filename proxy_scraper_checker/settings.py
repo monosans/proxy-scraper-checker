@@ -5,6 +5,7 @@ import enum
 import json
 import logging
 import math
+import os
 import sys
 from pathlib import Path
 from typing import (
@@ -30,7 +31,7 @@ from .http import get_response_text
 from .null_context import NullContext
 from .parsers import parse_ipv4
 from .typing_compat import Any, Literal, Self
-from .utils import IS_DOCKER, check_writable
+from .utils import IS_DOCKER, check_access
 
 if TYPE_CHECKING:
     from .proxy import Proxy
@@ -272,8 +273,8 @@ class Settings:
         )
 
         _, _, (check_website_type, real_ip) = await asyncio.gather(
-            check_writable(output_path),
-            check_writable(cache.DIR),
+            check_access(output_path, mode=os.W_OK | os.X_OK),
+            check_access(cache.DIR, mode=os.R_OK | os.W_OK | os.X_OK),
             _get_check_website_type_and_real_ip(
                 check_website=cfg["check_website"], session=session
             ),

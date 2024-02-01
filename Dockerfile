@@ -35,10 +35,6 @@ RUN poetry export --without-hashes --only=main --extras=non-termux | \
 
 FROM python-base-stage as python-run-stage
 
-LABEL \
-  org.opencontainers.image.source=https://github.com/monosans/proxy-scraper-checker \
-  org.opencontainers.image.licenses=MIT
-
 RUN apt-get update \
   && apt-get install -y --no-install-recommends -y tini \
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
@@ -49,12 +45,10 @@ COPY --from=python-build-stage /usr/src/app/wheels /wheels/
 RUN pip install --no-index --find-links /wheels/ /wheels/* \
   && rm -rf /wheels/
 
-ARG \
-  GID=1000 \
-  UID=1000
+ARG GID UID
 
 RUN groupadd --gid "${GID}" --system app \
-  && useradd --gid app --no-log-init --system --create-home --uid "${UID}" app \
+  && useradd --gid app --no-log-init --create-home --system --uid "${UID}" app \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \
   && chown app:app /home/app/.cache/proxy_scraper_checker
 

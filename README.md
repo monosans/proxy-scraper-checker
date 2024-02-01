@@ -31,10 +31,10 @@ If Windows Defender detects an executable file as a virus, please read [this](ht
 - Download and unpack [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
 - Edit `config.toml` to your preference.
 - Run the following commands:
-```bash
-docker compose build --pull
-docker compose up --no-log-prefix
-```
+  ```bash
+  docker compose build --pull
+  docker compose up --no-log-prefix
+  ```
 
 ### Running from source code
 

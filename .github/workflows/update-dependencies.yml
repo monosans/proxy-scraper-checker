@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ${{ matrix.cmd }}
-      - uses: peter-evans/create-pull-request@v5
+      - uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.PAT }}
           commit-message: ${{ matrix.commit-msg }}

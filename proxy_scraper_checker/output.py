@@ -96,7 +96,12 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                 (folder / f"{proto.name.lower()}.txt").write_text(
                     text, encoding="utf-8"
                 )
-    logger.info(
-        "Proxies have been saved to %s",
-        "./out/" if IS_DOCKER else settings.output_path.absolute(),
-    )
+    if IS_DOCKER:
+        logger.info(
+            "Proxies have been saved to ./out (%s in container)",
+            settings.output_path.absolute(),
+        )
+    else:
+        logger.info(
+            "Proxies have been saved to %s", settings.output_path.absolute()
+        )

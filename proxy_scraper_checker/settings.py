@@ -25,12 +25,12 @@ import platformdirs
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp_socks import ProxyType
 
-from . import sort
+from . import cache, sort
 from .http import get_response_text
 from .null_context import NullContext
 from .parsers import parse_ipv4
 from .typing_compat import Any, Literal, Self
-from .utils import IS_DOCKER
+from .utils import IS_DOCKER, check_writable
 
 if TYPE_CHECKING:
     from .proxy import Proxy
@@ -265,18 +265,27 @@ class Settings:
     async def from_mapping(
         cls, cfg: Mapping[str, Any], /, *, session: ClientSession
     ) -> Self:
-        check_website_type, real_ip = await _get_check_website_type_and_real_ip(
-            check_website=cfg["check_website"], session=session
+        output_path = (
+            platformdirs.user_data_path("proxy_scraper_checker")
+            if IS_DOCKER
+            else cfg["output"]["path"]
         )
+
+        _, _, (check_website_type, real_ip) = await asyncio.gather(
+            check_writable(output_path),
+            check_writable(cache.DIR),
+            _get_check_website_type_and_real_ip(
+                check_website=cfg["check_website"], session=session
+            ),
+        )
+
         return cls(
             check_website=cfg["check_website"],
             check_website_type=check_website_type,
             enable_geolocation=cfg["enable_geolocation"]
             and check_website_type.supports_geolocation,
             output_json=cfg["output"]["json"],
-            output_path=platformdirs.user_data_path("proxy_scraper_checker")
-            if IS_DOCKER
-            else cfg["output"]["path"],
+            output_path=output_path,
             output_txt=cfg["output"]["txt"],
             real_ip=real_ip,
             semaphore=cfg["max_connections"],

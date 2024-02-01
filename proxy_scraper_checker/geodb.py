@@ -70,12 +70,15 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
                 col2="GeoDB",
             ),
         )
-    logger.info(
-        "Downloaded geolocation database to %s",
-        "proxy_scraper_checker_cache Docker volume"
-        if IS_DOCKER
-        else GEODB_PATH,
-    )
+
+    if IS_DOCKER:
+        logger.info(
+            "Downloaded geolocation database to proxy_scraper_checker_cache "
+            "Docker volume (%s in container)",
+            GEODB_PATH,
+        )
+    else:
+        logger.info("Downloaded geolocation database to %s", GEODB_PATH)
 
     if etag := response.headers.get(hdrs.ETAG):
         await _save_etag(etag)

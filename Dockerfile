@@ -1,3 +1,4 @@
+# hadolint global ignore=DL3008,DL3013,DL4006
 FROM docker.io/python:3.12-slim-bookworm as python-base-stage
 
 ENV \
@@ -47,6 +48,7 @@ RUN pip install --no-index --find-links /wheels/ /wheels/* \
 
 ARG GID UID
 
+# hadolint ignore=SC3028
 RUN groupadd --gid "${GID}" --system app \
   && useradd --gid app --no-log-init --create-home --system --uid "${UID}" app \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \

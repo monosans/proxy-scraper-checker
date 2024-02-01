@@ -11,7 +11,7 @@ classifiers = ["Private :: Do Not Upload"]
 python = "^3.8"
 aiodns = { version = ">=1.1,<4", optional = true }
 aiofiles = ">=0.8"
-aiohttp = "^3.9.3"
+aiohttp = "^3.8.6"
 aiohttp-socks = ">=0.7,<0.9"
 attrs = ">=22.2"
 brotli = { version = "^1", markers = "implementation_name == 'cpython'" }

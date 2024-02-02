@@ -30,6 +30,8 @@ jobs:
         with:
           token: ${{ steps.generate-token.outputs.token }}
           commit-message: ${{ matrix.commit-msg }}
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           branch: ${{ matrix.branch }}
           delete-branch: true
           title: ${{ matrix.commit-msg }}

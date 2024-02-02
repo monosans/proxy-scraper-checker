@@ -19,7 +19,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   auto-merge-updates:
     runs-on: ubuntu-latest
-    if: ${{ github.actor_id == secrets.APP_ID }}
+    if: ${{ github.actor_id == '158570872' }}
     steps:
       - run: gh pr merge --auto --delete-branch --squash "${PR_URL}"
         env:

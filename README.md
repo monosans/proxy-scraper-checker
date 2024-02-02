@@ -40,7 +40,7 @@ If Windows Defender detects an executable file as a virus, please read [this](ht
 
 #### Desktop
 
-- Install [Python](https://python.org/downloads). The minimum version required is 3.8. The recommended version is 3.11, because 3.12 may not install some libraries in the absence of a C compiler.
+- Install [Python](https://python.org/downloads). The minimum version required is 3.8.
 - Download and unpack [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
 - Edit `config.toml` to your preference.
 - Run the script that installs dependencies and starts `proxy-scraper-checker`:

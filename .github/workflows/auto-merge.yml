@@ -16,12 +16,12 @@ jobs:
         run: gh pr merge --auto --delete-branch --squash "${PR_URL}"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   auto-merge-updates:
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'monosans' && startsWith(github.head_ref, 'update/') }}
+    if: ${{ github.actor_id == secrets.APP_ID }}
     steps:
       - run: gh pr merge --auto --delete-branch --squash "${PR_URL}"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

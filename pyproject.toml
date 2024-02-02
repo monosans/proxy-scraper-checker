@@ -31,7 +31,7 @@ termux = []
 
 [tool.poetry.group.dev.dependencies]
 mypy = "1.8.0"
-ruff = "0.1.15"
+ruff = "0.2.0"
 tomli = "2.0.1"
 types-aiofiles = "23.2.0.20240106"
 

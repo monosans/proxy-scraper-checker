@@ -26,17 +26,29 @@ class ProxyStorage:
 
     def get_grouped(self) -> Dict[ProxyType, Tuple[Proxy, ...]]:
         key = sort.protocol_sort_key
-        d: Dict[ProxyType, Tuple[Proxy, ...]] = {
-            proto: ()
-            for proto in sort.PROTOCOL_ORDER
-            if proto in self.enabled_protocols
+        return {
+            **{
+                proto: ()
+                for proto in sort.PROTOCOL_ORDER
+                if proto in self.enabled_protocols
+            },
+            **{
+                proto: tuple(v)
+                for (_, proto), v in itertools.groupby(
+                    sorted(self, key=key), key=key
+                )
+            },
         }
-        for (_, proto), v in itertools.groupby(sorted(self, key=key), key=key):
-            d[proto] = tuple(v)
-        return d
 
     def get_count(self) -> Dict[ProxyType, int]:
-        return dict(Counter(proxy.protocol for proxy in self))
+        return {
+            **{
+                proto: 0
+                for proto in sort.PROTOCOL_ORDER
+                if proto in self.enabled_protocols
+            },
+            **Counter(proxy.protocol for proxy in self),
+        }
 
     def __iter__(self) -> Iterator[Proxy]:
         return iter(self._proxies)

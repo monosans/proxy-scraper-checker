@@ -82,9 +82,9 @@ def get_summary_table(
     table.add_column("Working", style="magenta")
     table.add_column("Total", style="green")
     for proto in sort.PROTOCOL_ORDER:
-        if total := before.get(proto):
+        if (total := before.get(proto)) is not None:
             working = after.get(proto, 0)
-            percentage = working / total
+            percentage = (working / total) if total else 0
             table.add_row(
                 proto.name, f"{working} ({percentage:.1%})", str(total)
             )

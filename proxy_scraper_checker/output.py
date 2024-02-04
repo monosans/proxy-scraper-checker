@@ -27,7 +27,8 @@ def _create_proxy_list_str(
     return "\n".join(
         proxy.as_str(include_protocol=include_protocol)
         for proxy in proxies
-        if not anonymous_only or proxy.host != proxy.exit_ip
+        if not anonymous_only
+        or (proxy.exit_ip is not None and proxy.host != proxy.exit_ip)
     )
 
 
@@ -51,7 +52,7 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                     "exit_ip": proxy.exit_ip,
                     "timeout": round(proxy.timeout, 2),
                     "geolocation": mmdb_reader.get(proxy.exit_ip)
-                    if mmdb_reader is not None
+                    if mmdb_reader is not None and proxy.exit_ip is not None
                     else None,
                 }
                 for proxy in sorted(storage, key=sort.timeout_sort_key)

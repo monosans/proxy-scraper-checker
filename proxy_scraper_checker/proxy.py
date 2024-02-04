@@ -35,7 +35,7 @@ class Proxy:
     username: Optional[str]
     password: Optional[str]
     timeout: float = attrs.field(init=False, eq=False)
-    exit_ip: str = attrs.field(init=False, eq=False)
+    exit_ip: Optional[str] = attrs.field(init=False, eq=False)
 
     async def check(self, *, settings: Settings) -> None:
         async with settings.semaphore:
@@ -67,6 +67,8 @@ class Proxy:
             self.exit_ip = parse_ipv4(
                 get_response_text(response=response, content=content)
             )
+        else:
+            self.exit_ip = None
 
     def as_str(self, *, include_protocol: bool) -> str:
         with StringIO() as buf:

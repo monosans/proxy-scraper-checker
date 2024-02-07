@@ -5,8 +5,6 @@ import logging
 from shutil import rmtree
 from typing import Sequence, Union
 
-import aiofiles
-import aiofiles.os
 import aiofiles.ospath
 import maxminddb
 
@@ -40,7 +38,6 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
             if settings.enable_geolocation
             else NullContext()
         )
-        settings.output_path.mkdir(parents=True, exist_ok=True)
         with mmdb as mmdb_reader:
             proxy_dicts = [
                 {

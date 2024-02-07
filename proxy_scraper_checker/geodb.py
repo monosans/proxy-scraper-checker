@@ -59,7 +59,6 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
                 GEODB_PATH,
             )
             return
-        await cache.READY_EVENT.wait()
         await _save_geodb(
             progress=progress,
             response=response,

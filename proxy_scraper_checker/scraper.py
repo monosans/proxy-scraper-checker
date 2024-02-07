@@ -5,8 +5,6 @@ import itertools
 import logging
 
 import aiofiles
-import aiofiles.os
-import aiofiles.ospath
 from aiohttp import ClientResponseError, ClientSession, ClientTimeout
 from aiohttp_socks import ProxyType
 from rich.progress import Progress, TaskID

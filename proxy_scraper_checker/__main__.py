@@ -6,7 +6,6 @@ import sys
 from typing import TYPE_CHECKING, Dict, Mapping
 
 import aiofiles
-import aiofiles.os
 import rich.traceback
 from aiohttp import ClientSession, TCPConnector
 from aiohttp_socks import ProxyType
@@ -15,7 +14,7 @@ from rich.logging import RichHandler
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
 
-from . import cache, checker, geodb, http, output, scraper, sort, utils
+from . import checker, geodb, http, output, scraper, sort, utils
 from .settings import Settings
 from .storage import ProxyStorage
 from .typing_compat import Any
@@ -122,7 +121,6 @@ async def main() -> None:
             )
             await (
                 asyncio.gather(
-                    cache.create(),
                     geodb.download_geodb(progress=progress, session=session),
                     scrape,
                 )

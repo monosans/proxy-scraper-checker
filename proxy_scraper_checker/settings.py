@@ -31,7 +31,7 @@ from .http import get_response_text
 from .null_context import NullContext
 from .parsers import parse_ipv4
 from .typing_compat import Any, Literal, Self
-from .utils import IS_DOCKER, check_access
+from .utils import IS_DOCKER, create_or_check_dir
 
 if TYPE_CHECKING:
     from .proxy import Proxy
@@ -273,8 +273,8 @@ class Settings:
         )
 
         _, _, (check_website_type, real_ip) = await asyncio.gather(
-            check_access(output_path, mode=os.W_OK | os.X_OK),
-            check_access(cache.DIR, mode=os.R_OK | os.W_OK | os.X_OK),
+            create_or_check_dir(output_path, mode=os.W_OK | os.X_OK),
+            create_or_check_dir(cache.DIR, mode=os.R_OK | os.W_OK | os.X_OK),
             _get_check_website_type_and_real_ip(
                 check_website=cfg["check_website"], session=session
             ),

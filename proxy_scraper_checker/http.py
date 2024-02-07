@@ -9,6 +9,11 @@ from aiohttp import ClientResponse, DummyCookieJar, hdrs
 
 from .utils import bytes_decode
 
+HEADERS: MappingProxyType[str, str] = MappingProxyType({
+    hdrs.USER_AGENT: (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"  # noqa: E501
+    )
+})
 SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 
@@ -16,11 +21,8 @@ class NoCharsetHeaderError(Exception):
     pass
 
 
-HEADERS: MappingProxyType[str, str] = MappingProxyType({
-    hdrs.USER_AGENT: (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"  # noqa: E501
-    )
-})
+def fallback_charset_resolver(r: ClientResponse, b: bytes) -> str:  # noqa: ARG001
+    raise NoCharsetHeaderError
 
 
 @lru_cache(None)
@@ -33,7 +35,3 @@ def get_response_text(*, response: ClientResponse, content: bytes) -> str:
         return content.decode(response.get_encoding())
     except (NoCharsetHeaderError, UnicodeDecodeError):
         return bytes_decode(content)
-
-
-def fallback_charset_resolver(r: ClientResponse, b: bytes) -> str:  # noqa: ARG001
-    raise NoCharsetHeaderError

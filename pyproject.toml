@@ -1,3 +1,7 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.poetry]
 name = "proxy-scraper-checker"
 version = "0"
@@ -40,108 +44,3 @@ optional = true
 
 [tool.poetry.group.nuitka.dependencies]
 nuitka = "2.0.1"
-
-[tool.mypy]
-python_version = "3.8"
-disallow_subclassing_any = false
-disallow_untyped_calls = false
-disallow_untyped_decorators = false
-warn_unreachable = true
-local_partial_types = true
-enable_error_code = [
-  "redundant-self",
-  "redundant-expr",
-  "possibly-undefined",
-  "truthy-bool",
-  "truthy-iterable",
-  "ignore-without-code",
-  "unused-awaitable",
-  "explicit-override",
-]
-strict = true
-
-[[tool.mypy.overrides]]
-module = "aiohttp_socks.*"
-ignore_missing_imports = true
-
-[tool.ruff]
-ignore = [
-  "ANN101",
-  "ANN102",
-  "ANN401",
-  "BLE001",
-  "C901",
-  "COM812",
-  "CPY001",
-  "D100",
-  "D101",
-  "D102",
-  "D103",
-  "D104",
-  "D105",
-  "D106",
-  "D107",
-  "D415",
-  "D417",
-  "DJ008",
-  "E203",
-  "ERA001",
-  "FBT002",
-  "FURB180",
-  "ISC001",
-  "PD901",
-  "PERF203",
-  "PLR0904",
-  "PLR0911",
-  "PLR0912",
-  "PLR0913",
-  "PLR0915",
-  "PLR0916",
-  "PLR0917",
-  "PT012",
-  "RUF001",
-  "RUF002",
-  "RUF003",
-  "RUF012",
-  "S110",
-  "S112",
-  "S308",
-  "S311",
-  "SIM105",
-  "TCH001",
-  "TCH002",
-  "TCH003",
-  "TID252",
-  "TRY400",
-]
-ignore-init-module-imports = true
-line-length = 80
-preview = true
-select = ["ALL"]
-target-version = "py38"
-typing-modules = ["proxy_scraper_checker.typing_compat"]
-
-[tool.ruff.flake8-self]
-ignore-names = []
-
-[tool.ruff.flake8-unused-arguments]
-ignore-variadic-names = true
-
-[tool.ruff.format]
-line-ending = "lf"
-skip-magic-trailing-comma = true
-
-[tool.ruff.isort]
-combine-as-imports = true
-required-imports = ["from __future__ import annotations"]
-split-on-trailing-comma = false
-
-[tool.ruff.pydocstyle]
-convention = "google"
-
-[tool.ruff.pyupgrade]
-keep-runtime-typing = true
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"

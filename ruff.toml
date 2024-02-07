@@ -1,0 +1,68 @@
+line-length = 80
+preview = true
+target-version = "py38"
+
+[format]
+docstring-code-format = true
+line-ending = "lf"
+skip-magic-trailing-comma = true
+
+[lint]
+ignore = [
+  "ANN401",
+  "BLE001",
+  "C901",
+  "COM812",
+  "CPY001",
+  "D100",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D106",
+  "D107",
+  "D415",
+  "D417",
+  "DJ008",
+  "FURB180",
+  "ISC001",
+  "PLR0904",
+  "PLR0911",
+  "PLR0912",
+  "PLR0913",
+  "PLR0914",
+  "PLR0915",
+  "PLR0916",
+  "PLR0917",
+  "RUF001",
+  "RUF002",
+  "RUF003",
+  "S110",
+  "S112",
+  "S308",
+  "S311",
+  "SIM105",
+  "TCH001",
+  "TCH002",
+  "TCH003",
+  "TID252",
+  "TRY400",
+]
+ignore-init-module-imports = true
+select = ["ALL"]
+typing-modules = ["proxy_scraper_checker.typing_compat"]
+
+[lint.flake8-self]
+ignore-names = []
+
+[lint.isort]
+combine-as-imports = true
+required-imports = ["from __future__ import annotations"]
+split-on-trailing-comma = false
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.pyupgrade]
+keep-runtime-typing = true

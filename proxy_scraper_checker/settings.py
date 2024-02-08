@@ -274,11 +274,11 @@ class Settings:
 
         _, _, (check_website_type, real_ip) = await asyncio.gather(
             fs.async_create_or_fix_dir(
-                output_path, permissions=stat.S_IXUSR | stat.S_IWUSR
+                output_path, permission=stat.S_IXUSR | stat.S_IWUSR
             ),
             fs.async_create_or_fix_dir(
                 fs.CACHE_PATH,
-                permissions=stat.S_IRUSR | stat.S_IXUSR | stat.S_IWUSR,
+                permission=stat.S_IRUSR | stat.S_IXUSR | stat.S_IWUSR,
             ),
             _get_check_website_type_and_real_ip(
                 check_website=cfg["check_website"], session=session

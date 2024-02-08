@@ -33,14 +33,14 @@ def add_permission(
 async_add_permission = asyncify(add_permission)
 
 
-def create_or_fix_dir(path: Path, /, *, permissions: int) -> None:
+def create_or_fix_dir(path: Path, /, *, permission: int) -> None:
     try:
         path.mkdir(parents=True)
     except FileExistsError:
         if not path.is_dir():
             msg = f"{path} is not a directory"
             raise ValueError(msg) from None
-        add_permission(path, permissions)
+        add_permission(path, permission)
 
 
 async_create_or_fix_dir = asyncify(create_or_fix_dir)

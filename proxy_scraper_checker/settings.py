@@ -31,7 +31,7 @@ from . import fs, sort
 from .http import get_response_text
 from .null_context import NullContext
 from .parsers import parse_ipv4
-from .utils import IS_DOCKER, asyncify
+from .utils import IS_DOCKER
 
 if TYPE_CHECKING:
     from .proxy import Proxy
@@ -273,10 +273,10 @@ class Settings:
         )
 
         _, _, (check_website_type, real_ip) = await asyncio.gather(
-            asyncify(fs.create_or_fix_dir)(
+            fs.async_create_or_fix_dir(
                 output_path, permissions=stat.S_IXUSR | stat.S_IWUSR
             ),
-            asyncify(fs.create_or_fix_dir)(
+            fs.async_create_or_fix_dir(
                 fs.CACHE_PATH,
                 permissions=stat.S_IRUSR | stat.S_IXUSR | stat.S_IWUSR,
             ),

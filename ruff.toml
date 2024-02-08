@@ -51,7 +51,6 @@ ignore = [
 ]
 ignore-init-module-imports = true
 select = ["ALL"]
-typing-modules = ["proxy_scraper_checker.typing_compat"]
 
 [lint.flake8-self]
 ignore-names = []

@@ -1,26 +1,26 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+import stat
 from typing import Optional
 
 import aiofiles
-import aiofiles.ospath
 from aiohttp import ClientResponse, ClientSession, hdrs
 from rich.progress import Progress, TaskID
 
-from . import cache
-from .utils import IS_DOCKER, bytes_decode
+from . import fs
+from .utils import IS_DOCKER, asyncify, bytes_decode
 
 logger = logging.getLogger(__name__)
 
 GEODB_URL = "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-City.mmdb"
-GEODB_PATH = Path(cache.DIR, "geolocation_database.mmdb")
+GEODB_PATH = fs.CACHE_PATH / "geolocation_database.mmdb"
 GEODB_ETAG_PATH = GEODB_PATH.with_suffix(".mmdb.etag")
 
 
 async def _read_etag() -> Optional[str]:
     try:
+        await asyncify(fs.add_permission)(GEODB_ETAG_PATH, stat.S_IRUSR)
         async with aiofiles.open(GEODB_ETAG_PATH, "rb") as etag_file:
             content = await etag_file.read()
     except FileNotFoundError:
@@ -29,6 +29,7 @@ async def _read_etag() -> Optional[str]:
 
 
 async def _save_etag(etag: str, /) -> None:
+    await asyncify(fs.maybe_add_permission)(GEODB_ETAG_PATH, stat.S_IWUSR)
     async with aiofiles.open(
         GEODB_ETAG_PATH, "w", encoding="utf-8"
     ) as etag_file:
@@ -38,6 +39,7 @@ async def _save_etag(etag: str, /) -> None:
 async def _save_geodb(
     *, progress: Progress, response: ClientResponse, task: TaskID
 ) -> None:
+    await asyncify(fs.maybe_add_permission)(GEODB_PATH, stat.S_IWUSR)
     async with aiofiles.open(GEODB_PATH, "wb") as geodb:
         async for chunk in response.content.iter_any():
             await geodb.write(chunk)
@@ -47,7 +49,7 @@ async def _save_geodb(
 async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
     headers = (
         {hdrs.IF_NONE_MATCH: current_etag}
-        if await aiofiles.ospath.exists(GEODB_PATH)
+        if await asyncify(GEODB_PATH.exists)()
         and (current_etag := await _read_etag())
         else None
     )

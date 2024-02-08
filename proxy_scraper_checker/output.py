@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import json
 import logging
+import stat
 from shutil import rmtree
 from typing import Sequence, Union
 
-import aiofiles.ospath
 import maxminddb
 
-from . import sort
+from . import fs, sort
 from .geodb import GEODB_PATH
 from .null_context import NullContext
 from .proxy import Proxy
 from .settings import Settings
 from .storage import ProxyStorage
-from .utils import IS_DOCKER
+from .utils import IS_DOCKER, asyncify
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +30,16 @@ def _create_proxy_list_str(
     )
 
 
-@aiofiles.ospath.wrap
+@asyncify
 def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
     if settings.output_json:
-        mmdb: Union[maxminddb.Reader, NullContext] = (
-            maxminddb.open_database(GEODB_PATH)
-            if settings.enable_geolocation
-            else NullContext()
-        )
+        if settings.enable_geolocation:
+            fs.add_permission(GEODB_PATH, stat.S_IRUSR)
+            mmdb: Union[maxminddb.Reader, NullContext] = (
+                maxminddb.open_database(GEODB_PATH)
+            )
+        else:
+            mmdb = NullContext()
         with mmdb as mmdb_reader:
             proxy_dicts = [
                 {
@@ -54,16 +56,19 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                 }
                 for proxy in sorted(storage, key=sort.timeout_sort_key)
             ]
-            with (settings.output_path / "proxies.json").open(
-                "w", encoding="utf-8"
-            ) as f:
-                json.dump(
-                    proxy_dicts, f, ensure_ascii=False, separators=(",", ":")
-                )
-            with (settings.output_path / "proxies_pretty.json").open(
-                "w", encoding="utf-8"
-            ) as f:
-                json.dump(proxy_dicts, f, ensure_ascii=False, indent="\t")
+            for path, indent, separators in (
+                (settings.output_path / "proxies.json", None, (",", ":")),
+                (settings.output_path / "proxies_pretty.json", "\t", None),
+            ):
+                path.unlink(missing_ok=True)
+                with path.open("w", encoding="utf-8") as f:
+                    json.dump(
+                        proxy_dicts,
+                        f,
+                        ensure_ascii=False,
+                        indent=indent,
+                        separators=separators,
+                    )
     if settings.output_txt:
         sorted_proxies = sorted(storage, key=settings.sorting_key)
         grouped_proxies = tuple(
@@ -78,7 +83,7 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                 rmtree(folder)
             except FileNotFoundError:
                 pass
-            folder.mkdir(parents=True, exist_ok=True)
+            folder.mkdir()
             text = _create_proxy_list_str(
                 proxies=sorted_proxies,
                 anonymous_only=anonymous_only,

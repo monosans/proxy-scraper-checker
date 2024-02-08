@@ -5,7 +5,7 @@ import enum
 import json
 import logging
 import math
-import os
+import stat
 import sys
 from pathlib import Path
 from typing import (
@@ -25,13 +25,13 @@ import attrs
 import platformdirs
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp_socks import ProxyType
+from typing_extensions import Any, Literal, Self
 
-from . import cache, sort
+from . import fs, sort
 from .http import get_response_text
 from .null_context import NullContext
 from .parsers import parse_ipv4
-from .typing_compat import Any, Literal, Self
-from .utils import IS_DOCKER, create_or_check_dir
+from .utils import IS_DOCKER, asyncify
 
 if TYPE_CHECKING:
     from .proxy import Proxy
@@ -269,12 +269,17 @@ class Settings:
         output_path = (
             platformdirs.user_data_path("proxy_scraper_checker")
             if IS_DOCKER
-            else cfg["output"]["path"]
+            else Path(cfg["output"]["path"])
         )
 
         _, _, (check_website_type, real_ip) = await asyncio.gather(
-            create_or_check_dir(output_path, mode=os.W_OK | os.X_OK),
-            create_or_check_dir(cache.DIR, mode=os.R_OK | os.W_OK | os.X_OK),
+            asyncify(fs.create_or_fix_dir)(
+                output_path, permissions=stat.S_IXUSR | stat.S_IWUSR
+            ),
+            asyncify(fs.create_or_fix_dir)(
+                fs.CACHE_PATH,
+                permissions=stat.S_IRUSR | stat.S_IXUSR | stat.S_IWUSR,
+            ),
             _get_check_website_type_and_real_ip(
                 check_website=cfg["check_website"], session=session
             ),

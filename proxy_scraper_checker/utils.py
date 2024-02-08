@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import os
-from pathlib import Path
-from typing import Union
+from typing import Callable
 from urllib.parse import urlparse
 
-import aiofiles.os
-import aiofiles.ospath
 import charset_normalizer
+from typing_extensions import ParamSpec, TypeVar
+
+T = TypeVar("T")
+P = ParamSpec("P")
 
 IS_DOCKER = os.getenv("IS_DOCKER") == "1"
 
@@ -22,14 +24,10 @@ def bytes_decode(value: bytes, /) -> str:
     return str(charset_normalizer.from_bytes(value)[0])
 
 
-async def create_or_check_dir(path: Union[Path, str], /, *, mode: int) -> None:
-    try:
-        await aiofiles.os.makedirs(path)
-    except FileExistsError:
-        access_task = asyncio.create_task(aiofiles.os.access(path, mode))
-        if not await aiofiles.ospath.isdir(path):
-            msg = f"{path} is not a directory"
-            raise ValueError(msg) from None
-        if not await access_task:
-            msg = f"{path} is not accessible"
-            raise ValueError(msg) from None
+def asyncify(f: Callable[P, T], /) -> Callable[P, asyncio.Future[T]]:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Future[T]:
+        return asyncio.get_running_loop().run_in_executor(
+            None, functools.partial(f, *args, **kwargs)
+        )
+
+    return functools.update_wrapper(wrapper, f)

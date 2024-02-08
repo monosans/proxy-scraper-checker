@@ -13,11 +13,11 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
+from typing_extensions import Any
 
 from . import checker, geodb, http, output, scraper, sort, utils
 from .settings import Settings
 from .storage import ProxyStorage
-from .typing_compat import Any
 
 if sys.version_info >= (3, 11):
     try:

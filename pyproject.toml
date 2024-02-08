@@ -14,7 +14,7 @@ classifiers = ["Private :: Do Not Upload"]
 [tool.poetry.dependencies]
 python = "^3.8"
 aiodns = { version = ">=1.1,<4", optional = true }
-aiofiles = ">=0.8"
+aiofiles = "*"
 aiohttp = "^3.8.6"
 aiohttp-socks = ">=0.7,<0.9"
 attrs = ">=22.2"

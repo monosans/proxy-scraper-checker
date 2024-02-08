@@ -29,7 +29,9 @@ async def _read_etag() -> Optional[str]:
 
 
 async def _save_etag(etag: str, /) -> None:
-    await asyncify(fs.maybe_add_permission)(GEODB_ETAG_PATH, stat.S_IWUSR)
+    await asyncify(fs.add_permission)(
+        GEODB_ETAG_PATH, stat.S_IWUSR, missing_ok=True
+    )
     async with aiofiles.open(
         GEODB_ETAG_PATH, "w", encoding="utf-8"
     ) as etag_file:
@@ -39,7 +41,7 @@ async def _save_etag(etag: str, /) -> None:
 async def _save_geodb(
     *, progress: Progress, response: ClientResponse, task: TaskID
 ) -> None:
-    await asyncify(fs.maybe_add_permission)(GEODB_PATH, stat.S_IWUSR)
+    await asyncify(fs.add_permission)(GEODB_PATH, stat.S_IWUSR, missing_ok=True)
     async with aiofiles.open(GEODB_PATH, "wb") as geodb:
         async for chunk in response.content.iter_any():
             await geodb.write(chunk)

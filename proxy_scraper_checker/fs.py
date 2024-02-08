@@ -9,24 +9,23 @@ logger = logging.getLogger(__name__)
 CACHE_PATH = platformdirs.user_cache_path("proxy_scraper_checker")
 
 
-def add_permission(path: Path, permission: int, /) -> None:
-    current_permissions = path.stat().st_mode
-    new_permissions = current_permissions | permission
-    if current_permissions != new_permissions:
-        path.chmod(new_permissions)
-        logger.info(
-            "Changed permissions of %s from %o to %o",
-            path,
-            current_permissions,
-            new_permissions,
-        )
-
-
-def maybe_add_permission(path: Path, permission: int, /) -> None:
+def add_permission(
+    path: Path, permission: int, /, *, missing_ok: bool = False
+) -> None:
     try:
-        add_permission(path, permission)
+        current_permissions = path.stat().st_mode
+        new_permissions = current_permissions | permission
+        if current_permissions != new_permissions:
+            path.chmod(new_permissions)
+            logger.info(
+                "Changed permissions of %s from %o to %o",
+                path,
+                current_permissions,
+                new_permissions,
+            )
     except FileNotFoundError:
-        pass
+        if not missing_ok:
+            raise
 
 
 def create_or_fix_dir(path: Path, /, *, permissions: int) -> None:

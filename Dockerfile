@@ -3,7 +3,6 @@ FROM docker.io/python:3.12-slim-bookworm as python-base-stage
 
 ENV \
   PIP_DISABLE_PIP_VERSION_CHECK=1 \
-  PIP_NO_CACHE_DIR=1 \
   PIP_NO_COLOR=1 \
   PIP_NO_INPUT=1 \
   PIP_PROGRESS_BAR=off \
@@ -25,19 +24,22 @@ ENV \
 RUN apt-get update \
   && apt-get install -y --no-install-recommends build-essential \
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-  && rm -rf /var/lib/apt/lists/* \
-  && pip install poetry poetry-plugin-export
+  && rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+  pip install poetry poetry-plugin-export
 
 COPY ./poetry.lock ./pyproject.toml ./
 
-RUN poetry export --without-hashes --only=main --extras=non-termux | \
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+  poetry export --without-hashes --only=main --extras=non-termux | \
   pip wheel --wheel-dir /usr/src/app/wheels -r /dev/stdin
 
 
 FROM python-base-stage as python-run-stage
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends -y tini \
+  && apt-get install -y --no-install-recommends tini \
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
   && rm -rf /var/lib/apt/lists/*
 

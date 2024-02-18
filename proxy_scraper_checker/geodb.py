@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import stat
 from typing import Optional
@@ -26,6 +27,10 @@ async def _read_etag() -> Optional[str]:
     except FileNotFoundError:
         return None
     return bytes_decode(content)
+
+
+def _remove_etag() -> asyncio.Future[None]:
+    return asyncify(GEODB_ETAG_PATH.unlink)(missing_ok=True)
 
 
 async def _save_etag(etag: str, /) -> None:
@@ -85,3 +90,5 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
 
     if etag := response.headers.get(hdrs.ETAG):
         await _save_etag(etag)
+    else:
+        await _remove_etag()

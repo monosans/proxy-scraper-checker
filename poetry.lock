@@ -836,12 +836,12 @@ files = [
 
 [[package]]
 name = "nuitka"
-version = "2.0.3"
+version = "2.0.4"
 description = "Python compiler with full language support and CPython compatibility"
 optional = false
 python-versions = "*"
 files = [
-    {file = "Nuitka-2.0.3.tar.gz", hash = "sha256:9e9cd4b2e1e802be6233d48f5c8406c9289d5816bfd82d09fc6b95c1449ff900"},
+    {file = "Nuitka-2.0.4.tar.gz", hash = "sha256:d81a96e72ec6ef9d37b2fda7a7412956ee69428ceb85db566cd333d46074fc17"},
 ]
 
 [package.dependencies]
@@ -1074,13 +1074,13 @@ files = [
 
 [[package]]
 name = "typing-extensions"
-version = "4.9.0"
+version = "4.10.0"
 description = "Backported and Experimental Type Hints for Python 3.8+"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "typing_extensions-4.9.0-py3-none-any.whl", hash = "sha256:af72aea155e91adfc61c3ae9e0e342dbc0cba726d6cba4b6c72c1f34e47291cd"},
-    {file = "typing_extensions-4.9.0.tar.gz", hash = "sha256:23478f88c37f27d76ac8aee6c905017a143b0b1b886c3c9f66bc2fd94f9f5783"},
+    {file = "typing_extensions-4.10.0-py3-none-any.whl", hash = "sha256:69b1a937c3a517342112fb4c6df7e72fc39a38e7891a5730ed4985b5214b5475"},
+    {file = "typing_extensions-4.10.0.tar.gz", hash = "sha256:b0abd7c89e8fb96f98db18d86106ff1d90ab692004eb746cf6eda2682f91b3cb"},
 ]
 
 [[package]]
@@ -1298,4 +1298,4 @@ termux = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "7cc2f2faa3b4ad6b8a316824ac8e2bc3b034deaaded2f7165a8805f19c642caf"
+content-hash = "e961ace71370050c213d6fdbf5049b6cba025a04c9a78b784c2e13d52f7597d2"

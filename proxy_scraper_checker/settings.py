@@ -272,24 +272,33 @@ class Settings:
             else Path(cfg["output"]["path"])
         )
 
-        _, _, (check_website_type, real_ip) = await asyncio.gather(
+        output_path_task = asyncio.create_task(
             fs.async_create_or_fix_dir(
                 output_path, permission=stat.S_IXUSR | stat.S_IWUSR
-            ),
-            fs.async_create_or_fix_dir(
+            )
+        )
+
+        check_website_type, real_ip = await _get_check_website_type_and_real_ip(
+            check_website=cfg["check_website"], session=session
+        )
+
+        enable_geolocation = (
+            cfg["enable_geolocation"]
+            and check_website_type.supports_geolocation
+        )
+
+        if enable_geolocation:
+            await fs.async_create_or_fix_dir(
                 fs.CACHE_PATH,
                 permission=stat.S_IRUSR | stat.S_IXUSR | stat.S_IWUSR,
-            ),
-            _get_check_website_type_and_real_ip(
-                check_website=cfg["check_website"], session=session
-            ),
-        )
+            )
+
+        await output_path_task
 
         return cls(
             check_website=cfg["check_website"],
             check_website_type=check_website_type,
-            enable_geolocation=cfg["enable_geolocation"]
-            and check_website_type.supports_geolocation,
+            enable_geolocation=enable_geolocation,
             output_json=cfg["output"]["json"],
             output_path=output_path,
             output_txt=cfg["output"]["txt"],

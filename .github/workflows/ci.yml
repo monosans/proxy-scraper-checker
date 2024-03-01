@@ -13,7 +13,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pipx run pre-commit run --all-files --show-diff-on-failure
+      - id: run-pre-commit
+        run: pipx run pre-commit run --all-files
+      - id: generate-token
+        if: ${{ failure() && steps.run-pre-commit.conclusion == 'failure' }}
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.PRIVATE_KEY }}
+      - if: ${{ failure() && steps.generate-token.conclusion == 'success' }}
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          commit-message: Run pre-commit
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          branch: pre-commit/${{ github.ref_name }}
+          delete-branch: true
+          title: Run pre-commmit
+          body:
   build:
     strategy:
       matrix:

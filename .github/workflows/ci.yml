@@ -16,12 +16,12 @@ jobs:
       - id: run-pre-commit
         run: pipx run pre-commit run --all-files
       - id: generate-token
-        if: ${{ failure() && steps.run-pre-commit.conclusion == 'failure' }}
+        if: ${{ !cancelled() && steps.run-pre-commit.conclusion == 'failure' }}
         uses: tibdex/github-app-token@v2
         with:
           app_id: ${{ secrets.APP_ID }}
           private_key: ${{ secrets.PRIVATE_KEY }}
-      - if: ${{ failure() && steps.generate-token.conclusion == 'success' }}
+      - if: ${{ !cancelled() && steps.generate-token.conclusion == 'success' }}
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ steps.generate-token.outputs.token }}

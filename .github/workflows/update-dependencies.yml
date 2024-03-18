@@ -9,6 +9,7 @@ concurrency:
 jobs:
   update-dependencies:
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'monosans' }}
     strategy:
       matrix:
         include:

@@ -8,7 +8,7 @@ concurrency:
 jobs:
   auto-merge-dependabot:
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' }}
+    if: ${{ github.repository_owner == 'monosans' && github.actor == 'dependabot[bot]' }}
     steps:
       - id: dependabot-metadata
         uses: dependabot/fetch-metadata@v1
@@ -19,7 +19,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   auto-merge-updates:
     runs-on: ubuntu-latest
-    if: ${{ github.actor_id == '158570872' }}
+    if: ${{ github.repository_owner == 'monosans' && github.actor_id == '158570872' }}
     steps:
       - run: gh pr merge --auto --delete-branch --squash "${PR_URL}"
         env:

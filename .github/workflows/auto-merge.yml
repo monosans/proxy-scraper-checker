@@ -11,7 +11,7 @@ jobs:
     if: ${{ github.repository_owner == 'monosans' && github.actor == 'dependabot[bot]' }}
     steps:
       - id: dependabot-metadata
-        uses: dependabot/fetch-metadata@v1
+        uses: dependabot/fetch-metadata@v2
       - if: ${{ steps.dependabot-metadata.outputs.update-type != 'version-update:semver-major' && steps.dependabot-metadata.outputs.package-ecosystem != 'docker' }}
         run: gh pr merge --auto --delete-branch --squash "${PR_URL}"
         env:

@@ -140,7 +140,6 @@ sources = [
     "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt",
     "https://raw.githubusercontent.com/iptotal/free-proxy-list/master/socks5.txt",
     "https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-socks5.txt",
-    "https://raw.githubusercontent.com/manuGMG/proxy-365/main/SOCKS5.txt",
     "https://raw.githubusercontent.com/mmpx12/proxy-list/master/socks5.txt",
     "https://raw.githubusercontent.com/MuRongPIG/Proxy-Master/main/socks5.txt",
     "https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks5/socks5.txt",

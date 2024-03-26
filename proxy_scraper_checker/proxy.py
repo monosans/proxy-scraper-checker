@@ -62,7 +62,7 @@ class Proxy:
             r = json.loads(
                 get_response_text(response=response, content=content)
             )
-            self.exit_ip = r["origin"]
+            self.exit_ip = parse_ipv4(r["origin"])
         elif settings.check_website_type == CheckWebsiteType.PLAIN_IP:
             self.exit_ip = parse_ipv4(
                 get_response_text(response=response, content=content)

@@ -50,6 +50,7 @@ sources = [
     # Local proxy list example
     # "./http_proxies.txt",
     "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http",
+    "https://api.proxyscrape.com/v2/?request=getproxies&protocol=https",
     "https://openproxy.space/list/http",
     "https://openproxylist.xyz/http.txt",
     "https://proxyspace.pro/http.txt",

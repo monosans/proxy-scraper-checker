@@ -45,3 +45,4 @@ repos:
           - types-aiofiles
           - typing-extensions<5
           - uvloop<0.20; implementation_name == "cpython" and (sys_platform == "darwin" or sys_platform == "linux")
+          - winloop<0.1.3; python_version >= "3.9" and implementation_name == "cpython" and (sys_platform == 'cygwin' or sys_platform == 'win32')

@@ -1363,4 +1363,4 @@ termux = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "e8befa5123d461caf3f35fb9b730b3d79228feecc87e19c8f40d87c94ed4c9c7"
+content-hash = "2c02e97c6fb8fa9e4fc5752a9077d39c0a33b7e0dda14a1df26c233355d7bc87"

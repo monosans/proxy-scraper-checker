@@ -40,7 +40,11 @@ def set_event_loop_policy() -> None:
             except ImportError:
                 pass
             else:
-                asyncio.set_event_loop_policy(winloop.EventLoopPolicy())
+                try:
+                    policy = winloop.EventLoopPolicy()
+                except AttributeError:
+                    policy = winloop.WinLoopPolicy()
+                asyncio.set_event_loop_policy(policy)
                 return
         elif sys.platform in {"darwin", "linux"}:
             try:

@@ -82,7 +82,6 @@ sources = [
     "https://raw.githubusercontent.com/r00tee/Proxy-List/main/Https.txt",
     "https://raw.githubusercontent.com/roosterkid/openproxylist/main/HTTPS_RAW.txt",
     "https://raw.githubusercontent.com/Sage520/Proxy-List/main/http.txt",
-    "https://raw.githubusercontent.com/Sage520/Proxy-List/main/https.txt",
     "https://raw.githubusercontent.com/saisuiu/Lionkings-Http-Proxys-Proxies/main/free.txt",
     "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/generated/http_proxies.txt",
     "https://raw.githubusercontent.com/themiralay/Proxy-List-World/master/data.txt",

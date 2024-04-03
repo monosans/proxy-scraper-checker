@@ -7,9 +7,6 @@ timeout = 5
 source_timeout = 15
 
 # Maximum concurrent connections.
-# Windows supports maximum of 512.
-# On *nix operating systems, this restriction is much looser.
-# The limit on *nix can be seen with the command `ulimit -Hn`.
 # Don't be in a hurry to set high values.
 # Make sure you have enough RAM first, gradually increasing the default value.
 # If set to 0, the maximum value available for your OS will be used.

@@ -12,7 +12,7 @@ repository = "https://github.com/monosans/proxy-scraper-checker"
 classifiers = ["Private :: Do Not Upload"]
 
 [tool.poetry.dependencies]
-python = ">=3.8"
+python = "^3.8"
 aiodns = { version = ">=1.1,<4", optional = true }
 aiofiles = "*"
 aiohttp = ">=3.8.6,<4"

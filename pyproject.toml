@@ -12,13 +12,13 @@ repository = "https://github.com/monosans/proxy-scraper-checker"
 classifiers = ["Private :: Do Not Upload"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.8"
 aiodns = { version = ">=1.1,<4", optional = true }
 aiofiles = "*"
-aiohttp = "^3.8.6"
+aiohttp = ">=3.8.6,<4"
 aiohttp-socks = ">=0.7,<0.9"
 attrs = ">=22.2"
-brotli = { version = "^1", markers = "implementation_name == 'cpython'" }
+brotli = { version = ">=1,<2", markers = "implementation_name == 'cpython'" }
 brotlicffi = { version = "<2", markers = "implementation_name != 'cpython'" }
 certifi = "*"
 charset-normalizer = ">=2,<4"
@@ -26,7 +26,7 @@ maxminddb = ">=1.3,<3"
 platformdirs = "<5"
 rich = ">=12.3,<14"
 tomli = { version = "<3", python = "<3.11" }
-typing-extensions = "^4.10"
+typing-extensions = ">=4.4,<5"
 uvloop = { version = ">=0.14,<0.20", optional = true, markers = "implementation_name == 'cpython' and (sys_platform == 'darwin' or sys_platform == 'linux')" }
 winloop = { version = "<0.1.3", python = ">=3.9", markers = "implementation_name == 'cpython' and (sys_platform == 'cygwin' or sys_platform == 'win32')" }
 

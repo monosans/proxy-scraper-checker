@@ -244,7 +244,7 @@ class Settings:
         /,
     ) -> None:
         parsed_url = urlparse(value)
-        if not parsed_url.scheme or not parsed_url.netloc:
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
             msg = f"invalid URL: {value}"
             raise ValueError(msg)
 

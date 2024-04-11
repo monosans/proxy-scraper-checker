@@ -14,7 +14,7 @@ from .parsers import PROXY_REGEX
 from .proxy import Proxy
 from .settings import Settings
 from .storage import ProxyStorage
-from .utils import bytes_decode, is_url
+from .utils import bytes_decode, is_http_url
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ async def scrape_one(
     timeout: ClientTimeout,
 ) -> None:
     try:
-        if is_url(source):
+        if is_http_url(source):
             async with session.get(source, timeout=timeout) as response:
                 content = await response.read()
             text = get_response_text(response=response, content=content)

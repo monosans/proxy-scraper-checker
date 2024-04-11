@@ -15,9 +15,9 @@ P = ParamSpec("P")
 IS_DOCKER = os.getenv("IS_DOCKER") == "1"
 
 
-def is_url(value: str, /) -> bool:
+def is_http_url(value: str, /) -> bool:
     parsed_url = urlparse(value)
-    return bool(parsed_url.scheme and parsed_url.netloc)
+    return bool(parsed_url.scheme in {"http", "https"} and parsed_url.netloc)
 
 
 def bytes_decode(value: bytes, /) -> str:

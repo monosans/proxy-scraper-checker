@@ -1199,16 +1199,16 @@ test = ["Cython (>=0.29.36,<0.30.0)", "aiohttp (==3.9.0b0)", "aiohttp (>=3.8.1)"
 
 [[package]]
 name = "winloop"
-version = "0.1.2"
+version = "0.1.3"
 description = "An alternative library for uvloop compatibility with Windows"
 optional = false
 python-versions = "*"
 files = [
-    {file = "winloop-0.1.2-cp310-cp310-win_amd64.whl", hash = "sha256:4e11d95e5e93d0353b262e4e1af8deb7383d75454c5f7e0806877ffda66dc668"},
-    {file = "winloop-0.1.2-cp311-cp311-win_amd64.whl", hash = "sha256:12d60ae7bab1e7da97206ec1b7f4e2ab579e634beb230ee8895962923eb16c56"},
-    {file = "winloop-0.1.2-cp312-cp312-win_amd64.whl", hash = "sha256:759661c3df3caca8c6c3f129643f87b01343e322800fef9b17e44d88d6de4006"},
-    {file = "winloop-0.1.2-cp39-cp39-win_amd64.whl", hash = "sha256:5642a7445cac75e476d50bf4b8cb4239c17f82cb2f1c7611be529a3f643b4e2c"},
-    {file = "winloop-0.1.2.tar.gz", hash = "sha256:b59e76a0f2d931363aee30a2c483ade04c8013d88fd2aaad86d7438d420da747"},
+    {file = "winloop-0.1.3-cp310-cp310-win_amd64.whl", hash = "sha256:b7b43db0c32d09ea46757b4ef99a181a5d34037ed35ce138a0fbf68d7395e1e7"},
+    {file = "winloop-0.1.3-cp311-cp311-win_amd64.whl", hash = "sha256:5c81f35d39670afd012b96db9574da9433e40dd4233c99959163416ea70bef77"},
+    {file = "winloop-0.1.3-cp312-cp312-win_amd64.whl", hash = "sha256:1d5139693d0a7bfbd274c69165dace52974eed8b23c4736911263ac9a628bd0d"},
+    {file = "winloop-0.1.3-cp39-cp39-win_amd64.whl", hash = "sha256:4dc4b8ef81cfb17197b7a490404e9f04803e28a46caec1b8e72b3cf80f9f75b8"},
+    {file = "winloop-0.1.3.tar.gz", hash = "sha256:8c8b56f4852dcbb5b01b811d779a0c59d3093ac0125cc802d12e507014f38b03"},
 ]
 
 [package.dependencies]
@@ -1385,4 +1385,4 @@ termux = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "808d592d1e00cbbb8daaef5d213302b81c5b5869bdf71087ea5ff1db4d49d98b"
+content-hash = "4a64483e6af5f2003d2ffd0f40e1c20324aa5dec4f6c54ff7711a580605fbd7d"

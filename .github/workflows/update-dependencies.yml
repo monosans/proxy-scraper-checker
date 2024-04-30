@@ -19,6 +19,7 @@ jobs:
           - cmd: pipx run pre-commit autoupdate
             commit-msg: Update .pre-commit-config.yaml
             branch: update/pre-commit-config
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       - run: ${{ matrix.cmd }}
@@ -31,7 +32,6 @@ jobs:
         with:
           token: ${{ steps.generate-token.outputs.token }}
           commit-message: ${{ matrix.commit-msg }}
-          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           branch: ${{ matrix.branch }}
           delete-branch: true

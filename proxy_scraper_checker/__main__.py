@@ -36,7 +36,7 @@ def set_event_loop_policy() -> None:
     if sys.implementation.name == "cpython":
         if sys.platform in {"cygwin", "win32"}:
             try:
-                import winloop  # type: ignore[import-not-found]  # noqa: PLC0415
+                import winloop  # type: ignore[import-not-found, import-untyped, unused-ignore]  # noqa: PLC0415
             except ImportError:
                 pass
             else:
@@ -48,7 +48,7 @@ def set_event_loop_policy() -> None:
                 return
         elif sys.platform in {"darwin", "linux"}:
             try:
-                import uvloop  # noqa: PLC0415
+                import uvloop  # type: ignore[import-not-found]  # noqa: PLC0415
             except ImportError:
                 pass
             else:

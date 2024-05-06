@@ -8,6 +8,7 @@ import math
 import stat
 import sys
 from pathlib import Path
+from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -23,7 +24,7 @@ from urllib.parse import urlparse
 
 import attrs
 import platformdirs
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession, ClientTimeout, hdrs
 from aiohttp_socks import ProxyType
 from typing_extensions import Any, Literal, Self
 
@@ -47,7 +48,7 @@ def _get_supported_max_connections() -> Optional[int]:
         ):
             return 512
         return None
-    import resource  # noqa: PLC0415
+    import resource  # type: ignore[unreachable, unused-ignore]  # noqa: PLC0415
 
     soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
     logger.debug(
@@ -113,19 +114,33 @@ def _sources_converter(
 
 
 class CheckWebsiteType(enum.Enum):
-    UNKNOWN = enum.auto()
-    PLAIN_IP = enum.auto()
+    UNKNOWN = enum.auto(), False, False, None
+    PLAIN_IP = enum.auto(), True, True, None
     """https://checkip.amazonaws.com"""
-    HTTPBIN_IP = enum.auto()
+    HTTPBIN_IP = (
+        enum.auto(),
+        True,
+        True,
+        MappingProxyType({hdrs.ACCEPT: "application/json"}),
+    )
     """https://httpbin.org/ip"""
 
-    @property
-    def supports_geolocation(self) -> bool:
-        return self != CheckWebsiteType.UNKNOWN
+    def __init__(
+        self,
+        _: object,
+        supports_geolocation: bool,  # noqa: FBT001
+        supports_anonymity: bool,  # noqa: FBT001
+        headers: Optional[Mapping[str, str]],
+        /,
+    ) -> None:
+        self.supports_geolocation = supports_geolocation
+        self.supports_anonymity = supports_anonymity
+        self.headers = headers
 
-    @property
-    def supports_anonymity(self) -> bool:
-        return self != CheckWebsiteType.UNKNOWN
+    def __new__(cls, value: object, *_: Any) -> Self:
+        member = object.__new__(cls)
+        member._value_ = value
+        return member
 
 
 async def _get_check_website_type_and_real_ip(

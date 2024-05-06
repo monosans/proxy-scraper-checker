@@ -55,7 +55,10 @@ class Proxy:
                 raise_for_status=True,
                 timeout=settings.timeout,
                 fallback_charset_resolver=fallback_charset_resolver,
-            ) as session, session.get(settings.check_website) as response:
+            ) as session, session.get(
+                settings.check_website,
+                headers=settings.check_website_type.headers,
+            ) as response:
                 content = await response.read()
         self.timeout = perf_counter() - start
         if settings.check_website_type == CheckWebsiteType.HTTPBIN_IP:

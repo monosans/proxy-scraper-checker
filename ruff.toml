@@ -53,7 +53,7 @@ ignore-init-module-imports = true
 select = ["ALL"]
 
 [lint.flake8-self]
-ignore-names = []
+ignore-names = ["_name_", "_value_"]
 
 [lint.isort]
 combine-as-imports = true

@@ -48,7 +48,7 @@ def set_event_loop_policy() -> None:
                 return
         elif sys.platform in {"darwin", "linux"}:
             try:
-                import uvloop  # type: ignore[import-not-found]  # noqa: PLC0415
+                import uvloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
             except ImportError:
                 pass
             else:

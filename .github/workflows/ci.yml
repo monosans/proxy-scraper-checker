@@ -39,5 +39,5 @@ jobs:
           name: artifact-${{ matrix.os }}
           path: |
             config.toml
-            proxy_scraper_checker.dist/*
+            proxy_scraper_checker.dist
           if-no-files-found: error

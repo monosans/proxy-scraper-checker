@@ -38,5 +38,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.os }}
-          path: proxy_scraper_checker.dist
+          path: |
+            proxy_scraper_checker.dist
           if-no-files-found: error

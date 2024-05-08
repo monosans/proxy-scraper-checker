@@ -21,7 +21,7 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 
 ### Standalone executable
 
-This is the easiest way, but it is only available for x86_64 Windows, x86_64/arm64 macOS and x86_64 Linux. Just download the archive for your OS from [nightly.link](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview), unzip it, edit `config.toml` and run the `proxy_scraper_checker` executable.
+This is the easiest way, but it is only available for x86-64 Windows, x86-64/arm64 macOS and x86-64 Linux. Just download the archive for your OS from [nightly.link](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview), unzip it, edit `config.toml` and run the `proxy_scraper_checker` executable.
 
 ### Docker
 

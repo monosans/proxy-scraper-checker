@@ -17,13 +17,17 @@ jobs:
   build:
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-13
-          - macos-14
+        include:
+          - name: linux-x86-64
+            runner: ubuntu-latest
+          - name: windows-x86-64
+            runner: windows-latest
+          - name: macos-x86-64
+            runner: macos-13
+          - name: macos-arm64
+            runner: macos-14
       fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - run: pipx install poetry
@@ -37,6 +41,6 @@ jobs:
       - run: mv config.toml proxy_scraper_checker.dist/
       - uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.os }}
+          name: artifact-${{ matrix.name }}
           path: proxy_scraper_checker.dist/
           if-no-files-found: error

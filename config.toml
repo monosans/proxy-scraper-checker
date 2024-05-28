@@ -17,8 +17,8 @@ max_connections = 512
 # it will be impossible to determine the anonymity and geolocation of the proxy.
 # Example:
 # check_website = "https://google.com"
-# check_website = "https://checkip.amazonaws.com"
-check_website = "https://httpbin.smp.io/ip"
+# check_website = "https://httpbin.smp.io/ip"
+check_website = "https://checkip.amazonaws.com"
 
 # Set to false to sort proxies alphabetically.
 sort_by_speed = true

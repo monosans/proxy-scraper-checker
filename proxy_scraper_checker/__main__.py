@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import TYPE_CHECKING, Coroutine, Dict, Mapping
+from typing import TYPE_CHECKING, Callable, Coroutine, Dict, Mapping
 
 import aiofiles
 import rich.traceback
@@ -34,30 +34,32 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-def async_run(main: Coroutine[Any, Any, T]) -> T:
+def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
     if sys.implementation.name == "cpython":
         try:
             import uvloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
         except ImportError:
             pass
         else:
-            if hasattr(uvloop, "run"):
-                return uvloop.run(main)  # type: ignore[no-any-return, unused-ignore]
-            uvloop.install()
-            return asyncio.run(main)
+            try:
+                return uvloop.run  # type: ignore[no-any-return, unused-ignore]
+            except AttributeError:
+                uvloop.install()
+                return asyncio.run
 
         try:
             import winloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
         except ImportError:
             pass
         else:
-            if hasattr(winloop, "run"):
-                return winloop.run(main)  # type: ignore[no-any-return, unused-ignore]
-            winloop.install()
-            return asyncio.run(main)
+            try:
+                return winloop.run  # type: ignore[no-any-return, unused-ignore]
+            except AttributeError:
+                winloop.install()
+                return asyncio.run
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    return asyncio.run(main)
+    return asyncio.run
 
 
 async def read_config(file: str, /) -> Dict[str, Any]:
@@ -165,4 +167,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    async_run(main())
+    get_async_run()(main())

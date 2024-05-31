@@ -42,17 +42,17 @@ def async_run(main: Coroutine[Any, Any, T]) -> T:
             pass
         else:
             if hasattr(uvloop, "run"):
-                return uvloop.run(main)  # type: ignore[no-any-return]
+                return uvloop.run(main)  # type: ignore[no-any-return, unused-ignore]
             uvloop.install()
             return asyncio.run(main)
 
         try:
-            import winloop  # type: ignore[import-not-found, import-untyped, unused-ignore]  # noqa: PLC0415
+            import winloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
         except ImportError:
             pass
         else:
             if hasattr(winloop, "run"):
-                return winloop.run(main)  # type: ignore[no-any-return]
+                return winloop.run(main)  # type: ignore[no-any-return, unused-ignore]
             winloop.install()
             return asyncio.run(main)
     if sys.platform == "win32":

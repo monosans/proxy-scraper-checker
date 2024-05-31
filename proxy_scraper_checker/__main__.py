@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import TYPE_CHECKING, Dict, Mapping
+from typing import TYPE_CHECKING, Coroutine, Dict, Mapping
 
 import aiofiles
 import rich.traceback
@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
-from typing_extensions import Any
+from typing_extensions import Any, TypeVar
 
 from . import checker, geodb, http, output, scraper, sort, utils
 from .settings import Settings
@@ -31,31 +31,33 @@ else:
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
 
-def set_event_loop_policy() -> None:
+
+def async_run(main: Coroutine[Any, Any, T]) -> T:
     if sys.implementation.name == "cpython":
-        if sys.platform in {"cygwin", "win32"}:
-            try:
-                import winloop  # type: ignore[import-not-found, import-untyped, unused-ignore]  # noqa: PLC0415
-            except ImportError:
-                pass
-            else:
-                try:
-                    policy = winloop.EventLoopPolicy()
-                except AttributeError:
-                    policy = winloop.WinLoopPolicy()
-                asyncio.set_event_loop_policy(policy)
-                return
-        elif sys.platform in {"darwin", "linux"}:
-            try:
-                import uvloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
-            except ImportError:
-                pass
-            else:
-                asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-                return
+        try:
+            import uvloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
+        except ImportError:
+            pass
+        else:
+            if hasattr(uvloop, "run"):
+                return uvloop.run(main)  # type: ignore[no-any-return]
+            uvloop.install()
+            return asyncio.run(main)
+
+        try:
+            import winloop  # type: ignore[import-not-found, import-untyped, unused-ignore]  # noqa: PLC0415
+        except ImportError:
+            pass
+        else:
+            if hasattr(winloop, "run"):
+                return winloop.run(main)  # type: ignore[no-any-return]
+            winloop.install()
+            return asyncio.run(main)
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    return asyncio.run(main)
 
 
 async def read_config(file: str, /) -> Dict[str, Any]:
@@ -163,5 +165,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    set_event_loop_policy()
-    asyncio.run(main())
+    async_run(main())

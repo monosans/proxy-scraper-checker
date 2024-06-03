@@ -33,7 +33,7 @@ jobs:
       - run: pipx install poetry
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: poetry
           check-latest: true
       - run: poetry install --only=main,nuitka --sync --no-root --extras=non-termux --no-interaction

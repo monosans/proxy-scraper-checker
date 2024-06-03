@@ -4,17 +4,19 @@ import json
 import logging
 import stat
 from shutil import rmtree
-from typing import Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 import maxminddb
 
 from . import fs, sort
 from .geodb import GEODB_PATH
 from .null_context import NullContext
-from .proxy import Proxy
-from .settings import Settings
-from .storage import ProxyStorage
 from .utils import IS_DOCKER, asyncify
+
+if TYPE_CHECKING:
+    from .proxy import Proxy
+    from .settings import Settings
+    from .storage import ProxyStorage
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +37,8 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
     if settings.output_json:
         if settings.enable_geolocation:
             fs.add_permission(GEODB_PATH, stat.S_IRUSR)
-            mmdb: Union[maxminddb.Reader, NullContext] = (
-                maxminddb.open_database(GEODB_PATH)
+            mmdb: maxminddb.Reader | NullContext = maxminddb.open_database(
+                GEODB_PATH
             )
         else:
             mmdb = NullContext()

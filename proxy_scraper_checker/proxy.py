@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from io import StringIO
 from time import perf_counter
-from typing import Optional
 
 import attrs
 from aiohttp import ClientSession
@@ -32,10 +31,10 @@ class Proxy:
     protocol: ProxyType
     host: str
     port: int
-    username: Optional[str]
-    password: Optional[str]
+    username: str | None
+    password: str | None
     timeout: float = attrs.field(init=False, eq=False)
-    exit_ip: Optional[str] = attrs.field(init=False, eq=False)
+    exit_ip: str | None = attrs.field(init=False, eq=False)
 
     async def check(self, *, settings: Settings) -> None:
         async with settings.semaphore:

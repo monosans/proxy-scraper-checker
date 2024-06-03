@@ -3,12 +3,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import TYPE_CHECKING, Callable, Coroutine, Dict, Mapping
+from typing import TYPE_CHECKING, Callable, Coroutine, Mapping
 
 import aiofiles
 import rich.traceback
 from aiohttp import ClientSession, TCPConnector
-from aiohttp_socks import ProxyType
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
@@ -28,6 +27,9 @@ if sys.version_info >= (3, 11):
             import tomli as tomllib
 else:
     import tomli as tomllib
+
+if TYPE_CHECKING:
+    from aiohttp_socks import ProxyType
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +64,7 @@ def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
     return asyncio.run
 
 
-async def read_config(file: str, /) -> Dict[str, Any]:
+async def read_config(file: str, /) -> dict[str, Any]:
     async with aiofiles.open(file, "rb") as f:
         content = await f.read()
     return tomllib.loads(utils.bytes_decode(content))

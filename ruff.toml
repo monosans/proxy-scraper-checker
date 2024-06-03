@@ -43,13 +43,9 @@ ignore = [
   "S308",
   "S311",
   "SIM105",
-  "TCH001",
-  "TCH002",
-  "TCH003",
   "TID252",
   "TRY400",
 ]
-ignore-init-module-imports = true
 select = ["ALL"]
 
 [lint.flake8-self]
@@ -62,6 +58,3 @@ split-on-trailing-comma = false
 
 [lint.pydocstyle]
 convention = "google"
-
-[lint.pyupgrade]
-keep-runtime-typing = true

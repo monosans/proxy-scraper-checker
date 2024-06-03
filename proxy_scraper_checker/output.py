@@ -4,17 +4,19 @@ import json
 import logging
 import stat
 from shutil import rmtree
-from typing import Sequence, Union
+from typing import TYPE_CHECKING, Sequence, Union
 
 import maxminddb
 
 from . import fs, sort
 from .geodb import GEODB_PATH
 from .null_context import NullContext
-from .proxy import Proxy
-from .settings import Settings
-from .storage import ProxyStorage
 from .utils import IS_DOCKER, asyncify
+
+if TYPE_CHECKING:
+    from .proxy import Proxy
+    from .settings import Settings
+    from .storage import ProxyStorage
 
 logger = logging.getLogger(__name__)
 

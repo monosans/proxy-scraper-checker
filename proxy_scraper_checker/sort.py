@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
 
 from aiohttp_socks import ProxyType
 
-from .proxy import Proxy
+if TYPE_CHECKING:
+    from .proxy import Proxy
 
 PROTOCOL_ORDER = (ProxyType.HTTP, ProxyType.SOCKS4, ProxyType.SOCKS5)
 

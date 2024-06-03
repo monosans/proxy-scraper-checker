@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Callable, Coroutine, Dict, Mapping
 import aiofiles
 import rich.traceback
 from aiohttp import ClientSession, TCPConnector
-from aiohttp_socks import ProxyType
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
@@ -18,6 +17,9 @@ from typing_extensions import Any, TypeVar
 from . import checker, geodb, http, output, scraper, sort, utils
 from .settings import Settings
 from .storage import ProxyStorage
+
+if TYPE_CHECKING:
+    from aiohttp_socks import ProxyType
 
 if sys.version_info >= (3, 11):
     try:

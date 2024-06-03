@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import stat
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import aiofiles
 from aiohttp import ClientResponse, ClientSession, hdrs
-from rich.progress import Progress, TaskID
 
 from . import fs
 from .utils import IS_DOCKER, asyncify, bytes_decode
+
+if TYPE_CHECKING:
+    import asyncio
+
+    from rich.progress import Progress, TaskID
 
 logger = logging.getLogger(__name__)
 

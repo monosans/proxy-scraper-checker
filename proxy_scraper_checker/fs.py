@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import platformdirs
 
 from .utils import asyncify
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 CACHE_PATH = platformdirs.user_cache_path("proxy_scraper_checker")

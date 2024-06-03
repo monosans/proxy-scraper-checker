@@ -4,7 +4,7 @@ import json
 import logging
 import stat
 from shutil import rmtree
-from typing import Sequence, Union
+from typing import Sequence
 
 import maxminddb
 
@@ -35,8 +35,8 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
     if settings.output_json:
         if settings.enable_geolocation:
             fs.add_permission(GEODB_PATH, stat.S_IRUSR)
-            mmdb: Union[maxminddb.Reader, NullContext] = (
-                maxminddb.open_database(GEODB_PATH)
+            mmdb: maxminddb.Reader | NullContext = maxminddb.open_database(
+                GEODB_PATH
             )
         else:
             mmdb = NullContext()

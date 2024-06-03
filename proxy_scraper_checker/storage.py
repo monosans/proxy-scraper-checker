@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 from collections import Counter
-from typing import Dict, Iterable, Iterator, Set, Tuple
+from typing import Iterable, Iterator
 
 from aiohttp_socks import ProxyType
 
@@ -15,7 +15,7 @@ class ProxyStorage:
 
     def __init__(self, *, protocols: Iterable[ProxyType]) -> None:
         self.enabled_protocols = set(protocols)
-        self._proxies: Set[Proxy] = set()
+        self._proxies: set[Proxy] = set()
 
     def add(self, proxy: Proxy, /) -> None:
         self.enabled_protocols.add(proxy.protocol)
@@ -24,7 +24,7 @@ class ProxyStorage:
     def remove(self, proxy: Proxy, /) -> None:
         self._proxies.remove(proxy)
 
-    def get_grouped(self) -> Dict[ProxyType, Tuple[Proxy, ...]]:
+    def get_grouped(self) -> dict[ProxyType, tuple[Proxy, ...]]:
         key = sort.protocol_sort_key
         return {
             **{
@@ -40,7 +40,7 @@ class ProxyStorage:
             },
         }
 
-    def get_count(self) -> Dict[ProxyType, int]:
+    def get_count(self) -> dict[ProxyType, int]:
         return {
             **{
                 proto: 0

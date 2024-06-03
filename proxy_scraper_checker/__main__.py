@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import TYPE_CHECKING, Callable, Coroutine, Dict, Mapping
+from typing import TYPE_CHECKING, Callable, Coroutine, Mapping
 
 import aiofiles
 import rich.traceback
@@ -62,7 +62,7 @@ def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
     return asyncio.run
 
 
-async def read_config(file: str, /) -> Dict[str, Any]:
+async def read_config(file: str, /) -> dict[str, Any]:
     async with aiofiles.open(file, "rb") as f:
         content = await f.read()
     return tomllib.loads(utils.bytes_decode(content))

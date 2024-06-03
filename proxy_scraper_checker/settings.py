@@ -9,17 +9,7 @@ import stat
 import sys
 from pathlib import Path
 from types import MappingProxyType
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    FrozenSet,
-    Iterable,
-    Mapping,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Callable, Iterable, Mapping
 from urllib.parse import urlparse
 
 import attrs
@@ -40,7 +30,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _get_supported_max_connections() -> Optional[int]:
+def _get_supported_max_connections() -> int | None:
     if sys.platform == "win32":
         if isinstance(
             asyncio.get_event_loop_policy(),
@@ -69,7 +59,7 @@ def _get_supported_max_connections() -> Optional[int]:
     return soft_limit
 
 
-def _get_max_connections(value: int, /) -> Optional[int]:
+def _get_max_connections(value: int, /) -> int | None:
     if value < 0:
         msg = "max_connections must be non-negative"
         raise ValueError(msg)
@@ -92,9 +82,7 @@ def _get_max_connections(value: int, /) -> Optional[int]:
     return max_supported
 
 
-def _semaphore_converter(
-    value: int, /
-) -> Union[asyncio.Semaphore, NullContext]:
+def _semaphore_converter(value: int, /) -> asyncio.Semaphore | NullContext:
     v = _get_max_connections(value)
     return asyncio.Semaphore(v) if v else NullContext()
 
@@ -104,8 +92,8 @@ def _timeout_converter(value: float, /) -> ClientTimeout:
 
 
 def _sources_converter(
-    value: Mapping[ProxyType, Optional[Iterable[str]]], /
-) -> Dict[ProxyType, FrozenSet[str]]:
+    value: Mapping[ProxyType, Iterable[str] | None], /
+) -> dict[ProxyType, frozenset[str]]:
     return {
         proxy_type: frozenset(sources)
         for proxy_type, sources in value.items()
@@ -130,7 +118,7 @@ class CheckWebsiteType(enum.Enum):
         _: object,
         supports_geolocation: bool,  # noqa: FBT001
         supports_anonymity: bool,  # noqa: FBT001
-        headers: Optional[Mapping[str, str]],
+        headers: Mapping[str, str] | None,
         /,
     ) -> None:
         self.supports_geolocation = supports_geolocation
@@ -145,10 +133,12 @@ class CheckWebsiteType(enum.Enum):
 
 async def _get_check_website_type_and_real_ip(
     *, check_website: str, session: ClientSession
-) -> Union[
-    Tuple[Literal[CheckWebsiteType.UNKNOWN], None],
-    Tuple[Literal[CheckWebsiteType.PLAIN_IP, CheckWebsiteType.HTTPBIN_IP], str],
-]:
+) -> (
+    tuple[Literal[CheckWebsiteType.UNKNOWN], None]
+    | tuple[
+        Literal[CheckWebsiteType.PLAIN_IP, CheckWebsiteType.HTTPBIN_IP], str
+    ]
+):
     try:
         async with session.get(check_website) as response:
             content = await response.read()
@@ -201,17 +191,17 @@ class Settings:
     )
     output_path: Path = attrs.field(converter=Path)
     output_txt: bool = attrs.field(validator=attrs.validators.instance_of(bool))
-    real_ip: Optional[str] = attrs.field(
+    real_ip: str | None = attrs.field(
         validator=attrs.validators.optional(attrs.validators.instance_of(str))
     )
-    semaphore: Union[asyncio.Semaphore, NullContext] = attrs.field(
+    semaphore: asyncio.Semaphore | NullContext = attrs.field(
         converter=_semaphore_converter
     )
     sort_by_speed: bool = attrs.field(
         validator=attrs.validators.instance_of(bool)
     )
     source_timeout: float = attrs.field(validator=attrs.validators.gt(0))
-    sources: Dict[ProxyType, FrozenSet[str]] = attrs.field(
+    sources: dict[ProxyType, frozenset[str]] = attrs.field(
         validator=attrs.validators.and_(
             attrs.validators.instance_of(dict),
             attrs.validators.min_len(1),
@@ -235,7 +225,7 @@ class Settings:
     @property
     def sorting_key(
         self,
-    ) -> Union[Callable[[Proxy], float], Callable[[Proxy], Tuple[int, ...]]]:
+    ) -> Callable[[Proxy], float] | Callable[[Proxy], tuple[int, ...]]:
         return (
             sort.timeout_sort_key
             if self.sort_by_speed

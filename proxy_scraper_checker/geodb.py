@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import stat
-from typing import Optional
 
 import aiofiles
 from aiohttp import ClientResponse, ClientSession, hdrs
@@ -19,7 +18,7 @@ GEODB_PATH = fs.CACHE_PATH / "geolocation_database.mmdb"
 GEODB_ETAG_PATH = GEODB_PATH.with_suffix(".mmdb.etag")
 
 
-async def _read_etag() -> Optional[str]:
+async def _read_etag() -> str | None:
     try:
         await fs.async_add_permission(GEODB_ETAG_PATH, stat.S_IRUSR)
         async with aiofiles.open(GEODB_ETAG_PATH, "rb") as etag_file:

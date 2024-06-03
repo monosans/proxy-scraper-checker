@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Mapping
-
-from aiohttp_socks import ProxyType
-from rich.progress import Progress, TaskID
+from typing import TYPE_CHECKING, Mapping
 
 from . import sort
-from .proxy import Proxy
-from .settings import Settings
-from .storage import ProxyStorage
+
+if TYPE_CHECKING:
+    from aiohttp_socks import ProxyType
+    from rich.progress import Progress, TaskID
+
+    from .proxy import Proxy
+    from .settings import Settings
+    from .storage import ProxyStorage
 
 logger = logging.getLogger(__name__)
 

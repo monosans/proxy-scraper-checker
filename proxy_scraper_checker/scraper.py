@@ -3,18 +3,22 @@ from __future__ import annotations
 import asyncio
 import itertools
 import logging
+from typing import TYPE_CHECKING
 
 import aiofiles
 from aiohttp import ClientResponseError, ClientSession, ClientTimeout
 from aiohttp_socks import ProxyType
-from rich.progress import Progress, TaskID
 
 from .http import get_response_text
 from .parsers import PROXY_REGEX
 from .proxy import Proxy
-from .settings import Settings
-from .storage import ProxyStorage
 from .utils import bytes_decode, is_http_url
+
+if TYPE_CHECKING:
+    from rich.progress import Progress, TaskID
+
+    from .settings import Settings
+    from .storage import ProxyStorage
 
 logger = logging.getLogger(__name__)
 

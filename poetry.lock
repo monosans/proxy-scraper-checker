@@ -989,13 +989,13 @@ windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
 name = "python-socks"
-version = "2.4.4"
+version = "2.5.0"
 description = "Core proxy (SOCKS4, SOCKS5, HTTP tunneling) functionality for Python"
 optional = false
 python-versions = "*"
 files = [
-    {file = "python-socks-2.4.4.tar.gz", hash = "sha256:e5a8e4f78203612c813946feacd87b98943965a04389fe221fa1e9ab263ad22e"},
-    {file = "python_socks-2.4.4-py3-none-any.whl", hash = "sha256:fda465d3ef229119ee614eb85f2b7c0ad28be6dd40e0ef8dd317c49e8725e514"},
+    {file = "python_socks-2.5.0-py3-none-any.whl", hash = "sha256:68b34379faac94bba3f9959f45cb9ed0b9a0dc65b509eb0799d9c47fb5a9af98"},
+    {file = "python_socks-2.5.0.tar.gz", hash = "sha256:cc4ad990d67bd238e496afefe436af0247793bbe01d1d4a0d37a3b124ff0baa3"},
 ]
 
 [package.dependencies]

@@ -1,5 +1,5 @@
 # hadolint global ignore=DL3008,DL3013,DL4006
-FROM docker.io/python:3.12-slim-bookworm as python-base-stage
+FROM docker.io/python:3.12-slim-bookworm AS python-base-stage
 
 ENV \
   PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -14,7 +14,7 @@ ENV \
 WORKDIR /app
 
 
-FROM python-base-stage as python-build-stage
+FROM python-base-stage AS python-build-stage
 
 ENV \
   POETRY_NO_ANSI=1 \
@@ -36,7 +36,7 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
   pip wheel --wheel-dir /usr/src/app/wheels -r /dev/stdin
 
 
-FROM python-base-stage as python-run-stage
+FROM python-base-stage AS python-run-stage
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends tini \

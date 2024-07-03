@@ -44,4 +44,4 @@ types-aiofiles = "24.1.0.20240626"
 optional = true
 
 [tool.poetry.group.nuitka.dependencies]
-nuitka = "2.3.10"
+nuitka = "2.3.11"

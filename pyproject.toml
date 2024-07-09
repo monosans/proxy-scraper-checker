@@ -38,7 +38,7 @@ mypy = "1.10.1"
 ruff = "0.5.1"
 tomli = "2.0.1"
 types-aiofiles = "24.1.0.20240626"
-# ">=4.4,<5" in runtime
+# ">=4.4,<5" at runtime
 typing-extensions = "4.12.2"
 
 [tool.poetry.group.nuitka]

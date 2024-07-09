@@ -5,7 +5,7 @@ import stat
 from typing import TYPE_CHECKING
 
 import aiofiles
-from aiohttp import ClientResponse, ClientSession, hdrs
+from aiohttp import hdrs
 
 from . import fs
 from .utils import IS_DOCKER, asyncify, bytes_decode
@@ -13,6 +13,7 @@ from .utils import IS_DOCKER, asyncify, bytes_decode
 if TYPE_CHECKING:
     import asyncio
 
+    from aiohttp import ClientResponse, ClientSession
     from rich.progress import Progress, TaskID
 
 logger = logging.getLogger(__name__)

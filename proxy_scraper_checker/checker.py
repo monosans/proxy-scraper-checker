@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING
 
 from . import sort
 
 if TYPE_CHECKING:
+    from typing import Mapping
+
     from aiohttp_socks import ProxyType
     from rich.progress import Progress, TaskID
 

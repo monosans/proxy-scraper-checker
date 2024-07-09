@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import itertools
 from collections import Counter
-from typing import TYPE_CHECKING, Iterable, Iterator
+from typing import TYPE_CHECKING
 
 from . import sort
 
 if TYPE_CHECKING:
+    from typing import Iterable, Iterator
+
     from aiohttp_socks import ProxyType
 
     from .proxy import Proxy

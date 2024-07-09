@@ -4,7 +4,7 @@ import json
 import logging
 import stat
 from shutil import rmtree
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import maxminddb
 
@@ -14,6 +14,8 @@ from .null_context import NullContext
 from .utils import IS_DOCKER, asyncify
 
 if TYPE_CHECKING:
+    from typing import Sequence
+
     from .proxy import Proxy
     from .settings import Settings
     from .storage import ProxyStorage

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import TYPE_CHECKING, Callable, Coroutine, Mapping
+from typing import TYPE_CHECKING
 
 import aiofiles
 import rich.traceback
@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
-from typing_extensions import Any, TypeVar
+from typing_extensions import TypeVar
 
 from . import checker, geodb, http, output, scraper, sort, utils
 from .settings import Settings
@@ -29,7 +29,10 @@ else:
     import tomli as tomllib
 
 if TYPE_CHECKING:
+    from typing import Callable, Coroutine, Mapping
+
     from aiohttp_socks import ProxyType
+    from typing_extensions import Any
 
 logger = logging.getLogger(__name__)
 

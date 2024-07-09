@@ -3,11 +3,14 @@ from __future__ import annotations
 import asyncio
 import functools
 import os
-from typing import Callable
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import charset_normalizer
 from typing_extensions import ParamSpec, TypeVar
+
+if TYPE_CHECKING:
+    from typing import Callable
 
 T = TypeVar("T")
 P = ParamSpec("P")

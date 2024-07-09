@@ -9,14 +9,13 @@ import stat
 import sys
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Callable, Iterable, Mapping
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import attrs
 import platformdirs
-from aiohttp import ClientSession, ClientTimeout, hdrs
+from aiohttp import ClientTimeout, hdrs
 from aiohttp_socks import ProxyType
-from typing_extensions import Any, Literal, Self
 
 from . import fs, sort
 from .http import get_response_text
@@ -25,6 +24,11 @@ from .parsers import parse_ipv4
 from .utils import IS_DOCKER
 
 if TYPE_CHECKING:
+    from typing import Callable, Iterable, Mapping
+
+    from aiohttp import ClientSession
+    from typing_extensions import Any, Literal, Self
+
     from .proxy import Proxy
 
 logger = logging.getLogger(__name__)

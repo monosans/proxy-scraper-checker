@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 from io import StringIO
 from time import perf_counter
+from typing import TYPE_CHECKING
 
 import attrs
 from aiohttp import ClientSession
-from aiohttp_socks import ProxyConnector, ProxyType
+from aiohttp_socks import ProxyConnector
 
 from .http import (
     HEADERS,
@@ -16,7 +17,12 @@ from .http import (
     get_response_text,
 )
 from .parsers import parse_ipv4
-from .settings import CheckWebsiteType, Settings
+from .settings import CheckWebsiteType
+
+if TYPE_CHECKING:
+    from aiohttp_socks import ProxyType
+
+    from .settings import Settings
 
 
 @attrs.define(

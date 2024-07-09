@@ -35,6 +35,7 @@ ignore = [
   "PLR0915",
   "PLR0916",
   "PLR0917",
+  "PLR1702",
   "RUF001",
   "RUF002",
   "RUF003",
@@ -42,14 +43,20 @@ ignore = [
   "S112",
   "S308",
   "S311",
+  "S404",
   "SIM105",
   "TID252",
   "TRY400",
 ]
 select = ["ALL"]
+unfixable = ["T"]
 
 [lint.flake8-self]
 ignore-names = ["_name_", "_value_"]
+
+[lint.flake8-type-checking]
+exempt-modules = []
+strict = true
 
 [lint.isort]
 combine-as-imports = true

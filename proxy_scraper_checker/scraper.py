@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import aiofiles
-from aiohttp import ClientResponseError, ClientSession, ClientTimeout
+from aiohttp import ClientResponseError, ClientTimeout
 from aiohttp_socks import ProxyType
 
 from .http import get_response_text
@@ -15,6 +15,7 @@ from .proxy import Proxy
 from .utils import bytes_decode, is_http_url
 
 if TYPE_CHECKING:
+    from aiohttp import ClientSession
     from rich.progress import Progress, TaskID
 
     from .settings import Settings

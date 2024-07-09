@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import charset_normalizer
-from typing_extensions import ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from typing import Callable
 
-T = TypeVar("T")
-P = ParamSpec("P")
+    from typing_extensions import ParamSpec, TypeVar
+
+    T = TypeVar("T")
+    P = ParamSpec("P")
 
 IS_DOCKER = os.getenv("IS_DOCKER") == "1"
 

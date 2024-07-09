@@ -12,7 +12,6 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
-from typing_extensions import TypeVar
 
 from . import checker, geodb, http, output, scraper, sort, utils
 from .settings import Settings
@@ -32,11 +31,11 @@ if TYPE_CHECKING:
     from typing import Callable, Coroutine, Mapping
 
     from aiohttp_socks import ProxyType
-    from typing_extensions import Any
+    from typing_extensions import Any, TypeVar
+
+    T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
-
-T = TypeVar("T")
 
 
 def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:

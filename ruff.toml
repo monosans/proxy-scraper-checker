@@ -10,6 +10,7 @@ skip-magic-trailing-comma = true
 [lint]
 ignore = [
   "ANN401",
+  "ASYNC109",
   "BLE001",
   "C901",
   "COM812",

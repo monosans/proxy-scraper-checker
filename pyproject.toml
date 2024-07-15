@@ -35,7 +35,7 @@ termux = []
 
 [tool.poetry.group.dev.dependencies]
 mypy = "1.10.1"
-ruff = "0.5.1"
+ruff = "0.5.2"
 tomli = "2.0.1"
 types-aiofiles = "24.1.0.20240626"
 # ">=4.4,<5" at runtime

@@ -27,7 +27,7 @@ platformdirs = "<5"
 rich = ">=12.3,<14"
 tomli = { version = "<3", python = "<3.11" }
 uvloop = { version = ">=0.14,<0.20", optional = true, markers = "implementation_name == 'cpython' and (sys_platform == 'darwin' or sys_platform == 'linux')" }
-winloop = { version = "<0.1.6", markers = "implementation_name == 'cpython' and (sys_platform == 'cygwin' or sys_platform == 'win32')" }
+winloop = { version = "<0.1.7", markers = "implementation_name == 'cpython' and (sys_platform == 'cygwin' or sys_platform == 'win32')" }
 
 [tool.poetry.extras]
 non-termux = ["aiodns", "uvloop"]
@@ -35,7 +35,7 @@ termux = []
 
 [tool.poetry.group.dev.dependencies]
 mypy = "1.10.1"
-ruff = "0.5.2"
+ruff = "0.5.3"
 tomli = "2.0.1"
 types-aiofiles = "24.1.0.20240626"
 # ">=4.4,<5" at runtime

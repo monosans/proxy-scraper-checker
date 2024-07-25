@@ -45,4 +45,4 @@ typing-extensions = "4.12.2"
 optional = true
 
 [tool.poetry.group.nuitka.dependencies]
-nuitka = "2.4.1"
+nuitka = "2.4.2"

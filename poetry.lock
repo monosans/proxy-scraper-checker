@@ -27,13 +27,13 @@ files = [
 
 [[package]]
 name = "aiohappyeyeballs"
-version = "2.3.2"
-description = "Happy Eyeballs"
+version = "2.3.4"
+description = "Happy Eyeballs for asyncio"
 optional = false
-python-versions = ">=3.8,<4.0"
+python-versions = "<4.0,>=3.8"
 files = [
-    {file = "aiohappyeyeballs-2.3.2-py3-none-any.whl", hash = "sha256:903282fb08c8cfb3de356fd546b263248a477c99cb147e20a115e14ab942a4ae"},
-    {file = "aiohappyeyeballs-2.3.2.tar.gz", hash = "sha256:77e15a733090547a1f5369a1287ddfc944bd30df0eb8993f585259c34b405f4e"},
+    {file = "aiohappyeyeballs-2.3.4-py3-none-any.whl", hash = "sha256:40a16ceffcf1fc9e142fd488123b2e218abc4188cf12ac20c67200e1579baa42"},
+    {file = "aiohappyeyeballs-2.3.4.tar.gz", hash = "sha256:7e1ae8399c320a8adec76f6c919ed5ceae6edd4c3672f4d9eae2b27e37c80ff6"},
 ]
 
 [[package]]

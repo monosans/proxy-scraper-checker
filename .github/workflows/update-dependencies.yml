@@ -13,10 +13,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - cmd: pipx run poetry lock --no-interaction
+          - cmd: curl -LsSf https://astral.sh/uv/install.sh | sh && uv tool run poetry lock --no-interaction
             commit-msg: Update poetry.lock
             branch: update/poetry-lock
-          - cmd: pipx run pre-commit autoupdate
+          - cmd: curl -LsSf https://astral.sh/uv/install.sh | sh && uv tool run pre-commit autoupdate
             commit-msg: Update .pre-commit-config.yaml
             branch: update/pre-commit-config
       fail-fast: false

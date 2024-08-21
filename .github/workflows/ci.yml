@@ -13,7 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pipx run pre-commit run --all-files
+      - run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - run: uv tool run pre-commit run --all-files
   build:
     strategy:
       matrix:
@@ -30,7 +31,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
-      - run: pipx install poetry
+      - run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - run: uv tool install poetry
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

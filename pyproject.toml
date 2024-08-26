@@ -34,7 +34,7 @@ non-termux = ["aiodns", "uvloop"]
 termux = []
 
 [tool.poetry.group.dev.dependencies]
-mypy = "1.11.1"
+mypy = "1.11.2"
 ruff = "0.6.2"
 tomli = "2.0.1"
 types-aiofiles = "24.1.0.20240626"
@@ -45,4 +45,4 @@ typing-extensions = "4.12.2"
 optional = true
 
 [tool.poetry.group.nuitka.dependencies]
-nuitka = "2.4.7"
+nuitka = "2.4.8"

@@ -4,17 +4,17 @@ updates:
     directory: /
     schedule:
       interval: daily
-      time: "23:30"
+      time: "00:00"
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: daily
-      time: "23:30"
+      time: "00:00"
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: daily
-      time: "23:30"
+      time: "00:00"
     groups:
       pip-semver-minor:
         patterns:

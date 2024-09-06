@@ -246,7 +246,7 @@ class Settings:
             raise ValueError(msg)
 
     @check_website.validator
-    def _validate_check_website(  # noqa: PLR6301
+    def _validate_check_website(
         self,
         attribute: attrs.Attribute[str],  # noqa: ARG002
         value: str,

@@ -247,6 +247,13 @@ class Settings:
             msg = "geolocation can not be enabled if json output is disabled"
             raise ValueError(msg)
 
+        if not self.check_website and self.sort_by_speed:
+            logger.warning(
+                "Proxy checking is disabled, so sorting by speed is not"
+                " possible. Alphabetical sorting will be used instead."
+            )
+            self.sort_by_speed = False
+
     @check_website.validator
     def _validate_check_website(
         self,

@@ -39,8 +39,12 @@ class Proxy:
     port: int
     username: str | None
     password: str | None
-    timeout: float = attrs.field(init=False, eq=False)
-    exit_ip: str | None = attrs.field(init=False, eq=False)
+    timeout: float | None = attrs.field(default=None, init=False, eq=False)
+    exit_ip: str | None = attrs.field(default=None, init=False, eq=False)
+
+    @property
+    def is_checked(self) -> bool:
+        return self.timeout is not None
 
     async def check(self, *, settings: Settings) -> None:
         async with settings.semaphore:

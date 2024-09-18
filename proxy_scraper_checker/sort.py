@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 from aiohttp_socks import ProxyType
@@ -19,4 +20,4 @@ def natural_sort_key(proxy: Proxy, /) -> tuple[int, ...]:
 
 
 def timeout_sort_key(proxy: Proxy, /) -> float:
-    return proxy.timeout
+    return proxy.timeout if proxy.timeout is not None else math.inf

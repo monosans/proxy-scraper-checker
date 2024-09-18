@@ -53,7 +53,9 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                     "host": proxy.host,
                     "port": proxy.port,
                     "exit_ip": proxy.exit_ip,
-                    "timeout": round(proxy.timeout, 2),
+                    "timeout": round(proxy.timeout, 2)
+                    if proxy.timeout is not None
+                    else None,
                     "geolocation": mmdb_reader.get(proxy.exit_ip)
                     if mmdb_reader is not None and proxy.exit_ip is not None
                     else None,

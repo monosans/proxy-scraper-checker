@@ -114,60 +114,66 @@ async def main() -> None:
     cfg = await read_config("config.toml")
     console = Console()
     configure_logging(console=console, debug=cfg["debug"])
-
-    async with ClientSession(
-        connector=TCPConnector(ssl=http.SSL_CONTEXT),
-        headers=http.HEADERS,
-        cookie_jar=http.get_cookie_jar(),
-        raise_for_status=True,
-        fallback_charset_resolver=http.fallback_charset_resolver,
-    ) as session:
-        settings = await Settings.from_mapping(cfg, session=session)
-        storage = ProxyStorage(protocols=settings.sources)
-        with Progress(
-            TextColumn("[yellow]{task.fields[col1]}"),
-            TextColumn("[red]::"),
-            TextColumn("[green]{task.fields[col2]}"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            console=console,
-            transient=True,
-        ) as progress:
-            scrape = scraper.scrape_all(
-                progress=progress,
-                session=session,
-                settings=settings,
-                storage=storage,
-            )
-            await (
-                asyncio.gather(
-                    geodb.download_geodb(progress=progress, session=session),
-                    scrape,
+    should_save = False
+    try:
+        async with ClientSession(
+            connector=TCPConnector(ssl=http.SSL_CONTEXT),
+            headers=http.HEADERS,
+            cookie_jar=http.get_cookie_jar(),
+            raise_for_status=True,
+            fallback_charset_resolver=http.fallback_charset_resolver,
+        ) as session:
+            settings = await Settings.from_mapping(cfg, session=session)
+            storage = ProxyStorage(protocols=settings.sources)
+            with Progress(
+                TextColumn("[yellow]{task.fields[col1]}"),
+                TextColumn("[red]::"),
+                TextColumn("[green]{task.fields[col2]}"),
+                BarColumn(),
+                MofNCompleteColumn(),
+                console=console,
+                transient=True,
+            ) as progress:
+                scrape = scraper.scrape_all(
+                    progress=progress,
+                    session=session,
+                    settings=settings,
+                    storage=storage,
                 )
-                if settings.enable_geolocation
-                else scrape
-            )
-            await session.close()
-            count_before_checking = storage.get_count()
-            await checker.check_all(
-                settings=settings,
-                storage=storage,
-                progress=progress,
-                proxies_count=count_before_checking,
+                await (
+                    asyncio.gather(
+                        geodb.download_geodb(
+                            progress=progress, session=session
+                        ),
+                        scrape,
+                    )
+                    if settings.enable_geolocation
+                    else scrape
+                )
+                await session.close()
+                count_before_checking = storage.get_count()
+                should_save = True
+                await checker.check_all(
+                    settings=settings,
+                    storage=storage,
+                    progress=progress,
+                    proxies_count=count_before_checking,
+                )
+    finally:
+        if should_save:
+            storage.remove_unchecked()
+            count_after_checking = storage.get_count()
+            console.print(
+                get_summary_table(
+                    before=count_before_checking, after=count_after_checking
+                )
             )
 
-    count_after_checking = storage.get_count()
-    console.print(
-        get_summary_table(
-            before=count_before_checking, after=count_after_checking
+            await output.save_proxies(storage=storage, settings=settings)
+
+        logger.info(
+            "Thank you for using https://github.com/monosans/proxy-scraper-checker"
         )
-    )
-
-    await output.save_proxies(storage=storage, settings=settings)
-
-    logger.info(
-        "Thank you for using https://github.com/monosans/proxy-scraper-checker"
-    )
 
 
 if __name__ == "__main__":

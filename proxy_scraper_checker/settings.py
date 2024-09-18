@@ -143,6 +143,8 @@ async def _get_check_website_type_and_real_ip(
         Literal[CheckWebsiteType.PLAIN_IP, CheckWebsiteType.HTTPBIN_IP], str
     ]
 ):
+    if not check_website:
+        return CheckWebsiteType.UNKNOWN, None
     try:
         async with session.get(check_website) as response:
             content = await response.read()
@@ -252,16 +254,20 @@ class Settings:
         value: str,
         /,
     ) -> None:
-        parsed_url = urlparse(value)
-        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
-            msg = f"invalid check_website: {value}"
-            raise ValueError(msg)
+        if value:
+            parsed_url = urlparse(value)
+            if (
+                parsed_url.scheme not in {"http", "https"}
+                or not parsed_url.netloc
+            ):
+                msg = f"invalid check_website: {value}"
+                raise ValueError(msg)
 
-        if parsed_url.scheme == "http":
-            logger.warning(
-                "check_website uses the http protocol. "
-                "It is recommended to use https for correct checking."
-            )
+            if parsed_url.scheme == "http":
+                logger.warning(
+                    "check_website uses the http protocol. "
+                    "It is recommended to use https for correct checking."
+                )
 
     @timeout.validator
     def _validate_timeout(

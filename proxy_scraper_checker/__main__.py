@@ -153,15 +153,17 @@ async def main() -> None:
                 await session.close()
                 count_before_checking = storage.get_count()
                 should_save = True
-                await checker.check_all(
-                    settings=settings,
-                    storage=storage,
-                    progress=progress,
-                    proxies_count=count_before_checking,
-                )
+                if settings.check_website:
+                    await checker.check_all(
+                        settings=settings,
+                        storage=storage,
+                        progress=progress,
+                        proxies_count=count_before_checking,
+                    )
     finally:
         if should_save:
-            storage.remove_unchecked()
+            if settings.check_website:
+                storage.remove_unchecked()
             count_after_checking = storage.get_count()
             console.print(
                 get_summary_table(

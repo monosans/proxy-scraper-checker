@@ -18,6 +18,8 @@ max_connections = 512
 # Example:
 # check_website = "https://google.com"
 # check_website = "https://httpbin.smp.io/ip"
+# Disable checking:
+# check_website = ""
 check_website = "https://checkip.amazonaws.com"
 
 # Set to false to sort proxies alphabetically.

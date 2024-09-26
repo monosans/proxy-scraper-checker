@@ -1039,17 +1039,17 @@ windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
 name = "python-socks"
-version = "2.5.1"
+version = "2.5.2"
 description = "Core proxy (SOCKS4, SOCKS5, HTTP tunneling) functionality for Python"
 optional = false
 python-versions = "*"
 files = [
-    {file = "python_socks-2.5.1-py3-none-any.whl", hash = "sha256:00e9a0c3a208e14429d42c820ddbe0755e17596f639fd558f3e8d925fb34bcec"},
-    {file = "python_socks-2.5.1.tar.gz", hash = "sha256:7ed6559864d28858fbb7a85c6d96bb280e95af814d1d5d6dc50f92e35bfa340e"},
+    {file = "python_socks-2.5.2-py3-none-any.whl", hash = "sha256:e2511c0d270d5135f8052d5e7ab7c4f089bd0f3fe0f54b8c322f8cbda5db2b2e"},
+    {file = "python_socks-2.5.2.tar.gz", hash = "sha256:1a5220d159f88a92ef2f77d1acb77d175d40cb34af9176609d3cf728cb7499c7"},
 ]
 
 [package.dependencies]
-async-timeout = {version = ">=3.0.1", optional = true, markers = "extra == \"asyncio\""}
+async-timeout = {version = ">=3.0.1", optional = true, markers = "python_version < \"3.11\" and extra == \"asyncio\""}
 
 [package.extras]
 anyio = ["anyio (>=3.3.4,<5.0.0)"]

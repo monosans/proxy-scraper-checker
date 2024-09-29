@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "configMigration": true,
+  "dependencyDashboard": false,
+  "docker-compose": {
+    "enabled": true
+  },
+  "extends": ["config:recommended"],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": ["minor"],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": ["lockFileMaintenance", "patch", "pin"],
+      "automerge": true
+    }
+  ],
+  "pre-commit": {
+    "enabled": true
+  },
+  "schedule": ["at any time"]
+}

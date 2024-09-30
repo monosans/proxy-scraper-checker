@@ -24,8 +24,11 @@
       "automerge": true
     }
   ],
+  "prConcurrentLimit": 0,
+  "prHourlyLimit": 0,
   "pre-commit": {
     "enabled": true
   },
+  "semanticCommits": "enabled",
   "schedule": ["at any time"]
 }

@@ -1,48 +1,43 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
+[project]
 name = "proxy-scraper-checker"
-version = "0"
-description = ""
-license = "MIT"
-authors = ["monosans <hsyqixco@protonmail.com>"]
-repository = "https://github.com/monosans/proxy-scraper-checker"
+version = "0.0.0"
+license = { text = "MIT" }
+authors = [{ name = "monosans", email = "hsyqixco@protonmail.com" }]
+requires-python = ">=3.8,<4"
 classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+  "aiofiles",
+  "aiohttp>=3.8.6,<4",
+  "aiohttp-socks>=0.7,<0.10",
+  "attrs>=22.2",
+  "brotli>=1,<2; implementation_name == 'cpython'",
+  "brotlicffi<2; implementation_name != 'cpython'",
+  "certifi",
+  "charset-normalizer>=2,<4",
+  "maxminddb>=1.3,<3",
+  "platformdirs<5",
+  "rich>=12.3,<14",
+  "tomli<3; python_version < '3.11'",
+  "winloop<0.1.7; implementation_name == 'cpython' and (sys_platform == 'cygwin' or sys_platform == 'win32')",
+]
+urls.repository = "https://github.com/monosans/proxy-scraper-checker"
 
-[tool.poetry.dependencies]
-python = "^3.8"
-aiodns = { version = ">=1.1,<4", optional = true }
-aiofiles = "*"
-aiohttp = ">=3.8.6,<4"
-aiohttp-socks = ">=0.7,<0.10"
-attrs = ">=22.2"
-brotli = { version = ">=1,<2", markers = "implementation_name == 'cpython'" }
-brotlicffi = { version = "<2", markers = "implementation_name != 'cpython'" }
-certifi = "*"
-charset-normalizer = ">=2,<4"
-maxminddb = ">=1.3,<3"
-platformdirs = "<5"
-rich = ">=12.3,<14"
-tomli = { version = "<3", python = "<3.11" }
-uvloop = { version = ">=0.14,<0.21", optional = true, markers = "implementation_name == 'cpython' and (sys_platform == 'darwin' or sys_platform == 'linux')" }
-winloop = { version = "<0.1.7", markers = "implementation_name == 'cpython' and (sys_platform == 'cygwin' or sys_platform == 'win32')" }
+[project.optional-dependencies]
+non-termux = [
+  "aiodns>=1.1,<4",
+  "uvloop>=0.14,<0.21; implementation_name == 'cpython' and (sys_platform == 'darwin' or sys_platform == 'linux')",
+]
+nuitka = ["nuitka==2.4.8"]
 
-[tool.poetry.extras]
-non-termux = ["aiodns", "uvloop"]
-termux = []
-
-[tool.poetry.group.dev.dependencies]
-mypy = "1.11.2"
-ruff = "0.6.8"
-tomli = "2.0.1"
-types-aiofiles = "24.1.0.20240626"
-# ">=4.4,<5" at runtime
-typing-extensions = "4.12.2"
-
-[tool.poetry.group.nuitka]
-optional = true
-
-[tool.poetry.group.nuitka.dependencies]
-nuitka = "2.4.8"
+[tool.uv]
+dev-dependencies = [
+  "mypy==1.11.2",
+  "ruff==0.6.8",
+  "tomli==2.0.1",
+  "types-aiofiles==24.1.0.20240626",
+  "typing-extensions==4.12.2",
+]

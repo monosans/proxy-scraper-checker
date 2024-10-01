@@ -28,6 +28,9 @@ jobs:
             runner: macos-14
       fail-fast: false
     runs-on: ${{ matrix.runner }}
+    permissions:
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
       - run: pipx install poetry

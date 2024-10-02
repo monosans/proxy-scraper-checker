@@ -37,7 +37,7 @@ nuitka = ["nuitka"]
 dev-dependencies = [
   "mypy==1.11.2",
   "ruff==0.6.8",
-  "tomli==2.0.1",
+  "tomli==2.0.2",
   "types-aiofiles==24.1.0.20240626",
   "typing-extensions==4.12.2",
 ]

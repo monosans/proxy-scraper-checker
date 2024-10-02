@@ -43,4 +43,4 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
-nuitka = { git = "https://github.com/Nuitka/Nuitka" }
+nuitka = { git = "https://github.com/Nuitka/Nuitka", rev = "factory" }

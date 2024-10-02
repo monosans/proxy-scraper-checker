@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - name: linux-x86-64
-            runner: ubuntu-22.04
+            runner: ubuntu-latest
           - name: windows-x86-64
             runner: windows-latest
           - name: macos-x86-64

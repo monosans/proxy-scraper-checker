@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - name: linux-x86-64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
           - name: windows-x86-64
             runner: windows-latest
           - name: macos-x86-64
@@ -39,7 +39,8 @@ jobs:
           enable-cache: true
       - run: uv run --extra non-termux --extra nuitka --no-dev --frozen --python 3.12 python -m nuitka --standalone --python-flag='-m' --assume-yes-for-downloads proxy_scraper_checker
       - run: mv config.toml proxy_scraper_checker.dist/
-      - uses: actions/attest-build-provenance@v1
+      - if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/attest-build-provenance@v1
         with:
           subject-path: proxy_scraper_checker.dist
       - uses: actions/upload-artifact@v4

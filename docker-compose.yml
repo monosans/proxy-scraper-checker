@@ -1,6 +1,5 @@
 services:
   app:
-    image: proxy_scraper_checker
     build: .
     tty: true
     volumes:

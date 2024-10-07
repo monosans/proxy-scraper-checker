@@ -16,6 +16,10 @@
       "automerge": true
     },
     {
+      "matchManagers": ["pre-commit"],
+      "automerge": true
+    },
+    {
       "matchUpdateTypes": ["minor"],
       "matchCurrentVersion": "!/^0/",
       "automerge": true
@@ -23,6 +27,12 @@
     {
       "matchUpdateTypes": ["lockFileMaintenance", "patch", "pin"],
       "automerge": true
+    },
+    {
+      "matchCategories": ["docker"],
+      "matchDepNames": ["python"],
+      "matchUpdateTypes": ["minor"],
+      "automerge": false
     }
   ],
   "prConcurrentLimit": 0,

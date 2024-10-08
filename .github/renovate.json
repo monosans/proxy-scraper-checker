@@ -30,7 +30,7 @@
     },
     {
       "matchCategories": ["docker"],
-      "matchDepNames": ["python"],
+      "matchDepNames": ["docker.io/python"],
       "matchUpdateTypes": ["minor"],
       "automerge": false
     }

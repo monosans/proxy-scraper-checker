@@ -25,7 +25,12 @@
       "automerge": true
     },
     {
-      "matchUpdateTypes": ["lockFileMaintenance", "patch", "pin"],
+      "matchUpdateTypes": [
+        "lockFileMaintenance",
+        "patch",
+        "replacement",
+        "rollback"
+      ],
       "automerge": true
     },
     {
@@ -40,6 +45,7 @@
   "pre-commit": {
     "enabled": true
   },
+  "rollbackPrs": true,
   "semanticCommits": "enabled",
   "schedule": ["at any time"]
 }

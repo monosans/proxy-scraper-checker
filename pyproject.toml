@@ -26,7 +26,7 @@ dependencies = [
 ]
 optional-dependencies.non-termux = [
   "aiodns>=1.1,<4",
-  "uvloop>=0.14,<0.21; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')",
+  "uvloop>=0.21,<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')",
 ]
 optional-dependencies.nuitka = ["nuitka==2.4.9"]
 urls.repository = "https://github.com/monosans/proxy-scraper-checker"

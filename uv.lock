@@ -813,13 +813,13 @@ wheels = [
 
 [[package]]
 name = "nuitka"
-version = "2.4.9"
+version = "2.4.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ordered-set" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f0/d3/733c00d51d96ca9b8ba972b042d67839dcdbf80f1abfdf799fbd7b0a79c6/Nuitka-2.4.9.tar.gz", hash = "sha256:e52ca8ed6266de2f896027f37dfecf700428130eca8316e63d2557e0b877449b", size = 3721190 }
+sdist = { url = "https://files.pythonhosted.org/packages/cc/1d/b357ad4cd4b0d1501bcf0b6ef1bcf5c7c21e5a86eb94fde1dd872dc8eccb/Nuitka-2.4.10.tar.gz", hash = "sha256:51f24c4dc6282225fbe601095d1a9ee1c9eda08207e8eeab63e64b1800659941", size = 3721360 }
 
 [[package]]
 name = "ordered-set"
@@ -994,7 +994,7 @@ requires-dist = [
     { name = "certifi" },
     { name = "charset-normalizer", specifier = ">=2,<4" },
     { name = "maxminddb", specifier = ">=1.3,<3" },
-    { name = "nuitka", marker = "extra == 'nuitka'", specifier = "==2.4.9" },
+    { name = "nuitka", marker = "extra == 'nuitka'", specifier = "==2.4.10" },
     { name = "platformdirs", specifier = "<5" },
     { name = "rich", specifier = ">=12.3,<14" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = "<3" },

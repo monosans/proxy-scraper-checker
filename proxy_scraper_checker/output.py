@@ -14,7 +14,7 @@ from .null_context import NullContext
 from .utils import IS_DOCKER, asyncify
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from collections.abc import Sequence
 
     from .proxy import Proxy
     from .settings import Settings

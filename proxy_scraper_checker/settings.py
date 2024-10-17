@@ -24,7 +24,8 @@ from .parsers import parse_ipv4
 from .utils import IS_DOCKER
 
 if TYPE_CHECKING:
-    from typing import Callable, Iterable, Mapping
+    from collections.abc import Iterable, Mapping
+    from typing import Callable
 
     from aiohttp import ClientSession
     from typing_extensions import Any, Literal, Self

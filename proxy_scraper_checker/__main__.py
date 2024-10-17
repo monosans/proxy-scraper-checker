@@ -28,7 +28,8 @@ else:
     import tomli as tomllib
 
 if TYPE_CHECKING:
-    from typing import Callable, Coroutine, Mapping
+    from collections.abc import Coroutine, Mapping
+    from typing import Callable
 
     from aiohttp_socks import ProxyType
     from typing_extensions import Any, TypeVar

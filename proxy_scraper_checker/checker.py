@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from . import sort
 
 if TYPE_CHECKING:
-    from typing import Mapping
+    from collections.abc import Mapping
 
     from aiohttp_socks import ProxyType
     from rich.progress import Progress, TaskID

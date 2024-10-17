@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from . import sort
 
 if TYPE_CHECKING:
-    from typing import Iterable, Iterator
+    from collections.abc import Iterable, Iterator
 
     from aiohttp_socks import ProxyType
 

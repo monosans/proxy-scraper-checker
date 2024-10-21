@@ -29,6 +29,7 @@ ignore = [
   "D417",
   "DJ008",
   "DOC201",
+  "DOC402",
   "DOC501",
   "FURB180",
   "ISC001",
@@ -50,11 +51,13 @@ ignore = [
   "S311",
   "S404",
   "SIM105",
+  "TD002",
+  "TD003",
   "TID252",
   "TRY400",
 ]
 select = ["ALL"]
-unfixable = ["T"]
+unfixable = ["RUF027", "T"]
 
 [lint.flake8-self]
 ignore-names = ["_name_", "_value_"]

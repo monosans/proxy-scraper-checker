@@ -17,7 +17,7 @@ repos:
         args:
           - --fix=lf
       - id: trailing-whitespace
-  - repo: https://github.com/monosans/pre-commit-prettier
+  - repo: https://github.com/rbubley/mirrors-prettier
     rev: v3.3.3
     hooks:
       - id: prettier

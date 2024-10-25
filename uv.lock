@@ -956,7 +956,7 @@ nuitka = [
     { name = "nuitka" },
 ]
 
-[package.dev-dependencies]
+[package.dependency-groups]
 dev = [
     { name = "mypy", extra = ["faster-cache"] },
     { name = "ruff" },
@@ -985,7 +985,7 @@ requires-dist = [
     { name = "winloop", marker = "(implementation_name == 'cpython' and sys_platform == 'cygwin') or (implementation_name == 'cpython' and sys_platform == 'win32')", specifier = "<0.1.7" },
 ]
 
-[package.metadata.requires-dev]
+[package.metadata.dependency-groups]
 dev = [
     { name = "mypy", extras = ["faster-cache"], specifier = "==1.13" },
     { name = "ruff", specifier = "==0.7.1" },

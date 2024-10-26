@@ -952,9 +952,6 @@ non-termux = [
     { name = "aiodns" },
     { name = "uvloop", marker = "(implementation_name == 'cpython' and sys_platform == 'darwin') or (implementation_name == 'cpython' and sys_platform == 'linux')" },
 ]
-nuitka = [
-    { name = "nuitka" },
-]
 
 [package.dependency-groups]
 dev = [
@@ -963,6 +960,9 @@ dev = [
     { name = "tomli" },
     { name = "types-aiofiles" },
     { name = "typing-extensions" },
+]
+nuitka = [
+    { name = "nuitka" },
 ]
 
 [package.metadata]
@@ -977,7 +977,6 @@ requires-dist = [
     { name = "certifi" },
     { name = "charset-normalizer", specifier = ">=2,<4" },
     { name = "maxminddb", specifier = ">=1.3,<3" },
-    { name = "nuitka", marker = "extra == 'nuitka'", specifier = "==2.4.11" },
     { name = "platformdirs", specifier = "<5" },
     { name = "rich", specifier = ">=12.3,<14" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = "<3" },
@@ -993,6 +992,7 @@ dev = [
     { name = "types-aiofiles", specifier = "==24.1.0.20240626" },
     { name = "typing-extensions", specifier = "==4.12.2" },
 ]
+nuitka = [{ name = "nuitka", specifier = "==2.4.11" }]
 
 [[package]]
 name = "pycares"

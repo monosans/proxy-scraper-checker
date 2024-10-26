@@ -28,14 +28,14 @@ optional-dependencies.non-termux = [
   "aiodns>=1.1,<4",
   "uvloop>=0.14,<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')",
 ]
-optional-dependencies.nuitka = ["nuitka==2.4.11"]
 urls.repository = "https://github.com/monosans/proxy-scraper-checker"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
   "mypy[faster-cache]==1.13",
   "ruff==0.7.1",
   "tomli==2.0.2",
   "types-aiofiles==24.1.0.20240626",
   "typing-extensions==4.12.2",
 ]
+nuitka = ["nuitka==2.4.11"]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import ssl
-from functools import lru_cache
+from functools import cache
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
@@ -29,7 +29,7 @@ def fallback_charset_resolver(r: ClientResponse, b: bytes) -> str:  # noqa: ARG0
     raise NoCharsetHeaderError
 
 
-@lru_cache(None)
+@cache
 def get_cookie_jar() -> DummyCookieJar:
     return DummyCookieJar()
 

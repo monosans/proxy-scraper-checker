@@ -298,8 +298,10 @@ class Settings:
             else Path(cfg["output"]["path"])
         )
 
-        output_path_future = fs.async_create_or_fix_dir(
-            output_path, permission=stat.S_IXUSR | stat.S_IWUSR
+        output_path_future = asyncio.to_thread(
+            fs.create_or_fix_dir,
+            output_path,
+            permission=stat.S_IXUSR | stat.S_IWUSR,
         )
 
         check_website_type, real_ip = await _get_check_website_type_and_real_ip(
@@ -312,7 +314,8 @@ class Settings:
         )
 
         if enable_geolocation:
-            await fs.async_create_or_fix_dir(
+            await asyncio.to_thread(
+                fs.create_or_fix_dir,
                 fs.CACHE_PATH,
                 permission=stat.S_IRUSR | stat.S_IXUSR | stat.S_IWUSR,
             )

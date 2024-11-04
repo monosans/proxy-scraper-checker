@@ -11,7 +11,7 @@ import maxminddb
 from . import fs, sort
 from .geodb import GEODB_PATH
 from .null_context import NullContext
-from .utils import IS_DOCKER, asyncify
+from .utils import IS_DOCKER
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -34,7 +34,6 @@ def _create_proxy_list_str(
     )
 
 
-@asyncify
 def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
     if settings.output_json:
         if settings.enable_geolocation:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import stat
 from typing import TYPE_CHECKING
@@ -8,11 +9,9 @@ import aiofiles
 from aiohttp import hdrs
 
 from . import fs
-from .utils import IS_DOCKER, asyncify, bytes_decode
+from .utils import IS_DOCKER, bytes_decode
 
 if TYPE_CHECKING:
-    import asyncio
-
     from aiohttp import ClientResponse, ClientSession
     from rich.progress import Progress, TaskID
 
@@ -25,7 +24,9 @@ GEODB_ETAG_PATH = GEODB_PATH.with_suffix(".mmdb.etag")
 
 async def _read_etag() -> str | None:
     try:
-        await fs.async_add_permission(GEODB_ETAG_PATH, stat.S_IRUSR)
+        await asyncio.to_thread(
+            fs.add_permission, GEODB_ETAG_PATH, stat.S_IRUSR
+        )
         async with aiofiles.open(GEODB_ETAG_PATH, "rb") as etag_file:
             content = await etag_file.read()
     except FileNotFoundError:
@@ -33,13 +34,13 @@ async def _read_etag() -> str | None:
     return bytes_decode(content)
 
 
-def _remove_etag() -> asyncio.Future[None]:
-    return asyncify(GEODB_ETAG_PATH.unlink)(missing_ok=True)
+async def _remove_etag() -> None:
+    return await asyncio.to_thread(GEODB_ETAG_PATH.unlink, missing_ok=True)
 
 
 async def _save_etag(etag: str, /) -> None:
-    await fs.async_add_permission(
-        GEODB_ETAG_PATH, stat.S_IWUSR, missing_ok=True
+    await asyncio.to_thread(
+        fs.add_permission, GEODB_ETAG_PATH, stat.S_IWUSR, missing_ok=True
     )
     async with aiofiles.open(
         GEODB_ETAG_PATH, "w", encoding="utf-8"
@@ -50,7 +51,9 @@ async def _save_etag(etag: str, /) -> None:
 async def _save_geodb(
     *, progress: Progress, response: ClientResponse, task: TaskID
 ) -> None:
-    await fs.async_add_permission(GEODB_PATH, stat.S_IWUSR, missing_ok=True)
+    await asyncio.to_thread(
+        fs.add_permission, GEODB_PATH, stat.S_IWUSR, missing_ok=True
+    )
     async with aiofiles.open(GEODB_PATH, "wb") as geodb:
         async for chunk in response.content.iter_any():
             await geodb.write(chunk)
@@ -60,7 +63,7 @@ async def _save_geodb(
 async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
     headers = (
         {hdrs.IF_NONE_MATCH: current_etag}
-        if await asyncify(GEODB_PATH.exists)()
+        if await asyncio.to_thread(GEODB_PATH.exists)
         and (current_etag := await _read_etag())
         else None
     )

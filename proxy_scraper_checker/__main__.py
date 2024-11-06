@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from . import logs
 
-_console, _logs_listener = logs.configure()
+_logs_listener = logs.configure()
 
 import asyncio
 import logging
@@ -11,6 +11,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import aiofiles
+import rich
 from aiohttp import ClientSession, TCPConnector
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
@@ -113,7 +114,6 @@ async def main() -> None:
                 TextColumn("[green]{task.fields[col2]}"),
                 BarColumn(),
                 MofNCompleteColumn(),
-                console=_console,
                 transient=True,
             ) as progress:
                 scrape = scraper.scrape_all(
@@ -147,7 +147,7 @@ async def main() -> None:
             if settings.check_website:
                 storage.remove_unchecked()
             count_after_checking = storage.get_count()
-            _console.print(
+            rich.print(
                 get_summary_table(
                     before=count_before_checking, after=count_after_checking
                 )

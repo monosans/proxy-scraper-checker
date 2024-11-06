@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from .settings import Settings
     from .storage import ProxyStorage
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 async def scrape_one(
@@ -44,11 +44,11 @@ async def scrape_one(
                 content = await f.read()
             text = bytes_decode(content)
     except ClientResponseError as e:
-        logger.warning(
+        _logger.warning(
             "%s | HTTP status code %d: %s", source, e.status, e.message
         )
     except Exception as e:
-        logger.warning(
+        _logger.warning(
             "%s | %s.%s: %s",
             source,
             e.__class__.__module__,
@@ -60,7 +60,7 @@ async def scrape_one(
         try:
             proxy = next(proxies)
         except StopIteration:
-            logger.warning("%s | No proxies found", source)
+            _logger.warning("%s | No proxies found", source)
         else:
             for proxy in itertools.chain((proxy,), proxies):  # noqa: B020
                 try:

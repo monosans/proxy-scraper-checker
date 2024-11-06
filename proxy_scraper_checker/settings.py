@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
     from .proxy import Proxy
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def _get_supported_max_connections() -> int | None:
@@ -46,7 +46,7 @@ def _get_supported_max_connections() -> int | None:
     import resource  # type: ignore[unreachable, unused-ignore]  # noqa: PLC0415
 
     soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
-    logger.debug(
+    _logger.debug(
         "max_connections: soft limit = %d, hard limit = %d, infinity = %d",
         soft_limit,
         hard_limit,
@@ -56,7 +56,7 @@ def _get_supported_max_connections() -> int | None:
         try:
             resource.setrlimit(resource.RLIMIT_NOFILE, (hard_limit, hard_limit))
         except ValueError as e:
-            logger.warning("Failed setting max_connections: %s", e)
+            _logger.warning("Failed setting max_connections: %s", e)
         else:
             soft_limit = hard_limit
     if soft_limit == resource.RLIM_INFINITY:
@@ -70,11 +70,11 @@ def _get_max_connections(value: int, /) -> int | None:
         raise ValueError(msg)
     max_supported = _get_supported_max_connections()
     if not value:
-        logger.info("Using %d as max_connections value", max_supported or 0)
+        _logger.info("Using %d as max_connections value", max_supported or 0)
         return max_supported
     if not max_supported or value <= max_supported:
         return value
-    logger.warning(
+    _logger.warning(
         "max_connections value is too high for your OS. "
         "The config value will be ignored and %d will be used.%s",
         max_supported,
@@ -151,7 +151,7 @@ async def _get_check_website_type_and_real_ip(
             content = await response.read()
         text = get_response_text(response=response, content=content)
     except Exception:
-        logger.exception(
+        _logger.exception(
             "Error when opening check_website without proxy, it will be "
             "impossible to determine anonymity and geolocation of proxies"
         )
@@ -168,7 +168,7 @@ async def _get_check_website_type_and_real_ip(
             return CheckWebsiteType.HTTPBIN_IP, parse_ipv4(js["origin"])
         except (KeyError, TypeError, ValueError):
             pass
-    logger.warning(
+    _logger.warning(
         "Check_website is not httpbin and does not return plain ip, so it will"
         " be impossible to determine the anonymity and geolocation of proxies"
     )
@@ -249,7 +249,7 @@ class Settings:
             raise ValueError(msg)
 
         if not self.check_website and self.sort_by_speed:
-            logger.warning(
+            _logger.warning(
                 "Proxy checking is disabled, so sorting by speed is not"
                 " possible. Alphabetical sorting will be used instead."
             )
@@ -272,7 +272,7 @@ class Settings:
                 raise ValueError(msg)
 
             if parsed_url.scheme == "http":
-                logger.warning(
+                _logger.warning(
                     "check_website uses the http protocol. "
                     "It is recommended to use https for correct checking."
                 )

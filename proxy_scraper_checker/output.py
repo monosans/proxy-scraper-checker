@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from .settings import Settings
     from .storage import ProxyStorage
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def _create_proxy_list_str(
@@ -105,11 +105,11 @@ def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                     text, encoding="utf-8"
                 )
     if IS_DOCKER:
-        logger.info(
+        _logger.info(
             "Proxies have been saved to ./out (%s in container)",
             settings.output_path.absolute(),
         )
     else:
-        logger.info(
+        _logger.info(
             "Proxies have been saved to %s", settings.output_path.absolute()
         )

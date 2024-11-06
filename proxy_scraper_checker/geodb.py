@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientResponse, ClientSession
     from rich.progress import Progress, TaskID
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 GEODB_URL = "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-City.mmdb"
 GEODB_PATH = fs.CACHE_PATH / "geolocation_database.mmdb"
@@ -70,7 +70,7 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
 
     async with session.get(GEODB_URL, headers=headers) as response:
         if response.status == 304:  # noqa: PLR2004
-            logger.info(
+            _logger.info(
                 "Latest geolocation database is already cached at %s",
                 GEODB_PATH,
             )
@@ -87,13 +87,13 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
         )
 
     if IS_DOCKER:
-        logger.info(
+        _logger.info(
             "Downloaded geolocation database to proxy_scraper_checker_cache "
             "Docker volume (%s in container)",
             GEODB_PATH,
         )
     else:
-        logger.info("Downloaded geolocation database to %s", GEODB_PATH)
+        _logger.info("Downloaded geolocation database to %s", GEODB_PATH)
 
     if etag := response.headers.get(hdrs.ETAG):
         await _save_etag(etag)

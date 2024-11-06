@@ -8,7 +8,7 @@ import platformdirs
 if TYPE_CHECKING:
     from pathlib import Path
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 CACHE_PATH = platformdirs.user_cache_path("proxy_scraper_checker")
 
 
@@ -20,7 +20,7 @@ def add_permission(
         new_permissions = current_permissions | permission
         if current_permissions != new_permissions:
             path.chmod(new_permissions)
-            logger.info(
+            _logger.info(
                 "Changed permissions of %s from %o to %o",
                 path,
                 current_permissions,

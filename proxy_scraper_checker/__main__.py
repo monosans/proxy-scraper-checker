@@ -1,4 +1,9 @@
+# ruff: noqa: E402
 from __future__ import annotations
+
+from . import logs
+
+_console, _logs_listener = logs.configure()
 
 import asyncio
 import logging
@@ -6,10 +11,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import aiofiles
-import rich.traceback
 from aiohttp import ClientSession, TCPConnector
-from rich.console import Console
-from rich.logging import RichHandler
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
 
@@ -36,7 +38,7 @@ if TYPE_CHECKING:
 
     T = TypeVar("T")
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
@@ -73,27 +75,6 @@ async def read_config(file: str, /) -> dict[str, Any]:
     return tomllib.loads(utils.bytes_decode(content))
 
 
-def configure_logging(*, console: Console, debug: bool) -> None:
-    rich.traceback.install(
-        console=console, width=None, extra_lines=0, word_wrap=True
-    )
-    logging.basicConfig(
-        format="%(message)s",
-        datefmt=logging.Formatter.default_time_format,
-        level=logging.DEBUG if debug else logging.INFO,
-        handlers=(
-            RichHandler(
-                console=console,
-                omit_repeated_times=False,
-                show_path=False,
-                rich_tracebacks=True,
-                tracebacks_extra_lines=0,
-            ),
-        ),
-        force=True,
-    )
-
-
 def get_summary_table(
     *, before: Mapping[ProxyType, int], after: Mapping[ProxyType, int]
 ) -> Table:
@@ -113,8 +94,8 @@ def get_summary_table(
 
 async def main() -> None:
     cfg = await read_config("config.toml")
-    console = Console()
-    configure_logging(console=console, debug=cfg["debug"])
+    if cfg["debug"]:
+        logging.root.setLevel(logging.DEBUG)
     should_save = False
     try:
         async with ClientSession(
@@ -132,7 +113,7 @@ async def main() -> None:
                 TextColumn("[green]{task.fields[col2]}"),
                 BarColumn(),
                 MofNCompleteColumn(),
-                console=console,
+                console=_console,
                 transient=True,
             ) as progress:
                 scrape = scraper.scrape_all(
@@ -166,7 +147,7 @@ async def main() -> None:
             if settings.check_website:
                 storage.remove_unchecked()
             count_after_checking = storage.get_count()
-            console.print(
+            _console.print(
                 get_summary_table(
                     before=count_before_checking, after=count_after_checking
                 )
@@ -176,10 +157,14 @@ async def main() -> None:
                 output.save_proxies, storage=storage, settings=settings
             )
 
-        logger.info(
+        _logger.info(
             "Thank you for using https://github.com/monosans/proxy-scraper-checker"
         )
 
 
 if __name__ == "__main__":
-    get_async_run()(main())
+    _logs_listener.start()
+    try:
+        get_async_run()(main())
+    finally:
+        _logs_listener.stop()

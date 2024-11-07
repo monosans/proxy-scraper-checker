@@ -16,11 +16,17 @@ def configure() -> logging.handlers.QueueListener:
     logging.root.addHandler(logging.handlers.QueueHandler(log_queue))
 
     # Start logging before importing rich for the first time
+    import rich.traceback  # noqa: PLC0415
     from rich.logging import RichHandler  # noqa: PLC0415
 
+    rich.traceback.install(width=80, extra_lines=0, word_wrap=True)
     stream_handler = RichHandler(
         omit_repeated_times=False,
         show_path=False,
+        rich_tracebacks=True,
+        tracebacks_width=80,
+        tracebacks_extra_lines=0,
+        tracebacks_word_wrap=True,
         log_time_format=logging.Formatter.default_time_format,
     )
 

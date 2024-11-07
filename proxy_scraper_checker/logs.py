@@ -12,8 +12,8 @@ if TYPE_CHECKING:
 def configure() -> logging.handlers.QueueListener:
     log_queue: queue.Queue[Any] = queue.Queue()
 
-    logging.root.setLevel(logging.INFO)
     logging.root.addHandler(logging.handlers.QueueHandler(log_queue))
+    logging.root.setLevel(logging.INFO)
 
     # Start logging before importing rich for the first time
     import rich.traceback  # noqa: PLC0415

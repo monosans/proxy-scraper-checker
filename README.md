@@ -33,7 +33,7 @@ If Windows antivirus detects the executable file as a virus, please read [this](
 - Run the following commands:
   ```bash
   docker compose build --pull
-  docker compose up --no-log-prefix
+  docker compose up --no-log-prefix --remove-orphans
   ```
 
 ### Running from source code

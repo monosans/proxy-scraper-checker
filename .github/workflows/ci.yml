@@ -41,6 +41,10 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          check-latest: true
       - run: uv run --extra non-termux --no-dev --group nuitka --frozen --python 3.12 python -m nuitka --standalone --python-flag='-m' --assume-yes-for-downloads --lto=yes proxy_scraper_checker
       - run: mv config.toml proxy_scraper_checker.dist/
       - if: ${{ github.event_name != 'pull_request' }}

@@ -40,7 +40,7 @@ If Windows antivirus detects the executable file as a virus, please read [this](
 
 #### Desktop
 
-- Install [Python](https://python.org/downloads). The minimum version required is 3.9.
+- Install [Python](https://python.org/downloads). Supported versions are 3.9 to 3.12. The recommended version is 3.12.
 - Download and unpack [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
 - Edit `config.toml` to your preference.
 - Run the script that installs dependencies and starts `proxy-scraper-checker`:

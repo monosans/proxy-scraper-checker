@@ -126,15 +126,15 @@ wheels = [
 
 [[package]]
 name = "aiohttp-socks"
-version = "0.9.0"
+version = "0.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "python-socks", extra = ["asyncio"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/41/72/e6bb21b989a433690a326d8f6524533cca54adf10b4627bb935b42972f76/aiohttp_socks-0.9.0.tar.gz", hash = "sha256:22159a1af026b229cfe5ea007e065bb3fe56385a951a82623a6f4588a6758003", size = 10201 }
+sdist = { url = "https://files.pythonhosted.org/packages/80/a0/c23cbd322f94346a30c264b1b301320a7ca2259e2a9dae195ec22610ca56/aiohttp_socks-0.9.1.tar.gz", hash = "sha256:5b320d1bb156fc56d0b31f9de8d5b9b0affbcf1f2df9b8172334dc10e63e4e2f", size = 10337 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/68/26a6d4a67ce47125ebedf0316c4dc7ea71f692a2c3d506e25dbfd515db6c/aiohttp_socks-0.9.0-py3-none-any.whl", hash = "sha256:90a8211fd5b904ccbd010900105f1fd2dab20ae8a07df508df399036ad8d3d88", size = 9679 },
+    { url = "https://files.pythonhosted.org/packages/48/8c/aeda838978f73418490d6db6fc7102d32b5145f10efb2cef24fb8e53171e/aiohttp_socks-0.9.1-py3-none-any.whl", hash = "sha256:8e30dff7cd21806979bfa76ef5697ca03b05665521bc00e6e0d7fd029c917886", size = 9912 },
 ]
 
 [[package]]

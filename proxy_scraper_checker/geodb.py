@@ -81,8 +81,9 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
             task=progress.add_task(
                 description="",
                 total=response.content_length,
-                col1="Downloader",
-                col2="GeoDB",
+                module="Downloader",
+                protocol="GeoDB",
+                successful_count="",
             ),
         )
 

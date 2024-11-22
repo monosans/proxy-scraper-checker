@@ -9,6 +9,7 @@ import aiofiles
 from aiohttp import ClientResponseError, ClientTimeout
 from aiohttp_socks import ProxyType
 
+from .counter import IncrInt
 from .http import get_response_text
 from .parsers import PROXY_REGEX
 from .proxy import Proxy
@@ -26,6 +27,7 @@ _logger = logging.getLogger(__name__)
 
 async def scrape_one(
     *,
+    counter: IncrInt,
     progress: Progress,
     proto: ProxyType,
     session: ClientSession,
@@ -56,6 +58,7 @@ async def scrape_one(
             e,
         )
     else:
+        counter.incr()
         proxies = PROXY_REGEX.finditer(text)
         try:
             proxy = next(proxies)
@@ -78,7 +81,7 @@ async def scrape_one(
                         password=proxy.group("password"),
                     )
                 )
-    progress.advance(task_id=task, advance=1)
+    progress.update(task_id=task, advance=1, successful_count=counter.value)
 
 
 async def scrape_all(
@@ -88,9 +91,14 @@ async def scrape_all(
     settings: Settings,
     storage: ProxyStorage,
 ) -> None:
+    counters = {proto: IncrInt() for proto in settings.sources}
     progress_tasks = {
         proto: progress.add_task(
-            description="", total=len(sources), col1="Scraper", col2=proto.name
+            description="",
+            total=len(sources),
+            module="Scraper",
+            protocol=proto.name,
+            successful_count=0,
         )
         for proto, sources in settings.sources.items()
     }
@@ -98,6 +106,7 @@ async def scrape_all(
     await asyncio.gather(
         *(
             scrape_one(
+                counter=counters[proto],
                 progress=progress,
                 proto=proto,
                 session=session,

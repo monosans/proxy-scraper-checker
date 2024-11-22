@@ -5,6 +5,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from . import sort
+from .counter import IncrInt
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -21,6 +22,7 @@ _logger = logging.getLogger(__name__)
 
 async def check_one(
     *,
+    counter: IncrInt,
     progress: Progress,
     proxy: Proxy,
     settings: Settings,
@@ -38,7 +40,9 @@ async def check_one(
             "%s.%s: %s", e.__class__.__module__, e.__class__.__qualname__, e
         )
         storage.remove(proxy)
-    progress.advance(task_id=task, advance=1)
+    else:
+        counter.incr()
+    progress.update(task_id=task, advance=1, successful_count=counter.value)
 
 
 async def check_all(
@@ -48,19 +52,25 @@ async def check_all(
     progress: Progress,
     proxies_count: Mapping[ProxyType, int],
 ) -> None:
+    counters = {
+        proto: IncrInt()
+        for proto in sort.PROTOCOL_ORDER
+        if proto in storage.enabled_protocols
+    }
     progress_tasks = {
         proto: progress.add_task(
             description="",
             total=proxies_count[proto],
-            col1="Checker",
-            col2=proto.name,
+            module="Checker",
+            protocol=proto.name,
+            successful_count=0,
         )
-        for proto in sort.PROTOCOL_ORDER
-        if proto in storage.enabled_protocols
+        for proto in counters
     }
     await asyncio.gather(
         *(
             check_one(
+                counter=counters[proxy.protocol],
                 progress=progress,
                 proxy=proxy,
                 settings=settings,

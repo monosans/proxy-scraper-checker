@@ -109,10 +109,11 @@ async def main() -> None:
             settings = await Settings.from_mapping(cfg, session=session)
             storage = ProxyStorage(protocols=settings.sources)
             with Progress(
-                TextColumn("[yellow]{task.fields[col1]}"),
+                TextColumn("[yellow]{task.fields[module]}"),
                 TextColumn("[red]::"),
-                TextColumn("[green]{task.fields[col2]}"),
+                TextColumn("[green]{task.fields[protocol]}"),
                 BarColumn(),
+                TextColumn("[cyan]{task.fields[successful_count]}"),
                 MofNCompleteColumn(),
                 transient=True,
             ) as progress:

@@ -167,5 +167,7 @@ if __name__ == "__main__":
     _logs_listener.start()
     try:
         get_async_run()(main())
+    except KeyboardInterrupt:
+        sys.exit(130)
     finally:
         _logs_listener.stop()

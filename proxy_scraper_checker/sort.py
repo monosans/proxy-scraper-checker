@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from aiohttp_socks import ProxyType
 
 if TYPE_CHECKING:
-    from .proxy import Proxy
+    from proxy_scraper_checker.proxy import Proxy
 
 PROTOCOL_ORDER = (ProxyType.HTTP, ProxyType.SOCKS4, ProxyType.SOCKS5)
 

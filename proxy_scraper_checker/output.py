@@ -8,17 +8,17 @@ from typing import TYPE_CHECKING
 
 import maxminddb
 
-from . import fs, sort
-from .geodb import GEODB_PATH
-from .null_context import NullContext
-from .utils import IS_DOCKER
+from proxy_scraper_checker import fs, sort
+from proxy_scraper_checker.geodb import GEODB_PATH
+from proxy_scraper_checker.null_context import NullContext
+from proxy_scraper_checker.utils import IS_DOCKER
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from .proxy import Proxy
-    from .settings import Settings
-    from .storage import ProxyStorage
+    from proxy_scraper_checker.proxy import Proxy
+    from proxy_scraper_checker.settings import Settings
+    from proxy_scraper_checker.storage import ProxyStorage
 
 _logger = logging.getLogger(__name__)
 

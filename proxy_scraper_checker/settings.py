@@ -17,11 +17,11 @@ import platformdirs
 from aiohttp import ClientTimeout, hdrs
 from aiohttp_socks import ProxyType
 
-from . import fs, sort
-from .http import get_response_text
-from .null_context import NullContext
-from .parsers import parse_ipv4
-from .utils import IS_DOCKER
+from proxy_scraper_checker import fs, sort
+from proxy_scraper_checker.http import get_response_text
+from proxy_scraper_checker.null_context import NullContext
+from proxy_scraper_checker.parsers import parse_ipv4
+from proxy_scraper_checker.utils import IS_DOCKER
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
     from typing_extensions import Any, Literal, Self
 
-    from .proxy import Proxy
+    from proxy_scraper_checker.proxy import Proxy
 
 _logger = logging.getLogger(__name__)
 

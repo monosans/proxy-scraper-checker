@@ -4,8 +4,8 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from . import sort
-from .counter import IncrInt
+from proxy_scraper_checker import sort
+from proxy_scraper_checker.counter import IncrInt
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -13,9 +13,9 @@ if TYPE_CHECKING:
     from aiohttp_socks import ProxyType
     from rich.progress import Progress, TaskID
 
-    from .proxy import Proxy
-    from .settings import Settings
-    from .storage import ProxyStorage
+    from proxy_scraper_checker.proxy import Proxy
+    from proxy_scraper_checker.settings import Settings
+    from proxy_scraper_checker.storage import ProxyStorage
 
 _logger = logging.getLogger(__name__)
 

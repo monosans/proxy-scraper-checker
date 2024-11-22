@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import certifi
 from aiohttp import DummyCookieJar, hdrs
 
-from .utils import bytes_decode
+from proxy_scraper_checker.utils import bytes_decode
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse

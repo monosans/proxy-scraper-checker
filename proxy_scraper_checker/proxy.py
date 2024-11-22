@@ -9,20 +9,20 @@ import attrs
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
 
-from .http import (
+from proxy_scraper_checker.http import (
     HEADERS,
     SSL_CONTEXT,
     fallback_charset_resolver,
     get_cookie_jar,
     get_response_text,
 )
-from .parsers import parse_ipv4
-from .settings import CheckWebsiteType
+from proxy_scraper_checker.parsers import parse_ipv4
+from proxy_scraper_checker.settings import CheckWebsiteType
 
 if TYPE_CHECKING:
     from aiohttp_socks import ProxyType
 
-    from .settings import Settings
+    from proxy_scraper_checker.settings import Settings
 
 
 @attrs.define(

@@ -9,18 +9,18 @@ import aiofiles
 from aiohttp import ClientResponseError, ClientTimeout
 from aiohttp_socks import ProxyType
 
-from .counter import IncrInt
-from .http import get_response_text
-from .parsers import PROXY_REGEX
-from .proxy import Proxy
-from .utils import bytes_decode, is_http_url
+from proxy_scraper_checker.counter import IncrInt
+from proxy_scraper_checker.http import get_response_text
+from proxy_scraper_checker.parsers import PROXY_REGEX
+from proxy_scraper_checker.proxy import Proxy
+from proxy_scraper_checker.utils import bytes_decode, is_http_url
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
     from rich.progress import Progress, TaskID
 
-    from .settings import Settings
-    from .storage import ProxyStorage
+    from proxy_scraper_checker.settings import Settings
+    from proxy_scraper_checker.storage import ProxyStorage
 
 _logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 # ruff: noqa: E402
 from __future__ import annotations
 
-from . import logs
+from proxy_scraper_checker import logs
 
 _logs_listener = logs.configure()
 
@@ -16,9 +16,17 @@ from aiohttp import ClientSession, TCPConnector
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
 
-from . import checker, geodb, http, output, scraper, sort, utils
-from .settings import Settings
-from .storage import ProxyStorage
+from proxy_scraper_checker import (
+    checker,
+    geodb,
+    http,
+    output,
+    scraper,
+    sort,
+    utils,
+)
+from proxy_scraper_checker.settings import Settings
+from proxy_scraper_checker.storage import ProxyStorage
 
 if sys.version_info >= (3, 11):
     try:

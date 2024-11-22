@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 import aiofiles
 from aiohttp import hdrs
 
-from . import fs
-from .utils import IS_DOCKER, bytes_decode
+from proxy_scraper_checker import fs
+from proxy_scraper_checker.utils import IS_DOCKER, bytes_decode
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse, ClientSession

@@ -18,7 +18,7 @@ repos:
           - --fix=lf
       - id: trailing-whitespace
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.3.3
+    rev: v3.4.0
     hooks:
       - id: prettier
   - repo: https://github.com/charliermarsh/ruff-pre-commit

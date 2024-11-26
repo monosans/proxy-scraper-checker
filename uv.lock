@@ -947,6 +947,7 @@ name = "proxy-scraper-checker"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "aiodns" },
     { name = "aiofiles" },
     { name = "aiohttp" },
     { name = "aiohttp-socks" },
@@ -964,7 +965,6 @@ dependencies = [
 
 [package.optional-dependencies]
 non-termux = [
-    { name = "aiodns" },
     { name = "uvloop", marker = "(implementation_name == 'cpython' and sys_platform == 'darwin') or (implementation_name == 'cpython' and sys_platform == 'linux')" },
 ]
 
@@ -982,7 +982,7 @@ nuitka = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiodns", marker = "extra == 'non-termux'", specifier = ">=1.1,<4" },
+    { name = "aiodns", specifier = ">=1.1,<4" },
     { name = "aiofiles" },
     { name = "aiohttp", specifier = ">=3.8.6,<4" },
     { name = "aiohttp-socks", specifier = ">=0.7,<0.10" },

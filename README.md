@@ -1,3 +1,4 @@
+[![Python application](https://github.com/L40L44/proxy-scraper-checker/actions/workflows/python-app.yml/badge.svg)](https://github.com/L40L44/proxy-scraper-checker/actions/workflows/python-app.yml)
 # proxy-scraper-checker
 
 [![CI](https://github.com/monosans/proxy-scraper-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/monosans/proxy-scraper-checker/actions/workflows/ci.yml)

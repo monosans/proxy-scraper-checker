@@ -24,7 +24,7 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
   --mount=type=cache,target=/root/.cache/uv,sharing=locked \
   --mount=source=pyproject.toml,target=pyproject.toml \
   --mount=source=uv.lock,target=uv.lock \
-  uv sync --extra non-termux --no-dev --no-install-project --frozen
+  uv sync --no-dev --no-install-project --frozen
 
 
 FROM python-base-stage AS python-run-stage

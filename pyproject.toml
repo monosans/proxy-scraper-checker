@@ -10,6 +10,7 @@ authors = [{ name = "monosans", email = "hsyqixco@protonmail.com" }]
 requires-python = ">=3.9,<4"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
+  "aiodns>=1.1,<4",
   "aiofiles",
   "aiohttp>=3.8.6,<4",
   "aiohttp-socks>=0.7,<0.10",
@@ -22,11 +23,8 @@ dependencies = [
   "platformdirs<5",
   "rich>=12.3,<14",
   "tomli<3; python_version<'3.11'",
-  "winloop<0.1.7; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
-]
-optional-dependencies.non-termux = [
-  "aiodns>=1.1,<4",
   "uvloop>=0.14,<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')",
+  "winloop<0.1.7; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
 ]
 urls.repository = "https://github.com/monosans/proxy-scraper-checker"
 
@@ -38,4 +36,4 @@ dev = [
   "types-aiofiles==24.1.0.20240626",
   "typing-extensions==4.12.2",
 ]
-nuitka = ["nuitka==2.5.3"]
+nuitka = ["nuitka==2.5.4"]

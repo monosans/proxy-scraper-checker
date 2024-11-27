@@ -95,6 +95,20 @@ sources = [
     "https://raw.githubusercontent.com/zloi-user/hideip.me/main/https.txt",
     "https://www.proxy-list.download/api/v1/get?type=http",
     "https://www.proxy-list.download/api/v1/get?type=https",
+    "https://www.my-proxy.com/free-anonymous-proxy.html",
+    "https://www.my-proxy.com/free-elite-proxy.html",
+    "https://www.my-proxy.com/free-transparent-proxy.html",
+    "https://www.my-proxy.com/free-proxy-list-1.html",
+    "https://www.my-proxy.com/free-proxy-list-2.html",
+    "https://www.my-proxy.com/free-proxy-list-3.html",
+    "https://www.my-proxy.com/free-proxy-list-4.html",
+    "https://www.my-proxy.com/free-proxy-list-5.html",
+    "https://www.my-proxy.com/free-proxy-list-6.html",
+    "https://www.my-proxy.com/free-proxy-list-7.html",
+    "https://www.my-proxy.com/free-proxy-list-8.html",
+    "https://www.my-proxy.com/free-proxy-list-9.html",
+    "https://www.my-proxy.com/free-proxy-list-10.html",
+    "https://www.us-proxy.org",
 ]
 
 [socks4]
@@ -128,6 +142,7 @@ sources = [
     "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/socks4.txt",
     "https://raw.githubusercontent.com/zloi-user/hideip.me/main/socks4.txt",
     "https://www.proxy-list.download/api/v1/get?type=socks4",
+    "https://www.my-proxy.com/free-socks-4-proxy.html",
 ]
 
 [socks5]
@@ -164,4 +179,5 @@ sources = [
     "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/socks5.txt",
     "https://raw.githubusercontent.com/zloi-user/hideip.me/main/socks5.txt",
     "https://www.proxy-list.download/api/v1/get?type=socks5",
+    "https://www.my-proxy.com/free-socks-5-proxy.html",
 ]

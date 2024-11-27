@@ -960,12 +960,8 @@ dependencies = [
     { name = "platformdirs" },
     { name = "rich" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
-    { name = "winloop", marker = "(implementation_name == 'cpython' and sys_platform == 'cygwin') or (implementation_name == 'cpython' and sys_platform == 'win32')" },
-]
-
-[package.optional-dependencies]
-non-termux = [
     { name = "uvloop", marker = "(implementation_name == 'cpython' and sys_platform == 'darwin') or (implementation_name == 'cpython' and sys_platform == 'linux')" },
+    { name = "winloop", marker = "(implementation_name == 'cpython' and sys_platform == 'cygwin') or (implementation_name == 'cpython' and sys_platform == 'win32')" },
 ]
 
 [package.dev-dependencies]
@@ -995,7 +991,7 @@ requires-dist = [
     { name = "platformdirs", specifier = "<5" },
     { name = "rich", specifier = ">=12.3,<14" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = "<3" },
-    { name = "uvloop", marker = "(implementation_name == 'cpython' and sys_platform == 'darwin' and extra == 'non-termux') or (implementation_name == 'cpython' and sys_platform == 'linux' and extra == 'non-termux')", specifier = ">=0.14,<0.22" },
+    { name = "uvloop", marker = "(implementation_name == 'cpython' and sys_platform == 'darwin') or (implementation_name == 'cpython' and sys_platform == 'linux')", specifier = ">=0.14,<0.22" },
     { name = "winloop", marker = "(implementation_name == 'cpython' and sys_platform == 'cygwin') or (implementation_name == 'cpython' and sys_platform == 'win32')", specifier = "<0.1.7" },
 ]
 

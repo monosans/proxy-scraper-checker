@@ -45,7 +45,7 @@ jobs:
         with:
           python-version: "3.12"
           check-latest: true
-      - run: uv run --no-dev --group nuitka --frozen --python 3.12 python -m nuitka --mode=standalone --python-flag='-m' --deployment --assume-yes-for-downloads --lto=yes --company-name='monosans' --product-name='proxy-scraper-checker' proxy_scraper_checker
+      - run: uv run --no-dev --group nuitka --frozen --python 3.12 python -m nuitka --mode=standalone --python-flag='-m' --deployment --assume-yes-for-downloads --lto=yes --product-name='proxy-scraper-checker' proxy_scraper_checker
       - run: mv config.toml proxy_scraper_checker.dist/
       - if: ${{ github.event_name != 'pull_request' }}
         uses: actions/attest-build-provenance@v1

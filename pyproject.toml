@@ -24,16 +24,16 @@ dependencies = [
   "rich>=12.3,<14",
   "tomli<3; python_version<'3.11'",
   "uvloop>=0.14,<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')",
-  "winloop<0.1.7; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
+  "winloop<0.1.8; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
 ]
 urls.repository = "https://github.com/monosans/proxy-scraper-checker"
 
 [dependency-groups]
 dev = [
   "mypy[faster-cache]==1.13",
-  "ruff==0.8.0",
-  "tomli==2.1.0",
+  "ruff==0.8.2",
+  "tomli==2.2.1",
   "types-aiofiles==24.1.0.20240626",
   "typing-extensions==4.12.2",
 ]
-nuitka = ["nuitka==2.5.4"]
+nuitka = ["nuitka==2.5.6"]

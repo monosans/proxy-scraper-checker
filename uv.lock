@@ -758,13 +758,13 @@ wheels = [
 
 [[package]]
 name = "nuitka"
-version = "2.5.6"
+version = "2.5.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ordered-set" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/05/50/436fe8b1f8776ca0f58b8f7ef5a1817665beca1fa6e6b6c2456015d4d0a8/Nuitka-2.5.6.tar.gz", hash = "sha256:14b859ae95a12021d72e016365354578bd73d3d4aa4430f1dd54d649352a1f79", size = 3776178 }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/5e/69b0cea4048e03866b4ae2476add1c2c9705c41bdaf467c7bcbd034280ea/Nuitka-2.5.7.tar.gz", hash = "sha256:b4eb9ee138c07484f67a254eed3f1f2178dc9845c58f2fa1218296b3608b99d1", size = 3779250 }
 
 [[package]]
 name = "ordered-set"
@@ -1003,7 +1003,7 @@ dev = [
     { name = "types-aiofiles", specifier = "==24.1.0.20240626" },
     { name = "typing-extensions", specifier = "==4.12.2" },
 ]
-nuitka = [{ name = "nuitka", specifier = "==2.5.6" }]
+nuitka = [{ name = "nuitka", specifier = "==2.5.7" }]
 
 [[package]]
 name = "pycares"

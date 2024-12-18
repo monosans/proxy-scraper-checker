@@ -60,7 +60,7 @@ To use `proxy-scraper-checker` in Termux, knowledge of the Unix command-line int
 - Edit `~/proxy-scraper-checker/config.toml` to your preference using a text editor (vim/nano).
 - To run `proxy-scraper-checker` use the following command:
   ```bash
-  cd ~/proxy-scraper-checker && sh start-termux.sh
+  cd ~/proxy-scraper-checker && sh start.sh
   ```
 
 ## Something else?

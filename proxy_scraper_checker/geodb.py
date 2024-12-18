@@ -58,6 +58,7 @@ async def _save_geodb(
         async for chunk in response.content.iter_any():
             await geodb.write(chunk)
             progress.advance(task_id=task, advance=len(chunk))
+    progress.update(task_id=task, successful_count="\N{CHECK MARK}")
 
 
 async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
@@ -83,7 +84,7 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
                 total=response.content_length,
                 module="Downloader",
                 protocol="GeoDB",
-                successful_count="",
+                successful_count="\N{HORIZONTAL ELLIPSIS}",
             ),
         )
 

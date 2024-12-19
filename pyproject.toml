@@ -31,7 +31,7 @@ urls.repository = "https://github.com/monosans/proxy-scraper-checker"
 [dependency-groups]
 dev = [
   "mypy[faster-cache]==1.13",
-  "ruff==0.8.3",
+  "ruff==0.8.4",
   "tomli==2.2.1",
   "types-aiofiles==24.1.0.20240626",
   "typing-extensions==4.12.2",

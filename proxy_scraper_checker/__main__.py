@@ -53,23 +53,23 @@ _logger = logging.getLogger(__name__)
 def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
     if sys.implementation.name == "cpython":
         try:
-            import uvloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
+            import uvloop  # noqa: PLC0415
         except ImportError:
             pass
         else:
             try:
-                return uvloop.run  # type: ignore[no-any-return, unused-ignore]
+                return uvloop.run  # type: ignore[no-any-return]
             except AttributeError:
                 uvloop.install()
                 return asyncio.run
 
         try:
-            import winloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
+            import winloop  # noqa: PLC0415
         except ImportError:
             pass
         else:
             try:
-                return winloop.run  # type: ignore[no-any-return, unused-ignore]
+                return winloop.run  # type: ignore[no-any-return]
             except AttributeError:
                 winloop.install()
                 return asyncio.run

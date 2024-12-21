@@ -47,4 +47,4 @@ repos:
           - types-aiofiles
           - typing-extensions<5
           - uvloop<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')
-          - winloop<0.1.7; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')
+          - winloop<0.1.8; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')

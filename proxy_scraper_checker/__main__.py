@@ -58,7 +58,7 @@ def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
             pass
         else:
             try:
-                return uvloop.run  # type: ignore[no-any-return]
+                return uvloop.run  # type: ignore[no-any-return, unused-ignore]
             except AttributeError:
                 uvloop.install()
                 return asyncio.run
@@ -69,7 +69,7 @@ def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
             pass
         else:
             try:
-                return winloop.run  # type: ignore[no-any-return]
+                return winloop.run  # type: ignore[no-any-return, unused-ignore]
             except AttributeError:
                 winloop.install()
                 return asyncio.run

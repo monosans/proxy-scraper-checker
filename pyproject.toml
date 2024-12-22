@@ -36,4 +36,4 @@ dev = [
   "types-aiofiles==24.1.0.20241221",
   "typing-extensions==4.12.2",
 ]
-nuitka = ["nuitka==2.5.7"]
+nuitka = ["nuitka==2.5.8"]

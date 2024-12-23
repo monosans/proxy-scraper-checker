@@ -35,7 +35,6 @@ repos:
         args:
           - --scripts-are-modules
         additional_dependencies:
-          - orjson
           - aiohttp<4
           - aiohttp-socks<0.10
           - attrs

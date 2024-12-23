@@ -981,7 +981,7 @@ requires-dist = [
     { name = "aiodns", specifier = ">=1.1,<4" },
     { name = "aiofiles" },
     { name = "aiohttp", specifier = ">=3.8.6,<4" },
-    { name = "aiohttp-socks", specifier = ">=0.10,<0.11" },
+    { name = "aiohttp-socks", specifier = ">=0.7,<0.11" },
     { name = "attrs", specifier = ">=22.2" },
     { name = "brotli", marker = "implementation_name == 'cpython'", specifier = ">=1,<2" },
     { name = "brotlicffi", marker = "implementation_name != 'cpython'", specifier = "<2" },

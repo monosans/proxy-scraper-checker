@@ -13,7 +13,7 @@ dependencies = [
   "aiodns>=1.1,<4",
   "aiofiles",
   "aiohttp>=3.8.6,<4",
-  "aiohttp-socks>=0.10,<0.11",
+  "aiohttp-socks>=0.7,<0.11",
   "attrs>=22.2",
   "brotli>=1,<2; implementation_name=='cpython'",
   "brotlicffi<2; implementation_name!='cpython'",

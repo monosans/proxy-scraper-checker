@@ -997,7 +997,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "mypy", extras = ["faster-cache"], specifier = "==1.14.0" },
+    { name = "mypy", extras = ["faster-cache"], specifier = "==1.14" },
     { name = "ruff", specifier = "==0.8.4" },
     { name = "tomli", specifier = "==2.2.1" },
     { name = "types-aiofiles", specifier = "==24.1.0.20241221" },

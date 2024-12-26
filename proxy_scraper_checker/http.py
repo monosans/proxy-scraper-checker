@@ -11,6 +11,8 @@ from aiohttp import DummyCookieJar, hdrs
 from proxy_scraper_checker.utils import bytes_decode
 
 if TYPE_CHECKING:
+    from typing import NoReturn
+
     from aiohttp import ClientResponse
 
 HEADERS: MappingProxyType[str, str] = MappingProxyType({
@@ -25,7 +27,7 @@ class NoCharsetHeaderError(Exception):
     pass
 
 
-def fallback_charset_resolver(r: ClientResponse, b: bytes) -> str:  # noqa: ARG001
+def fallback_charset_resolver(r: ClientResponse, b: bytes) -> NoReturn:  # noqa: ARG001
     raise NoCharsetHeaderError
 
 

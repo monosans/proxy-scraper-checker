@@ -126,15 +126,15 @@ wheels = [
 
 [[package]]
 name = "aiohttp-socks"
-version = "0.10.0"
+version = "0.10.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "python-socks", extra = ["asyncio"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5d/9a/385246b0f4346cb7a3d97e01ac9caf24ac9e9cd7892941b6f6dcfdd64b50/aiohttp_socks-0.10.0.tar.gz", hash = "sha256:9275c47cc7dac185c82754b70921f1ea243d093c79c7b21554c2ee6905f42379", size = 10458 }
+sdist = { url = "https://files.pythonhosted.org/packages/25/c0/dfc948c2aff58db2846192d744dc889bd634b9f3cc7d0fca85ef3c7e9cd4/aiohttp_socks-0.10.1.tar.gz", hash = "sha256:49f2e1f8051f2885719beb1b77e312b5a27c3e4b60f0b045a388f194d995e068", size = 10445 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/82/8d/f0dad5c1e8bd0fc6fc183e73d9c15ebac3f24e49a6d6841e41162e79d589/aiohttp_socks-0.10.0-py3-none-any.whl", hash = "sha256:5f60410e748e943d6a6bd50993bb6eafbff74fa68c94abcb7a9b803e0a63410d", size = 10119 },
+    { url = "https://files.pythonhosted.org/packages/d3/04/7ff144f7465e83cf87459ffd74688871918496acd4816507cca1af5623d3/aiohttp_socks-0.10.1-py3-none-any.whl", hash = "sha256:6fd4d46c09f952f971a011ff446170daab8d539cf5310c0627f8423df2fb15ea", size = 10119 },
 ]
 
 [[package]]
@@ -1096,11 +1096,11 @@ wheels = [
 
 [[package]]
 name = "python-socks"
-version = "2.5.3"
+version = "2.6.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/26/a2/dac502b749429cec85086ad8077e32a77eef100730dbc13b37ad658079fc/python_socks-2.5.3.tar.gz", hash = "sha256:4414b2a24777e439758a5f4644f81509ee634e6893115fe7fd1ec482b4b5c979", size = 201519 }
+sdist = { url = "https://files.pythonhosted.org/packages/34/b5/b16f20a700ee4509c4126e70ee8960d636cc14e37d3ae5341bf1dabb5d01/python_socks-2.6.0.tar.gz", hash = "sha256:40e50f268c38130eee97d18ddaef8992282df035b9e7afccbf1c5333bd3ba1ef", size = 230527 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7e/54/6b907fd2bac4db271902a7a885d4521313b3b754973cfcedb2fb06bf9a00/python_socks-2.5.3-py3-none-any.whl", hash = "sha256:6bc428d0e19f8043e7b8fbc8af33417e690238bd8c9c1e9215871ac18c6136ad", size = 52874 },
+    { url = "https://files.pythonhosted.org/packages/33/ba/774e3c290a9a201ef38b18f452cc326e1ca56c621ad83f72d4ec00553007/python_socks-2.6.0-py3-none-any.whl", hash = "sha256:e159639f2a3d05c8462983c2b098cad418d2decbe3c4bf5b6d1c380ccccca32f", size = 54043 },
 ]
 
 [package.optional-dependencies]

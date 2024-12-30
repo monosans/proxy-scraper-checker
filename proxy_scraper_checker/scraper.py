@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 
 import aiofiles
 from aiohttp import ClientResponseError, ClientTimeout
-from aiohttp_socks import ProxyType
 
 from proxy_scraper_checker.counter import IncrInt
 from proxy_scraper_checker.http import get_response_text
 from proxy_scraper_checker.parsers import PROXY_REGEX
 from proxy_scraper_checker.proxy import Proxy
+from proxy_scraper_checker.proxy_types import ProxyType
 from proxy_scraper_checker.utils import bytes_decode, is_http_url
 
 if TYPE_CHECKING:
@@ -68,7 +68,7 @@ async def scrape_one(
             for proxy in itertools.chain((proxy,), proxies):  # noqa: B020
                 try:
                     protocol = ProxyType[
-                        proxy.group("protocol").upper().rstrip("S")
+                        proxy.group("protocol").upper()
                     ]
                 except AttributeError:
                     protocol = proto

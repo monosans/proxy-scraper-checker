@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 import attrs
 import platformdirs
 from aiohttp import ClientTimeout, hdrs
-from aiohttp_socks import ProxyType
+from proxy_scraper_checker.proxy_types import ProxyType
 
 from proxy_scraper_checker import fs, sort
 from proxy_scraper_checker.http import get_response_text
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
     from typing_extensions import Any, Literal, Self
 
-    from proxy_scraper_checker.proxy import Proxy
+    from proxy_scraper_checker.proxy_types import ProxyType
 
 _logger = logging.getLogger(__name__)
 
@@ -336,6 +336,9 @@ class Settings:
             sources={
                 ProxyType.HTTP: (
                     cfg["http"]["sources"] if cfg["http"]["enabled"] else None
+                ),
+                ProxyType.HTTPS: (
+                    cfg["https"]["sources"] if cfg["https"]["enabled"] else None
                 ),
                 ProxyType.SOCKS4: (
                     cfg["socks4"]["sources"]

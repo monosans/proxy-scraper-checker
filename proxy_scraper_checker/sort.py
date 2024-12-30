@@ -3,12 +3,12 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING
 
-from aiohttp_socks import ProxyType
+from proxy_scraper_checker.proxy_types import ProxyType
 
 if TYPE_CHECKING:
     from proxy_scraper_checker.proxy import Proxy
 
-PROTOCOL_ORDER = (ProxyType.HTTP, ProxyType.SOCKS4, ProxyType.SOCKS5)
+PROTOCOL_ORDER = (ProxyType.HTTP, ProxyType.HTTPS, ProxyType.SOCKS4, ProxyType.SOCKS5)
 
 
 def protocol_sort_key(proxy: Proxy, /) -> tuple[int, ProxyType]:

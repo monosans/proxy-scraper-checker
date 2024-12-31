@@ -15,6 +15,8 @@ from urllib.parse import urlparse
 import attrs
 import platformdirs
 from aiohttp import ClientTimeout, hdrs
+from proxy_scraper_checker.proxy import Proxy
+
 from proxy_scraper_checker.proxy_types import ProxyType
 
 from proxy_scraper_checker import fs, sort
@@ -29,8 +31,6 @@ if TYPE_CHECKING:
 
     from aiohttp import ClientSession
     from typing_extensions import Any, Literal, Self
-
-    from proxy_scraper_checker.proxy_types import ProxyType
 
 _logger = logging.getLogger(__name__)
 

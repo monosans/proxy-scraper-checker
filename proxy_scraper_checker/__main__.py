@@ -42,8 +42,9 @@ if TYPE_CHECKING:
     from collections.abc import Coroutine, Mapping
     from typing import Callable
 
-    from aiohttp_socks import ProxyType
     from typing_extensions import Any, TypeVar
+
+    from proxy_scraper_checker.proxy_types import ProxyType
 
     T = TypeVar("T")
 

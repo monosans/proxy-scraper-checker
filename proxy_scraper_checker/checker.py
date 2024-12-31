@@ -10,10 +10,10 @@ from proxy_scraper_checker.counter import IncrInt
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from aiohttp_socks import ProxyType
     from rich.progress import Progress, TaskID
 
     from proxy_scraper_checker.proxy import Proxy
+    from proxy_scraper_checker.proxy_types import ProxyType
     from proxy_scraper_checker.settings import Settings
     from proxy_scraper_checker.storage import ProxyStorage
 

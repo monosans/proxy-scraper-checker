@@ -9,9 +9,8 @@ from proxy_scraper_checker import sort
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
-    from aiohttp_socks import ProxyType
-
     from proxy_scraper_checker.proxy import Proxy
+    from proxy_scraper_checker.proxy_types import ProxyType
 
 
 class ProxyStorage:

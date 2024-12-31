@@ -15,12 +15,12 @@ from urllib.parse import urlparse
 import attrs
 import platformdirs
 from aiohttp import ClientTimeout, hdrs
-from aiohttp_socks import ProxyType
 
 from proxy_scraper_checker import fs, sort
 from proxy_scraper_checker.http import get_response_text
 from proxy_scraper_checker.null_context import NullContext
 from proxy_scraper_checker.parsers import parse_ipv4
+from proxy_scraper_checker.proxy_types import ProxyType
 from proxy_scraper_checker.utils import IS_DOCKER
 
 if TYPE_CHECKING:
@@ -336,6 +336,9 @@ class Settings:
             sources={
                 ProxyType.HTTP: (
                     cfg["http"]["sources"] if cfg["http"]["enabled"] else None
+                ),
+                ProxyType.HTTPS: (
+                    cfg["https"]["sources"] if cfg["https"]["enabled"] else None
                 ),
                 ProxyType.SOCKS4: (
                     cfg["socks4"]["sources"]

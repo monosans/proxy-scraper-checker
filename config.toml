@@ -104,6 +104,12 @@ sources = [
     "https://www.proxy-list.download/api/v1/get?type=https",
 ]
 
+[https]
+enabled = true
+sources = [
+#    "./https_proxies.txt",
+]
+
 [socks4]
 enabled = true
 sources = [

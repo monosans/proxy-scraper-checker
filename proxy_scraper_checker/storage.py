@@ -4,13 +4,13 @@ import itertools
 from collections import Counter
 from typing import TYPE_CHECKING
 
-from proxy_scraper_checker.proxy_types import ProxyType
-
 from proxy_scraper_checker import sort
-from proxy_scraper_checker.proxy import Proxy
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
+
+    from proxy_scraper_checker.proxy import Proxy
+    from proxy_scraper_checker.proxy_types import ProxyType
 
 
 class ProxyStorage:

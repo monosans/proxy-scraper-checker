@@ -67,9 +67,7 @@ async def scrape_one(
         else:
             for proxy in itertools.chain((proxy,), proxies):  # noqa: B020
                 try:
-                    protocol = ProxyType[
-                        proxy.group("protocol").upper()
-                    ]
+                    protocol = ProxyType[proxy.group("protocol").upper()]
                 except AttributeError:
                     protocol = proto
                 storage.add(

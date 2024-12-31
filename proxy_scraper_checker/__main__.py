@@ -1,8 +1,6 @@
 # ruff: noqa: E402
 from __future__ import annotations
 
-from proxy_scraper_checker.proxy_types import ProxyType
-
 from proxy_scraper_checker import logs
 
 _logs_listener = logs.configure()
@@ -45,6 +43,8 @@ if TYPE_CHECKING:
     from typing import Callable
 
     from typing_extensions import Any, TypeVar
+
+    from proxy_scraper_checker.proxy_types import ProxyType
 
     T = TypeVar("T")
 

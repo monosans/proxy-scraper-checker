@@ -6,21 +6,21 @@ from time import perf_counter
 from typing import TYPE_CHECKING
 
 import aiohttp_socks
-from aiohttp_socks import ProxyConnector
-
 import attrs
 from aiohttp import ClientSession
+from aiohttp_socks import ProxyConnector
 
 from proxy_scraper_checker.http import (
     HEADERS,
+    PROXY_SSL_CONTEXT,
     SSL_CONTEXT,
     fallback_charset_resolver,
     get_cookie_jar,
-    get_response_text, PROXY_SSL_CONTEXT,
+    get_response_text,
 )
 from proxy_scraper_checker.parsers import parse_ipv4
-from proxy_scraper_checker.settings import CheckWebsiteType
 from proxy_scraper_checker.proxy_types import ProxyType
+from proxy_scraper_checker.settings import CheckWebsiteType
 
 if TYPE_CHECKING:
     from proxy_scraper_checker.settings import Settings
@@ -52,7 +52,9 @@ class Proxy:
             start = perf_counter()
             use_ssl = self.protocol == ProxyType.HTTPS
             connector = ProxyConnector(
-                proxy_type=aiohttp_socks.ProxyType(self.protocol.to_aiohttp_socks_type()),
+                proxy_type=aiohttp_socks.ProxyType(
+                    self.protocol.to_aiohttp_socks_type()
+                ),
                 host=self.host,
                 port=self.port,
                 username=self.username,

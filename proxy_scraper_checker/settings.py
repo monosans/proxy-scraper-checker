@@ -257,10 +257,7 @@ class Settings:
 
     @check_website.validator
     def _validate_check_website(
-        self,
-        attribute: attrs.Attribute[str],  # noqa: ARG002
-        value: str,
-        /,
+        self, _attribute: attrs.Attribute[str], value: str, /
     ) -> None:
         if value:
             parsed_url = urlparse(value)
@@ -279,10 +276,7 @@ class Settings:
 
     @timeout.validator
     def _validate_timeout(
-        self,
-        attribute: attrs.Attribute[str],  # noqa: ARG002
-        value: float,  # noqa: ARG002
-        /,
+        self, _attribute: attrs.Attribute[str], _value: float, /
     ) -> None:
         if self.timeout.total is None or self.timeout.total <= 0:
             msg = "timeout must be positive"

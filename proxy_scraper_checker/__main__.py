@@ -165,7 +165,8 @@ async def main() -> None:
             )
 
         _logger.info(
-            "Thank you for using https://github.com/monosans/proxy-scraper-checker"
+            "Thank you for using "
+            "https://github.com/monosans/proxy-scraper-checker"
         )
 
 

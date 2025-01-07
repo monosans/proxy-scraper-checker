@@ -27,7 +27,7 @@ class NoCharsetHeaderError(Exception):
     pass
 
 
-def fallback_charset_resolver(r: ClientResponse, b: bytes) -> NoReturn:  # noqa: ARG001
+def fallback_charset_resolver(_r: ClientResponse, _b: bytes) -> NoReturn:
     raise NoCharsetHeaderError
 
 

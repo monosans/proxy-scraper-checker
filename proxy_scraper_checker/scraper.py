@@ -42,7 +42,9 @@ async def scrape_one(
                 content = await response.read()
             text = get_response_text(response=response, content=content)
         else:
-            content = await asyncio.to_thread(Path(source).read_bytes)
+            content = await asyncio.to_thread(
+                Path(source.removeprefix("file://")).read_bytes
+            )
             text = bytes_decode(content)
     except ClientResponseError as e:
         _logger.warning(

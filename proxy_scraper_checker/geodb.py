@@ -5,7 +5,6 @@ import logging
 import stat
 from typing import TYPE_CHECKING
 
-import aiofiles
 from aiohttp import hdrs
 
 from proxy_scraper_checker import fs
@@ -50,10 +49,13 @@ async def _save_geodb(
     await asyncio.to_thread(
         fs.add_permission, GEODB_PATH, stat.S_IWUSR, missing_ok=True
     )
-    async with aiofiles.open(GEODB_PATH, "wb") as geodb:
+    geodb = await asyncio.to_thread(GEODB_PATH.open, "wb")
+    try:
         async for chunk in response.content.iter_any():
-            await geodb.write(chunk)
+            await asyncio.to_thread(geodb.write, chunk)
             progress.advance(task_id=task, advance=len(chunk))
+    finally:
+        await asyncio.to_thread(geodb.close)
     progress.update(task_id=task, successful_count="\N{CHECK MARK}")
 
 

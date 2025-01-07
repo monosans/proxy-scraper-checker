@@ -8,9 +8,9 @@ _logs_listener = logs.configure()
 import asyncio
 import logging
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-import aiofiles
 import rich
 from aiohttp import ClientSession, TCPConnector
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
@@ -78,12 +78,6 @@ def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
     return asyncio.run
 
 
-async def read_config(file: str, /) -> dict[str, Any]:
-    async with aiofiles.open(file, "rb") as f:
-        content = await f.read()
-    return tomllib.loads(utils.bytes_decode(content))
-
-
 def get_summary_table(
     *, before: Mapping[ProxyType, int], after: Mapping[ProxyType, int]
 ) -> Table:
@@ -102,8 +96,12 @@ def get_summary_table(
 
 
 async def main() -> None:
-    cfg = await read_config("config.toml")
-    if cfg["debug"]:
+    config = tomllib.loads(
+        utils.bytes_decode(
+            await asyncio.to_thread(Path("config.toml").read_bytes)
+        )
+    )
+    if config["debug"]:
         logging.root.setLevel(logging.DEBUG)
     should_save = False
     try:
@@ -114,7 +112,7 @@ async def main() -> None:
             raise_for_status=True,
             fallback_charset_resolver=http.fallback_charset_resolver,
         ) as session:
-            settings = await Settings.from_mapping(cfg, session=session)
+            settings = await Settings.from_mapping(config, session=session)
             storage = ProxyStorage(protocols=settings.sources)
             with Progress(
                 TextColumn("[yellow]{task.fields[module]}"),

@@ -3,9 +3,9 @@ from __future__ import annotations
 import asyncio
 import itertools
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-import aiofiles
 from aiohttp import ClientResponseError, ClientTimeout
 from aiohttp_socks import ProxyType
 
@@ -42,8 +42,7 @@ async def scrape_one(
                 content = await response.read()
             text = get_response_text(response=response, content=content)
         else:
-            async with aiofiles.open(source, "rb") as f:
-                content = await f.read()
+            content = await asyncio.to_thread(Path(source).read_bytes)
             text = bytes_decode(content)
     except ClientResponseError as e:
         _logger.warning(

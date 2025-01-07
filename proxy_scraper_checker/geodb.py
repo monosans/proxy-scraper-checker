@@ -27,8 +27,7 @@ async def _read_etag() -> str | None:
         await asyncio.to_thread(
             fs.add_permission, GEODB_ETAG_PATH, stat.S_IRUSR
         )
-        async with aiofiles.open(GEODB_ETAG_PATH, "rb") as etag_file:
-            content = await etag_file.read()
+        content = await asyncio.to_thread(GEODB_ETAG_PATH.read_bytes)
     except FileNotFoundError:
         return None
     return bytes_decode(content)
@@ -42,10 +41,7 @@ async def _save_etag(etag: str, /) -> None:
     await asyncio.to_thread(
         fs.add_permission, GEODB_ETAG_PATH, stat.S_IWUSR, missing_ok=True
     )
-    async with aiofiles.open(
-        GEODB_ETAG_PATH, "w", encoding="utf-8"
-    ) as etag_file:
-        await etag_file.write(etag)
+    await asyncio.to_thread(GEODB_ETAG_PATH.write_text, etag, encoding="utf-8")
 
 
 async def _save_geodb(

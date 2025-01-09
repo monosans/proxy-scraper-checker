@@ -160,9 +160,7 @@ async def main() -> None:
                 )
             )
 
-            await asyncio.to_thread(
-                output.save_proxies, storage=storage, settings=settings
-            )
+            await output.save_proxies(storage=storage, settings=settings)
 
         _logger.info(
             "Thank you for using "

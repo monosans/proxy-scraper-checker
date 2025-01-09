@@ -23,9 +23,7 @@ GEODB_ETAG_PATH = GEODB_PATH.with_suffix(".mmdb.etag")
 
 async def _read_etag() -> str | None:
     try:
-        await asyncio.to_thread(
-            fs.add_permission, GEODB_ETAG_PATH, stat.S_IRUSR
-        )
+        await fs.add_permission(GEODB_ETAG_PATH, stat.S_IRUSR)
         content = await asyncio.to_thread(GEODB_ETAG_PATH.read_bytes)
     except FileNotFoundError:
         return None
@@ -37,18 +35,14 @@ async def _remove_etag() -> None:
 
 
 async def _save_etag(etag: str, /) -> None:
-    await asyncio.to_thread(
-        fs.add_permission, GEODB_ETAG_PATH, stat.S_IWUSR, missing_ok=True
-    )
+    await fs.add_permission(GEODB_ETAG_PATH, stat.S_IWUSR, missing_ok=True)
     await asyncio.to_thread(GEODB_ETAG_PATH.write_text, etag, encoding="utf-8")
 
 
 async def _save_geodb(
     *, progress: Progress, response: ClientResponse, task: TaskID
 ) -> None:
-    await asyncio.to_thread(
-        fs.add_permission, GEODB_PATH, stat.S_IWUSR, missing_ok=True
-    )
+    await fs.add_permission(GEODB_PATH, stat.S_IWUSR, missing_ok=True)
     geodb = await asyncio.to_thread(GEODB_PATH.open, "wb")
     try:
         async for chunk in response.content.iter_any():

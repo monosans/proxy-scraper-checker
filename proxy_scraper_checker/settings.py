@@ -7,6 +7,7 @@ import logging
 import math
 import stat
 import sys
+from asyncio.selector_events import BaseSelectorEventLoop
 from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
@@ -37,11 +38,9 @@ _logger = logging.getLogger(__name__)
 
 def _get_supported_max_connections() -> int | None:
     if sys.platform == "win32":
-        if isinstance(
-            asyncio.get_event_loop_policy(),
-            asyncio.WindowsSelectorEventLoopPolicy,
-        ):
-            return 512
+        if isinstance(asyncio.get_running_loop(), BaseSelectorEventLoop):
+            # 512 - len(loop._selector.get_map())  # noqa: ERA001
+            return 508
         return None
     import resource  # type: ignore[unreachable, unused-ignore]  # noqa: PLC0415
 

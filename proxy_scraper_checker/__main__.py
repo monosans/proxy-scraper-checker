@@ -68,6 +68,8 @@ def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
         except ImportError:
             pass
         else:
+            # https://github.com/Vizonex/Winloop/issues/32
+            logging.getLogger("asyncio").setLevel(logging.CRITICAL)
             try:
                 return winloop.run  # type: ignore[no-any-return, unused-ignore]
             except AttributeError:

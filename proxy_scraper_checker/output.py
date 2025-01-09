@@ -11,7 +11,7 @@ import maxminddb
 
 from proxy_scraper_checker import fs, sort
 from proxy_scraper_checker.geodb import GEODB_PATH
-from proxy_scraper_checker.utils import IS_DOCKER
+from proxy_scraper_checker.utils import is_docker
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -113,7 +113,7 @@ async def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                     text,
                     encoding="utf-8",
                 )
-    if IS_DOCKER:
+    if await asyncio.to_thread(is_docker):
         _logger.info(
             "Proxies have been saved to ./out (%s in container)",
             await asyncio.to_thread(settings.output_path.absolute),

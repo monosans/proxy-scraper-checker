@@ -22,7 +22,7 @@ from proxy_scraper_checker import fs, sort
 from proxy_scraper_checker.http import get_response_text
 from proxy_scraper_checker.null_context import NullContext
 from proxy_scraper_checker.parsers import parse_ipv4
-from proxy_scraper_checker.utils import IS_DOCKER
+from proxy_scraper_checker.utils import is_docker
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -287,7 +287,7 @@ class Settings:
     ) -> Self:
         output_path = (
             platformdirs.user_data_path("proxy_scraper_checker")
-            if IS_DOCKER
+            if await asyncio.to_thread(is_docker)
             else Path(cfg["output"]["path"])
         )
 

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from aiohttp import hdrs
 
 from proxy_scraper_checker import fs
-from proxy_scraper_checker.utils import IS_DOCKER, bytes_decode
+from proxy_scraper_checker.utils import bytes_decode, is_docker
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse, ClientSession
@@ -80,7 +80,7 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
             ),
         )
 
-    if IS_DOCKER:
+    if await asyncio.to_thread(is_docker):
         _logger.info(
             "Downloaded geolocation database to proxy_scraper_checker_cache "
             "Docker volume (%s in container)",

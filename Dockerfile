@@ -42,8 +42,6 @@ COPY --from=python-build-stage --chown=1000:1000 --link /app/.venv /app/.venv
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-ENV IS_DOCKER=1
-
 USER app
 
 COPY --chown=1000:1000 . .

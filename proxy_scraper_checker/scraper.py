@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import itertools
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -60,13 +59,16 @@ async def scrape_one(
         )
     else:
         counter.incr()
-        proxies = PROXY_REGEX.finditer(text)
-        try:
-            proxy = next(proxies)
-        except StopIteration:
+        proxies = PROXY_REGEX.findall(text)
+        if not proxies:
             _logger.warning("%s | No proxies found", source)
+        # Ignore too big sources
+        elif len(proxies) <= 100_000:  # noqa: PLR2004
+            _logger.warning(
+                "%s has too many proxies (%d), skipping", source, len(proxies)
+            )
         else:
-            for proxy in itertools.chain((proxy,), proxies):  # noqa: B020
+            for proxy in proxies:
                 try:
                     protocol = ProxyType[
                         proxy.group("protocol").upper().rstrip("S")

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM docker.io/python:3.12-slim-bookworm AS python-base-stage
+FROM docker.io/python:3.13-slim-bookworm AS python-base-stage
 
 ENV \
   PYTHONDONTWRITEBYTECODE=1 \

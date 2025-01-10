@@ -62,7 +62,6 @@ async def scrape_one(
         proxies = PROXY_REGEX.findall(text)
         if not proxies:
             _logger.warning("%s | No proxies found", source)
-        # Ignore too big sources
         elif len(proxies) <= 100_000:  # noqa: PLR2004
             _logger.warning(
                 "%s has too many proxies (%d), skipping", source, len(proxies)

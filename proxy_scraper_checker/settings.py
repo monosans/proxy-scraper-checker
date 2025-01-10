@@ -197,6 +197,9 @@ class Settings:
     )
     output_path: Path = attrs.field(converter=Path)
     output_txt: bool = attrs.field(validator=attrs.validators.instance_of(bool))
+    proxies_per_source_limit: int = attrs.field(
+        validator=attrs.validators.ge(0)
+    )
     real_ip: str | None = attrs.field(
         validator=attrs.validators.optional(attrs.validators.instance_of(str))
     )
@@ -321,6 +324,7 @@ class Settings:
             output_json=cfg["output"]["json"],
             output_path=output_path,
             output_txt=cfg["output"]["txt"],
+            proxies_per_source_limit=cfg["proxies_per_source_limit"],
             real_ip=real_ip,
             semaphore=cfg["max_connections"],
             sort_by_speed=cfg["sort_by_speed"],

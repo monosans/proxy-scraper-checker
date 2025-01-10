@@ -6,6 +6,12 @@ timeout = 5
 # The number of seconds to wait for the proxies to be downloaded from the source.
 source_timeout = 15
 
+# Maximum number of proxies from a single source.
+# If the source has more proxies than this value,
+# then the source has a huge number of low-quality proxies and can be ignored.
+# Set to 0 to disable this limit.
+proxies_per_source_limit = 100000
+
 # Maximum concurrent connections.
 # Don't be in a hurry to set high values.
 # Make sure you have enough RAM first, gradually increasing the default value.

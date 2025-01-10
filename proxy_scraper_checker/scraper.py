@@ -30,6 +30,7 @@ async def scrape_one(
     progress: Progress,
     proto: ProxyType,
     session: ClientSession,
+    settings: Settings,
     source: str,
     storage: ProxyStorage,
     task: TaskID,
@@ -59,10 +60,13 @@ async def scrape_one(
         )
     else:
         counter.incr()
-        proxies = PROXY_REGEX.findall(text)
+        proxies = tuple(PROXY_REGEX.finditer(text))
         if not proxies:
             _logger.warning("%s | No proxies found", source)
-        elif len(proxies) <= 100_000:  # noqa: PLR2004
+        elif (
+            settings.proxies_per_source_limit
+            and len(proxies) > settings.proxies_per_source_limit
+        ):
             _logger.warning(
                 "%s has too many proxies (%d), skipping", source, len(proxies)
             )
@@ -112,6 +116,7 @@ async def scrape_all(
                 progress=progress,
                 proto=proto,
                 session=session,
+                settings=settings,
                 source=source,
                 storage=storage,
                 task=progress_tasks[proto],

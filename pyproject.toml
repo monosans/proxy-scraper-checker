@@ -23,7 +23,7 @@ dependencies = [
   "rich>=12.3,<14",
   "tomli<3; python_version<'3.11'",
   "uvloop>=0.14,<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')",
-  "winloop<0.1.8; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
+  "winloop<0.1.9; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
 ]
 urls.repository = "https://github.com/monosans/proxy-scraper-checker"
 

@@ -29,11 +29,7 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
 
 FROM python-base-stage AS python-run-stage
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends tini \
-  && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-  && rm -rf /var/lib/apt/lists/* \
-  && groupadd --gid 1000 app \
+RUN groupadd --gid 1000 app \
   && useradd --gid 1000 --no-log-init --create-home --uid 1000 app \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \
   && chown 1000:1000 /home/app/.cache/proxy_scraper_checker
@@ -45,7 +41,5 @@ ENV PATH="/app/.venv/bin:$PATH"
 USER app
 
 COPY --chown=1000:1000 . .
-
-ENTRYPOINT ["tini", "--"]
 
 CMD ["python", "-m", "proxy_scraper_checker"]

@@ -1,6 +1,7 @@
 services:
   app:
     build: .
+    init: true
     logging:
       driver: local
     tty: true

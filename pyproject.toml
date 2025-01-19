@@ -11,9 +11,8 @@ requires-python = ">=3.9,<4"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
   "aiodns>=1.1,<4",
-  "aiofiles",
   "aiohttp>=3.8.6,<4",
-  "aiohttp-socks>=0.7,<0.10",
+  "aiohttp-socks>=0.7,<0.11",
   "attrs>=22.2",
   "brotli>=1,<2; implementation_name=='cpython'",
   "brotlicffi<2; implementation_name!='cpython'",
@@ -24,16 +23,15 @@ dependencies = [
   "rich>=12.3,<14",
   "tomli<3; python_version<'3.11'",
   "uvloop>=0.14,<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')",
-  "winloop<0.1.8; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
+  "winloop<0.1.9; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')",
 ]
 urls.repository = "https://github.com/monosans/proxy-scraper-checker"
 
 [dependency-groups]
 dev = [
-  "mypy[faster-cache]==1.13",
-  "ruff==0.8.3",
+  "mypy[faster-cache]==1.14.1",
+  "ruff==0.9.2",
   "tomli==2.2.1",
-  "types-aiofiles==24.1.0.20240626",
   "typing-extensions==4.12.2",
 ]
-nuitka = ["nuitka==2.5.7"]
+nuitka = ["nuitka==2.5.9"]

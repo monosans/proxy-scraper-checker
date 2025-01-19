@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import itertools
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-import aiofiles
 from aiohttp import ClientResponseError, ClientTimeout
 from aiohttp_socks import ProxyType
 
@@ -31,6 +30,7 @@ async def scrape_one(
     progress: Progress,
     proto: ProxyType,
     session: ClientSession,
+    settings: Settings,
     source: str,
     storage: ProxyStorage,
     task: TaskID,
@@ -42,8 +42,9 @@ async def scrape_one(
                 content = await response.read()
             text = get_response_text(response=response, content=content)
         else:
-            async with aiofiles.open(source, "rb") as f:
-                content = await f.read()
+            content = await asyncio.to_thread(
+                Path(source.removeprefix("file://")).read_bytes
+            )
             text = bytes_decode(content)
     except ClientResponseError as e:
         _logger.warning(
@@ -59,13 +60,18 @@ async def scrape_one(
         )
     else:
         counter.incr()
-        proxies = PROXY_REGEX.finditer(text)
-        try:
-            proxy = next(proxies)
-        except StopIteration:
+        proxies = tuple(PROXY_REGEX.finditer(text))
+        if not proxies:
             _logger.warning("%s | No proxies found", source)
+        elif (
+            settings.proxies_per_source_limit
+            and len(proxies) > settings.proxies_per_source_limit
+        ):
+            _logger.warning(
+                "%s has too many proxies (%d), skipping", source, len(proxies)
+            )
         else:
-            for proxy in itertools.chain((proxy,), proxies):  # noqa: B020
+            for proxy in proxies:
                 try:
                     protocol = ProxyType[
                         proxy.group("protocol").upper().rstrip("S")
@@ -110,6 +116,7 @@ async def scrape_all(
                 progress=progress,
                 proto=proto,
                 session=session,
+                settings=settings,
                 source=source,
                 storage=storage,
                 task=progress_tasks[proto],

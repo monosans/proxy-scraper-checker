@@ -15,8 +15,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v4
-      - run: uv tool run --from pre-commit@latest --with pre-commit-uv --no-cache --python 3.12 pre-commit run --all-files
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: false
+      - run: uv tool run --from pre-commit@latest --with pre-commit-uv --no-cache --python 3.13 pre-commit run --all-files
   build:
     strategy:
       matrix:
@@ -38,14 +40,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          check-latest: true
-      - run: uv run --no-dev --group nuitka --frozen --python 3.12 python -m nuitka --mode=standalone --python-flag='-m' --assume-yes-for-downloads --deployment --lto=yes proxy_scraper_checker
+      - run: uv run --no-dev --group nuitka --frozen --python 3.13 python -m nuitka --mode=standalone --python-flag='-m' --assume-yes-for-downloads --deployment --lto=yes proxy_scraper_checker
       - run: mv config.toml proxy_scraper_checker.dist/
       - if: ${{ github.event_name != 'pull_request' }}
         uses: actions/attest-build-provenance@v2

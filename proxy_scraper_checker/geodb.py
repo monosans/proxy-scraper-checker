@@ -5,11 +5,10 @@ import logging
 import stat
 from typing import TYPE_CHECKING
 
-import aiofiles
 from aiohttp import hdrs
 
 from proxy_scraper_checker import fs
-from proxy_scraper_checker.utils import IS_DOCKER, bytes_decode
+from proxy_scraper_checker.utils import bytes_decode, is_docker
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse, ClientSession
@@ -24,11 +23,8 @@ GEODB_ETAG_PATH = GEODB_PATH.with_suffix(".mmdb.etag")
 
 async def _read_etag() -> str | None:
     try:
-        await asyncio.to_thread(
-            fs.add_permission, GEODB_ETAG_PATH, stat.S_IRUSR
-        )
-        async with aiofiles.open(GEODB_ETAG_PATH, "rb") as etag_file:
-            content = await etag_file.read()
+        await fs.add_permission(GEODB_ETAG_PATH, stat.S_IRUSR)
+        content = await asyncio.to_thread(GEODB_ETAG_PATH.read_bytes)
     except FileNotFoundError:
         return None
     return bytes_decode(content)
@@ -39,25 +35,21 @@ async def _remove_etag() -> None:
 
 
 async def _save_etag(etag: str, /) -> None:
-    await asyncio.to_thread(
-        fs.add_permission, GEODB_ETAG_PATH, stat.S_IWUSR, missing_ok=True
-    )
-    async with aiofiles.open(
-        GEODB_ETAG_PATH, "w", encoding="utf-8"
-    ) as etag_file:
-        await etag_file.write(etag)
+    await fs.add_permission(GEODB_ETAG_PATH, stat.S_IWUSR, missing_ok=True)
+    await asyncio.to_thread(GEODB_ETAG_PATH.write_text, etag, encoding="utf-8")
 
 
 async def _save_geodb(
     *, progress: Progress, response: ClientResponse, task: TaskID
 ) -> None:
-    await asyncio.to_thread(
-        fs.add_permission, GEODB_PATH, stat.S_IWUSR, missing_ok=True
-    )
-    async with aiofiles.open(GEODB_PATH, "wb") as geodb:
+    await fs.add_permission(GEODB_PATH, stat.S_IWUSR, missing_ok=True)
+    geodb = await asyncio.to_thread(GEODB_PATH.open, "wb")
+    try:
         async for chunk in response.content.iter_any():
-            await geodb.write(chunk)
+            await asyncio.to_thread(geodb.write, chunk)
             progress.advance(task_id=task, advance=len(chunk))
+    finally:
+        await asyncio.to_thread(geodb.close)
     progress.update(task_id=task, successful_count="\N{CHECK MARK}")
 
 
@@ -88,7 +80,7 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
             ),
         )
 
-    if IS_DOCKER:
+    if await asyncio.to_thread(is_docker):
         _logger.info(
             "Downloaded geolocation database to proxy_scraper_checker_cache "
             "Docker volume (%s in container)",

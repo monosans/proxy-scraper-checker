@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from threading import Lock
-
 
 class IncrInt:
-    __slots__ = ("_lock", "_v")
+    __slots__ = ("_v",)
 
     def __init__(self) -> None:
-        self._lock = Lock()
         self._v = 0
 
     @property
@@ -15,5 +12,4 @@ class IncrInt:
         return self._v
 
     def incr(self) -> None:
-        with self._lock:
-            self._v += 1
+        self._v += 1

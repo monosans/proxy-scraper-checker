@@ -8,9 +8,9 @@ _logs_listener = logs.configure()
 import asyncio
 import logging
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-import aiofiles
 import rich
 from aiohttp import ClientSession, TCPConnector
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
@@ -53,7 +53,7 @@ _logger = logging.getLogger(__name__)
 def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
     if sys.implementation.name == "cpython":
         try:
-            import uvloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
+            import uvloop  # noqa: PLC0415
         except ImportError:
             pass
         else:
@@ -64,10 +64,12 @@ def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
                 return asyncio.run
 
         try:
-            import winloop  # type: ignore[import-not-found, unused-ignore]  # noqa: PLC0415
+            import winloop  # noqa: PLC0415
         except ImportError:
             pass
         else:
+            # https://github.com/Vizonex/Winloop/issues/32
+            logging.getLogger("asyncio").setLevel(logging.CRITICAL)
             try:
                 return winloop.run  # type: ignore[no-any-return, unused-ignore]
             except AttributeError:
@@ -76,12 +78,6 @@ def get_async_run() -> Callable[[Coroutine[Any, Any, T]], T]:
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     return asyncio.run
-
-
-async def read_config(file: str, /) -> dict[str, Any]:
-    async with aiofiles.open(file, "rb") as f:
-        content = await f.read()
-    return tomllib.loads(utils.bytes_decode(content))
 
 
 def get_summary_table(
@@ -102,8 +98,12 @@ def get_summary_table(
 
 
 async def main() -> None:
-    cfg = await read_config("config.toml")
-    if cfg["debug"]:
+    config = tomllib.loads(
+        utils.bytes_decode(
+            await asyncio.to_thread(Path("config.toml").read_bytes)
+        )
+    )
+    if config["debug"]:
         logging.root.setLevel(logging.DEBUG)
     should_save = False
     try:
@@ -114,7 +114,7 @@ async def main() -> None:
             raise_for_status=True,
             fallback_charset_resolver=http.fallback_charset_resolver,
         ) as session:
-            settings = await Settings.from_mapping(cfg, session=session)
+            settings = await Settings.from_mapping(config, session=session)
             storage = ProxyStorage(protocols=settings.sources)
             with Progress(
                 TextColumn("[yellow]{task.fields[module]}"),
@@ -162,12 +162,11 @@ async def main() -> None:
                 )
             )
 
-            await asyncio.to_thread(
-                output.save_proxies, storage=storage, settings=settings
-            )
+            await output.save_proxies(storage=storage, settings=settings)
 
         _logger.info(
-            "Thank you for using https://github.com/monosans/proxy-scraper-checker"
+            "Thank you for using "
+            "https://github.com/monosans/proxy-scraper-checker"
         )
 
 

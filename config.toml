@@ -6,11 +6,17 @@ timeout = 5
 # The number of seconds to wait for the proxies to be downloaded from the source.
 source_timeout = 15
 
+# Maximum number of proxies from a single source.
+# If the source has more proxies than this value,
+# then the source has a huge number of low-quality proxies and can be ignored.
+# Set to 0 to disable this limit.
+proxies_per_source_limit = 100000
+
 # Maximum concurrent connections.
 # Don't be in a hurry to set high values.
 # Make sure you have enough RAM first, gradually increasing the default value.
 # If set to 0, the maximum value available for your OS will be used.
-max_connections = 512
+max_connections = 2048
 
 # URL to which to send a request to check the proxy.
 # If it is not httpbin or a service that returns an IP address,
@@ -97,8 +103,8 @@ sources = [
     "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/http.txt",
     "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/https.txt",
     "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/http.txt",
-    "https://raw.githubusercontent.com/zloi-user/hideip.me/main/http.txt",
-    "https://raw.githubusercontent.com/zloi-user/hideip.me/main/https.txt",
+    "https://raw.githubusercontent.com/zloi-user/hideip.me/master/http.txt",
+    "https://raw.githubusercontent.com/zloi-user/hideip.me/master/https.txt",
     "https://raw.githubusercontent.com/ZoniBoy00/proxy-lists/refs/heads/master/http_proxies.txt",
     "https://www.proxy-list.download/api/v1/get?type=http",
     "https://www.proxy-list.download/api/v1/get?type=https",
@@ -135,7 +141,7 @@ sources = [
     "https://raw.githubusercontent.com/yemixzy/proxy-list/refs/heads/main/proxies/socks4.txt",
     "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks4.txt",
     "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/socks4.txt",
-    "https://raw.githubusercontent.com/zloi-user/hideip.me/main/socks4.txt",
+    "https://raw.githubusercontent.com/zloi-user/hideip.me/master/socks4.txt",
     "https://raw.githubusercontent.com/ZoniBoy00/proxy-lists/refs/heads/master/socks4_proxies.txt",
     "https://www.proxy-list.download/api/v1/get?type=socks4",
 ]
@@ -173,7 +179,7 @@ sources = [
     "https://raw.githubusercontent.com/yemixzy/proxy-list/refs/heads/main/proxies/socks5.txt",
     "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks5.txt",
     "https://raw.githubusercontent.com/zevtyardt/proxy-list/main/socks5.txt",
-    "https://raw.githubusercontent.com/zloi-user/hideip.me/main/socks5.txt",
+    "https://raw.githubusercontent.com/zloi-user/hideip.me/master/socks5.txt",
     "https://raw.githubusercontent.com/ZoniBoy00/proxy-lists/refs/heads/master/socks5_proxies.txt",
     "https://www.proxy-list.download/api/v1/get?type=socks5",
 ]

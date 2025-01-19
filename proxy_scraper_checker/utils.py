@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import os
+from functools import cache
+from pathlib import Path
 from urllib.parse import urlparse
 
 import charset_normalizer
 
-IS_DOCKER = os.getenv("IS_DOCKER") == "1"
+is_docker = cache(Path("/.dockerenv").exists)
 
 
 def is_http_url(value: str, /) -> bool:

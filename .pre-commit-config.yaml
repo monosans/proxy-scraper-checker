@@ -22,21 +22,21 @@ repos:
     hooks:
       - id: prettier
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.8.3
+    rev: v0.9.2
     hooks:
       - id: ruff
         args:
           - --fix
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+    rev: v1.14.1
     hooks:
       - id: mypy
         args:
           - --scripts-are-modules
         additional_dependencies:
-          - orjson
           - aiohttp<4
+          - aiohttp-socks<0.11
           - attrs
           - certifi
           - charset-normalizer<4
@@ -44,7 +44,6 @@ repos:
           - platformdirs<5
           - rich<14
           - tomli<3
-          - types-aiofiles
           - typing-extensions<5
           - uvloop<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')
-          - winloop<0.1.7; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')
+          - winloop<0.1.9; implementation_name=='cpython' and (sys_platform=='cygwin' or sys_platform=='win32')

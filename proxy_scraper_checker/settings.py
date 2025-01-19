@@ -7,6 +7,7 @@ import logging
 import math
 import stat
 import sys
+from asyncio.selector_events import BaseSelectorEventLoop
 from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
@@ -21,7 +22,7 @@ from proxy_scraper_checker import fs, sort
 from proxy_scraper_checker.http import get_response_text
 from proxy_scraper_checker.null_context import NullContext
 from proxy_scraper_checker.parsers import parse_ipv4
-from proxy_scraper_checker.utils import IS_DOCKER
+from proxy_scraper_checker.utils import is_docker
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -37,11 +38,9 @@ _logger = logging.getLogger(__name__)
 
 def _get_supported_max_connections() -> int | None:
     if sys.platform == "win32":
-        if isinstance(
-            asyncio.get_event_loop_policy(),
-            asyncio.WindowsSelectorEventLoopPolicy,
-        ):
-            return 512
+        if isinstance(asyncio.get_running_loop(), BaseSelectorEventLoop):
+            # 512 - len(loop._selector.get_map())  # noqa: ERA001
+            return 508
         return None
     import resource  # type: ignore[unreachable, unused-ignore]  # noqa: PLC0415
 
@@ -198,6 +197,9 @@ class Settings:
     )
     output_path: Path = attrs.field(converter=Path)
     output_txt: bool = attrs.field(validator=attrs.validators.instance_of(bool))
+    proxies_per_source_limit: int = attrs.field(
+        validator=attrs.validators.ge(0)
+    )
     real_ip: str | None = attrs.field(
         validator=attrs.validators.optional(attrs.validators.instance_of(str))
     )
@@ -257,10 +259,7 @@ class Settings:
 
     @check_website.validator
     def _validate_check_website(
-        self,
-        attribute: attrs.Attribute[str],  # noqa: ARG002
-        value: str,
-        /,
+        self, _attribute: attrs.Attribute[str], value: str, /
     ) -> None:
         if value:
             parsed_url = urlparse(value)
@@ -279,10 +278,7 @@ class Settings:
 
     @timeout.validator
     def _validate_timeout(
-        self,
-        attribute: attrs.Attribute[str],  # noqa: ARG002
-        value: float,  # noqa: ARG002
-        /,
+        self, _attribute: attrs.Attribute[str], _value: float, /
     ) -> None:
         if self.timeout.total is None or self.timeout.total <= 0:
             msg = "timeout must be positive"
@@ -294,14 +290,14 @@ class Settings:
     ) -> Self:
         output_path = (
             platformdirs.user_data_path("proxy_scraper_checker")
-            if IS_DOCKER
+            if await asyncio.to_thread(is_docker)
             else Path(cfg["output"]["path"])
         )
 
-        output_path_future = asyncio.to_thread(
-            fs.create_or_fix_dir,
-            output_path,
-            permission=stat.S_IXUSR | stat.S_IWUSR,
+        output_path_task = asyncio.create_task(
+            fs.create_or_fix_dir(
+                output_path, permission=stat.S_IXUSR | stat.S_IWUSR
+            )
         )
 
         check_website_type, real_ip = await _get_check_website_type_and_real_ip(
@@ -314,13 +310,12 @@ class Settings:
         )
 
         if enable_geolocation:
-            await asyncio.to_thread(
-                fs.create_or_fix_dir,
+            await fs.create_or_fix_dir(
                 fs.CACHE_PATH,
                 permission=stat.S_IRUSR | stat.S_IXUSR | stat.S_IWUSR,
             )
 
-        await output_path_future
+        await output_path_task
 
         return cls(
             check_website=cfg["check_website"],
@@ -329,6 +324,7 @@ class Settings:
             output_json=cfg["output"]["json"],
             output_path=output_path,
             output_txt=cfg["output"]["txt"],
+            proxies_per_source_limit=cfg["proxies_per_source_limit"],
             real_ip=real_ip,
             semaphore=cfg["max_connections"],
             sort_by_speed=cfg["sort_by_speed"],

@@ -23,14 +23,16 @@ jobs:
     strategy:
       matrix:
         include:
+          - name: linux-arm64
+            runner: ubuntu-24.04-arm
           - name: linux-x86-64
             runner: ubuntu-latest
-          - name: windows-x86-64
-            runner: windows-latest
+          - name: macos-arm64
+            runner: macos-15
           - name: macos-x86-64
             runner: macos-13
-          - name: macos-arm64
-            runner: macos-14
+          - name: windows-x86-64
+            runner: windows-2025
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     permissions:

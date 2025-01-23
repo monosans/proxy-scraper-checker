@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   run-pre-commit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,7 +26,7 @@ jobs:
           - name: linux-arm64
             runner: ubuntu-24.04-arm
           - name: linux-x86-64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - name: macos-arm64
             runner: macos-15
           - name: macos-x86-64

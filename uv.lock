@@ -1102,11 +1102,11 @@ wheels = [
 
 [[package]]
 name = "python-socks"
-version = "2.6.1"
+version = "2.7.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f0/c8/b24466186671519100313b14a95dc7b95f9e428957d25210cc58fba40b8a/python_socks-2.6.1.tar.gz", hash = "sha256:9743929aab6ffe0bab640ecfbbee7130af92408ad86e4aa2984789f742f3ec9e", size = 230318 }
+sdist = { url = "https://files.pythonhosted.org/packages/94/18/f1c4798c4234161efaaddc629fe2c5d6f902ba7cfa0d21f08895d10471ed/python_socks-2.7.0.tar.gz", hash = "sha256:e0e86854805cb8c35b06bfdc027790a48b73f918288568731026b799eb45cfe8", size = 230272 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4d/f0/bbeb5ce23e16f20b0b1b1444a9d8924017f5e03063ff9e6aa41d5e9ddc79/python_socks-2.6.1-py3-none-any.whl", hash = "sha256:7fe9324c1834bb9cdce46ddb6721cf42a05a00da5f1fb87f8507ac0c6f305e1d", size = 54953 },
+    { url = "https://files.pythonhosted.org/packages/35/8d/2daa1bf001dfbbe482b76dc28431ef1146468ca4802f513f79f42777dbfd/python_socks-2.7.0-py3-none-any.whl", hash = "sha256:eea4d29dfc83b0a5eff65f560ecb9b7a139e1ab7268becc919faf81536f50cb6", size = 54955 },
 ]
 
 [package.optional-dependencies]

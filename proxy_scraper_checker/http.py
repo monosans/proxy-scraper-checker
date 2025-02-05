@@ -21,6 +21,7 @@ HEADERS: MappingProxyType[str, str] = MappingProxyType({
     )
 })
 SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+SSL_CONTEXT.set_alpn_protocols(("http/1.1",))
 
 
 class NoCharsetHeaderError(Exception):

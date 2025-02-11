@@ -49,6 +49,7 @@ jobs:
   check:
     if: ${{ always() && github.event_name == 'pull_request' }}
     needs:
+      - build
       - pre-commit
     runs-on: ubuntu-24.04
     steps:

@@ -1,8 +1,3 @@
-# 在切换到app用户前以root身份创建目录
-USER root
-RUN mkdir -p /home/app/.local/share/proxy_scraper_checker && \
-    chown -R app:app /home/app/.local
-USER app
 
 
 

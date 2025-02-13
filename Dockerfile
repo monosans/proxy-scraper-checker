@@ -1,3 +1,11 @@
+# 在切换到app用户前以root身份创建目录
+USER root
+RUN mkdir -p /home/app/.local/share/proxy_scraper_checker && \
+    chown -R app:app /home/app/.local
+USER app
+
+
+
 # syntax=docker/dockerfile:1
 
 FROM docker.io/python:3.13-slim-bookworm AS python-base-stage

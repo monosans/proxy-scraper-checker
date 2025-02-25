@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from aiohttp import hdrs
 
 from proxy_scraper_checker import fs
-from proxy_scraper_checker.utils import bytes_decode, is_docker
+from proxy_scraper_checker.utils import is_docker
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse, ClientSession
@@ -24,10 +24,11 @@ GEODB_ETAG_PATH = GEODB_PATH.with_suffix(".mmdb.etag")
 async def _read_etag() -> str | None:
     try:
         await fs.add_permission(GEODB_ETAG_PATH, stat.S_IRUSR)
-        content = await asyncio.to_thread(GEODB_ETAG_PATH.read_bytes)
-    except FileNotFoundError:
+        return await asyncio.to_thread(
+            GEODB_ETAG_PATH.read_text, encoding="utf-8"
+        )
+    except (FileNotFoundError, UnicodeDecodeError):
         return None
-    return bytes_decode(content)
 
 
 async def _remove_etag() -> None:
@@ -56,7 +57,7 @@ async def _save_geodb(
 async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
     headers = (
         {hdrs.IF_NONE_MATCH: current_etag}
-        if await asyncio.to_thread(GEODB_PATH.exists)
+        if await asyncio.to_thread(GEODB_PATH.is_file)
         and (current_etag := await _read_etag())
         else None
     )

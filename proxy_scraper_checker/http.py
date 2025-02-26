@@ -32,9 +32,7 @@ def fallback_charset_resolver(_r: ClientResponse, _b: bytes) -> NoReturn:
     raise NoCharsetHeaderError
 
 
-@cache
-def get_cookie_jar() -> DummyCookieJar:
-    return DummyCookieJar()
+get_cookie_jar = cache(DummyCookieJar)
 
 
 def get_response_text(*, response: ClientResponse, content: bytes) -> str:

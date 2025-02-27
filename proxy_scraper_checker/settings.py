@@ -231,8 +231,7 @@ class Settings:
     )
     timeout: ClientTimeout = attrs.field(converter=_timeout_converter)
 
-    @property
-    def sorting_key(
+    def get_sorting_key(
         self,
     ) -> Callable[[Proxy], float] | Callable[[Proxy], tuple[int, ...]]:
         return (

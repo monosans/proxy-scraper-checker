@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 from aiohttp import ClientResponseError, ClientTimeout
 from aiohttp_socks import ProxyType
 
-from proxy_scraper_checker.counter import IncrInt
 from proxy_scraper_checker.http import get_response_text
+from proxy_scraper_checker.incrementor import Incrementor
 from proxy_scraper_checker.parsers import PROXY_REGEX
 from proxy_scraper_checker.proxy import Proxy
 from proxy_scraper_checker.utils import bytes_decode, is_http_url
@@ -26,14 +26,14 @@ _logger = logging.getLogger(__name__)
 
 async def scrape_one(
     *,
-    counter: IncrInt,
+    incrementor: Incrementor,
     progress: Progress,
+    progress_task: TaskID,
     proto: ProxyType,
     session: ClientSession,
     settings: Settings,
     source: str,
     storage: ProxyStorage,
-    task: TaskID,
     timeout: ClientTimeout,
 ) -> None:
     try:
@@ -59,7 +59,7 @@ async def scrape_one(
             e,
         )
     else:
-        counter.incr()
+        incrementor.increment()
         proxies = tuple(PROXY_REGEX.finditer(text))
         if not proxies:
             _logger.warning("%s | No proxies found", source)
@@ -87,7 +87,11 @@ async def scrape_one(
                         password=proxy.group("password"),
                     )
                 )
-    progress.update(task_id=task, advance=1, successful_count=counter.value)
+    progress.update(
+        task_id=progress_task,
+        advance=1,
+        successful_count=incrementor.get_value(),
+    )
 
 
 async def scrape_all(
@@ -97,7 +101,7 @@ async def scrape_all(
     settings: Settings,
     storage: ProxyStorage,
 ) -> None:
-    counters = {proto: IncrInt() for proto in settings.sources}
+    incrementors = {proto: Incrementor() for proto in settings.sources}
     progress_tasks = {
         proto: progress.add_task(
             description="",
@@ -112,14 +116,14 @@ async def scrape_all(
     await asyncio.gather(
         *(
             scrape_one(
-                counter=counters[proto],
+                incrementor=incrementors[proto],
                 progress=progress,
+                progress_task=progress_tasks[proto],
                 proto=proto,
                 session=session,
                 settings=settings,
                 source=source,
                 storage=storage,
-                task=progress_tasks[proto],
                 timeout=timeout,
             )
             for proto, sources in settings.sources.items()

@@ -41,17 +41,17 @@ async def _save_etag(etag: str, /) -> None:
 
 
 async def _save_geodb(
-    *, progress: Progress, response: ClientResponse, task: TaskID
+    *, progress: Progress, progress_task: TaskID, response: ClientResponse
 ) -> None:
     await fs.add_permission(GEODB_PATH, stat.S_IWUSR, missing_ok=True)
     geodb = await asyncio.to_thread(GEODB_PATH.open, "wb")
     try:
         async for chunk in response.content.iter_any():
             await asyncio.to_thread(geodb.write, chunk)
-            progress.advance(task_id=task, advance=len(chunk))
+            progress.advance(task_id=progress_task, advance=len(chunk))
     finally:
         await asyncio.to_thread(geodb.close)
-    progress.update(task_id=task, successful_count="\N{CHECK MARK}")
+    progress.update(task_id=progress_task, successful_count="\N{CHECK MARK}")
 
 
 async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
@@ -71,14 +71,14 @@ async def download_geodb(*, progress: Progress, session: ClientSession) -> None:
             return
         await _save_geodb(
             progress=progress,
-            response=response,
-            task=progress.add_task(
+            progress_task=progress.add_task(
                 description="",
                 total=response.content_length,
                 module="Downloader",
                 protocol="GeoDB",
                 successful_count="\N{HORIZONTAL ELLIPSIS}",
             ),
+            response=response,
         )
 
     if await asyncio.to_thread(is_docker):

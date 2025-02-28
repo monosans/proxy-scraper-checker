@@ -1,9 +1,3 @@
-# 创建目录并设置权限
-RUN mkdir -p /home/app/.local/share/proxy_scraper_checker/ && \
-    chown -R app:app /home/app/.local
-
-# 切换到非root用户（如用户app）
-USER app
 
 
 

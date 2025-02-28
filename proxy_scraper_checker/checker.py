@@ -5,7 +5,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from proxy_scraper_checker import sort
-from proxy_scraper_checker.counter import IncrInt
+from proxy_scraper_checker.incrementor import Incrementor
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -22,12 +22,12 @@ _logger = logging.getLogger(__name__)
 
 async def check_one(
     *,
-    counter: IncrInt,
+    incrementor: Incrementor,
     progress: Progress,
+    progress_task: TaskID,
     proxy: Proxy,
     settings: Settings,
     storage: ProxyStorage,
-    task: TaskID,
 ) -> None:
     try:
         await proxy.check(settings=settings)
@@ -41,8 +41,12 @@ async def check_one(
         )
         storage.remove(proxy)
     else:
-        counter.incr()
-    progress.update(task_id=task, advance=1, successful_count=counter.value)
+        incrementor.increment()
+    progress.update(
+        task_id=progress_task,
+        advance=1,
+        successful_count=incrementor.get_value(),
+    )
 
 
 async def check_all(
@@ -52,8 +56,8 @@ async def check_all(
     progress: Progress,
     proxies_count: Mapping[ProxyType, int],
 ) -> None:
-    counters = {
-        proto: IncrInt()
+    incrementors = {
+        proto: Incrementor()
         for proto in sort.PROTOCOL_ORDER
         if proto in storage.enabled_protocols
     }
@@ -65,17 +69,17 @@ async def check_all(
             protocol=proto.name,
             successful_count=0,
         )
-        for proto in counters
+        for proto in incrementors
     }
     await asyncio.gather(
         *(
             check_one(
-                counter=counters[proxy.protocol],
+                incrementor=incrementors[proxy.protocol],
                 progress=progress,
+                progress_task=progress_tasks[proxy.protocol],
                 proxy=proxy,
                 settings=settings,
                 storage=storage,
-                task=progress_tasks[proxy.protocol],
             )
             for proxy in storage
         )

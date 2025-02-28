@@ -80,9 +80,9 @@ async def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
             if mmdb is not None:
                 await asyncio.to_thread(mmdb.close)
     if settings.output_txt:
-        sorted_proxies = sorted(storage, key=settings.sorting_key)
+        sorted_proxies = sorted(storage, key=settings.get_sorting_key())
         grouped_proxies = tuple(
-            (k, sorted(v, key=settings.sorting_key))
+            (k, sorted(v, key=settings.get_sorting_key()))
             for k, v in storage.get_grouped().items()
         )
         for folder, anonymous_only in (

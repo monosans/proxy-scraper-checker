@@ -56,7 +56,7 @@ class ProxyStorage:
 
     def remove_unchecked(self) -> None:
         for p in self._proxies.copy():
-            if not p.is_checked:
+            if not p.is_checked():
                 self._proxies.remove(p)
 
     def __iter__(self) -> Iterator[Proxy]:

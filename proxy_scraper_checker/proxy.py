@@ -42,7 +42,6 @@ class Proxy:
     timeout: float | None = attrs.field(default=None, init=False, eq=False)
     exit_ip: str | None = attrs.field(default=None, init=False, eq=False)
 
-    @property
     def is_checked(self) -> bool:
         return self.timeout is not None
 

@@ -1016,7 +1016,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "mypy", extras = ["faster-cache"], specifier = "==1.15.0" },
+    { name = "mypy", extras = ["faster-cache"], specifier = "==1.15" },
     { name = "ruff", specifier = "==0.9.9" },
     { name = "tomli", specifier = "==2.2.1" },
     { name = "typing-extensions", specifier = "==4.12.2" },

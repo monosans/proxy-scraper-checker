@@ -64,10 +64,10 @@ async def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                 for proxy in sorted(storage, key=sort.timeout_sort_key)
             ]
             for path, orjson_option in (
-                (settings.output_path / "proxies.json", orjson.OPT_SORT_KEYS),
+                (settings.output_path / "proxies.json", None),
                 (
                     settings.output_path / "proxies_pretty.json",
-                    orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS,
+                    orjson.OPT_INDENT_2,
                 ),
             ):
                 await asyncio.to_thread(path.unlink, missing_ok=True)

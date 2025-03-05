@@ -91,7 +91,9 @@ def get_summary_table(
 
 async def main() -> None:
     config = tomllib.loads(
-        await asyncio.to_thread(Path("config.toml").read_text, encoding="utf-8")
+        await asyncio.to_thread(
+            Path("config.toml").read_text, encoding="utf-8", errors="replace"
+        )
     )
     if config["debug"]:
         logging.root.setLevel(logging.DEBUG)

@@ -18,7 +18,7 @@ dependencies = [
   "brotlicffi<2; implementation_name!='cpython'",
   "certifi",
   "maxminddb>=1.3,<3",
-  "orjson",
+  "orjson>=2.6.0,<4",
   "platformdirs<5",
   "rich>=12.3,<14",
   "tomli<3; python_version<'3.11'",

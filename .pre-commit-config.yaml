@@ -40,7 +40,7 @@ repos:
           - attrs
           - certifi
           - maxminddb<3
-          - orjson
+          - orjson<4
           - platformdirs<5
           - rich<14
           - tomli<3

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import stat
 from shutil import rmtree
 from typing import TYPE_CHECKING
 
 import maxminddb
+import orjson
 
 from proxy_scraper_checker import fs, sort
 from proxy_scraper_checker.geodb import GEODB_PATH
@@ -63,19 +63,18 @@ async def save_proxies(*, settings: Settings, storage: ProxyStorage) -> None:
                 }
                 for proxy in sorted(storage, key=sort.timeout_sort_key)
             ]
-            for path, indent, separators in (
-                (settings.output_path / "proxies.json", None, (",", ":")),
-                (settings.output_path / "proxies_pretty.json", "\t", None),
+            for path, orjson_option in (
+                (settings.output_path / "proxies.json", orjson.OPT_SORT_KEYS),
+                (
+                    settings.output_path / "proxies_pretty.json",
+                    orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS,
+                ),
             ):
                 await asyncio.to_thread(path.unlink, missing_ok=True)
-                f = await asyncio.to_thread(path.open, "w", encoding="utf-8")
-                try:
-                    for chunk in json.JSONEncoder(
-                        ensure_ascii=False, indent=indent, separators=separators
-                    ).iterencode(proxy_dicts):
-                        await asyncio.to_thread(f.write, chunk)
-                finally:
-                    await asyncio.to_thread(f.close)
+                await asyncio.to_thread(
+                    path.write_bytes,
+                    orjson.dumps(proxy_dicts, option=orjson_option),
+                )
         finally:
             if mmdb is not None:
                 await asyncio.to_thread(mmdb.close)

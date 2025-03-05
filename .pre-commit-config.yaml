@@ -39,8 +39,8 @@ repos:
           - aiohttp-socks<0.11
           - attrs
           - certifi
-          - charset-normalizer<4
           - maxminddb<3
+          - orjson
           - platformdirs<5
           - rich<14
           - tomli<3

@@ -112,7 +112,7 @@ async def scrape_all(
         )
         for proto, sources in settings.sources.items()
     }
-    timeout = ClientTimeout(total=settings.source_timeout)
+    timeout = ClientTimeout(total=settings.source_timeout, connect=5)
     await asyncio.gather(
         *(
             scrape_one(

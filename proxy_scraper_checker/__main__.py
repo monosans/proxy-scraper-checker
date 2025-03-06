@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import rich
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession, ClientTimeout, TCPConnector
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
 
@@ -104,6 +104,7 @@ async def main() -> None:
             headers=http.HEADERS,
             cookie_jar=http.get_cookie_jar(),
             raise_for_status=True,
+            timeout=ClientTimeout(total=60, connect=5),
         ) as session:
             settings = await Settings.from_mapping(config, session=session)
             storage = ProxyStorage(protocols=settings.sources)

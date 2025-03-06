@@ -25,7 +25,7 @@ async def _read_etag() -> str | None:
     try:
         await fs.add_permission(GEODB_ETAG_PATH, stat.S_IRUSR)
         return await asyncio.to_thread(
-            GEODB_ETAG_PATH.read_text, encoding="utf-8", errors="replace"
+            GEODB_ETAG_PATH.read_text, encoding="utf-8"
         )
     except (FileNotFoundError, UnicodeDecodeError):
         return None

@@ -158,8 +158,10 @@ async def _get_check_website_type_and_real_ip(
     except orjson.JSONDecodeError:
         try:
             return CheckWebsiteType.PLAIN_IP, parse_ipv4(
-                content.decode(response.get_encoding(), errors="replace")
+                content.decode(response.get_encoding())
             )
+        except UnicodeDecodeError:
+            _logger.error("Error when decoding check_website response as utf-8")
         except ValueError:
             pass
     else:

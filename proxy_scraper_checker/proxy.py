@@ -68,9 +68,7 @@ class Proxy:
         if settings.check_website_type == CheckWebsiteType.HTTPBIN_IP:
             self.exit_ip = parse_ipv4(orjson.loads(content)["origin"])
         elif settings.check_website_type == CheckWebsiteType.PLAIN_IP:
-            self.exit_ip = parse_ipv4(
-                content.decode(response.get_encoding())
-            )
+            self.exit_ip = parse_ipv4(content.decode(response.get_encoding()))
         else:
             self.exit_ip = None
 

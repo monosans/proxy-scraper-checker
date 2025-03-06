@@ -12,19 +12,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import rich
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession, ClientTimeout, TCPConnector
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn
 from rich.table import Table
 
-from proxy_scraper_checker import (
-    checker,
-    geodb,
-    http,
-    output,
-    scraper,
-    sort,
-    utils,
-)
+from proxy_scraper_checker import checker, geodb, http, output, scraper, sort
 from proxy_scraper_checker.settings import Settings
 from proxy_scraper_checker.storage import ProxyStorage
 
@@ -99,8 +91,8 @@ def get_summary_table(
 
 async def main() -> None:
     config = tomllib.loads(
-        utils.bytes_decode(
-            await asyncio.to_thread(Path("config.toml").read_bytes)
+        await asyncio.to_thread(
+            Path("config.toml").read_text, encoding="utf-8", errors="replace"
         )
     )
     if config["debug"]:
@@ -112,7 +104,7 @@ async def main() -> None:
             headers=http.HEADERS,
             cookie_jar=http.get_cookie_jar(),
             raise_for_status=True,
-            fallback_charset_resolver=http.fallback_charset_resolver,
+            timeout=ClientTimeout(total=60, connect=5),
         ) as session:
             settings = await Settings.from_mapping(config, session=session)
             storage = ProxyStorage(protocols=settings.sources)

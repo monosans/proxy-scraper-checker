@@ -8,11 +8,10 @@ from typing import TYPE_CHECKING
 from aiohttp import ClientResponseError, ClientTimeout
 from aiohttp_socks import ProxyType
 
-from proxy_scraper_checker.http import get_response_text
 from proxy_scraper_checker.incrementor import Incrementor
 from proxy_scraper_checker.parsers import PROXY_REGEX
 from proxy_scraper_checker.proxy import Proxy
-from proxy_scraper_checker.utils import bytes_decode, is_http_url
+from proxy_scraper_checker.utils import is_http_url
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
@@ -40,12 +39,13 @@ async def scrape_one(
         if is_http_url(source):
             async with session.get(source, timeout=timeout) as response:
                 content = await response.read()
-            text = get_response_text(response=response, content=content)
+            text = content.decode(response.get_encoding(), errors="replace")
         else:
-            content = await asyncio.to_thread(
-                Path(source.removeprefix("file://")).read_bytes
+            text = await asyncio.to_thread(
+                Path(source.removeprefix("file://")).read_text,
+                encoding="utf-8",
+                errors="replace",
             )
-            text = bytes_decode(content)
     except ClientResponseError as e:
         _logger.warning(
             "%s | HTTP status code %d: %s", source, e.status, e.message
@@ -112,7 +112,7 @@ async def scrape_all(
         )
         for proto, sources in settings.sources.items()
     }
-    timeout = ClientTimeout(total=settings.source_timeout)
+    timeout = ClientTimeout(total=settings.source_timeout, connect=5)
     await asyncio.gather(
         *(
             scrape_one(

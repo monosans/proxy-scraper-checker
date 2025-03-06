@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import enum
-import json
 import logging
 import math
 import stat
@@ -14,12 +13,12 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import attrs
+import orjson
 import platformdirs
 from aiohttp import ClientTimeout, hdrs
 from aiohttp_socks import ProxyType
 
 from proxy_scraper_checker import fs, sort
-from proxy_scraper_checker.http import get_response_text
 from proxy_scraper_checker.null_context import NullContext
 from proxy_scraper_checker.parsers import parse_ipv4
 from proxy_scraper_checker.utils import is_docker
@@ -148,7 +147,6 @@ async def _get_check_website_type_and_real_ip(
     try:
         async with session.get(check_website) as response:
             content = await response.read()
-        text = get_response_text(response=response, content=content)
     except Exception:
         _logger.exception(
             "Error when opening check_website without proxy, it will be "
@@ -156,10 +154,12 @@ async def _get_check_website_type_and_real_ip(
         )
         return CheckWebsiteType.UNKNOWN, None
     try:
-        js = json.loads(text)
-    except json.JSONDecodeError:
+        js = orjson.loads(content)
+    except orjson.JSONDecodeError:
         try:
-            return CheckWebsiteType.PLAIN_IP, parse_ipv4(text)
+            return CheckWebsiteType.PLAIN_IP, parse_ipv4(
+                content.decode(response.get_encoding(), errors="replace")
+            )
         except ValueError:
             pass
     else:

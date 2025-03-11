@@ -16,11 +16,11 @@ wheels = [
 
 [[package]]
 name = "aiohappyeyeballs"
-version = "2.5.0"
+version = "2.6.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a2/0c/458958007041f4b4de2d307e6b75d9e7554dad0baf26fe7a48b741aac126/aiohappyeyeballs-2.5.0.tar.gz", hash = "sha256:18fde6204a76deeabc97c48bdd01d5801cfda5d6b9c8bbeb1aaaee9d648ca191", size = 22494 }
+sdist = { url = "https://files.pythonhosted.org/packages/e2/cf/c977f2160d746b12828a9266b56ad3037475e21d6e75c41199014292b5cd/aiohappyeyeballs-2.6.0.tar.gz", hash = "sha256:27d9b0502cb854b379200a357cf8924340457cadd170bfff6ab7380fbfa905dc", size = 22493 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1b/9a/e4886864ce06e1579bd428208127fbdc0d62049c751e4e9e3b509c0059dc/aiohappyeyeballs-2.5.0-py3-none-any.whl", hash = "sha256:0850b580748c7071db98bffff6d4c94028d0d3035acc20fd721a0ce7e8cac35d", size = 15128 },
+    { url = "https://files.pythonhosted.org/packages/9b/41/31311f6928f238a30f50c691cc7d72e49965672277c5423990224bfd10ef/aiohappyeyeballs-2.6.0-py3-none-any.whl", hash = "sha256:bd426b701502752ccba9be65a75b5f136b14a210aa275410ce24094e9495d1ab", size = 15129 },
 ]
 
 [[package]]

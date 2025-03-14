@@ -22,7 +22,7 @@ jobs:
           - name: macos-x86-64
             runner: macos-13
           - name: windows-x86-64
-            runner: windows-2022
+            runner: windows-2025
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     permissions:

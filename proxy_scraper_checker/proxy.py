@@ -1,21 +1,15 @@
 from __future__ import annotations
 
-import json
 from io import StringIO
 from time import perf_counter
 from typing import TYPE_CHECKING
 
 import attrs
+import orjson
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
 
-from proxy_scraper_checker.http import (
-    HEADERS,
-    SSL_CONTEXT,
-    fallback_charset_resolver,
-    get_cookie_jar,
-    get_response_text,
-)
+from proxy_scraper_checker.http import HEADERS, SSL_CONTEXT, get_cookie_jar
 from proxy_scraper_checker.parsers import parse_ipv4
 from proxy_scraper_checker.settings import CheckWebsiteType
 
@@ -63,7 +57,6 @@ class Proxy:
                     cookie_jar=get_cookie_jar(),
                     raise_for_status=True,
                     timeout=settings.timeout,
-                    fallback_charset_resolver=fallback_charset_resolver,
                 ) as session,
                 session.get(
                     settings.check_website,
@@ -73,14 +66,9 @@ class Proxy:
                 content = await response.read()
         self.timeout = perf_counter() - start
         if settings.check_website_type == CheckWebsiteType.HTTPBIN_IP:
-            r = json.loads(
-                get_response_text(response=response, content=content)
-            )
-            self.exit_ip = parse_ipv4(r["origin"])
+            self.exit_ip = parse_ipv4(orjson.loads(content)["origin"])
         elif settings.check_website_type == CheckWebsiteType.PLAIN_IP:
-            self.exit_ip = parse_ipv4(
-                get_response_text(response=response, content=content)
-            )
+            self.exit_ip = parse_ipv4(content.decode(response.get_encoding()))
         else:
             self.exit_ip = None
 

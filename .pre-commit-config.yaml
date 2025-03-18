@@ -18,11 +18,11 @@ repos:
           - --fix=lf
       - id: trailing-whitespace
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.5.2
+    rev: v3.5.3
     hooks:
       - id: prettier
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.9.8
+    rev: v0.11.0
     hooks:
       - id: ruff
         args:
@@ -39,8 +39,8 @@ repos:
           - aiohttp-socks<0.11
           - attrs
           - certifi
-          - charset-normalizer<4
           - maxminddb<3
+          - orjson<4
           - platformdirs<5
           - rich<14
           - tomli<3

@@ -6,7 +6,7 @@ import queue
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing_extensions import Any
 
 
 def configure() -> logging.handlers.QueueListener:

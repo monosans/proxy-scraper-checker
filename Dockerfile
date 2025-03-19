@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker.io/docker/dockerfile:1
 
 FROM docker.io/python:3.13-slim-bookworm AS python-base-stage
 

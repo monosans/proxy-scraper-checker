@@ -32,6 +32,6 @@ dev = [
   "mypy[faster-cache]==1.15",
   "ruff==0.11.2",
   "tomli==2.2.1",
-  "typing-extensions==4.12.2",
+  "typing-extensions==4.13.0",
 ]
 nuitka = ["nuitka==2.6.8"]

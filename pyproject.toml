@@ -34,4 +34,4 @@ dev = [
   "tomli==2.2.1",
   "typing-extensions==4.13.0",
 ]
-nuitka = ["nuitka==2.6.8"]
+nuitka = ["nuitka==2.6.9"]

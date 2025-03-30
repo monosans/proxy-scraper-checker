@@ -13,16 +13,16 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: linux-arm64
-            runner: ubuntu-24.04-arm
-          - name: linux-x86-64
-            runner: ubuntu-24.04
-          - name: macos-arm64
-            runner: macos-15
-          - name: macos-x86-64
-            runner: macos-13
-          - name: windows-x86-64
-            runner: windows-2025
+          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-22.04-arm
+          - runner: ubuntu-24.04
+          - runner: ubuntu-22.04
+          - runner: macos-15
+          - runner: macos-14
+          - runner: macos-13
+          - runner: windows-2025
+          - runner: windows-2022
+          - runner: windows-2019
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -43,7 +43,7 @@ jobs:
           subject-path: proxy_scraper_checker.dist
       - uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.name }}
+          name: artifact-${{ matrix.runner }}
           path: proxy_scraper_checker.dist/
           if-no-files-found: error
   check:

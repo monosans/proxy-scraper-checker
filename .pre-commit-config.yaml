@@ -42,7 +42,7 @@ repos:
           - maxminddb<3
           - orjson<4
           - platformdirs<5
-          - rich<14
+          - rich<15
           - tomli<3
           - typing-extensions<5
           - uvloop<0.22; implementation_name=='cpython' and (sys_platform=='darwin' or sys_platform=='linux')

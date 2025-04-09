@@ -43,8 +43,8 @@ jobs:
       - run: rustup toolchain install beta --profile minimal --target '${{ matrix.target }}' --allow-downgrade
       - run: cargo +beta build --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
+      - run: mv target/release/proxy-scraper-checker dist/
       - run: mv config.toml dist/
-      - run: target/release/proxy-scraper-checker dist/
       - if: ${{ github.event_name != 'pull_request' }}
         uses: actions/attest-build-provenance@v2
         with:

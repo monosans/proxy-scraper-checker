@@ -12,13 +12,15 @@ fancy-regex = "=0.14.0"
 futures = "=0.3.31"
 log = "=0.4.27"
 maxminddb = "=0.26.0"
-openssl = { version = "=0.10.72", features = ["vendored"] }
 ratatui = "=0.29.0"
-reqwest = { version = "=0.12.15", features = [
+reqwest = { version = "=0.12.15", default-features = false, features = [
     "brotli",
+    "charset",
     "gzip",
     "hickory-dns",
+    "http2",
     "json",
+    "macos-system-configuration",
     "rustls-tls-native-roots",
     "socks",
     "stream",

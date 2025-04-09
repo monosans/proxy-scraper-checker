@@ -1,4 +1,5 @@
 use std::{
+    cmp::min,
     collections::{HashMap, HashSet},
     path::PathBuf,
 };
@@ -135,6 +136,11 @@ async fn get_output_path(
     Ok(output_path)
 }
 
+fn get_max_connections() -> color_eyre::Result<u64> {
+    let (soft_limit, _) = rlimit::getrlimit(rlimit::Resource::NOFILE)?;
+    Ok(soft_limit)
+}
+
 impl Config {
     pub(crate) async fn from_raw_config(
         raw_config: RawConfig,
@@ -151,13 +157,21 @@ impl Config {
             get_output_path(&raw_config)
         )?;
 
+        let max_concurrent_checks =
+            if let Ok(rlimit_nofile) = get_max_connections() {
+                #[allow(clippy::cast_possible_truncation)]
+                min(raw_config.max_concurrent_checks, rlimit_nofile as usize)
+            } else {
+                raw_config.max_concurrent_checks
+            };
+
         Ok(Self {
             timeout: tokio::time::Duration::from_secs_f64(raw_config.timeout),
             source_timeout: tokio::time::Duration::from_secs_f64(
                 raw_config.source_timeout,
             ),
             proxies_per_source_limit: raw_config.proxies_per_source_limit,
-            max_concurrent_checks: raw_config.max_concurrent_checks,
+            max_concurrent_checks,
             check_website: raw_config.check_website,
             check_website_type: check_website_type.clone(),
             sort_by_speed: raw_config.sort_by_speed,

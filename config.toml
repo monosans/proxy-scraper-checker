@@ -35,7 +35,7 @@ sort_by_speed = true
 # Only works for json output.
 enable_geolocation = true
 
-# Enable output of all errors. Significantly slows down proxy checking.
+# Enable debug logging.
 debug = false
 
 [output]

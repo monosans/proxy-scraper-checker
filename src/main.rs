@@ -51,6 +51,10 @@ async fn run(terminal: ratatui::DefaultTerminal) -> color_eyre::Result<()> {
         "failed to create Config from RawConfig",
     )?);
 
+    if !config.debug {
+        tui_logger::set_default_level(log::LevelFilter::Info);
+    }
+
     let maybe_geodb_task = if config.enable_geolocation {
         let http_client = http_client.clone();
         let tx = tx.clone();
@@ -100,10 +104,10 @@ async fn main() -> color_eyre::Result<()> {
         "failed to install color_eyre hooks",
     )?;
     color_eyre::eyre::Context::wrap_err(
-        tui_logger::init_logger(log::LevelFilter::Trace),
-        "failed to initialize logging",
+        tui_logger::init_logger(log::LevelFilter::Debug),
+        "failed to initialize logger",
     )?;
-    tui_logger::set_default_level(log::LevelFilter::Info);
+    tui_logger::set_default_level(log::LevelFilter::Debug);
     let terminal = ratatui::init();
     let result = run(terminal).await;
     ratatui::restore();

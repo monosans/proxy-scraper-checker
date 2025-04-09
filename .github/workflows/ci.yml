@@ -43,6 +43,7 @@ jobs:
         with:
           persist-credentials: false
       - run: rustup toolchain install beta --profile minimal --allow-downgrade
+      - run: rustup default beta
       - run: cargo +beta install cross --git https://github.com/cross-rs/cross
       - run: cross +beta build --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist

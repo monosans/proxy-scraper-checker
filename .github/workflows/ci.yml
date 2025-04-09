@@ -41,7 +41,7 @@ jobs:
         with:
           persist-credentials: false
       - run: rustup toolchain install beta --profile minimal --allow-downgrade
-      - run: cargo +beta build --locked --release
+      - run: cargo +beta build --locked --release --target '${{ matrix.target }}'
       - run: mkdir dist
       - run: mv config.toml target/release/proxy-scraper-checker dist/
       - if: ${{ github.event_name != 'pull_request' }}
@@ -50,7 +50,7 @@ jobs:
           subject-path: dist
       - uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.target }}
+          name: artifact-${{ matrix.name }}
           path: dist/
           if-no-files-found: error
   check:

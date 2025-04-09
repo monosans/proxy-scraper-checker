@@ -40,8 +40,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: rustup toolchain install beta --profile minimal --allow-downgrade
-      - run: cargo +beta build --locked --release --target '${{ matrix.target }}'
+      - run: rustup toolchain install beta --profile minimal --target '${{ matrix.target }}' --allow-downgrade
+      - run: cargo +beta build --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
       - run: mv config.toml target/release/proxy-scraper-checker dist/
       - if: ${{ github.event_name != 'pull_request' }}

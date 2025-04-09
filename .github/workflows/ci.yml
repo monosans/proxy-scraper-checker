@@ -22,6 +22,7 @@ jobs:
           - runner: windows-2025
             target: i686-pc-windows-msvc
             name: 32-bit Windows
+            executable: proxy-scraper-checker.exe
           - runner: ubuntu-24.04
             target: i686-unknown-linux-gnu
             name: 32-bit Linux
@@ -31,6 +32,7 @@ jobs:
           - runner: windows-2025
             target: x86_64-pc-windows-msvc
             name: 64-bit Windows
+            executable: proxy-scraper-checker.exe
           - runner: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             name: 64-bit Linux
@@ -40,10 +42,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: rustup toolchain install beta --profile minimal --target '${{ matrix.target }}' --allow-downgrade
-      - run: cargo +beta build --release --target '${{ matrix.target }}' --locked
+      - run: rustup toolchain install beta --profile minimal --allow-downgrade
+      - run: cargo +beta install cross --git https://github.com/cross-rs/cross
+      - run: cross +beta build --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
-      - run: mv config.toml target/${{ matrix.target}}/release/proxy-scraper-checker dist/
+      - run: mv config.toml dist/
+      - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
       - if: ${{ github.event_name != 'pull_request' }}
         uses: actions/attest-build-provenance@v2
         with:

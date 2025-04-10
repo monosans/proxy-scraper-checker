@@ -44,7 +44,8 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install beta --profile minimal --target '${{ matrix.target }}' --allow-downgrade
       - run: rustup default beta
-      - run: cargo +beta build --release --target '${{ matrix.target }}' --locked
+      - run: cargo +beta install cross --git https://github.com/cross-rs/cross
+      - run: cross +beta build --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
       - run: mv config.toml dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/

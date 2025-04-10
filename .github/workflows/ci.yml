@@ -16,25 +16,32 @@ jobs:
           - runner: macos-15
             target: aarch64-apple-darwin
             name: arm64-macos
+            cross: false
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             name: arm64-linux
+            cross: false
           - runner: windows-2025
             target: i686-pc-windows-msvc
             name: 32bit-windows
+            cross: false
             executable: proxy-scraper-checker.exe
           - runner: ubuntu-24.04
             target: i686-unknown-linux-gnu
             name: 32bit-linux
+            cross: true
           - runner: macos-15
             target: x86_64-apple-darwin
             name: 64bit-macos
+            cross: false
           - runner: windows-2025
             target: x86_64-pc-windows-msvc
             name: 64bit-windows
+            cross: false
             executable: proxy-scraper-checker.exe
           - runner: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
+            cross: false
             name: 64bit-linux
       fail-fast: false
     runs-on: ${{ matrix.runner }}
@@ -44,8 +51,12 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install beta --profile minimal --target '${{ matrix.target }}' --allow-downgrade
       - run: rustup default beta
-      - run: cargo +beta install cross --git https://github.com/cross-rs/cross
-      - run: cross +beta build --release --target '${{ matrix.target }}' --locked
+      - if: ${{ matrix.cross  }}
+        run: cargo +beta install cross --git https://github.com/cross-rs/cross
+      - if: ${{ matrix.cross  }}
+        run: cross +beta build --release --target '${{ matrix.target }}' --locked
+      - if: ${{ !matrix.cross }}
+        run: cargo +beta build --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
       - run: mv config.toml dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/

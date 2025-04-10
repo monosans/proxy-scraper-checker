@@ -23,9 +23,9 @@ jobs:
             target: i686-pc-windows-msvc
             name: 32bit-windows
             executable: proxy-scraper-checker.exe
-          # - runner: ubuntu-24.04
-          #   target: i686-unknown-linux-gnu
-          #   name: 32bit-linux
+          - runner: ubuntu-24.04
+            target: i686-unknown-linux-gnu
+            name: 32bit-linux
           - runner: macos-15
             target: x86_64-apple-darwin
             name: 64bit-macos

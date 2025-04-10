@@ -1,5 +1,4 @@
 use std::{
-    cmp::min,
     collections::{HashMap, HashSet},
     path::PathBuf,
 };
@@ -136,9 +135,23 @@ async fn get_output_path(
     Ok(output_path)
 }
 
-fn get_max_connections() -> color_eyre::Result<u64> {
-    let (soft_limit, _) = rlimit::getrlimit(rlimit::Resource::NOFILE)?;
-    Ok(soft_limit)
+#[allow(clippy::cast_possible_truncation)]
+fn get_file_descriptors_limit() -> usize {
+    if let Ok((soft_limit, hard_limit)) =
+        rlimit::getrlimit(rlimit::Resource::NOFILE)
+    {
+        if soft_limit < hard_limit {
+            if let Ok(()) = rlimit::setrlimit(
+                rlimit::Resource::NOFILE,
+                hard_limit,
+                hard_limit,
+            ) {
+                return hard_limit as usize;
+            }
+        }
+        return soft_limit as usize;
+    }
+    usize::MAX
 }
 
 impl Config {
@@ -157,13 +170,17 @@ impl Config {
             get_output_path(&raw_config)
         )?;
 
-        let max_concurrent_checks =
-            if let Ok(rlimit_nofile) = get_max_connections() {
-                #[allow(clippy::cast_possible_truncation)]
-                min(raw_config.max_concurrent_checks, rlimit_nofile as usize)
-            } else {
-                raw_config.max_concurrent_checks
-            };
+        let file_descriptors_limit = get_file_descriptors_limit();
+        let max_concurrent_checks = if raw_config.max_concurrent_checks
+            > file_descriptors_limit
+        {
+            log::warn!(
+                "max_concurrent_checks config value is too high for your OS. It will be ignored and {file_descriptors_limit} will be used."
+            );
+            file_descriptors_limit
+        } else {
+            raw_config.max_concurrent_checks
+        };
 
         Ok(Self {
             timeout: tokio::time::Duration::from_secs_f64(raw_config.timeout),

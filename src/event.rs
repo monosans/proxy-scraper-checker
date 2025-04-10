@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use derivative::Derivative;
-
 use crate::proxy::ProxyType;
 
 pub(crate) enum AppEvent {
@@ -24,9 +22,18 @@ pub(crate) enum Event {
     App(AppEvent),
 }
 
-#[derive(Derivative)]
-#[derivative(Default)]
+#[derive(Default)]
+pub(crate) enum AppMode {
+    #[default]
+    Running,
+    Done,
+    Quit,
+}
+
+#[derive(Default)]
 pub(crate) struct AppState {
+    pub(crate) mode: AppMode,
+
     pub(crate) geodb_total: u64,
     pub(crate) geodb_downloaded: usize,
 
@@ -36,11 +43,6 @@ pub(crate) struct AppState {
     pub(crate) proxies_total: HashMap<ProxyType, usize>,
     pub(crate) proxies_checked: HashMap<ProxyType, usize>,
     pub(crate) proxies_working: HashMap<ProxyType, usize>,
-
-    pub(crate) done: bool,
-
-    #[derivative(Default(value = "true"))]
-    pub(crate) running: bool,
 }
 
 impl AppState {

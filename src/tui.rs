@@ -13,7 +13,7 @@ use ratatui::{
 use tui_logger::{TuiLoggerWidget, TuiWidgetEvent, TuiWidgetState};
 
 use crate::{
-    event::{AppEvent, AppState, Event},
+    event::{AppEvent, AppMode, AppState, Event},
     proxy::ProxyType,
 };
 
@@ -63,7 +63,7 @@ pub(crate) async fn run(
     let crossterm_task = tokio::spawn(crossterm_event_listener(tx));
     let mut app_state = AppState::new();
     let logger_state = TuiWidgetState::default();
-    while app_state.running {
+    while !matches!(app_state.mode, AppMode::Quit) {
         if let Some(event) = rx.recv().await {
             if handle_event(event, &mut app_state, &logger_state) {
                 terminal
@@ -124,7 +124,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         .split(outer_layout[1]);
 
     let mut lines = Vec::new();
-    if state.done {
+    if let AppMode::Done = state.mode {
         lines.push(
             Line::from("Enter/ESC/q/Ctrl-C - exit")
                 .style(Style::default().fg(Color::Red)),
@@ -259,15 +259,15 @@ fn handle_event(
                     KeyCode::Enter
                     | KeyCode::Esc
                     | KeyCode::Char('q' | 'Q')
-                        if state.done =>
+                        if matches!(state.mode, AppMode::Done) =>
                     {
-                        state.running = false;
+                        state.mode = AppMode::Quit;
                     }
                     KeyCode::Char('c' | 'C')
                         if key_event.modifiers == KeyModifiers::CONTROL
-                            && state.done =>
+                            && matches!(state.mode, AppMode::Done) =>
                     {
-                        state.running = false;
+                        state.mode = AppMode::Quit;
                     }
                     KeyCode::Up | KeyCode::PageUp | KeyCode::Char('k') => {
                         logger_state.transition(TuiWidgetEvent::PrevPageKey);
@@ -314,7 +314,7 @@ fn handle_event(
                     *state.proxies_working.entry(proxy_type).or_default() += 1;
                 }
                 AppEvent::Done => {
-                    state.done = true;
+                    state.mode = AppMode::Done;
                 }
             }
             false

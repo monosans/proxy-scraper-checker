@@ -30,7 +30,7 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 ### Docker
 
 > [!WARNING]
-> TUI does not work with Docker.
+> User interface does not work with Docker.
 
 1. [Install `Docker Compose`](https://docs.docker.com/compose/install/).
 1. Download [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).

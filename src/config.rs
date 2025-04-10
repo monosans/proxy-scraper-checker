@@ -135,25 +135,6 @@ async fn get_output_path(
     Ok(output_path)
 }
 
-#[allow(clippy::cast_possible_truncation)]
-fn get_file_descriptors_limit() -> usize {
-    if let Ok((soft_limit, hard_limit)) =
-        rlimit::getrlimit(rlimit::Resource::NOFILE)
-    {
-        if soft_limit < hard_limit {
-            if let Ok(()) = rlimit::setrlimit(
-                rlimit::Resource::NOFILE,
-                hard_limit,
-                hard_limit,
-            ) {
-                return hard_limit as usize;
-            }
-        }
-        return soft_limit as usize;
-    }
-    usize::MAX
-}
-
 impl Config {
     pub(crate) async fn from_raw_config(
         raw_config: RawConfig,
@@ -170,16 +151,21 @@ impl Config {
             get_output_path(&raw_config)
         )?;
 
-        let file_descriptors_limit = get_file_descriptors_limit();
-        let max_concurrent_checks = if raw_config.max_concurrent_checks
-            > file_descriptors_limit
-        {
-            log::warn!(
-                "max_concurrent_checks config value is too high for your OS. It will be ignored and {file_descriptors_limit} will be used."
-            );
-            file_descriptors_limit
-        } else {
-            raw_config.max_concurrent_checks
+        let max_concurrent_checks = match rlimit::increase_nofile_limit(
+            u64::MAX,
+        ) {
+            #[allow(clippy::cast_possible_truncation)]
+            Ok(lim) => {
+                if raw_config.max_concurrent_checks > (lim as usize) {
+                    log::warn!(
+                        "max_concurrent_checks config value is too high for your OS. It will be ignored and {lim} will be used."
+                    );
+                    lim as usize
+                } else {
+                    raw_config.max_concurrent_checks
+                }
+            }
+            Err(_) => raw_config.max_concurrent_checks,
         };
 
         Ok(Self {

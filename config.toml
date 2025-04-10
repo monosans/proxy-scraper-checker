@@ -4,7 +4,7 @@
 timeout = 5
 
 # The number of seconds to wait for the proxies to be downloaded from the source.
-source_timeout = 15
+source_timeout = 5
 
 # Maximum number of proxies from a single source.
 # If the source has more proxies than this value,

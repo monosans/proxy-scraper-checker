@@ -14,265 +14,122 @@ jobs:
       matrix:
         include:
           - target: aarch64-apple-darwin
-            name: arm64-macos
             runner: macos-15
             cross: false
           - target: aarch64-unknown-linux-gnu
-            name: arm64-linux
             runner: ubuntu-24.04-arm
             cross: false
           - target: i686-pc-windows-msvc
-            name: 32bit-windows
             runner: windows-2025
             cross: false
             executable: proxy-scraper-checker.exe
           - target: x86_64-apple-darwin
-            name: 64bit-macos
             runner: macos-15
             cross: false
           - target: x86_64-pc-windows-msvc
-            name: 64bit-windows
             runner: windows-2025
             cross: false
             executable: proxy-scraper-checker.exe
           - target: x86_64-unknown-linux-gnu
-            name: 64bit-linux
             runner: ubuntu-24.04
             cross: false
           - target: aarch64-linux-android
-            name: aarch64-linux-android
-            runner: ubuntu-24.04
-            cross: true
-          - target: aarch64-unknown-linux-gnu
-            name: aarch64-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
-          - target: aarch64-unknown-linux-gnu:centos
-            name: aarch64-unknown-linux-gnu:centos
             runner: ubuntu-24.04
             cross: true
           - target: aarch64-unknown-linux-musl
-            name: aarch64-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true
           - target: arm-linux-androideabi
-            name: arm-linux-androideabi
             runner: ubuntu-24.04
             cross: true
           - target: arm-unknown-linux-gnueabi
-            name: arm-unknown-linux-gnueabi
             runner: ubuntu-24.04
             cross: true
           - target: arm-unknown-linux-gnueabihf
-            name: arm-unknown-linux-gnueabihf
             runner: ubuntu-24.04
             cross: true
           - target: arm-unknown-linux-musleabi
-            name: arm-unknown-linux-musleabi
             runner: ubuntu-24.04
             cross: true
           - target: arm-unknown-linux-musleabihf
-            name: arm-unknown-linux-musleabihf
             runner: ubuntu-24.04
             cross: true
           - target: armv5te-unknown-linux-gnueabi
-            name: armv5te-unknown-linux-gnueabi
             runner: ubuntu-24.04
             cross: true
           - target: armv5te-unknown-linux-musleabi
-            name: armv5te-unknown-linux-musleabi
             runner: ubuntu-24.04
             cross: true
           - target: armv7-linux-androideabi
-            name: armv7-linux-androideabi
             runner: ubuntu-24.04
             cross: true
           - target: armv7-unknown-linux-gnueabi
-            name: armv7-unknown-linux-gnueabi
             runner: ubuntu-24.04
             cross: true
           - target: armv7-unknown-linux-gnueabihf
-            name: armv7-unknown-linux-gnueabihf
             runner: ubuntu-24.04
             cross: true
           - target: armv7-unknown-linux-musleabi
-            name: armv7-unknown-linux-musleabi
             runner: ubuntu-24.04
             cross: true
           - target: armv7-unknown-linux-musleabihf
-            name: armv7-unknown-linux-musleabihf
-            runner: ubuntu-24.04
-            cross: true
-          - target: i586-unknown-linux-gnu
-            name: i586-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
-          - target: i586-unknown-linux-musl
-            name: i586-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true
           - target: i686-unknown-freebsd
-            name: i686-unknown-freebsd
             runner: ubuntu-24.04
             cross: true
           - target: i686-linux-android
-            name: i686-linux-android
-            runner: ubuntu-24.04
-            cross: true
-          - target: i686-pc-windows-gnu
-            name: i686-pc-windows-gnu
             runner: ubuntu-24.04
             cross: true
           - target: i686-unknown-linux-gnu
-            name: i686-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
           - target: loongarch64-unknown-linux-gnu
-            name: loongarch64-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
           - target: loongarch64-unknown-linux-musl
-            name: loongarch64-unknown-linux-musl
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips-unknown-linux-gnu
-            name: mips-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips-unknown-linux-musl
-            name: mips-unknown-linux-musl
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips64-unknown-linux-gnuabi64
-            name: mips64-unknown-linux-gnuabi64
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips64-unknown-linux-muslabi64
-            name: mips64-unknown-linux-muslabi64
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips64el-unknown-linux-gnuabi64
-            name: mips64el-unknown-linux-gnuabi64
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips64el-unknown-linux-muslabi64
-            name: mips64el-unknown-linux-muslabi64
-            runner: ubuntu-24.04
-            cross: true
-          - target: mipsel-unknown-linux-gnu
-            name: mipsel-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
-          - target: mipsel-unknown-linux-musl
-            name: mipsel-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true
           - target: powerpc-unknown-linux-gnu
-            name: powerpc-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
           - target: powerpc64-unknown-linux-gnu
-            name: powerpc64-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
           - target: powerpc64le-unknown-linux-gnu
-            name: powerpc64le-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
           - target: riscv64gc-unknown-linux-gnu
-            name: riscv64gc-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
           - target: s390x-unknown-linux-gnu
-            name: s390x-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
           - target: sparc64-unknown-linux-gnu
-            name: sparc64-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
-          - target: sparcv9-sun-solaris
-            name: sparcv9-sun-solaris
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv6m-none-eabi
-            name: thumbv6m-none-eabi
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv7em-none-eabi
-            name: thumbv7em-none-eabi
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv7em-none-eabihf
-            name: thumbv7em-none-eabihf
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv7m-none-eabi
-            name: thumbv7m-none-eabi
             runner: ubuntu-24.04
             cross: true
           - target: thumbv7neon-linux-androideabi
-            name: thumbv7neon-linux-androideabi
             runner: ubuntu-24.04
             cross: true
           - target: thumbv7neon-unknown-linux-gnueabihf
-            name: thumbv7neon-unknown-linux-gnueabihf
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv8m.base-none-eabi
-            name: thumbv8m.base-none-eabi
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv8m.main-none-eabi
-            name: thumbv8m.main-none-eabi
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv8m.main-none-eabihf
-            name: thumbv8m.main-none-eabihf
-            runner: ubuntu-24.04
-            cross: true
-          - target: wasm32-unknown-emscripten
-            name: wasm32-unknown-emscripten
             runner: ubuntu-24.04
             cross: true
           - target: x86_64-linux-android
-            name: x86_64-linux-android
-            runner: ubuntu-24.04
-            cross: true
-          - target: x86_64-pc-windows-gnu
-            name: x86_64-pc-windows-gnu
-            runner: ubuntu-24.04
-            cross: true
-          - target: x86_64-pc-solaris
-            name: x86_64-pc-solaris
             runner: ubuntu-24.04
             cross: true
           - target: x86_64-unknown-freebsd
-            name: x86_64-unknown-freebsd
-            runner: ubuntu-24.04
-            cross: true
-          - target: x86_64-unknown-dragonfly
-            name: x86_64-unknown-dragonfly
             runner: ubuntu-24.04
             cross: true
           - target: x86_64-unknown-illumos
-            name: x86_64-unknown-illumos
             runner: ubuntu-24.04
             cross: true
           - target: x86_64-unknown-linux-gnu
-            name: x86_64-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
-          - target: x86_64-unknown-linux-gnu:centos
-            name: x86_64-unknown-linux-gnu:centos
             runner: ubuntu-24.04
             cross: true
           - target: x86_64-unknown-linux-musl
-            name: x86_64-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true
           - target: x86_64-unknown-netbsd
-            name: x86_64-unknown-netbsd
             runner: ubuntu-24.04
             cross: true
       fail-fast: false
@@ -301,7 +158,7 @@ jobs:
           subject-path: dist
       - uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.name }}
+          name: artifact-${{ matrix.target }}
           path: dist/
           if-no-files-found: error
   check:

@@ -13,36 +13,122 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: macos-15
-            target: aarch64-apple-darwin
-            name: arm64-macos
+          - target: aarch64-apple-darwin
+            runner: macos-15
             cross: false
-          - runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            name: arm64-linux
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
             cross: false
-          - runner: windows-2025
-            target: i686-pc-windows-msvc
-            name: 32bit-windows
+          - target: i686-pc-windows-msvc
+            runner: windows-2025
             cross: false
             executable: proxy-scraper-checker.exe
-          - runner: ubuntu-24.04
-            target: i686-unknown-linux-gnu
-            name: 32bit-linux
+          - target: x86_64-apple-darwin
+            runner: macos-15
+            cross: false
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
+            cross: false
+            executable: proxy-scraper-checker.exe
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: false
+          - target: aarch64-linux-android
+            runner: ubuntu-24.04
             cross: true
-          - runner: macos-15
-            target: x86_64-apple-darwin
-            name: 64bit-macos
-            cross: false
-          - runner: windows-2025
-            target: x86_64-pc-windows-msvc
-            name: 64bit-windows
-            cross: false
-            executable: proxy-scraper-checker.exe
-          - runner: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-            cross: false
-            name: 64bit-linux
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04
+            cross: true
+          - target: arm-linux-androideabi
+            runner: ubuntu-24.04
+            cross: true
+          - target: arm-unknown-linux-gnueabi
+            runner: ubuntu-24.04
+            cross: true
+          - target: arm-unknown-linux-gnueabihf
+            runner: ubuntu-24.04
+            cross: true
+          - target: arm-unknown-linux-musleabi
+            runner: ubuntu-24.04
+            cross: true
+          - target: arm-unknown-linux-musleabihf
+            runner: ubuntu-24.04
+            cross: true
+          - target: armv5te-unknown-linux-gnueabi
+            runner: ubuntu-24.04
+            cross: true
+          - target: armv5te-unknown-linux-musleabi
+            runner: ubuntu-24.04
+            cross: true
+          - target: armv7-linux-androideabi
+            runner: ubuntu-24.04
+            cross: true
+          - target: armv7-unknown-linux-gnueabi
+            runner: ubuntu-24.04
+            cross: true
+          - target: armv7-unknown-linux-gnueabihf
+            runner: ubuntu-24.04
+            cross: true
+          - target: armv7-unknown-linux-musleabi
+            runner: ubuntu-24.04
+            cross: true
+          - target: armv7-unknown-linux-musleabihf
+            runner: ubuntu-24.04
+            cross: true
+          - target: i686-unknown-freebsd
+            runner: ubuntu-24.04
+            cross: true
+          - target: i686-linux-android
+            runner: ubuntu-24.04
+            cross: true
+          - target: i686-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: loongarch64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: loongarch64-unknown-linux-musl
+            runner: ubuntu-24.04
+            cross: true
+          - target: powerpc-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: powerpc64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: powerpc64le-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: riscv64gc-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: s390x-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: sparc64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: thumbv7neon-linux-androideabi
+            runner: ubuntu-24.04
+            cross: true
+          - target: thumbv7neon-unknown-linux-gnueabihf
+            runner: ubuntu-24.04
+            cross: true
+          - target: x86_64-linux-android
+            runner: ubuntu-24.04
+            cross: true
+          - target: x86_64-unknown-freebsd
+            runner: ubuntu-24.04
+            cross: true
+          - target: x86_64-unknown-illumos
+            runner: ubuntu-24.04
+            cross: true
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-24.04
+            cross: true
+          - target: x86_64-unknown-netbsd
+            runner: ubuntu-24.04
+            cross: true
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -61,6 +147,8 @@ jobs:
       - if: ${{ !matrix.cross }}
         run: cargo +beta build --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
+      - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
+        shell: bash
       - run: mv config.toml dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
       - if: ${{ github.event_name != 'pull_request' }}
@@ -69,7 +157,7 @@ jobs:
           subject-path: dist
       - uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.name }}
+          name: proxy-scraper-checker-${{ matrix.target }}
           path: dist/
           if-no-files-found: error
   check:

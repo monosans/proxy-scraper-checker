@@ -3,13 +3,10 @@
 set -euo pipefail
 
 project_name="proxy-scraper-checker"
-base_path="${HOME}"
-install_path="${base_path}/${project_name}"
+install_path="${HOME}/${project_name}"
 download_path="${TMPDIR}/${project_name}.zip"
 
-abi=$(getprop ro.product.cpu.abi)
-
-case "${abi}" in
+case $(getprop ro.product.cpu.abi) in
   "arm64-v8a")
     target="aarch64-linux-android"
     ;;
@@ -35,8 +32,9 @@ case "${abi}" in
     ;;
 esac
 
-curl -fLo "${download_path}" "https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main/proxy-scraper-checker-${target}.zip"
+curl -fLo "${download_path}" "https://nightly.link/monosans/${project_name}/workflows/ci/main/${project_name}-${target}.zip"
 mkdir "${install_path}"
-unzip -d "${install_path}" "${download_path}"
+rm -f "${install_path}/*"
+unzip -qd "${install_path}" "${download_path}"
 rm -f "${download_path}"
 printf "%s installed successfully.\nRun 'cd %s && ./%s'.\n" "${project_name}" "${install_path}" "${project_name}"

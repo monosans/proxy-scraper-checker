@@ -33,8 +33,7 @@ case $(getprop ro.product.cpu.abi) in
 esac
 
 curl -fLo "${download_path}" "https://nightly.link/monosans/${project_name}/workflows/ci/main/${project_name}-${target}.zip"
-mkdir "${install_path}"
-rm -f "${install_path}/*"
+mkdir -p "${install_path}"
 unzip -qd "${install_path}" "${download_path}"
 rm -f "${download_path}"
 printf "%s installed successfully.\nRun 'cd %s && ./%s'.\n" "${project_name}" "${install_path}" "${project_name}"

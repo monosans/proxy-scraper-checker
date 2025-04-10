@@ -76,7 +76,9 @@ jobs:
     if: ${{ always() && github.event_name == 'pull_request' }}
     needs:
       - build
+      - clippy
       - pre-commit
+      - rustfmt
     runs-on: ubuntu-24.04
     steps:
       - uses: re-actors/alls-green@release/v1

@@ -87,18 +87,8 @@ impl CheckWebsiteType {
             CheckWebsiteType::PlainIp | CheckWebsiteType::HttpbinIp => true,
         }
     }
-
-    pub(crate) fn headers(&self) -> reqwest::header::HeaderMap {
-        let mut headers = reqwest::header::HeaderMap::new();
-        if let CheckWebsiteType::HttpbinIp = self {
-            headers.insert(
-                reqwest::header::ACCEPT,
-                "application/json".parse().unwrap(),
-            );
-        }
-        headers
-    }
 }
+
 #[allow(clippy::struct_excessive_bools)]
 pub(crate) struct Config {
     pub(crate) timeout: tokio::time::Duration,

@@ -89,7 +89,6 @@ impl Proxy {
         let start = tokio::time::Instant::now();
         let response = client
             .get(&config.check_website)
-            .headers(config.check_website_type.headers())
             .send()
             .await
             .wrap_err_with(|| {

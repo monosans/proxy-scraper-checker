@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 project_name="proxy-scraper-checker"
 base_path="${HOME}"
 install_path="${base_path}/${project_name}"

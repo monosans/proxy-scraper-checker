@@ -12,7 +12,7 @@ fn validate_positive_f64<'de, D: Deserializer<'de>>(
     if val > 0.0 {
         Ok(val)
     } else {
-        Err(serde::de::Error::custom("Value must be positive"))
+        Err(serde::de::Error::custom("value must be positive"))
     }
 }
 
@@ -23,7 +23,7 @@ fn validate_positive_usize<'de, D: Deserializer<'de>>(
     if val > 0 {
         Ok(val)
     } else {
-        Err(serde::de::Error::custom("Value must be positive"))
+        Err(serde::de::Error::custom("value must be positive"))
     }
 }
 
@@ -35,7 +35,7 @@ fn validate_http_url<'de, D: Deserializer<'de>>(
         Ok(s)
     } else {
         Err(serde::de::Error::custom(format!(
-            "{s:?} is not a valid 'http' or 'https' url"
+            "'{s}' is not a valid 'http' or 'https' url"
         )))
     }
 }

@@ -134,12 +134,16 @@ jobs:
     permissions:
       id-token: write
       attestations: write
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - run: rustup toolchain install beta --profile minimal --target '${{ matrix.target }}' --allow-downgrade
       - run: rustup default beta
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - if: ${{ matrix.cross  }}
         run: cargo +beta install cross --git https://github.com/cross-rs/cross
       - if: ${{ matrix.cross  }}
@@ -174,11 +178,15 @@ jobs:
           jobs: ${{ toJSON(needs) }}
   clippy:
     runs-on: ubuntu-24.04
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - run: rustup toolchain install beta --profile minimal --component clippy --allow-downgrade
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo +beta clippy --all-targets --all-features -- -Dwarnings -Wclippy::pedantic
   pre-commit:
     runs-on: ubuntu-24.04
@@ -194,9 +202,13 @@ jobs:
           RUFF_OUTPUT_FORMAT: github
   rustfmt:
     runs-on: ubuntu-24.04
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - run: rustup toolchain install nightly --profile minimal --component rustfmt --allow-downgrade
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo +nightly fmt --check

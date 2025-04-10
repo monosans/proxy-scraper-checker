@@ -25,7 +25,7 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 > [!NOTE]
 > The instructions for Termux are below.
 
-1. Download the archive for your platform from [nightly.link](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview). If you can't figure out which archive you need, use [these tables](https://doc.rust-lang.org/beta/rustc/platform-support.html).
+1. Download the archive for your platform from [nightly.link](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview). If you are not sure which archive you need, use [the table](https://doc.rust-lang.org/beta/rustc/platform-support.html).
 1. Unpack the archive into a separate folder.
 1. Edit `config.toml` to your preference.
 1. Run the executable.

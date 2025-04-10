@@ -29,6 +29,7 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 
 ### Docker
 
+> [!WARNING]
 > TUI does not work with Docker.
 
 1. [Install `Docker Compose`](https://docs.docker.com/compose/install/).

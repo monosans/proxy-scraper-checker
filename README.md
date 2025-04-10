@@ -23,7 +23,7 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 ### Binary
 
 > [!NOTE]
-> The instructions for Termux are below.
+> There is a separate section for Termux.
 
 1. Download the archive for your platform from [nightly.link](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview). If you are not sure which archive you need, use [the table](https://doc.rust-lang.org/beta/rustc/platform-support.html).
 1. Unpack the archive into a separate folder.

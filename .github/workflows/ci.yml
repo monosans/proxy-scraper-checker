@@ -45,6 +45,9 @@ jobs:
             name: 64bit-linux
       fail-fast: false
     runs-on: ${{ matrix.runner }}
+    permissions:
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:

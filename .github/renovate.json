@@ -15,18 +15,7 @@
       "matchUpdateTypes": ["lockFileMaintenance", "patch", "replacement"],
       "automerge": true
     },
-    {
-      "matchDepTypes": ["dependency-groups"],
-      "matchManagers": ["pep621"],
-      "automerge": true
-    },
-    { "matchManagers": ["github-actions", "pre-commit"], "automerge": true },
-    {
-      "matchCategories": ["docker"],
-      "matchDepNames": ["docker.io/python"],
-      "matchUpdateTypes": ["minor"],
-      "automerge": false
-    }
+    { "matchManagers": ["github-actions", "pre-commit"], "automerge": true }
   ],
   "prConcurrentLimit": 0,
   "prHourlyLimit": 0,

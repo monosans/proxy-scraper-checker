@@ -13,39 +13,61 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: ubuntu-24.04-arm
-          - runner: ubuntu-22.04-arm
-          - runner: ubuntu-24.04
-          - runner: ubuntu-22.04
           - runner: macos-15
-          - runner: macos-14
-          - runner: macos-13
+            target: aarch64-apple-darwin
+            name: arm64-macos
+            cross: false
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            name: arm64-linux
+            cross: false
           - runner: windows-2025
-          - runner: windows-2022
-          - runner: windows-2019
-            python-version: "3.12"
+            target: i686-pc-windows-msvc
+            name: 32bit-windows
+            cross: false
+            executable: proxy-scraper-checker.exe
+          - runner: ubuntu-24.04
+            target: i686-unknown-linux-gnu
+            name: 32bit-linux
+            cross: true
+          - runner: macos-15
+            target: x86_64-apple-darwin
+            name: 64bit-macos
+            cross: false
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            name: 64bit-windows
+            cross: false
+            executable: proxy-scraper-checker.exe
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            cross: false
+            name: 64bit-linux
       fail-fast: false
     runs-on: ${{ matrix.runner }}
-    permissions:
-      id-token: write
-      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-      - run: uv run --no-dev --group nuitka --frozen --python ${{ matrix.python-version || '3.13' }} python -m nuitka --mode=standalone --python-flag='-m' --assume-yes-for-downloads --deployment --lto=yes proxy_scraper_checker
-      - run: mv config.toml proxy_scraper_checker.dist/
+      - run: rustup toolchain install beta --profile minimal --target '${{ matrix.target }}' --allow-downgrade
+      - run: rustup default beta
+      - if: ${{ matrix.cross  }}
+        run: cargo +beta install cross --git https://github.com/cross-rs/cross
+      - if: ${{ matrix.cross  }}
+        run: cross +beta build --release --target '${{ matrix.target }}' --locked
+      - if: ${{ !matrix.cross }}
+        run: cargo +beta build --release --target '${{ matrix.target }}' --locked
+      - run: mkdir dist
+      - run: mv config.toml dist/
+      - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
       - if: ${{ github.event_name != 'pull_request' }}
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: proxy_scraper_checker.dist
+          subject-path: dist
       - uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.runner }}
-          path: proxy_scraper_checker.dist/
+          name: artifact-${{ matrix.name }}
+          path: dist/
           if-no-files-found: error
   check:
     if: ${{ always() && github.event_name == 'pull_request' }}
@@ -57,6 +79,14 @@ jobs:
       - uses: re-actors/alls-green@release/v1
         with:
           jobs: ${{ toJSON(needs) }}
+  clippy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install beta --profile minimal --component clippy --allow-downgrade
+      - run: cargo +beta clippy --all-targets --all-features -- -Dwarnings -Wclippy::pedantic
   pre-commit:
     runs-on: ubuntu-24.04
     steps:
@@ -69,3 +99,11 @@ jobs:
       - run: uv tool run --from pre-commit@latest --with pre-commit-uv --no-cache --python 3.13 pre-commit run --all-files --show-diff-on-failure
         env:
           RUFF_OUTPUT_FORMAT: github
+  rustfmt:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install nightly --profile minimal --component rustfmt --allow-downgrade
+      - run: cargo +nightly fmt --check

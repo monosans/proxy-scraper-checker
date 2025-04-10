@@ -12,11 +12,10 @@ source_timeout = 15
 # Set to 0 to disable this limit.
 proxies_per_source_limit = 100000
 
-# Maximum concurrent connections.
+# Maximum concurrent proxy checks.
 # Don't be in a hurry to set high values.
 # Make sure you have enough RAM first, gradually increasing the default value.
-# If set to 0, the maximum value available for your OS will be used.
-max_connections = 2048
+max_concurrent_checks = 4096
 
 # URL to which to send a request to check the proxy.
 # If it is not httpbin or a service that returns an IP address,
@@ -36,7 +35,7 @@ sort_by_speed = true
 # Only works for json output.
 enable_geolocation = true
 
-# Enable output of all errors. Significantly slows down proxy checking.
+# Enable debug logging.
 debug = false
 
 [output]

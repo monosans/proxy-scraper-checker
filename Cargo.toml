@@ -1,0 +1,39 @@
+[package]
+name = "proxy-scraper-checker"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+color-eyre = "=0.6.3"
+crossterm = { version = "=0.28.1", features = ["event-stream"] }
+derivative = "=2.2.0"
+dirs = "=6.0.0"
+fancy-regex = "=0.14.0"
+futures = "=0.3.31"
+log = "=0.4.27"
+maxminddb = "=0.26.0"
+ratatui = "=0.29.0"
+reqwest = { version = "=0.12.15", default-features = false, features = [
+    "brotli",
+    "charset",
+    "gzip",
+    "hickory-dns",
+    "http2",
+    "json",
+    "macos-system-configuration",
+    "rustls-tls",
+    "socks",
+    "stream",
+] }
+rlimit = "=0.10.2"
+serde = "=1.0.219"
+serde_json = "=1.0.140"
+tokio = { version = "=1.44.2", features = ["full"] }
+toml = "=0.8.20"
+tui-logger = "=0.17.0"
+url = "=2.5.4"
+
+[profile.release]
+strip = true
+lto = "fat"
+codegen-units = 1

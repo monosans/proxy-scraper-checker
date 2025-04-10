@@ -1,45 +1,33 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM docker.io/python:3.13-slim-bookworm AS python-base-stage
-
-ENV \
-  PYTHONDONTWRITEBYTECODE=1 \
-  PYTHONUNBUFFERED=1
+FROM docker.io/rust:slim-bookworm AS builder
 
 WORKDIR /app
 
-
-FROM python-base-stage AS python-build-stage
-
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential \
-  && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-  && rm -rf /var/lib/apt/lists/*
-
-ENV \
-  UV_COMPILE_BYTECODE=1 \
-  UV_LINK_MODE=copy
-
-RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
-  --mount=type=cache,target=/root/.cache/uv,sharing=locked \
-  --mount=source=pyproject.toml,target=pyproject.toml \
-  --mount=source=uv.lock,target=uv.lock \
-  uv sync --no-dev --no-install-project --frozen
+RUN --mount=source=src,target=src \
+    --mount=source=Cargo.toml,target=Cargo.toml \
+    --mount=source=Cargo.lock,target=Cargo.lock \
+    --mount=type=cache,target=/app/target \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo build --release --locked \
+    && cp target/release/proxy-scraper-checker .
 
 
-FROM python-base-stage AS python-run-stage
+FROM docker.io/debian:bookworm-slim as runner
 
-RUN groupadd --gid 1000 app \
-  && useradd --gid 1000 --no-log-init --create-home --uid 1000 app \
+WORKDIR /app
+
+ARG \
+  UID=1000 \
+  GID=1000
+
+RUN groupadd --gid ${GID} app \
+  && useradd --gid ${GID} --no-log-init --create-home --uid ${UID} app \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \
-  && chown 1000:1000 /home/app/.cache/proxy_scraper_checker
+  && chown ${UID}:${GID} /home/app/.cache/proxy_scraper_checker
 
-COPY --from=python-build-stage --chown=1000:1000 --link /app/.venv /app/.venv
-
-ENV PATH="/app/.venv/bin:$PATH"
+COPY --from=builder --chown=${UID}:${GID} --link /app/proxy-scraper-checker .
 
 USER app
 
-COPY --chown=1000:1000 . .
-
-CMD ["python", "-m", "proxy_scraper_checker"]
+CMD ["/app/proxy-scraper-checker"]

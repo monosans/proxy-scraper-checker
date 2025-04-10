@@ -38,10 +38,19 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 1. Edit `config.toml` to your preference.
 1. Run the following commands:
 
-```bash
-docker compose build --pull
-docker compose up --no-log-prefix --remove-orphans
-```
+   Windows:
+
+   ```bash
+   docker compose build --pull
+   docker compose up --no-log-prefix --remove-orphans
+   ```
+
+   Linux/macOS:
+
+   ```bash
+   docker compose build --pull --build-arg UID=$(id -u) --build-arg GID=$(id -g)
+   docker compose up --no-log-prefix --remove-orphans
+   ```
 
 ## License
 

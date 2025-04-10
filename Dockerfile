@@ -17,12 +17,16 @@ FROM docker.io/debian:bookworm-slim as runner
 
 WORKDIR /app
 
-RUN groupadd --gid 1000 app \
-  && useradd --gid 1000 --no-log-init --create-home --uid 1000 app \
-  && mkdir -p /home/app/.cache/proxy_scraper_checker \
-  && chown 1000:1000 /home/app/.cache/proxy_scraper_checker
+ARG \
+  UID=1000 \
+  GID=1000
 
-COPY --from=builder --chown=1000:1000 --link /app/proxy-scraper-checker .
+RUN groupadd --gid ${GID} app \
+  && useradd --gid ${GID} --no-log-init --create-home --uid ${UID} app \
+  && mkdir -p /home/app/.cache/proxy_scraper_checker \
+  && chown ${UID}:${GID} /home/app/.cache/proxy_scraper_checker
+
+COPY --from=builder --chown=${UID}:${GID} --link /app/proxy-scraper-checker .
 
 USER app
 

@@ -147,7 +147,7 @@ jobs:
       - if: ${{ !matrix.cross }}
         run: cargo +beta build --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
-      - run: echo '${{ github.sha }}' > commit-sha.txt
+      - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
         shell: bash
       - run: mv config.toml dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/

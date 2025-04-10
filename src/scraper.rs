@@ -59,7 +59,14 @@ async fn scrape_one(
     let text = match text_result {
         Ok(text) => text,
         Err(e) => {
-            log::warn!("{source} | {e}");
+            log::warn!(
+                "{} | {}",
+                source,
+                e.chain()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(" → "),
+            );
             return Ok(proxies);
         }
     };

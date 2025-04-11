@@ -24,7 +24,7 @@ impl TryFrom<&str> for ProxyType {
 
     fn try_from(string: &str) -> color_eyre::Result<Self> {
         match string {
-            "http" | "https " => Ok(ProxyType::Http),
+            "http" | "https" => Ok(ProxyType::Http),
             "socks4" => Ok(ProxyType::Socks4),
             "socks5" => Ok(ProxyType::Socks5),
             _ => Err(eyre!("Failed to convert {string} to ProxyType")),

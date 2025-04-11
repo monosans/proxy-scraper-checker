@@ -16,7 +16,7 @@ async fn fetch_text(
     http_client: reqwest::Client,
     source: &str,
 ) -> color_eyre::Result<String> {
-    Ok(if is_http_url(source) {
+    if is_http_url(source) {
         http_client
             .get(source)
             .timeout(config.source_timeout)
@@ -33,14 +33,14 @@ async fn fetch_text(
             .await
             .wrap_err_with(move || {
                 format!("failed to decode {source} response as text")
-            })?
+            })
     } else {
         tokio::fs::read_to_string(
             source.strip_prefix("file://").unwrap_or(source),
         )
         .await
-        .wrap_err("failed to read file to string")?
-    })
+        .wrap_err("failed to read file to string")
+    }
 }
 
 async fn scrape_one(

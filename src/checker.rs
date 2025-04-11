@@ -28,15 +28,14 @@ async fn check_one(
         }
         Err(e) => {
             if log::log_enabled!(log::Level::Debug) {
-                let mut s = proxy.as_str(true);
-                s.push_str(" | ");
-                s.push_str(
-                    &e.chain()
+                log::debug!(
+                    "{} | {}",
+                    proxy.as_str(true),
+                    e.chain()
                         .map(ToString::to_string)
                         .collect::<Vec<_>>()
-                        .join(" → "),
+                        .join(" → ")
                 );
-                log::debug!("{s}");
             }
             Err(e)
         }

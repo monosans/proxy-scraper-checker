@@ -153,11 +153,8 @@ pub(crate) async fn save_proxies(
                 } else {
                     proxies.sort_by_key(|p| sort_naturally(p));
                 }
-                let text = create_proxy_list_str(
-                    &sorted_proxies,
-                    anonymous_only,
-                    false,
-                );
+                let text =
+                    create_proxy_list_str(proxies, anonymous_only, false);
                 tokio::fs::write(
                     folder_path.join(format!("{proto}.txt")),
                     text,

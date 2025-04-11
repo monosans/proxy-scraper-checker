@@ -309,7 +309,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
 }
 
 async fn is_interactive() -> bool {
-    is_docker().await
+    !is_docker().await
 }
 
 async fn handle_event(
@@ -381,9 +381,9 @@ async fn handle_event(
                 }
                 AppEvent::Done => {
                     state.mode = if is_interactive().await {
-                        AppMode::Quit
-                    } else {
                         AppMode::Done
+                    } else {
+                        AppMode::Quit
                     };
                 }
             }

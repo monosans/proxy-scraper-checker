@@ -147,9 +147,9 @@ jobs:
       - if: ${{ matrix.cross  }}
         run: cargo +beta install cross --git https://github.com/cross-rs/cross
       - if: ${{ matrix.cross  }}
-        run: cross +beta build --release --target '${{ matrix.target }}' --locked
+        run: cross +beta build --features tui --release --target '${{ matrix.target }}' --locked
       - if: ${{ !matrix.cross }}
-        run: cargo +beta build --release --target '${{ matrix.target }}' --locked
+        run: cargo +beta build --features tui --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
         shell: bash
@@ -178,6 +178,13 @@ jobs:
           jobs: ${{ toJSON(needs) }}
   clippy:
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        features:
+          - "--features tui"
+          - "--features logger"
+          - ""
+      fail-fast: false
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
@@ -187,7 +194,7 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install beta --profile minimal --component clippy --allow-downgrade
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - run: cargo +beta clippy --all-targets --all-features -- -Dwarnings -Wclippy::pedantic
+      - run: cargo +beta clippy --all-targets ${{ matrix.features }} -- -Dwarnings -Wclippy::pedantic
   pre-commit:
     runs-on: ubuntu-24.04
     steps:

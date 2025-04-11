@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 use color_eyre::eyre::WrapErr;
 use crossterm::event::{
     Event as CrosstermEvent, KeyCode, KeyModifiers, MouseEventKind,
 };
 use futures::{FutureExt, StreamExt};
 use ratatui::{
-    Frame,
+    DefaultTerminal, Frame,
     layout::{Alignment, Constraint, Direction, Flex, Layout},
     style::{Color, Style},
     text::{Line, Text},
@@ -13,12 +15,95 @@ use ratatui::{
 use tui_logger::{TuiLoggerWidget, TuiWidgetEvent, TuiWidgetState};
 
 use crate::{
-    event::{AppEvent, AppMode, AppState, Event},
+    event::{AppEvent, Event},
     proxy::ProxyType,
     utils::is_docker,
 };
 
 const FPS: f64 = 30.0;
+
+pub(crate) struct Tui {
+    terminal: DefaultTerminal,
+}
+
+impl super::UI for Tui {
+    fn new() -> color_eyre::Result<Self> {
+        tui_logger::init_logger(log::LevelFilter::Debug)
+            .wrap_err("failed to initialize logger")?;
+        tui_logger::set_default_level(log::LevelFilter::Debug);
+        Ok(Self { terminal: ratatui::init() })
+    }
+
+    fn set_log_level(log_level: log::LevelFilter) {
+        log::set_max_level(log_level);
+        tui_logger::set_default_level(log_level);
+    }
+
+    async fn run(
+        mut self,
+        tx: tokio::sync::mpsc::UnboundedSender<Event>,
+        mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
+    ) -> color_eyre::Result<()> {
+        let tick_task = tokio::spawn(tick_event_listener(tx.clone()));
+        let crossterm_task = tokio::spawn(crossterm_event_listener(tx));
+        let mut app_state = AppState::new();
+        let logger_state = TuiWidgetState::default();
+        while !matches!(app_state.mode, AppMode::Quit) {
+            if let Some(event) = rx.recv().await {
+                if handle_event(event, &mut app_state, &logger_state).await {
+                    self.terminal
+                        .draw(|frame| draw(frame, &app_state, &logger_state))
+                        .wrap_err("failed to draw tui")?;
+                }
+            } else {
+                break;
+            }
+        }
+        drop(rx);
+        tick_task.await.wrap_err("failed to spawn tui tick task")??;
+        crossterm_task
+            .await
+            .wrap_err("failed to spawn tui crossterm task")??;
+        Ok(())
+    }
+}
+
+impl Drop for Tui {
+    fn drop(&mut self) {
+        ratatui::restore();
+    }
+}
+
+#[derive(Default)]
+pub(crate) enum AppMode {
+    #[default]
+    Running,
+    /// Wait for the user confirmation to close the UI
+    Done,
+    /// Close the UI
+    Quit,
+}
+
+#[derive(Default)]
+pub(crate) struct AppState {
+    pub(crate) mode: AppMode,
+
+    pub(crate) geodb_total: u64,
+    pub(crate) geodb_downloaded: usize,
+
+    pub(crate) sources_total: HashMap<ProxyType, usize>,
+    pub(crate) sources_scraped: HashMap<ProxyType, usize>,
+
+    pub(crate) proxies_total: HashMap<ProxyType, usize>,
+    pub(crate) proxies_checked: HashMap<ProxyType, usize>,
+    pub(crate) proxies_working: HashMap<ProxyType, usize>,
+}
+
+impl AppState {
+    pub(crate) fn new() -> Self {
+        AppState::default()
+    }
+}
 
 async fn tick_event_listener(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
@@ -53,33 +138,6 @@ async fn crossterm_event_listener(
             }
         }
     }
-}
-
-pub(crate) async fn run(
-    mut terminal: ratatui::DefaultTerminal,
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
-) -> color_eyre::Result<()> {
-    let tick_task = tokio::spawn(tick_event_listener(tx.clone()));
-    let crossterm_task = tokio::spawn(crossterm_event_listener(tx));
-    let mut app_state = AppState::new();
-    let logger_state = TuiWidgetState::default();
-    let is_docker = is_docker().await;
-    while (is_docker && matches!(app_state.mode, AppMode::Running))
-        || (!is_docker && !matches!(app_state.mode, AppMode::Quit))
-    {
-        if let Some(event) = rx.recv().await {
-            if handle_event(event, &mut app_state, &logger_state) {
-                terminal
-                    .draw(|frame| draw(frame, &app_state, &logger_state))
-                    .wrap_err("failed to draw tui")?;
-            }
-        }
-    }
-    drop(rx);
-    tick_task.await.wrap_err("failed to spawn tui tick task")??;
-    crossterm_task.await.wrap_err("failed to spawn tui crossterm task")??;
-    Ok(())
 }
 
 #[allow(clippy::cast_possible_truncation)]
@@ -250,7 +308,11 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
     f.render_widget(table, result_layout[1]);
 }
 
-fn handle_event(
+async fn is_interactive() -> bool {
+    is_docker().await
+}
+
+async fn handle_event(
     event: Event,
     state: &mut AppState,
     logger_state: &TuiWidgetState,
@@ -318,7 +380,11 @@ fn handle_event(
                     *state.proxies_working.entry(proxy_type).or_default() += 1;
                 }
                 AppEvent::Done => {
-                    state.mode = AppMode::Done;
+                    state.mode = if is_interactive().await {
+                        AppMode::Quit
+                    } else {
+                        AppMode::Done
+                    };
                 }
             }
             false

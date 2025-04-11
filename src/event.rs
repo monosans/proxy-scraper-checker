@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use crate::proxy::ProxyType;
 
+#[allow(dead_code)]
 pub(crate) enum AppEvent {
     GeoDbTotal(Option<u64>),
     GeoDbDownloaded(usize),
@@ -17,36 +16,10 @@ pub(crate) enum AppEvent {
 }
 
 pub(crate) enum Event {
+    #[cfg(feature = "tui")]
     Tick,
+    #[cfg(feature = "tui")]
     Crossterm(crossterm::event::Event),
+    #[allow(dead_code)]
     App(AppEvent),
-}
-
-#[derive(Default)]
-pub(crate) enum AppMode {
-    #[default]
-    Running,
-    Done,
-    Quit,
-}
-
-#[derive(Default)]
-pub(crate) struct AppState {
-    pub(crate) mode: AppMode,
-
-    pub(crate) geodb_total: u64,
-    pub(crate) geodb_downloaded: usize,
-
-    pub(crate) sources_total: HashMap<ProxyType, usize>,
-    pub(crate) sources_scraped: HashMap<ProxyType, usize>,
-
-    pub(crate) proxies_total: HashMap<ProxyType, usize>,
-    pub(crate) proxies_checked: HashMap<ProxyType, usize>,
-    pub(crate) proxies_working: HashMap<ProxyType, usize>,
-}
-
-impl AppState {
-    pub(crate) fn new() -> Self {
-        AppState::default()
-    }
 }

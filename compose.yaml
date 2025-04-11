@@ -8,7 +8,6 @@ services:
     init: true
     logging:
       driver: local
-    tty: true
     volumes:
       - proxy_scraper_checker_cache:/home/app/.cache/proxy_scraper_checker
       - ./out:/home/app/.local/share/proxy_scraper_checker

@@ -9,8 +9,9 @@ pub(crate) mod proxy;
 pub(crate) mod raw_config;
 pub(crate) mod scraper;
 pub(crate) mod storage;
-pub(crate) mod tui;
+pub(crate) mod ui;
 pub(crate) mod utils;
+use ui::UI;
 
 pub(crate) const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
 pub(crate) const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; \
@@ -31,9 +32,16 @@ fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
         .build()
 }
 
-async fn run(terminal: ratatui::DefaultTerminal) -> color_eyre::Result<()> {
+#[tokio::main]
+async fn main() -> color_eyre::Result<()> {
+    color_eyre::eyre::Context::wrap_err(
+        color_eyre::install(),
+        "failed to install color_eyre hooks",
+    )?;
+    let ui_impl = ui::UIImpl::new()?;
+
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    let ui_task = tokio::task::spawn(tui::run(terminal, tx.clone(), rx));
+    let ui_task = tokio::task::spawn(ui_impl.run(tx.clone(), rx));
 
     let http_client = color_eyre::eyre::Context::wrap_err(
         create_reqwest_client(),
@@ -52,7 +60,7 @@ async fn run(terminal: ratatui::DefaultTerminal) -> color_eyre::Result<()> {
     )?);
 
     if !config.debug {
-        tui_logger::set_default_level(log::LevelFilter::Info);
+        ui::UIImpl::set_log_level(log::LevelFilter::Info);
     }
 
     let maybe_geodb_task = if config.enable_geolocation {
@@ -95,21 +103,4 @@ async fn run(terminal: ratatui::DefaultTerminal) -> color_eyre::Result<()> {
     drop(tx);
     ui_task.await??;
     Ok(())
-}
-
-#[tokio::main]
-async fn main() -> color_eyre::Result<()> {
-    color_eyre::eyre::Context::wrap_err(
-        color_eyre::install(),
-        "failed to install color_eyre hooks",
-    )?;
-    color_eyre::eyre::Context::wrap_err(
-        tui_logger::init_logger(log::LevelFilter::Debug),
-        "failed to initialize logger",
-    )?;
-    tui_logger::set_default_level(log::LevelFilter::Debug);
-    let terminal = ratatui::init();
-    let result = run(terminal).await;
-    ratatui::restore();
-    result
 }

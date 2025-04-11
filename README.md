@@ -32,8 +32,8 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 
 ### Docker
 
-> [!WARNING]
-> User interface does not work with Docker.
+> [!NOTE]
+> Only a simple user interface in the form of logs is implemented for Docker.
 
 1. [Install `Docker Compose`](https://docs.docker.com/compose/install/).
 1. Download [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).

@@ -137,6 +137,7 @@ impl Proxy {
             s.push_str(username);
             s.push(':');
             s.push_str(password);
+            s.push('@');
         }
         s.push_str(&self.host);
         s.push(':');

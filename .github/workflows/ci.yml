@@ -209,13 +209,9 @@ jobs:
           RUFF_OUTPUT_FORMAT: github
   rustfmt:
     runs-on: ubuntu-24.04
-    env:
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - run: rustup toolchain install nightly --profile minimal --component rustfmt --allow-downgrade
-      - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo +nightly fmt --check

@@ -15,6 +15,7 @@ use tui_logger::{TuiLoggerWidget, TuiWidgetEvent, TuiWidgetState};
 use crate::{
     event::{AppEvent, AppMode, AppState, Event},
     proxy::ProxyType,
+    utils::is_docker,
 };
 
 const FPS: f64 = 30.0;
@@ -63,7 +64,10 @@ pub(crate) async fn run(
     let crossterm_task = tokio::spawn(crossterm_event_listener(tx));
     let mut app_state = AppState::new();
     let logger_state = TuiWidgetState::default();
-    while !matches!(app_state.mode, AppMode::Quit) {
+    let is_docker = is_docker().await;
+    while (is_docker && matches!(app_state.mode, AppMode::Running))
+        || (!is_docker && !matches!(app_state.mode, AppMode::Quit))
+    {
         if let Some(event) = rx.recv().await {
             if handle_event(event, &mut app_state, &logger_state) {
                 terminal

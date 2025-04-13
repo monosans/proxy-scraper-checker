@@ -2319,11 +2319,12 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "tui-logger"
-version = "0.17.0"
+version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c51f8ebd40b73a7102b069bf6a5ac63d8baba21b910db94042903e473c7ed3b4"
+checksum = "f93f34043c2dd14a0e044663f2370e6fcc9b9c303fa9e37de8431919ef8dbb27"
 dependencies = [
  "chrono",
+ "env_filter",
  "fxhash",
  "lazy_static",
  "log",

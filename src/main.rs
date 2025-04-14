@@ -59,8 +59,8 @@ async fn main() -> color_eyre::Result<()> {
         "failed to create Config from RawConfig",
     )?);
 
-    if !config.debug {
-        ui::UIImpl::set_log_level(log::LevelFilter::Info);
+    if config.debug {
+        ui::UIImpl::set_log_level(log::LevelFilter::Debug);
     }
 
     let maybe_geodb_task = if config.enable_geolocation {

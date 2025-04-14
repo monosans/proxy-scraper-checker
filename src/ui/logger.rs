@@ -5,6 +5,7 @@ pub(crate) struct LoggerUI {}
 impl super::UI for LoggerUI {
     fn new() -> color_eyre::Result<Self> {
         env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
+        Self::set_log_level(log::LevelFilter::Info);
         Ok(Self {})
     }
 

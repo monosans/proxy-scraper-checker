@@ -31,6 +31,7 @@ impl super::UI for Tui {
         tui_logger::init_logger(log::LevelFilter::Debug)
             .wrap_err("failed to initialize logger")?;
         tui_logger::set_default_level(log::LevelFilter::Debug);
+        Self::set_log_level(log::LevelFilter::Info);
         Ok(Self { terminal: ratatui::init() })
     }
 

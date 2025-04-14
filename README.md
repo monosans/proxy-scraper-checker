@@ -44,14 +44,14 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
    Windows:
 
    ```bash
-   docker compose build --pull
+   docker compose build
    docker compose up --no-log-prefix --remove-orphans
    ```
 
    Linux/macOS:
 
    ```bash
-   docker compose build --pull --build-arg UID=$(id -u) --build-arg GID=$(id -g)
+   docker compose build --build-arg UID=$(id -u) --build-arg GID=$(id -g)
    docker compose up --no-log-prefix --remove-orphans
    ```
 

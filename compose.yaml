@@ -1,10 +1,10 @@
 services:
   app:
     build:
-      context: .
       args:
         - "UID=${UID:-1000}"
         - "GID=${GID:-1000}"
+      pull: true
     init: true
     logging:
       driver: local

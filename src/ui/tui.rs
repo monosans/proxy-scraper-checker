@@ -7,10 +7,10 @@ use crossterm::event::{
 use futures::{FutureExt, StreamExt};
 use ratatui::{
     DefaultTerminal, Frame,
-    layout::{Alignment, Constraint, Direction, Flex, Layout},
+    layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Style},
     text::{Line, Text},
-    widgets::{Block, Gauge, Row, Table},
+    widgets::{Block, Gauge},
 };
 use tui_logger::{TuiLoggerWidget, TuiWidgetEvent, TuiWidgetState};
 
@@ -150,8 +150,13 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
     let outer_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
+            // Logs
             Constraint::Fill(1),
-            Constraint::Length((state.sources_total.len() * 3 + 2) as u16),
+            // GeoDB download
+            Constraint::Length(3),
+            // Scraping and checking
+            Constraint::Length(1 + (3 * 3) + 1),
+            // Hotkeys
             Constraint::Length(3),
         ])
         .split(outer_block.inner(f.area()));
@@ -170,95 +175,6 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         outer_layout[0],
     );
 
-    let rows = vec!["Protocol", "Working", "Working %"];
-    let bottom_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(vec![
-            Constraint::Fill(1),
-            Constraint::Fill(1),
-            Constraint::Length(
-                (rows.iter().map(|row| row.len()).sum::<usize>()
-                    + ((rows.len() - 1) * 3)
-                    + 2) as u16,
-            ),
-        ])
-        .split(outer_layout[1]);
-
-    let mut lines = Vec::new();
-    if let AppMode::Done = state.mode {
-        lines.push(
-            Line::from("Enter/ESC/q/Ctrl-C - exit")
-                .style(Style::default().fg(Color::Red)),
-        );
-    }
-    lines.push(Line::from("Up/PageUp/k - scroll logs up"));
-    lines.push(Line::from("Down/PageDown/j - scroll logs down"));
-    f.render_widget(Text::from(lines).centered(), outer_layout[2]);
-
-    let scrape_area = bottom_layout[0];
-    let scrape_block = Block::bordered().title("Scraping");
-    f.render_widget(scrape_block.clone(), scrape_area);
-    let scrape_inner = scrape_block.inner(scrape_area);
-    let mut proxy_types: Vec<ProxyType> =
-        state.sources_total.keys().cloned().collect();
-    proxy_types.sort();
-    let scrape_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            proxy_types.iter().map(|_| Constraint::Fill(1)).collect::<Vec<_>>(),
-        )
-        .split(scrape_inner);
-    for (i, proxy_type) in proxy_types.iter().enumerate() {
-        let total = state.sources_total.get(proxy_type).copied().unwrap_or(0);
-        let scraped =
-            state.sources_scraped.get(proxy_type).copied().unwrap_or(0);
-        f.render_widget(
-            Gauge::default()
-                .ratio(if total == 0 {
-                    0.0
-                } else {
-                    scraped as f64 / total as f64
-                })
-                .block(
-                    Block::bordered()
-                        .title(proxy_type.to_string().to_uppercase()),
-                )
-                .label(format!("{scraped}/{total}")),
-            scrape_layout[i],
-        );
-    }
-
-    let check_area = bottom_layout[1];
-    let check_block = Block::bordered().title("Checking");
-    f.render_widget(check_block.clone(), check_area);
-    let check_inner = check_block.inner(check_area);
-    let check_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            proxy_types.iter().map(|_| Constraint::Fill(1)).collect::<Vec<_>>(),
-        )
-        .split(check_inner);
-    for (i, proxy_type) in proxy_types.iter().enumerate() {
-        let total = state.proxies_total.get(proxy_type).copied().unwrap_or(0);
-        let checked =
-            state.proxies_checked.get(proxy_type).copied().unwrap_or(0);
-        let gauge = Gauge::default()
-            .block(
-                Block::bordered().title(proxy_type.to_string().to_uppercase()),
-            )
-            .label(format!("{checked}/{total}"))
-            .ratio(if total == 0 {
-                0.0
-            } else {
-                checked as f64 / total as f64
-            });
-        f.render_widget(gauge, check_layout[i]);
-    }
-
-    let result_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Length(3), Constraint::Min(0)])
-        .split(bottom_layout[2]);
     f.render_widget(
         Gauge::default()
             .block(Block::bordered().title("GeoDB download"))
@@ -267,44 +183,106 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
             } else {
                 (state.geodb_downloaded as f64) / (state.geodb_total as f64)
             }),
-        result_layout[0],
+        outer_layout[1],
     );
-    let table = Table::new(
-        proxy_types
-            .iter()
-            .enumerate()
-            .map(move |(i, proxy_type)| {
-                let working = state
-                    .proxies_working
-                    .get(proxy_type)
-                    .copied()
-                    .unwrap_or_default();
-                let total = state
-                    .proxies_total
-                    .get(proxy_type)
-                    .copied()
-                    .unwrap_or_default();
-                let percentage = if total != 0 {
-                    (working as f64 / total as f64) * 100.0
-                } else {
+
+    let proxies_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            state
+                .sources_total
+                .keys()
+                .map(|_| Constraint::Fill(1))
+                .collect::<Vec<_>>(),
+        )
+        .split(outer_layout[2]);
+
+    let mut proxy_types: Vec<_> = state.sources_total.keys().collect();
+    proxy_types.sort();
+
+    for (i, proxy_type) in proxy_types.iter().enumerate() {
+        let block =
+            Block::bordered().title(proxy_type.to_string().to_uppercase());
+        f.render_widget(block.clone(), proxies_layout[i]);
+
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Fill(1); 3])
+            .split(block.inner(proxies_layout[i]));
+
+        let sources_scraped =
+            state.sources_scraped.get(proxy_type).copied().unwrap_or_default();
+        let sources_total =
+            state.sources_total.get(proxy_type).copied().unwrap_or_default();
+
+        f.render_widget(
+            Gauge::default()
+                .ratio(if sources_total == 0 {
                     0.0
-                };
-                Row::new(vec![
-                    proxy_type.to_string().to_uppercase(),
-                    working.to_string(),
-                    format!("{percentage:.1}%"),
-                ])
-                .top_margin((i != 0).into())
-            })
-            .collect::<Vec<_>>(),
-        rows.iter()
-            .map(|row| Constraint::Length(row.len() as u16))
-            .collect::<Vec<_>>(),
-    )
-    .flex(Flex::SpaceBetween)
-    .header(Row::new(rows))
-    .block(Block::bordered().title("Result"));
-    f.render_widget(table, result_layout[1]);
+                } else {
+                    sources_scraped as f64 / sources_total as f64
+                })
+                .block(Block::bordered().title("Scraping sources"))
+                .label(format!("{sources_scraped}/{sources_total}")),
+            layout[0],
+        );
+
+        let proxies_checked =
+            state.proxies_checked.get(proxy_type).copied().unwrap_or_default();
+        let proxies_working =
+            state.proxies_working.get(proxy_type).copied().unwrap_or_default();
+        let proxies_total =
+            state.proxies_total.get(proxy_type).copied().unwrap_or_default();
+
+        f.render_widget(
+            Gauge::default()
+                .ratio(if proxies_total == 0 {
+                    0.0
+                } else {
+                    proxies_checked as f64 / proxies_total as f64
+                })
+                .block(Block::bordered().title("Checking proxies"))
+                .label(format!("{proxies_checked}/{proxies_total}")),
+            layout[1],
+        );
+
+        f.render_widget(
+            Gauge::default()
+                .ratio(if proxies_total == 0 {
+                    0.0
+                } else {
+                    proxies_checked as f64 / proxies_total as f64
+                })
+                .block(
+                    Block::bordered()
+                        .title("Working proxies / checked proxies"),
+                )
+                .label(format!(
+                    "{}/{} ({:.1}%)",
+                    proxies_working,
+                    proxies_checked,
+                    if proxies_working != 0 {
+                        (proxies_working as f64 / proxies_checked as f64)
+                            * 100.0
+                    } else {
+                        0.0
+                    }
+                )),
+            layout[2],
+        );
+    }
+
+    let mut lines = vec![
+        Line::from("Up/PageUp/k - scroll logs up"),
+        Line::from("Down/PageDown/j - scroll logs down"),
+    ];
+    if let AppMode::Done = state.mode {
+        lines.push(
+            Line::from("Enter/ESC/q/Ctrl-C - exit")
+                .style(Style::default().fg(Color::Red)),
+        );
+    }
+    f.render_widget(Text::from(lines).centered(), outer_layout[3]);
 }
 
 async fn is_interactive() -> bool {

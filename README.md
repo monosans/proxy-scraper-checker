@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/monosans/proxy-scraper-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/monosans/proxy-scraper-checker/actions/workflows/ci.yml)
 
-![Screenshot](https://github.com/user-attachments/assets/8d8b48ad-0b5d-48ea-aa95-c0e7628cfae0)
+![Screenshot](https://github.com/user-attachments/assets/0ac37021-d11c-4f68-b80d-bafdbaeb00bb)
 
 HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 

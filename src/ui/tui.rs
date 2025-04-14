@@ -28,16 +28,14 @@ pub(crate) struct Tui {
 
 impl super::UI for Tui {
     fn new() -> color_eyre::Result<Self> {
-        tui_logger::init_logger(log::LevelFilter::Debug)
+        tui_logger::init_logger(log::LevelFilter::Info)
             .wrap_err("failed to initialize logger")?;
-        tui_logger::set_default_level(log::LevelFilter::Debug);
-        Self::set_log_level(log::LevelFilter::Info);
+        tui_logger::set_default_level(log::LevelFilter::Trace);
         Ok(Self { terminal: ratatui::init() })
     }
 
     fn set_log_level(log_level: log::LevelFilter) {
         log::set_max_level(log_level);
-        tui_logger::set_default_level(log_level);
     }
 
     async fn run(

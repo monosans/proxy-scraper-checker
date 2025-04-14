@@ -13,7 +13,7 @@ crossterm = { version = "=0.28.1", features = [
 ], optional = true }
 derivative = "=2.2.0"
 dirs = "=6.0.0"
-env_logger = { version = "=0.11.8", optional = true }
+env_logger = "=0.11.8"
 fancy-regex = "=0.14.0"
 futures = "=0.3.31"
 log = "=0.4.27"
@@ -28,8 +28,6 @@ tui-logger = { version = "=0.17.1", optional = true }
 url = "=2.5.4"
 
 [features]
-default = []
-logger = ["dep:env_logger"]
 tui = ["dep:crossterm", "dep:ratatui", "dep:tui-logger"]
 
 [target.'cfg(not(target_os = "android"))'.dependencies]

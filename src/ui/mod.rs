@@ -15,16 +15,11 @@ pub(crate) trait UI {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(all(feature="tui", feature="logger"))] {
-        compile_error!("feature \"logger\" and feature \"tui\" cannot be enaled at the same time");
-    } else if #[cfg(feature="tui" )] {
+    if #[cfg(feature="tui")] {
         mod tui;
         pub(crate) use self::tui::Tui as UIImpl;
-    } else if #[cfg(feature = "logger")] {
+    } else {
         mod logger;
         pub(crate) use self::logger::LoggerUI as UIImpl;
-    } else {
-        mod dummy;
-        pub(crate) use self::dummy::DummyUI as UIImpl;
     }
 }

@@ -276,8 +276,8 @@ jobs:
           # platforms: linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
           push: true
           tags: |
-            monosans/proxy-scraper-checker:latest
-            monosans/proxy-scraper-checker:${{ github.sha }}
+            ghcr.io/monosans/proxy-scraper-checker:latest
+            ghcr.io/monosans/proxy-scraper-checker:${{ github.sha }}
       - uses: actions/attest-build-provenance@v2
         with:
           subject-digest: ${{ steps.push.outputs.digest }}

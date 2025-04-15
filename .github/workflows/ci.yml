@@ -253,12 +253,13 @@ jobs:
           path: dist/
           if-no-files-found: error
   build-docker:
-    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-24.04
+    env:
+      PLATFORMS: linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
     permissions:
       attestations: write
       id-token: write
-      # packages: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -269,14 +270,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: ${{ env.PLATFORMS }}
       - uses: docker/setup-buildx-action@v3
+        with:
+          platforms: ${{ env.PLATFORMS }}
       - id: push
         uses: docker/build-push-action@v6
         with:
-          # platforms: linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
+          platforms: ${{ env.PLATFORMS }}
           push: true
           tags: |
-            ghcr.io/monosans/proxy-scraper-checker:latest
             ghcr.io/monosans/proxy-scraper-checker:${{ github.sha }}
       - uses: actions/attest-build-provenance@v2
         with:
@@ -287,7 +291,8 @@ jobs:
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
       - run: mv compose.yaml dist/
       - run: mv config.toml dist/
-      - run: |
+      - name: Create Dockerfile
+        run: |
           echo "# syntax=docker.io/docker/dockerfile:1
 
           FROM ghcr.io/monosans/proxy-scraper-checker:${{ github.sha }}
@@ -315,6 +320,7 @@ jobs:
     if: ${{ always() && github.event_name == 'pull_request' }}
     needs:
       - build
+      - build-docker
       - clippy
       - pre-commit
       - rustfmt

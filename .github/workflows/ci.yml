@@ -252,6 +252,65 @@ jobs:
           name: proxy-scraper-checker-${{ matrix.target }}
           path: dist/
           if-no-files-found: error
+  build-docker:
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      attestations: write
+      id-token: write
+      # packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - id: push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
+          push: true
+          tags: |
+            monosans/proxy-scraper-checker:latest
+            monosans/proxy-scraper-checker:${{ github.sha }}
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-digest: ${{ steps.push.outputs.digest }}
+          subject-name: ghcr.io/${{ github.repository }}
+          push-to-registry: true
+      - run: mkdir -p dist
+      - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
+      - run: mv compose.yaml dist/
+      - run: mv config.toml dist/
+      - run: |
+          echo "# syntax=docker.io/docker/dockerfile:1
+
+          FROM ghcr.io/monosans/proxy-scraper-checker:${{ github.sha }}
+
+          ARG \\
+            UID=1000 \\
+            GID=1000
+
+          USER root
+
+          RUN groupmod --gid \"${GID}\" app \\
+            && usermod --uid \"${UID}\" --gid \"${GID}\" app
+
+          USER app
+          " > dist/Dockerfile
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: proxy-scraper-checker-docker
+          path: dist/
+          if-no-files-found: error
   check:
     if: ${{ always() && github.event_name == 'pull_request' }}
     needs:

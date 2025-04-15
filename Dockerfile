@@ -7,8 +7,8 @@ WORKDIR /app
 RUN --mount=source=src,target=src \
     --mount=source=Cargo.toml,target=Cargo.toml \
     --mount=source=Cargo.lock,target=Cargo.lock \
-    --mount=type=cache,target=/app/target,sharing=locked \
-    --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/app/target \
+    --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release --locked \
     && cp target/release/proxy-scraper-checker .
 

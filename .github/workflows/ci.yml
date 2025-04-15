@@ -242,6 +242,7 @@ jobs:
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
         shell: bash
       - run: mv config.toml dist/
+      - run: mv LICENSE dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
       - if: ${{ github.event_name != 'pull_request' }}
         uses: actions/attest-build-provenance@v2
@@ -311,6 +312,7 @@ jobs:
 
           USER app
           " > dist/Dockerfile
+      - run: mv LICENSE dist/
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: dist

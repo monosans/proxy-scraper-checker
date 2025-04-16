@@ -293,8 +293,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=${{ github.sha }}-${{ matrix.tag }}
+          tags: type=raw,value=${{ github.sha }}-${{ matrix.tag }}
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -314,6 +313,8 @@ jobs:
     needs:
       - build-docker
     runs-on: ubuntu-24.04
+    permissions:
+      packages: write
     steps:
       - uses: docker/login-action@v3
         with:
@@ -322,10 +323,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: >
           docker manifest create ghcr.io/${{ github.repository }}:${{ github.sha }}
-          ghcr.io/${{ github.repository }}:${{ github.sha }}-386
-          ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
-          ghcr.io/${{ github.repository }}:${{ github.sha }}-arm-v7
-          ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64-v8
+          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-386
+          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
+          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm-v7
+          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64-v8
       - run: docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }}
   upload-docker-prebuilt:
     needs:

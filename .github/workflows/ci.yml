@@ -364,8 +364,8 @@ jobs:
 
           USER root
 
-          RUN groupmod --gid \"${GID}\" app \\
-            && usermod --uid \"${UID}\" --gid \"${GID}\" app
+          RUN groupmod --gid \"\$${GID}\" app \\
+            && usermod --uid \"\$${UID}\" --gid \"\$${GID}\" app
 
           USER app
           " > dist/Dockerfile

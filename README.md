@@ -36,7 +36,7 @@ You can get proxies obtained using this project in [monosans/proxy-list](https:/
 > Only a simple user interface in the form of logs is implemented for Docker.
 
 1. [Install `Docker Compose`](https://docs.docker.com/compose/install/).
-1. Download [the archive with the program](https://github.com/monosans/proxy-scraper-checker/archive/refs/heads/main.zip).
+1. Download the archive for your platform from [nightly.link](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview). Look for artifacts named `proxy-scraper-checker-docker`.
 1. Unpack the archive into a separate folder.
 1. Edit `config.toml` to your preference.
 1. Run the following commands:

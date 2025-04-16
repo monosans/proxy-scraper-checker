@@ -322,10 +322,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: >
           docker manifest create ghcr.io/${{ github.repository }}:${{ github.sha }}
-            ghcr.io/${{ github.repository }}:${{ github.sha }}-386
-            ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
-            ghcr.io/${{ github.repository }}:${{ github.sha }}-arm-v7
-            ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64-v8
+          ghcr.io/${{ github.repository }}:${{ github.sha }}-386
+          ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
+          ghcr.io/${{ github.repository }}:${{ github.sha }}-arm-v7
+          ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64-v8
       - run: docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }}
   upload-docker-prebuilt:
     needs:

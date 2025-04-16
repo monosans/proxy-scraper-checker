@@ -260,6 +260,15 @@ jobs:
       attestations: write
       id-token: write
       packages: write
+    strategy:
+      matrix:
+        platform:
+          - linux/386
+          - linux/amd64
+          - linux/arm/v7
+          - linux/arm64/v8
+          - linux/ppc64le
+          - linux/s390x
     steps:
       - uses: actions/checkout@v4
         with:
@@ -283,7 +292,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
+          platforms: ${{ matrix.platform }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
       - uses: actions/attest-build-provenance@v2
@@ -291,6 +300,14 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           subject-name: ghcr.io/${{ github.repository }}
           push-to-registry: true
+  upload-docker:
+    needs:
+      - build-docker
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - run: mkdir -p dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
       - run: mv compose.yaml dist/

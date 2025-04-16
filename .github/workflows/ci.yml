@@ -9,6 +9,22 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 jobs:
+  check:
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    needs:
+      - build
+      - build-docker
+      - build-docker-arm64
+      - upload-docker-prebuilt
+      - upload-docker-src
+      - clippy
+      - pre-commit
+      - rustfmt
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
   build:
     strategy:
       matrix:
@@ -296,6 +312,7 @@ jobs:
     permissions:
       attestations: write
       id-token: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -403,22 +420,6 @@ jobs:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
           path: dist/
           if-no-files-found: error
-  check:
-    if: ${{ always() && github.event_name == 'pull_request' }}
-    needs:
-      - build
-      - build-docker
-      - build-docker-arm64
-      - upload-docker-prebuilt
-      - upload-docker-src
-      - clippy
-      - pre-commit
-      - rustfmt
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: re-actors/alls-green@release/v1
-        with:
-          jobs: ${{ toJSON(needs) }}
   clippy:
     runs-on: ubuntu-24.04
     strategy:

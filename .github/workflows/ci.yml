@@ -307,6 +307,7 @@ jobs:
           cache-to: type=gha,mode=max
           labels: ${{ steps.meta.outputs.labels }}
           platforms: ${{ matrix.platform }}
+          provenance: false
           push: true
           tags: ${{ steps.meta.outputs.tags }}
   upload-docker-manifest:

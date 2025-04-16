@@ -5,12 +5,12 @@ FROM docker.io/rust:slim-bookworm AS builder
 WORKDIR /app
 
 RUN --mount=source=src,target=src \
-    --mount=source=Cargo.toml,target=Cargo.toml \
-    --mount=source=Cargo.lock,target=Cargo.lock \
-    --mount=type=cache,target=/app/target,sharing=private \
-    --mount=type=cache,target=/usr/local/cargo/registry,sharing=private \
-    cargo build --release --locked \
-    && cp target/release/proxy-scraper-checker .
+  --mount=source=Cargo.toml,target=Cargo.toml \
+  --mount=source=Cargo.lock,target=Cargo.lock \
+  --mount=type=cache,target=/app/target,sharing=locked \
+  --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+  cargo build --release --locked \
+  && cp target/release/proxy-scraper-checker .
 
 
 FROM docker.io/debian:bookworm-slim as runner

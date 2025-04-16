@@ -265,13 +265,26 @@ jobs:
           name: proxy-scraper-checker-${{ matrix.target }}
           path: dist/
           if-no-files-found: error
-  build-docker-x86:
+  build-docker:
     if: ${{ github.event_name != 'pull_request' }}
-    runs-on: ubuntu-24.04
     permissions:
-      attestations: write
-      id-token: write
       packages: write
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - platform: "linux/386"
+            tag: "386"
+            runner: ubuntu-24.04
+          - platform: "linux/amd64"
+            tag: "amd64"
+            runner: ubuntu-24.04
+          - platform: "linux/arm/v7"
+            tag: "arm-v7"
+            runner: ubuntu-24.04-arm
+          - platform: "linux/arm64/v8"
+            tag: "arm64-v8"
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
         with:
@@ -281,7 +294,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=${{ github.sha }}-x86
+            type=raw,value=${{ github.sha }}-${{ matrix.tag }}
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -294,55 +307,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/386
+          platforms: ${{ matrix.platform }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-      - uses: actions/attest-build-provenance@v2
-        with:
-          subject-digest: ${{ steps.push.outputs.digest }}
-          subject-name: ghcr.io/${{ github.repository }}
-          push-to-registry: true
-  build-docker-arm64:
-    if: ${{ github.event_name != 'pull_request' }}
-    runs-on: ubuntu-24.04-arm
-    permissions:
-      attestations: write
-      id-token: write
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=${{ github.sha }}-arm
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/setup-buildx-action@v3
-      - id: push
-        uses: docker/build-push-action@v6
-        with:
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/arm64/v8,linux/arm/v7
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-      - uses: actions/attest-build-provenance@v2
-        with:
-          subject-digest: ${{ steps.push.outputs.digest }}
-          subject-name: ghcr.io/${{ github.repository }}
-          push-to-registry: true
   upload-docker-manifest:
     needs:
-      - build-docker-x86
-      - build-docker-arm64
+      - build-docker
     runs-on: ubuntu-24.04
     steps:
       - uses: docker/login-action@v3
@@ -350,7 +320,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: docker manifest create ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:${{ github.sha }}-x86 ghcr.io/${{ github.repository }}:${{ github.sha }}-arm
+      - run: >
+          docker manifest create ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}:${{ github.sha }}-386
+            ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
+            ghcr.io/${{ github.repository }}:${{ github.sha }}-arm-v7
+            ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64-v8
       - run: docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }}
   upload-docker-prebuilt:
     needs:
@@ -363,17 +338,16 @@ jobs:
       matrix:
         platform:
           - "386"
-          - amd64
-          - arm-v7
-          - arm64-v8
+          - "amd64"
+          - "arm-v7"
+          - "arm64-v8"
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - run: mkdir -p dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
-      - run: mv compose.yaml dist/
-      - run: mv config.toml dist/
+      - run: mv {compose.yaml,config.toml,LICENSE} dist/
       - name: Create Dockerfile
         run: |
           echo "# syntax=docker.io/docker/dockerfile:1
@@ -391,7 +365,6 @@ jobs:
 
           USER app
           " > dist/Dockerfile
-      - run: mv LICENSE dist/
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: dist
@@ -402,13 +375,12 @@ jobs:
           if-no-files-found: error
   upload-docker-src:
     needs:
-      - build-docker-x86
-      - build-docker-arm64
+      - build-docker
     strategy:
       matrix:
         platform:
-          - ppc64le
-          - s390x
+          - "ppc64le"
+          - "s390x"
     permissions:
       attestations: write
       id-token: write

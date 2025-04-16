@@ -13,10 +13,6 @@ jobs:
     if: ${{ always() && github.event_name == 'pull_request' }}
     needs:
       - build
-      - build-docker-x86
-      - build-docker-arm64
-      - upload-docker-prebuilt
-      - upload-docker-src
       - clippy
       - pre-commit
       - rustfmt
@@ -24,7 +20,6 @@ jobs:
     steps:
       - uses: re-actors/alls-green@release/v1
         with:
-          allowed-skips: build-docker-x86, build-docker-arm64, upload-docker-prebuilt, upload-docker-src
           jobs: ${{ toJSON(needs) }}
   build:
     strategy:
@@ -344,10 +339,22 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           subject-name: ghcr.io/${{ github.repository }}
           push-to-registry: true
-  upload-docker-prebuilt:
+  upload-docker-manifest:
     needs:
       - build-docker-x86
       - build-docker-arm64
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker manifest create ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:${{ github.sha }}-x86 ghcr.io/${{ github.repository }}:${{ github.sha }}-arm
+      - run: docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }}
+  upload-docker-prebuilt:
+    needs:
+      - upload-docker-manifest
     permissions:
       attestations: write
       id-token: write
@@ -360,13 +367,6 @@ jobs:
           - arm-v7
           - arm64-v8
     steps:
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - run: docker manifest create ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:${{ github.sha }}-x86 ghcr.io/${{ github.repository }}:${{ github.sha }}-arm
-      - run: docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }}
       - uses: actions/checkout@v4
         with:
           persist-credentials: false

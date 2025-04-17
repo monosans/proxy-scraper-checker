@@ -339,9 +339,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: mkdir -p dist/out
+      - run: mkdir -p dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
-      - run: mv {compose.yaml,config.toml,LICENSE} dist/
+      - run: mv {out,compose.yaml,config.toml,LICENSE} dist/
       - name: Create Dockerfile
         run: |
           cat << 'EOF' > dist/Dockerfile
@@ -378,9 +378,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: mkdir -p dist/out
+      - run: mkdir -p dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
-      - run: mv {src,Cargo.lock,Cargo.toml,compose.yaml,config.toml,Dockerfile,LICENSE} dist/
+      - run: mv {out,src,Cargo.lock,Cargo.toml,compose.yaml,config.toml,Dockerfile,LICENSE} dist/
       - uses: actions/upload-artifact@v4
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}

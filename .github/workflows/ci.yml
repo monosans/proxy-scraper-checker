@@ -231,9 +231,6 @@ jobs:
             cross: true
       fail-fast: false
     runs-on: ${{ matrix.runner }}
-    permissions:
-      id-token: write
-      attestations: write
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: "sccache"
@@ -256,10 +253,6 @@ jobs:
       - run: mv config.toml dist/
       - run: mv LICENSE dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
-      - if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: dist
       - uses: actions/upload-artifact@v4
         with:
           name: proxy-scraper-checker-${{ matrix.target }}
@@ -334,9 +327,6 @@ jobs:
   upload-docker-prebuilt:
     needs:
       - upload-docker-manifest
-    permissions:
-      attestations: write
-      id-token: write
     runs-on: ubuntu-24.04
     strategy:
       matrix:
@@ -370,9 +360,6 @@ jobs:
 
           USER app
           EOF
-      - uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: dist
       - uses: actions/upload-artifact@v4
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
@@ -386,9 +373,6 @@ jobs:
         platform:
           - "ppc64le"
           - "s390x"
-    permissions:
-      attestations: write
-      id-token: write
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -397,9 +381,6 @@ jobs:
       - run: mkdir -p dist/out
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
       - run: mv {src,Cargo.lock,Cargo.toml,compose.yaml,config.toml,Dockerfile,LICENSE} dist/
-      - uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: dist
       - uses: actions/upload-artifact@v4
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}

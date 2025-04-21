@@ -1437,7 +1437,6 @@ dependencies = [
 name = "proxy-scraper-checker"
 version = "0.1.0"
 dependencies = [
- "cfg-if",
  "color-eyre",
  "crossterm",
  "derivative",

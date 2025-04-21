@@ -14,12 +14,12 @@ pub(crate) trait UI {
     ) -> color_eyre::Result<()>;
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(feature="tui")] {
-        mod tui;
-        pub(crate) use self::tui::Tui as UIImpl;
-    } else {
-        mod logger;
-        pub(crate) use self::logger::LoggerUI as UIImpl;
-    }
-}
+#[cfg(feature = "tui")]
+mod tui;
+#[cfg(feature = "tui")]
+pub(crate) use self::tui::Tui as UIImpl;
+
+#[cfg(not(feature = "tui"))]
+mod logger;
+#[cfg(not(feature = "tui"))]
+pub(crate) use self::logger::LoggerUI as UIImpl;

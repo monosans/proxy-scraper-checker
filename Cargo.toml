@@ -6,7 +6,6 @@ license = "MIT"
 publish = false
 
 [dependencies]
-cfg-if = "=1.0.0"
 color-eyre = "=0.6.3"
 crossterm = { version = "=0.28.1", features = [
     "event-stream",

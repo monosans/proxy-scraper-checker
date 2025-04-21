@@ -1,12 +1,19 @@
 pub(crate) async fn is_docker() -> bool {
-    static CACHE: tokio::sync::OnceCell<bool> =
-        tokio::sync::OnceCell::const_new();
+    #[cfg(target_os = "linux")]
+    {
+        static CACHE: tokio::sync::OnceCell<bool> =
+            tokio::sync::OnceCell::const_new();
 
-    *CACHE
-        .get_or_init(async || {
-            tokio::fs::try_exists("/.dockerenv").await.unwrap_or(false)
-        })
-        .await
+        *CACHE
+            .get_or_init(async || {
+                tokio::fs::try_exists("/.dockerenv").await.unwrap_or(false)
+            })
+            .await
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        false
+    }
 }
 
 pub(crate) fn is_http_url(value: &str) -> bool {

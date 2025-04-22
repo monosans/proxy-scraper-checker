@@ -1,7 +1,6 @@
 use std::{io, path::PathBuf};
 
 use color_eyre::eyre::WrapErr;
-use futures::StreamExt;
 use tokio::io::AsyncWriteExt;
 
 use crate::{
@@ -66,7 +65,7 @@ async fn save_etag(
 }
 
 async fn save_geodb(
-    response: reqwest::Response,
+    mut response: reqwest::Response,
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
     tx.send(Event::App(AppEvent::GeoDbTotal(response.content_length())))?;
@@ -76,9 +75,11 @@ async fn save_geodb(
         tokio::fs::File::create(&geodb_file).await.wrap_err_with(|| {
             format!("failed to create file {}", geodb_file.display())
         })?;
-    let mut stream = response.bytes_stream();
-    while let Some(item) = stream.next().await {
-        let chunk = item.wrap_err("failed to read GeoDB response chunk")?;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .wrap_err("failed to read GeoDB response chunk")?
+    {
         file.write_all(&chunk).await.wrap_err_with(|| {
             format!("failed to write to file {}", geodb_file.display())
         })?;

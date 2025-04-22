@@ -4,7 +4,7 @@ use color_eyre::eyre::WrapErr;
 use crossterm::event::{
     Event as CrosstermEvent, KeyCode, KeyModifiers, MouseEventKind,
 };
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Alignment, Constraint, Direction, Layout},
@@ -110,17 +110,13 @@ async fn tick_event_listener(
     let mut tick =
         tokio::time::interval(tokio::time::Duration::from_secs_f64(1.0 / FPS));
     loop {
-        let closed = tx.closed().fuse();
-        let ticked = tick.tick().fuse();
         tokio::select! {
             biased;
-            () = closed => {
-                break Ok(())
+            () = tx.closed() => {
+                break Ok(());
             },
-            _ = ticked =>{
-                if tx.send(Event::Tick).is_err() {
-                    break Ok(());
-                }
+            _ = tick.tick() =>{
+                tx.send(Event::Tick)?;
             }
         }
     }
@@ -131,19 +127,15 @@ async fn crossterm_event_listener(
 ) -> color_eyre::Result<()> {
     let mut reader = crossterm::event::EventStream::new();
     loop {
-        let closed = tx.closed().fuse();
-        let event = reader.next().fuse();
         tokio::select! {
             biased;
-            () = closed => {
+            () = tx.closed() => {
                 break Ok(());
             },
-            maybe = event => {
+            maybe = reader.next() => {
                 match maybe {
                     Some(Ok(event)) => {
-                        if tx.send(Event::Crossterm(event)).is_err() {
-                            break Ok(());
-                        }
+                        tx.send(Event::Crossterm(event))?;
                     },
                     Some(Err(_)) => {},
                     None => {

@@ -110,13 +110,17 @@ async fn tick_event_listener(
     let mut tick =
         tokio::time::interval(tokio::time::Duration::from_secs_f64(1.0 / FPS));
     loop {
+        let closed = tx.closed().fuse();
+        let ticked = tick.tick().fuse();
         tokio::select! {
             biased;
-            () = tx.closed() => {
+            () = closed => {
                 break Ok(())
             },
-            _ = tick.tick() =>{
-                tx.send(Event::Tick)?;
+            _ = ticked =>{
+                if tx.send(Event::Tick).is_err() {
+                    break Ok(());
+                }
             }
         }
     }
@@ -127,13 +131,25 @@ async fn crossterm_event_listener(
 ) -> color_eyre::Result<()> {
     let mut reader = crossterm::event::EventStream::new();
     loop {
+        let closed = tx.closed().fuse();
+        let event = reader.next().fuse();
         tokio::select! {
             biased;
-            () = tx.closed() => {
-                break Ok(())
+            () = closed => {
+                break Ok(());
             },
-            Some(Ok(event)) = reader.next().fuse() => {
-                tx.send(Event::Crossterm(event))?;
+            maybe = event => {
+                match maybe {
+                    Some(Ok(event)) => {
+                        if tx.send(Event::Crossterm(event)).is_err() {
+                            break Ok(());
+                        }
+                    },
+                    Some(Err(_)) => {},
+                    None => {
+                        break Ok(());
+                    }
+                }
             }
         }
     }

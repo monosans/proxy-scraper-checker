@@ -157,7 +157,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
     f.render_widget(outer_block.clone(), f.area());
     let outer_layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(vec![
+        .constraints([
             // Logs
             Constraint::Fill(1),
             // GeoDB download

@@ -1,4 +1,7 @@
-use std::{net::IpAddr, sync::Arc};
+use std::{
+    net::{IpAddr, Ipv4Addr},
+    sync::Arc,
+};
 
 use color_eyre::eyre::WrapErr;
 use serde::Serialize;
@@ -16,7 +19,12 @@ fn sort_by_timeout(proxy: &Proxy) -> tokio::time::Duration {
 }
 
 fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
-    let host_key = proxy.host.split('.').map(|s| s.parse().unwrap()).collect();
+    let host_key = match proxy.host.parse::<Ipv4Addr>() {
+        Ok(ip) => ip.octets().to_vec(),
+        Err(_) => {
+            std::iter::repeat_n(u8::MAX, 4).chain(proxy.host.bytes()).collect()
+        }
+    };
     (proxy.protocol.clone(), host_key, proxy.port)
 }
 

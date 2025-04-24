@@ -1,7 +1,7 @@
 use std::{io, path::PathBuf};
 
-use color_eyre::eyre::WrapErr;
-use tokio::io::AsyncWriteExt;
+use color_eyre::eyre::WrapErr as _;
+use tokio::io::AsyncWriteExt as _;
 
 use crate::{
     event::{AppEvent, Event},
@@ -11,7 +11,7 @@ use crate::{
 
 const GEODB_URL: &str = "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-City.mmdb";
 
-pub(crate) async fn get_geodb_path() -> color_eyre::Result<PathBuf> {
+pub async fn get_geodb_path() -> color_eyre::Result<PathBuf> {
     let mut cache_path =
         get_cache_path().await.wrap_err("failed to get cache path")?;
     cache_path.push("geolocation_database.mmdb");
@@ -88,7 +88,7 @@ async fn save_geodb(
     Ok(())
 }
 
-pub(crate) async fn download_geodb(
+pub async fn download_geodb(
     http_client: reqwest::Client,
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {

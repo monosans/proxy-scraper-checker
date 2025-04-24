@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
-use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::WrapErr as _;
 
 use crate::{
     config::Config,
@@ -51,7 +51,7 @@ async fn scrape_one(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<HashSet<Proxy>> {
     let text_result =
-        fetch_text(config.clone(), http_client.clone(), source).await;
+        fetch_text(Arc::clone(&config), http_client.clone(), source).await;
 
     tx.send(Event::App(AppEvent::SourceScraped(proto.clone())))?;
 
@@ -65,7 +65,7 @@ async fn scrape_one(
                 e.chain()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
-                    .join(" → "),
+                    .join(" \u{2192} "),
             );
             return Ok(proxies);
         }
@@ -108,7 +108,7 @@ async fn scrape_one(
     Ok(proxies)
 }
 
-pub(crate) async fn scrape_all(
+pub async fn scrape_all(
     config: std::sync::Arc<Config>,
     http_client: reqwest::Client,
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
@@ -120,7 +120,7 @@ pub(crate) async fn scrape_all(
             sources.len(),
         )))?;
         for source in sources {
-            let config = config.clone();
+            let config = Arc::clone(&config);
             let http_client = http_client.clone();
             let proto = proto.clone();
             let tx = tx.clone();

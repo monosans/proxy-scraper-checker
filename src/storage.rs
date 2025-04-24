@@ -2,23 +2,23 @@ use std::collections::{HashMap, HashSet};
 
 use crate::proxy::{Proxy, ProxyType};
 
-pub(crate) struct ProxyStorage {
+pub struct ProxyStorage {
     proxies: HashSet<Proxy>,
     enabled_protocols: HashSet<ProxyType>,
 }
 
 impl ProxyStorage {
-    pub(crate) fn new(protocols: HashSet<ProxyType>) -> Self {
+    pub fn new(protocols: HashSet<ProxyType>) -> Self {
         Self { proxies: HashSet::new(), enabled_protocols: protocols }
     }
 
-    pub(crate) fn insert(&mut self, proxy: Proxy) {
+    pub fn insert(&mut self, proxy: Proxy) {
         if self.enabled_protocols.contains(&proxy.protocol) {
             self.proxies.insert(proxy);
         }
     }
 
-    pub(crate) fn get_grouped(&self) -> HashMap<ProxyType, Vec<&Proxy>> {
+    pub fn get_grouped(&self) -> HashMap<ProxyType, Vec<&Proxy>> {
         let mut groups: HashMap<ProxyType, Vec<&Proxy>> = self
             .enabled_protocols
             .iter()
@@ -30,7 +30,7 @@ impl ProxyStorage {
         groups
     }
 
-    pub(crate) fn iter(&self) -> std::collections::hash_set::Iter<'_, Proxy> {
+    pub fn iter(&self) -> std::collections::hash_set::Iter<'_, Proxy> {
         self.proxies.iter()
     }
 }

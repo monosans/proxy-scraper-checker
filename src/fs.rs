@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use color_eyre::eyre::{OptionExt, WrapErr};
+use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
 use crate::APP_DIRECTORY_NAME;
 
-pub(crate) async fn get_cache_path() -> color_eyre::Result<PathBuf> {
+pub async fn get_cache_path() -> color_eyre::Result<PathBuf> {
     static CACHE: tokio::sync::OnceCell<PathBuf> =
         tokio::sync::OnceCell::const_new();
     Ok(CACHE

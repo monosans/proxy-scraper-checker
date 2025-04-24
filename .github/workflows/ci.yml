@@ -403,7 +403,7 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install beta --profile minimal --component clippy --allow-downgrade
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - run: cargo +beta clippy --all-targets ${{ matrix.features }} -- -Dwarnings -Wclippy::pedantic
+      - run: cargo +beta clippy --all-targets ${{ matrix.features }} -- -Dwarnings
   pre-commit:
     runs-on: ubuntu-24.04
     steps:

@@ -1,7 +1,7 @@
 use crate::proxy::ProxyType;
 
 #[allow(dead_code)]
-pub(crate) enum AppEvent {
+pub enum AppEvent {
     GeoDbTotal(Option<u64>),
     GeoDbDownloaded(usize),
 
@@ -15,7 +15,7 @@ pub(crate) enum AppEvent {
     Done,
 }
 
-pub(crate) enum Event {
+pub enum Event {
     #[cfg(feature = "tui")]
     Tick,
     #[cfg(feature = "tui")]

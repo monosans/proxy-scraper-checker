@@ -1,6 +1,7 @@
+#![expect(clippy::pub_use)]
 use crate::event::Event;
 
-pub(crate) trait UI {
+pub trait UI {
     fn new() -> color_eyre::Result<Self>
     where
         Self: std::marker::Sized;
@@ -17,9 +18,9 @@ pub(crate) trait UI {
 #[cfg(feature = "tui")]
 mod tui;
 #[cfg(feature = "tui")]
-pub(crate) use self::tui::Tui as UIImpl;
+pub use tui::Tui as UIImpl;
 
 #[cfg(not(feature = "tui"))]
 mod logger;
 #[cfg(not(feature = "tui"))]
-pub(crate) use self::logger::LoggerUI as UIImpl;
+pub use logger::LoggerUI as UIImpl;

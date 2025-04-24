@@ -1,6 +1,6 @@
 use crate::event::{AppEvent, Event};
 
-pub(crate) struct LoggerUI {}
+pub struct LoggerUI {}
 
 impl super::UI for LoggerUI {
     fn new() -> color_eyre::Result<Self> {
@@ -18,7 +18,7 @@ impl super::UI for LoggerUI {
         mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> color_eyre::Result<()> {
         while let Some(event) = rx.recv().await {
-            if let Event::App(AppEvent::Done) = event {
+            if matches!(event, Event::App(AppEvent::Done)) {
                 break;
             }
         }

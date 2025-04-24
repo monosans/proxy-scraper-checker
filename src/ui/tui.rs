@@ -1,10 +1,20 @@
+#![expect(
+    clippy::arithmetic_side_effects,
+    clippy::as_conversions,
+    clippy::cast_precision_loss,
+    clippy::float_arithmetic,
+    clippy::indexing_slicing,
+    clippy::integer_division_remainder_used,
+    clippy::missing_asserts_for_indexing,
+    clippy::wildcard_enum_match_arm
+)]
 use std::collections::HashMap;
 
-use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::WrapErr as _;
 use crossterm::event::{
     Event as CrosstermEvent, KeyCode, KeyModifiers, MouseEventKind,
 };
-use futures::StreamExt;
+use futures::StreamExt as _;
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Alignment, Constraint, Direction, Layout},
@@ -22,7 +32,7 @@ use crate::{
 
 const FPS: f64 = 30.0;
 
-pub(crate) struct Tui {
+pub struct Tui {
     terminal: DefaultTerminal,
 }
 
@@ -74,7 +84,7 @@ impl Drop for Tui {
 }
 
 #[derive(Default)]
-pub(crate) enum AppMode {
+pub enum AppMode {
     #[default]
     Running,
     /// Wait for the user confirmation to close the UI
@@ -84,23 +94,23 @@ pub(crate) enum AppMode {
 }
 
 #[derive(Default)]
-pub(crate) struct AppState {
-    pub(crate) mode: AppMode,
+pub struct AppState {
+    pub mode: AppMode,
 
-    pub(crate) geodb_total: u64,
-    pub(crate) geodb_downloaded: usize,
+    pub geodb_total: u64,
+    pub geodb_downloaded: usize,
 
-    pub(crate) sources_total: HashMap<ProxyType, usize>,
-    pub(crate) sources_scraped: HashMap<ProxyType, usize>,
+    pub sources_total: HashMap<ProxyType, usize>,
+    pub sources_scraped: HashMap<ProxyType, usize>,
 
-    pub(crate) proxies_total: HashMap<ProxyType, usize>,
-    pub(crate) proxies_checked: HashMap<ProxyType, usize>,
-    pub(crate) proxies_working: HashMap<ProxyType, usize>,
+    pub proxies_total: HashMap<ProxyType, usize>,
+    pub proxies_checked: HashMap<ProxyType, usize>,
+    pub proxies_working: HashMap<ProxyType, usize>,
 }
 
 impl AppState {
-    pub(crate) fn new() -> Self {
-        AppState::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -147,9 +157,6 @@ async fn crossterm_event_listener(
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_precision_loss)]
-#[allow(clippy::too_many_lines)]
 fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
     let outer_block = Block::default()
         .title("https://github.com/monosans/proxy-scraper-checker")
@@ -196,13 +203,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
 
     let proxies_layout = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints(
-            state
-                .sources_total
-                .keys()
-                .map(|_| Constraint::Fill(1))
-                .collect::<Vec<_>>(),
-        )
+        .constraints(state.sources_total.keys().map(|_| Constraint::Fill(1)))
         .split(outer_layout[2]);
 
     let mut proxy_types: Vec<_> = state.sources_total.keys().collect();
@@ -284,7 +285,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         Line::from("Up/PageUp/k - scroll logs up"),
         Line::from("Down/PageDown/j - scroll logs down"),
     ];
-    if let AppMode::Done = state.mode {
+    if matches!(state.mode, AppMode::Done) {
         lines.push(
             Line::from("Enter/ESC/q/Ctrl-C - exit")
                 .style(Style::default().fg(Color::Red)),

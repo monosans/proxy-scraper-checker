@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, hash_set};
 
 use crate::proxy::{Proxy, ProxyType};
 
@@ -30,13 +30,13 @@ impl ProxyStorage {
         groups
     }
 
-    pub fn iter(&self) -> std::collections::hash_set::Iter<'_, Proxy> {
+    pub fn iter(&self) -> hash_set::Iter<'_, Proxy> {
         self.proxies.iter()
     }
 }
 
 impl IntoIterator for ProxyStorage {
-    type IntoIter = std::collections::hash_set::IntoIter<Proxy>;
+    type IntoIter = hash_set::IntoIter<Proxy>;
     type Item = Proxy;
 
     fn into_iter(self) -> Self::IntoIter {

@@ -109,7 +109,7 @@ async fn scrape_one(
 }
 
 pub async fn scrape_all(
-    config: std::sync::Arc<Config>,
+    config: Arc<Config>,
     http_client: reqwest::Client,
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<ProxyStorage> {

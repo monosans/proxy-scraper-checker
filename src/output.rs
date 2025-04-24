@@ -1,10 +1,10 @@
 use std::{
+    io, iter,
     net::{IpAddr, Ipv4Addr},
     sync::Arc,
 };
 
 use color_eyre::eyre::WrapErr as _;
-use serde::Serialize;
 
 use crate::{
     config::Config,
@@ -20,15 +20,13 @@ fn sort_by_timeout(proxy: &Proxy) -> tokio::time::Duration {
 
 fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
     let host_key = proxy.host.parse::<Ipv4Addr>().map_or_else(
-        move |_| {
-            std::iter::repeat_n(u8::MAX, 4).chain(proxy.host.bytes()).collect()
-        },
+        move |_| iter::repeat_n(u8::MAX, 4).chain(proxy.host.bytes()).collect(),
         |ip| ip.octets().to_vec(),
     );
     (proxy.protocol.clone(), host_key, proxy.port)
 }
 
-#[derive(Serialize)]
+#[derive(serde::Serialize)]
 struct ProxyJson<'a> {
     protocol: ProxyType,
     username: Option<String>,
@@ -99,7 +97,7 @@ pub async fn save_proxies(
         ] {
             match tokio::fs::remove_file(&path).await {
                 Ok(()) => Ok(()),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
                 Err(e) => Err(e).wrap_err_with(|| {
                     format!("failed to remove file {}", path.display())
                 }),
@@ -134,7 +132,7 @@ pub async fn save_proxies(
             let folder_path = config.output_path.join(folder);
             match tokio::fs::remove_dir_all(&folder_path).await {
                 Ok(()) => Ok(()),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
                 Err(e) => Err(e).wrap_err_with(|| {
                     format!(
                         "failed to remove directory {}",

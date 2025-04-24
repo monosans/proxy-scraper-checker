@@ -1,11 +1,9 @@
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _, eyre};
-use derivative::Derivative;
 
 use crate::{
-    USER_AGENT,
-    config::{CheckWebsiteType, Config, HttpbinResponse},
+    config::{CheckWebsiteType, Config, HttpbinResponse, USER_AGENT},
     parsers::parse_ipv4,
 };
 
@@ -32,8 +30,8 @@ impl TryFrom<&str> for ProxyType {
     }
 }
 
-impl std::fmt::Display for ProxyType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for ProxyType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -46,7 +44,7 @@ impl std::fmt::Display for ProxyType {
     }
 }
 
-#[derive(Derivative, Eq)]
+#[derive(derivative::Derivative, Eq)]
 #[derivative(Hash, PartialEq)]
 pub struct Proxy {
     pub protocol: ProxyType,

@@ -1,10 +1,13 @@
 #![expect(clippy::pub_use)]
+
+use std::marker::Sized;
+
 use crate::event::Event;
 
 pub trait UI {
     fn new() -> color_eyre::Result<Self>
     where
-        Self: std::marker::Sized;
+        Self: Sized;
 
     fn set_log_level(log_level: log::LevelFilter);
 

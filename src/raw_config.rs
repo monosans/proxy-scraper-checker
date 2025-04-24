@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::{collections::HashSet, env, path::PathBuf};
 
 use color_eyre::eyre::WrapErr as _;
 use serde::{Deserialize, Deserializer};
@@ -94,6 +94,12 @@ impl<'de> Deserialize<'de> for Output {
 pub struct ProxySection {
     pub enabled: bool,
     pub sources: HashSet<String>,
+}
+
+const CONFIG_ENV_VAR: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
+
+pub fn get_config_path() -> String {
+    env::var(CONFIG_ENV_VAR).unwrap_or_else(|_| "config.toml".to_owned())
 }
 
 pub async fn read_config(path: &str) -> color_eyre::Result<RawConfig> {

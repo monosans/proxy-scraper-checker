@@ -7,6 +7,7 @@
     clippy::missing_asserts_for_indexing,
     clippy::wildcard_enum_match_arm
 )]
+
 use std::collections::HashMap;
 
 use color_eyre::eyre::WrapErr as _;

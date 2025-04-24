@@ -4,12 +4,16 @@ use std::{
 };
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
-use serde::Deserialize;
 
 use crate::{
-    APP_DIRECTORY_NAME, parsers::parse_ipv4, proxy::ProxyType,
-    raw_config::RawConfig, utils::is_docker,
+    parsers::parse_ipv4, proxy::ProxyType, raw_config::RawConfig,
+    utils::is_docker,
 };
+
+pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
+pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
+                              AppleWebKit/537.36 (KHTML, like Gecko) \
+                              Chrome/135.0.0.0 Safari/537.36";
 
 #[derive(Clone)]
 pub enum CheckWebsiteType {
@@ -18,7 +22,7 @@ pub enum CheckWebsiteType {
     HttpbinIp,
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct HttpbinResponse {
     pub origin: String,
 }

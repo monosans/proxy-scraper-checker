@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::{OptionExt, WrapErr, eyre};
+use color_eyre::eyre::{OptionExt as _, WrapErr as _, eyre};
 use derivative::Derivative;
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(serde::Serialize, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(crate) enum ProxyType {
+pub enum ProxyType {
     #[serde(rename = "http")]
     Http,
     #[serde(rename = "socks4")]
@@ -24,9 +24,9 @@ impl TryFrom<&str> for ProxyType {
 
     fn try_from(string: &str) -> color_eyre::Result<Self> {
         match string {
-            "http" | "https" => Ok(ProxyType::Http),
-            "socks4" => Ok(ProxyType::Socks4),
-            "socks5" => Ok(ProxyType::Socks5),
+            "http" | "https" => Ok(Self::Http),
+            "socks4" => Ok(Self::Socks4),
+            "socks5" => Ok(Self::Socks5),
             _ => Err(eyre!("Failed to convert {string} to ProxyType")),
         }
     }
@@ -46,24 +46,24 @@ impl std::fmt::Display for ProxyType {
     }
 }
 
-#[derive(Clone, Derivative, Eq)]
+#[derive(Derivative, Eq)]
 #[derivative(Hash, PartialEq)]
-pub(crate) struct Proxy {
-    pub(crate) protocol: ProxyType,
-    pub(crate) host: String,
-    pub(crate) port: u16,
-    pub(crate) username: Option<String>,
-    pub(crate) password: Option<String>,
+pub struct Proxy {
+    pub protocol: ProxyType,
+    pub host: String,
+    pub port: u16,
+    pub username: Option<String>,
+    pub password: Option<String>,
     #[derivative(Hash = "ignore")]
     #[derivative(PartialEq = "ignore")]
-    pub(crate) timeout: Option<tokio::time::Duration>,
+    pub timeout: Option<tokio::time::Duration>,
     #[derivative(Hash = "ignore")]
     #[derivative(PartialEq = "ignore")]
-    pub(crate) exit_ip: Option<String>,
+    pub exit_ip: Option<String>,
 }
 
 impl Proxy {
-    pub(crate) async fn check(
+    pub async fn check(
         &mut self,
         config: Arc<Config>,
     ) -> color_eyre::Result<()> {
@@ -125,7 +125,7 @@ impl Proxy {
         Ok(())
     }
 
-    pub(crate) fn as_str(&self, include_protocol: bool) -> String {
+    pub fn as_str(&self, include_protocol: bool) -> String {
         let mut s = String::new();
         if include_protocol {
             s.push_str(&self.protocol.to_string());

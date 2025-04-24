@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::PathBuf};
 
-use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::WrapErr as _;
 use serde::{Deserialize, Deserializer};
 
 use crate::utils::is_http_url;
@@ -41,31 +41,32 @@ fn validate_http_url<'de, D: Deserializer<'de>>(
 }
 
 #[derive(Deserialize)]
-pub(crate) struct RawConfig {
+pub struct RawConfig {
     #[serde(deserialize_with = "validate_positive_f64")]
-    pub(crate) timeout: f64,
+    pub timeout: f64,
     #[serde(deserialize_with = "validate_positive_f64")]
-    pub(crate) source_timeout: f64,
-    pub(crate) proxies_per_source_limit: usize,
+    pub source_timeout: f64,
+    pub proxies_per_source_limit: usize,
     #[serde(deserialize_with = "validate_positive_usize")]
-    pub(crate) max_concurrent_checks: usize,
+    pub max_concurrent_checks: usize,
     #[serde(deserialize_with = "validate_http_url")]
-    pub(crate) check_website: String,
-    pub(crate) sort_by_speed: bool,
-    pub(crate) enable_geolocation: bool,
-    pub(crate) debug: bool,
-    pub(crate) output: Output,
-    pub(crate) http: ProxySection,
-    pub(crate) socks4: ProxySection,
-    pub(crate) socks5: ProxySection,
+    pub check_website: String,
+    pub sort_by_speed: bool,
+    pub enable_geolocation: bool,
+    pub debug: bool,
+    pub output: Output,
+    pub http: ProxySection,
+    pub socks4: ProxySection,
+    pub socks5: ProxySection,
 }
 
-pub(crate) struct Output {
-    pub(crate) path: PathBuf,
-    pub(crate) json: bool,
-    pub(crate) txt: bool,
+pub struct Output {
+    pub path: PathBuf,
+    pub json: bool,
+    pub txt: bool,
 }
 
+#[expect(clippy::missing_trait_methods)]
 impl<'de> Deserialize<'de> for Output {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
@@ -85,17 +86,17 @@ impl<'de> Deserialize<'de> for Output {
             ));
         }
 
-        Ok(Output { path: inner.path, json: inner.json, txt: inner.txt })
+        Ok(Self { path: inner.path, json: inner.json, txt: inner.txt })
     }
 }
 
 #[derive(Deserialize)]
-pub(crate) struct ProxySection {
-    pub(crate) enabled: bool,
-    pub(crate) sources: HashSet<String>,
+pub struct ProxySection {
+    pub enabled: bool,
+    pub sources: HashSet<String>,
 }
 
-pub(crate) async fn read_config(path: &str) -> color_eyre::Result<RawConfig> {
+pub async fn read_config(path: &str) -> color_eyre::Result<RawConfig> {
     let raw_config = tokio::fs::read_to_string(path)
         .await
         .wrap_err_with(move || format!("failed to read {path} to string"))?;

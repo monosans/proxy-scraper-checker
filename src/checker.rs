@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::WrapErr as _;
 
 use crate::{
     config::Config,
@@ -15,7 +15,7 @@ async fn check_one(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<Proxy> {
     let check_result = proxy
-        .check(config.clone())
+        .check(Arc::clone(&config))
         .await
         .wrap_err("proxy did not pass checking");
     tx.send(Event::App(AppEvent::ProxyChecked(proxy.protocol.clone())))?;
@@ -34,7 +34,7 @@ async fn check_one(
                     e.chain()
                         .map(ToString::to_string)
                         .collect::<Vec<_>>()
-                        .join(" → ")
+                        .join(" \u{2192} ")
                 );
             }
             Err(e)
@@ -42,7 +42,7 @@ async fn check_one(
     }
 }
 
-pub(crate) async fn check_all(
+pub async fn check_all(
     config: Arc<Config>,
     storage: ProxyStorage,
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
@@ -51,10 +51,9 @@ pub(crate) async fn check_all(
         Arc::new(tokio::sync::Semaphore::new(config.max_concurrent_checks));
     let mut join_set = tokio::task::JoinSet::new();
     for proxy in storage {
-        let config = config.clone();
+        let config = Arc::clone(&config);
         let tx = tx.clone();
-        let permit = semaphore
-            .clone()
+        let permit = Arc::clone(&semaphore)
             .acquire_owned()
             .await
             .wrap_err("failed to acquire semaphore")?;

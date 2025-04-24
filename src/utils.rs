@@ -1,4 +1,4 @@
-pub(crate) async fn is_docker() -> bool {
+pub async fn is_docker() -> bool {
     #[cfg(target_os = "linux")]
     {
         static CACHE: tokio::sync::OnceCell<bool> =
@@ -16,12 +16,10 @@ pub(crate) async fn is_docker() -> bool {
     }
 }
 
-pub(crate) fn is_http_url(value: &str) -> bool {
-    if let Ok(parsed_url) = url::Url::parse(value) {
+pub fn is_http_url(value: &str) -> bool {
+    url::Url::parse(value).is_ok_and(|parsed_url| {
         let scheme = parsed_url.scheme();
         (scheme == "http" || scheme == "https")
             && parsed_url.host_str().is_some()
-    } else {
-        false
-    }
+    })
 }

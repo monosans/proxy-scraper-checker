@@ -3,7 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use color_eyre::eyre::{OptionExt, WrapErr};
+use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 use serde::Deserialize;
 
 use crate::{
@@ -12,19 +12,19 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub(crate) enum CheckWebsiteType {
+pub enum CheckWebsiteType {
     Unknown,
     PlainIp,
     HttpbinIp,
 }
 
 #[derive(Deserialize)]
-pub(crate) struct HttpbinResponse {
-    pub(crate) origin: String,
+pub struct HttpbinResponse {
+    pub origin: String,
 }
 
 impl CheckWebsiteType {
-    pub(crate) async fn guess(
+    pub async fn guess(
         check_website: &str,
         http_client: reqwest::Client,
     ) -> Self {
@@ -81,29 +81,29 @@ impl CheckWebsiteType {
         Self::Unknown
     }
 
-    pub(crate) fn supports_geolocation(&self) -> bool {
+    pub const fn supports_geolocation(&self) -> bool {
         match self {
-            CheckWebsiteType::Unknown => false,
-            CheckWebsiteType::PlainIp | CheckWebsiteType::HttpbinIp => true,
+            Self::Unknown => false,
+            Self::PlainIp | Self::HttpbinIp => true,
         }
     }
 }
 
-#[allow(clippy::struct_excessive_bools)]
-pub(crate) struct Config {
-    pub(crate) timeout: tokio::time::Duration,
-    pub(crate) source_timeout: tokio::time::Duration,
-    pub(crate) proxies_per_source_limit: usize,
-    pub(crate) max_concurrent_checks: usize,
-    pub(crate) check_website: String,
-    pub(crate) check_website_type: CheckWebsiteType,
-    pub(crate) sort_by_speed: bool,
-    pub(crate) enable_geolocation: bool,
-    pub(crate) debug: bool,
-    pub(crate) output_path: PathBuf,
-    pub(crate) output_json: bool,
-    pub(crate) output_txt: bool,
-    pub(crate) sources: HashMap<ProxyType, HashSet<String>>,
+#[expect(clippy::struct_excessive_bools)]
+pub struct Config {
+    pub timeout: tokio::time::Duration,
+    pub source_timeout: tokio::time::Duration,
+    pub proxies_per_source_limit: usize,
+    pub max_concurrent_checks: usize,
+    pub check_website: String,
+    pub check_website_type: CheckWebsiteType,
+    pub sort_by_speed: bool,
+    pub enable_geolocation: bool,
+    pub debug: bool,
+    pub output_path: PathBuf,
+    pub output_json: bool,
+    pub output_txt: bool,
+    pub sources: HashMap<ProxyType, HashSet<String>>,
 }
 
 async fn get_output_path(
@@ -126,7 +126,7 @@ async fn get_output_path(
 }
 
 impl Config {
-    pub(crate) async fn from_raw_config(
+    pub async fn from_raw_config(
         raw_config: RawConfig,
         http_client: reqwest::Client,
     ) -> color_eyre::Result<Self> {
@@ -143,8 +143,9 @@ impl Config {
 
         let max_concurrent_checks =
             match rlimit::increase_nofile_limit(u64::MAX) {
-                #[allow(clippy::cast_possible_truncation)]
                 Ok(lim) => {
+                    #[expect(clippy::as_conversions)]
+                    #[expect(clippy::cast_possible_truncation)]
                     if raw_config.max_concurrent_checks > (lim as usize) {
                         log::warn!(
                             "max_concurrent_checks config value is too high \
@@ -181,8 +182,9 @@ impl Config {
                 (ProxyType::Socks5, raw_config.socks5),
             ]
             .into_iter()
-            .filter(|(_, section)| section.enabled)
-            .map(|(proxy_type, section)| (proxy_type, section.sources))
+            .filter_map(|(proxy_type, section)| {
+                section.enabled.then_some((proxy_type, section.sources))
+            })
             .collect(),
         })
     }

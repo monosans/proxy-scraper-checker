@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::WrapErr as _;
 use serde::Serialize;
 
 use crate::{
@@ -19,12 +19,12 @@ fn sort_by_timeout(proxy: &Proxy) -> tokio::time::Duration {
 }
 
 fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
-    let host_key = match proxy.host.parse::<Ipv4Addr>() {
-        Ok(ip) => ip.octets().to_vec(),
-        Err(_) => {
+    let host_key = proxy.host.parse::<Ipv4Addr>().map_or_else(
+        move |_| {
             std::iter::repeat_n(u8::MAX, 4).chain(proxy.host.bytes()).collect()
-        }
-    };
+        },
+        |ip| ip.octets().to_vec(),
+    );
     (proxy.protocol.clone(), host_key, proxy.port)
 }
 
@@ -40,13 +40,13 @@ struct ProxyJson<'a> {
     geolocation: Option<maxminddb::geoip2::City<'a>>,
 }
 
-#[allow(clippy::too_many_lines)]
-pub(crate) async fn save_proxies(
+#[expect(clippy::too_many_lines)]
+pub async fn save_proxies(
     config: Arc<Config>,
     storage: ProxyStorage,
 ) -> color_eyre::Result<()> {
     if config.output_json {
-        let mmdb = if config.enable_geolocation {
+        let maybe_mmdb = if config.enable_geolocation {
             let geodb_path =
                 get_geodb_path().await.wrap_err("failed to get GeoDB path")?;
             let buffer = tokio::fs::read(&geodb_path).await.wrap_err_with(
@@ -63,7 +63,7 @@ pub(crate) async fn save_proxies(
         let mut proxy_dicts = Vec::with_capacity(sorted_proxies.len());
 
         for proxy in sorted_proxies {
-            let geolocation = if let Some(mmdb) = &mmdb {
+            let geolocation = if let Some(mmdb) = &maybe_mmdb {
                 if let Some(exit_ip) = proxy.exit_ip.clone() {
                     let exit_ip_addr: IpAddr = exit_ip.parse().wrap_err(
                         "failed to parse proxy's exit ip as IpAddr",

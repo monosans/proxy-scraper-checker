@@ -1,6 +1,6 @@
 use crate::event::{AppEvent, Event};
 
-pub struct LoggerUI {}
+pub struct LoggerUI;
 
 impl super::UI for LoggerUI {
     fn new() -> color_eyre::Result<Self> {

@@ -13,7 +13,7 @@ RUN --mount=source=src,target=src \
   && cp target/release/proxy-scraper-checker .
 
 
-FROM docker.io/debian:bookworm-slim AS runner
+FROM docker.io/debian:bookworm-slim AS final
 
 WORKDIR /app
 

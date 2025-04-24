@@ -122,6 +122,5 @@ async fn main() -> color_eyre::Result<()> {
     log::info!("Thank you for using proxy-scraper-checker!");
     tx.send(event::Event::App(event::AppEvent::Done))?;
     drop(tx);
-    ui_task.await??;
-    Ok(())
+    ui_task.await?
 }

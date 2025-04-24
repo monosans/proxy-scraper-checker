@@ -60,8 +60,7 @@ async fn save_etag(
         .wrap_err("failed to get GeoDB ETag path")?;
     tokio::fs::write(&etag_file, etag).await.wrap_err_with(move || {
         format!("failed to write to file {}", etag_file.display())
-    })?;
-    Ok(())
+    })
 }
 
 async fn save_geodb(
@@ -137,10 +136,8 @@ pub async fn download_geodb(
     }
 
     if let Some(etag_value) = etag {
-        save_etag(etag_value).await.wrap_err("failed to save GeoDB ETag")?;
+        save_etag(etag_value).await.wrap_err("failed to save GeoDB ETag")
     } else {
-        remove_etag().await.wrap_err("failed to remove GeoDB ETag")?;
+        remove_etag().await.wrap_err("failed to remove GeoDB ETag")
     }
-
-    Ok(())
 }

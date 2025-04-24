@@ -53,8 +53,10 @@ impl super::UI for Tui {
         tx: tokio::sync::mpsc::UnboundedSender<Event>,
         mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> color_eyre::Result<()> {
-        let tick_task = tokio::spawn(tick_event_listener(tx.clone()));
-        let crossterm_task = tokio::spawn(crossterm_event_listener(tx));
+        let mut join_set = tokio::task::JoinSet::new();
+        join_set.spawn(tick_event_listener(tx.clone()));
+        join_set.spawn(crossterm_event_listener(tx));
+
         let mut app_state = AppState::new();
         let logger_state = TuiWidgetState::default();
         while !matches!(app_state.mode, AppMode::Quit) {
@@ -69,10 +71,9 @@ impl super::UI for Tui {
             }
         }
         drop(rx);
-        tick_task.await.wrap_err("failed to spawn tui tick task")??;
-        crossterm_task
-            .await
-            .wrap_err("failed to spawn tui crossterm task")??;
+        while let Some(task) = join_set.join_next().await {
+            task.wrap_err("failed to join event listener task")??;
+        }
         Ok(())
     }
 }

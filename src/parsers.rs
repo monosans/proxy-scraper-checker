@@ -16,5 +16,5 @@ pub fn parse_ipv4(s: &str) -> Option<String> {
     IPV4_REGEX
         .captures(s)
         .unwrap()
-        .map(|captures| String::from(captures.name("host").unwrap().as_str()))
+        .map(|captures| captures.name("host").unwrap().as_str().to_owned())
 }

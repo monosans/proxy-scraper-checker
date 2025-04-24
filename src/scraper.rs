@@ -55,7 +55,6 @@ async fn scrape_one(
 
     tx.send(Event::App(AppEvent::SourceScraped(proto.clone())))?;
 
-    let mut proxies = HashSet::new();
     let text = match text_result {
         Ok(text) => text,
         Err(e) => {
@@ -67,7 +66,7 @@ async fn scrape_one(
                     .collect::<Vec<_>>()
                     .join(" \u{2192} "),
             );
-            return Ok(proxies);
+            return Ok(HashSet::new());
         }
     };
 
@@ -75,7 +74,7 @@ async fn scrape_one(
 
     if matches.is_empty() {
         log::warn!("{source} | No proxies found");
-        return Ok(proxies);
+        return Ok(HashSet::new());
     }
 
     if config.proxies_per_source_limit != 0
@@ -86,9 +85,10 @@ async fn scrape_one(
             source,
             matches.len(),
         );
-        return Ok(proxies);
+        return Ok(HashSet::new());
     }
 
+    let mut proxies = HashSet::with_capacity(matches.len());
     for capture in matches {
         let capture = capture.unwrap();
         let proxy = Proxy {

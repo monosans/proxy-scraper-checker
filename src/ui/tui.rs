@@ -2,7 +2,6 @@
     clippy::arithmetic_side_effects,
     clippy::as_conversions,
     clippy::cast_precision_loss,
-    clippy::float_arithmetic,
     clippy::indexing_slicing,
     clippy::integer_division_remainder_used,
     clippy::missing_asserts_for_indexing,

@@ -363,10 +363,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
-          path: |
-            dist/
-            dist/out/.gitkeep
+          path: dist/
           if-no-files-found: error
+          include-hidden-files: true
   upload-docker-src:
     needs:
       - build-docker
@@ -386,10 +385,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
-          path: |
-            dist/
-            dist/out/.gitkeep
+          path: dist/
           if-no-files-found: error
+          include-hidden-files: true
   clippy:
     runs-on: ubuntu-24.04
     strategy:

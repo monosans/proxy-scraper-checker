@@ -363,7 +363,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
-          path: dist/
+          path: |
+            dist/
+            dist/out/.gitkeep
           if-no-files-found: error
   upload-docker-src:
     needs:
@@ -384,7 +386,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
-          path: dist/
+          path: |
+            dist/
+            dist/out/.gitkeep
           if-no-files-found: error
   clippy:
     runs-on: ubuntu-24.04

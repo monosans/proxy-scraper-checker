@@ -5,10 +5,9 @@
     clippy::nursery,
     clippy::cargo
 )]
-#![allow(
+#![expect(
     clippy::absolute_paths,
     clippy::allow_attributes_without_reason,
-    clippy::allow_attributes,
     clippy::arbitrary_source_item_ordering,
     clippy::blanket_clippy_restriction_lints,
     clippy::default_numeric_fallback,
@@ -21,8 +20,6 @@
     clippy::mod_module_files,
     clippy::multiple_crate_versions,
     clippy::pattern_type_mismatch,
-    clippy::pub_with_shorthand,
-    clippy::too_many_lines,
     clippy::question_mark_used,
     clippy::shadow_reuse,
     clippy::shadow_unrelated,

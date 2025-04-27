@@ -4,12 +4,14 @@ use color_eyre::eyre::WrapErr as _;
 
 use crate::{
     config::Config,
-    event::{AppEvent, Event},
     parsers::PROXY_REGEX,
     proxy::{Proxy, ProxyType},
     storage::ProxyStorage,
     utils::is_http_url,
 };
+
+#[cfg(feature = "tui")]
+use crate::event::{AppEvent, Event};
 
 async fn fetch_text(
     config: Arc<Config>,
@@ -48,11 +50,12 @@ async fn scrape_one(
     http_client: reqwest::Client,
     proto: ProxyType,
     source: &str,
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<HashSet<Proxy>> {
     let text_result =
         fetch_text(Arc::clone(&config), http_client.clone(), source).await;
 
+    #[cfg(feature = "tui")]
     tx.send(Event::App(AppEvent::SourceScraped(proto.clone())))?;
 
     let text = match text_result {
@@ -111,10 +114,11 @@ async fn scrape_one(
 pub async fn scrape_all(
     config: Arc<Config>,
     http_client: reqwest::Client,
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<ProxyStorage> {
     let mut join_set = tokio::task::JoinSet::new();
     for (proto, sources) in config.sources.clone() {
+        #[cfg(feature = "tui")]
         tx.send(Event::App(AppEvent::SourcesTotal(
             proto.clone(),
             sources.len(),
@@ -123,9 +127,18 @@ pub async fn scrape_all(
             let config = Arc::clone(&config);
             let http_client = http_client.clone();
             let proto = proto.clone();
+            #[cfg(feature = "tui")]
             let tx = tx.clone();
             join_set.spawn(async move {
-                scrape_one(config, http_client, proto, &source, tx).await
+                scrape_one(
+                    config,
+                    http_client,
+                    proto,
+                    &source,
+                    #[cfg(feature = "tui")]
+                    tx,
+                )
+                .await
             });
         }
     }
@@ -133,11 +146,14 @@ pub async fn scrape_all(
     let mut storage =
         ProxyStorage::new(config.sources.keys().cloned().collect());
     while let Some(res) = join_set.join_next().await {
+        #[cfg(feature = "tui")]
         let mut seen_protocols = HashSet::new();
         for proxy in res.wrap_err("failed to join proxy scrape task")?? {
+            #[cfg(feature = "tui")]
             seen_protocols.insert(proxy.protocol.clone());
             storage.insert(proxy);
         }
+        #[cfg(feature = "tui")]
         for proto in seen_protocols {
             let count = storage.iter().filter(|p| p.protocol == proto).count();
             tx.send(Event::App(AppEvent::TotalProxies(proto, count)))?;

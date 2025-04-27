@@ -87,15 +87,22 @@ async fn main() -> color_eyre::Result<()> {
 
     let maybe_geodb_task = config.enable_geolocation.then(|| {
         let http_client = http_client.clone();
+        #[cfg(feature = "tui")]
         let tx = tx.clone();
-        tokio::spawn(
-            async move { geodb::download_geodb(http_client, tx).await },
-        )
+        tokio::spawn(async move {
+            geodb::download_geodb(
+                http_client,
+                #[cfg(feature = "tui")]
+                tx,
+            )
+            .await
+        })
     });
 
     let mut storage = scraper::scrape_all(
         Arc::clone(&config),
         http_client.clone(),
+        #[cfg(feature = "tui")]
         tx.clone(),
     )
     .await?;
@@ -110,9 +117,14 @@ async fn main() -> color_eyre::Result<()> {
     }
 
     if !config.check_website.is_empty() {
-        storage = checker::check_all(Arc::clone(&config), storage, tx.clone())
-            .await
-            .wrap_err("failed to check proxies")?;
+        storage = checker::check_all(
+            Arc::clone(&config),
+            storage,
+            #[cfg(feature = "tui")]
+            tx.clone(),
+        )
+        .await
+        .wrap_err("failed to check proxies")?;
     }
 
     output::save_proxies(config, storage).await?;

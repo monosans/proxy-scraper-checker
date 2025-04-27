@@ -3,11 +3,10 @@ use std::{io, path::PathBuf};
 use color_eyre::eyre::WrapErr as _;
 use tokio::io::AsyncWriteExt as _;
 
-use crate::{
-    event::{AppEvent, Event},
-    fs::get_cache_path,
-    utils::is_docker,
-};
+use crate::{fs::get_cache_path, utils::is_docker};
+
+#[cfg(feature = "tui")]
+use crate::event::{AppEvent, Event};
 
 const GEODB_URL: &str = "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-City.mmdb";
 
@@ -65,8 +64,9 @@ async fn save_etag(
 
 async fn save_geodb(
     mut response: reqwest::Response,
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
+    #[cfg(feature = "tui")]
     tx.send(Event::App(AppEvent::GeoDbTotal(response.content_length())))?;
     let geodb_file =
         get_geodb_path().await.wrap_err("failed to get GeoDB path")?;
@@ -82,6 +82,7 @@ async fn save_geodb(
         file.write_all(&chunk).await.wrap_err_with(|| {
             format!("failed to write to file {}", geodb_file.display())
         })?;
+        #[cfg(feature = "tui")]
         tx.send(Event::App(AppEvent::GeoDbDownloaded(chunk.len())))?;
     }
     Ok(())
@@ -89,7 +90,7 @@ async fn save_geodb(
 
 pub async fn download_geodb(
     http_client: reqwest::Client,
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
     let geodb_file =
         get_geodb_path().await.wrap_err("failed to get GeoDB path")?;
@@ -120,7 +121,13 @@ pub async fn download_geodb(
 
     let etag = response.headers().get(reqwest::header::ETAG).cloned();
 
-    save_geodb(response, tx.clone()).await.wrap_err("failed to save GeoDB")?;
+    save_geodb(
+        response,
+        #[cfg(feature = "tui")]
+        tx.clone(),
+    )
+    .await
+    .wrap_err("failed to save GeoDB")?;
 
     if is_docker().await {
         log::info!(

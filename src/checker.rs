@@ -2,25 +2,25 @@ use std::sync::Arc;
 
 use color_eyre::eyre::WrapErr as _;
 
-use crate::{
-    config::Config,
-    event::{AppEvent, Event},
-    proxy::Proxy,
-    storage::ProxyStorage,
-};
+use crate::{config::Config, proxy::Proxy, storage::ProxyStorage};
+
+#[cfg(feature = "tui")]
+use crate::event::{AppEvent, Event};
 
 async fn check_one(
     config: Arc<Config>,
     mut proxy: Proxy,
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<Proxy> {
     let check_result = proxy
         .check(Arc::clone(&config))
         .await
         .wrap_err("proxy did not pass checking");
+    #[cfg(feature = "tui")]
     tx.send(Event::App(AppEvent::ProxyChecked(proxy.protocol.clone())))?;
     match check_result {
         Ok(()) => {
+            #[cfg(feature = "tui")]
             tx.send(Event::App(AppEvent::ProxyWorking(
                 proxy.protocol.clone(),
             )))?;
@@ -45,20 +45,27 @@ async fn check_one(
 pub async fn check_all(
     config: Arc<Config>,
     storage: ProxyStorage,
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<ProxyStorage> {
     let semaphore =
         Arc::new(tokio::sync::Semaphore::new(config.max_concurrent_checks));
     let mut join_set = tokio::task::JoinSet::new();
     for proxy in storage {
         let config = Arc::clone(&config);
+        #[cfg(feature = "tui")]
         let tx = tx.clone();
         let permit = Arc::clone(&semaphore)
             .acquire_owned()
             .await
             .wrap_err("failed to acquire semaphore")?;
         join_set.spawn(async move {
-            let result = check_one(config, proxy, tx).await;
+            let result = check_one(
+                config,
+                proxy,
+                #[cfg(feature = "tui")]
+                tx,
+            )
+            .await;
             drop(permit);
             result
         });

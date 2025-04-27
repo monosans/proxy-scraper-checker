@@ -5,7 +5,7 @@
     clippy::nursery,
     clippy::cargo
 )]
-#![expect(
+#![allow(
     clippy::absolute_paths,
     clippy::allow_attributes_without_reason,
     clippy::arbitrary_source_item_ordering,
@@ -27,6 +27,7 @@
     clippy::single_char_lifetime_names,
     clippy::std_instead_of_alloc,
     clippy::std_instead_of_core,
+    clippy::too_many_lines,
     clippy::unwrap_used
 )]
 

@@ -1,6 +1,6 @@
 use crate::proxy::ProxyType;
 
-#[cfg_attr(not(feature="tui"), expect(dead_code))]
+#[cfg_attr(not(feature = "tui"), expect(dead_code))]
 pub enum AppEvent {
     GeoDbTotal(Option<u64>),
     GeoDbDownloaded(usize),

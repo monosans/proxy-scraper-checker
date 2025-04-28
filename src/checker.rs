@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use color_eyre::eyre::WrapErr as _;
 
-use crate::{config::Config, proxy::Proxy, storage::ProxyStorage};
-
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
+use crate::{config::Config, proxy::Proxy, storage::ProxyStorage};
 
 async fn check_one(
     config: Arc<Config>,

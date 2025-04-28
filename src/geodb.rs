@@ -3,10 +3,9 @@ use std::{io, path::PathBuf};
 use color_eyre::eyre::WrapErr as _;
 use tokio::io::AsyncWriteExt as _;
 
-use crate::{fs::get_cache_path, utils::is_docker};
-
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
+use crate::{fs::get_cache_path, utils::is_docker};
 
 const GEODB_URL: &str = "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-City.mmdb";
 

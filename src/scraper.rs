@@ -2,6 +2,8 @@ use std::{collections::HashSet, sync::Arc};
 
 use color_eyre::eyre::WrapErr as _;
 
+#[cfg(feature = "tui")]
+use crate::event::{AppEvent, Event};
 use crate::{
     config::Config,
     parsers::PROXY_REGEX,
@@ -9,9 +11,6 @@ use crate::{
     storage::ProxyStorage,
     utils::is_http_url,
 };
-
-#[cfg(feature = "tui")]
-use crate::event::{AppEvent, Event};
 
 async fn fetch_text(
     config: Arc<Config>,

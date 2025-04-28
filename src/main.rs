@@ -130,6 +130,7 @@ async fn main() -> color_eyre::Result<()> {
     output::save_proxies(config, storage).await?;
 
     log::info!("Thank you for using proxy-scraper-checker!");
+    #[cfg(feature = "tui")]
     tx.send(event::Event::App(event::AppEvent::Done))?;
     drop(tx);
     ui_task.await?

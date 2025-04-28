@@ -47,10 +47,12 @@ pub async fn save_proxies(
         let maybe_mmdb = if config.enable_geolocation {
             let geodb_path =
                 get_geodb_path().await.wrap_err("failed to get GeoDB path")?;
-            let buffer = tokio::fs::read(&geodb_path).await.wrap_err_with(
-                move || format!("failed to read {}", geodb_path.display()),
-            )?;
-            Some(maxminddb::Reader::from_source(buffer)?)
+            Some(
+                tokio::task::spawn_blocking(move || {
+                    maxminddb::Reader::open_mmap(geodb_path)
+                })
+                .await??,
+            )
         } else {
             None
         };

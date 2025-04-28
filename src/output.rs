@@ -85,7 +85,7 @@ pub async fn save_proxies(
                 port: proxy.port,
                 timeout: proxy
                     .timeout
-                    .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0),
+                    .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
                 exit_ip: proxy.exit_ip.clone(),
                 geolocation,
             });

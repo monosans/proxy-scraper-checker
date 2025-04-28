@@ -273,9 +273,9 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
                     proxies_checked,
                     if proxies_working != 0 {
                         (proxies_working as f64 / proxies_checked as f64)
-                            * 100.0
+                            * 100.0_f64
                     } else {
-                        0.0
+                        0.0_f64
                     }
                 )),
             layout[2],

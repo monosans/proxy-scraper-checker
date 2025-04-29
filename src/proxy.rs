@@ -97,6 +97,7 @@ impl Proxy {
             })?
             .error_for_status()
             .wrap_err("Got error HTTP status code when checking proxy")?;
+        drop(client);
         self.timeout = Some(start.elapsed());
         self.exit_ip =
             match config.check_website_type {

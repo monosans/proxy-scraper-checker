@@ -1,10 +1,15 @@
+use color_eyre::eyre::WrapErr as _;
+
 use crate::event::Event;
 
 pub struct LoggerUI;
 
 impl super::UI for LoggerUI {
     fn new() -> color_eyre::Result<Self> {
-        env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+        env_logger::Builder::new()
+            .filter_level(log::LevelFilter::Info)
+            .try_init()
+            .wrap_err("failed to initialize env_logger")?;
         Ok(Self {})
     }
 

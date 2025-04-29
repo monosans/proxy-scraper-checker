@@ -39,9 +39,12 @@ pub struct Tui {
 impl super::UI for Tui {
     fn new() -> color_eyre::Result<Self> {
         tui_logger::init_logger(log::LevelFilter::Info)
-            .wrap_err("failed to initialize logger")?;
+            .wrap_err("failed to initialize tui_logger")?;
         tui_logger::set_default_level(log::LevelFilter::Trace);
-        Ok(Self { terminal: ratatui::init() })
+        Ok(Self {
+            terminal: ratatui::try_init()
+                .wrap_err("failed to initialize ratatui")?,
+        })
     }
 
     fn set_log_level(log_level: log::LevelFilter) {

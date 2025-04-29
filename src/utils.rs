@@ -23,3 +23,7 @@ pub fn is_http_url(value: &str) -> bool {
             && parsed_url.host_str().is_some()
     })
 }
+
+pub fn pretty_error(e: &color_eyre::Report) -> String {
+    e.chain().map(ToString::to_string).collect::<Vec<_>>().join(" \u{2192} ")
+}

@@ -75,7 +75,8 @@ impl super::UI for Tui {
         }
         drop(rx);
         while let Some(task) = join_set.join_next().await {
-            task.wrap_err("failed to join event listener task")??;
+            task.wrap_err("failed to join event listener task")?
+                .wrap_err("event listener task failed")?;
         }
         Ok(())
     }
@@ -120,7 +121,7 @@ impl AppState {
 
 async fn tick_event_listener(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> color_eyre::Result<()> {
+) -> Result<(), tokio::sync::mpsc::error::SendError<Event>> {
     let mut tick =
         tokio::time::interval(tokio::time::Duration::from_secs_f64(1.0 / FPS));
     loop {
@@ -138,7 +139,7 @@ async fn tick_event_listener(
 
 async fn crossterm_event_listener(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> color_eyre::Result<()> {
+) -> Result<(), tokio::sync::mpsc::error::SendError<Event>> {
     let mut reader = crossterm::event::EventStream::new();
     loop {
         tokio::select! {

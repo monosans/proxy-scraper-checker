@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
-use color_eyre::eyre::WrapErr as _;
+use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
@@ -9,7 +9,7 @@ use crate::{
     parsers::PROXY_REGEX,
     proxy::{Proxy, ProxyType},
     storage::ProxyStorage,
-    utils::is_http_url,
+    utils::{is_http_url, pretty_error},
 };
 
 async fn fetch_text(
@@ -60,14 +60,7 @@ async fn scrape_one(
     let text = match text_result {
         Ok(text) => text,
         Err(e) => {
-            log::warn!(
-                "{} | {}",
-                source,
-                e.chain()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(" \u{2192} "),
-            );
+            log::warn!("{} | {}", source, pretty_error(&e));
             return Ok(HashSet::new());
         }
     };
@@ -92,14 +85,23 @@ async fn scrape_one(
 
     let mut proxies = HashSet::with_capacity(matches.len());
     for capture in matches {
-        let capture = capture.unwrap();
+        let capture =
+            capture.wrap_err("failed to match regex captures groups")?;
         let proxy = Proxy {
-            protocol: capture.name("protocol").map_or_else(
-                || proto.clone(),
-                |m| m.as_str().try_into().unwrap(),
-            ),
-            host: capture.name("host").unwrap().as_str().to_owned(),
-            port: capture.name("port").unwrap().as_str().parse().unwrap(),
+            protocol: match capture.name("protocol") {
+                Some(m) => m.as_str().try_into()?,
+                None => proto.clone(),
+            },
+            host: capture
+                .name("host")
+                .ok_or_eyre("failed to match \"host\" regex capture group")?
+                .as_str()
+                .to_owned(),
+            port: capture
+                .name("port")
+                .ok_or_eyre("failed to match \"port\" regex capture group")?
+                .as_str()
+                .parse()?,
             username: capture.name("username").map(|m| m.as_str().to_owned()),
             password: capture.name("password").map(|m| m.as_str().to_owned()),
             timeout: None,
@@ -147,7 +149,10 @@ pub async fn scrape_all(
     while let Some(res) = join_set.join_next().await {
         #[cfg(feature = "tui")]
         let mut seen_protocols = HashSet::new();
-        for proxy in res.wrap_err("failed to join proxy scrape task")?? {
+        for proxy in res
+            .wrap_err("failed to join proxy scrape task")?
+            .wrap_err("proxy scrape task failed")?
+        {
             #[cfg(feature = "tui")]
             seen_protocols.insert(proxy.protocol.clone());
             storage.insert(proxy);

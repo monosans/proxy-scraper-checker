@@ -51,7 +51,9 @@ pub async fn save_proxies(
                 tokio::task::spawn_blocking(move || {
                     maxminddb::Reader::open_mmap(geodb_path)
                 })
-                .await??,
+                .await
+                .wrap_err("failed to spawn tokio blocking task")?
+                .wrap_err("failed to open GeoDB")?,
             )
         } else {
             None
@@ -128,30 +130,37 @@ pub async fn save_proxies(
         }
         let mut grouped_proxies = storage.get_grouped();
 
-        for (anonymous_only, folder) in
+        for (anonymous_only, directory) in
             [(false, "proxies"), (true, "proxies_anonymous")]
         {
-            let folder_path = config.output_path.join(folder);
-            match tokio::fs::remove_dir_all(&folder_path).await {
+            let directory_path = config.output_path.join(directory);
+            match tokio::fs::remove_dir_all(&directory_path).await {
                 Ok(()) => Ok(()),
                 Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
                 Err(e) => Err(e).wrap_err_with(|| {
                     format!(
                         "failed to remove directory {}",
-                        folder_path.display()
+                        directory_path.display()
                     )
                 }),
             }?;
-            tokio::fs::create_dir_all(&folder_path).await?;
+            tokio::fs::create_dir_all(&directory_path).await.wrap_err_with(
+                || {
+                    format!(
+                        "failed to create directory: {}",
+                        directory_path.display()
+                    )
+                },
+            )?;
 
             let text =
                 create_proxy_list_str(&sorted_proxies, anonymous_only, true);
-            tokio::fs::write(folder_path.join("all.txt"), text)
+            tokio::fs::write(directory_path.join("all.txt"), text)
                 .await
                 .wrap_err_with(|| {
                     format!(
                         "failed to write proxies to {}",
-                        folder_path.join("all.txt").display()
+                        directory_path.join("all.txt").display()
                     )
                 })?;
 
@@ -164,14 +173,14 @@ pub async fn save_proxies(
                 let text =
                     create_proxy_list_str(proxies, anonymous_only, false);
                 tokio::fs::write(
-                    folder_path.join(format!("{proto}.txt")),
+                    directory_path.join(format!("{proto}.txt")),
                     text,
                 )
                 .await
                 .wrap_err_with(|| {
                     format!(
                         "failed to write proxies to {}",
-                        folder_path.join(format!("{proto}.txt")).display()
+                        directory_path.join(format!("{proto}.txt")).display()
                     )
                 })?;
             }

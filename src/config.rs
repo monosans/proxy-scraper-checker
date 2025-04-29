@@ -6,8 +6,10 @@ use std::{
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
 use crate::{
-    parsers::parse_ipv4, proxy::ProxyType, raw_config::RawConfig,
-    utils::is_docker,
+    parsers::parse_ipv4,
+    proxy::ProxyType,
+    raw_config::RawConfig,
+    utils::{is_docker, pretty_error},
 };
 
 pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
@@ -74,12 +76,33 @@ impl CheckWebsiteType {
         };
 
         if let Ok(httpbin) = serde_json::from_str::<HttpbinResponse>(&body) {
-            if parse_ipv4(&httpbin.origin).is_some() {
-                return Self::HttpbinIp;
+            match parse_ipv4(&httpbin.origin) {
+                Ok(Some(_)) => {
+                    return Self::HttpbinIp;
+                }
+                Ok(None) => {
+                    log::error!("Failed to parse ipv4 from httpbin response");
+                }
+                Err(e) => {
+                    log::error!(
+                        "Failed to parse ipv4 from httpbin response: {}",
+                        pretty_error(&e)
+                    );
+                }
             }
-            log::error!("Failed to parse ipv4 from httpbin response");
-        } else if parse_ipv4(&body).is_some() {
-            return Self::PlainIp;
+        } else {
+            match parse_ipv4(&body) {
+                Ok(Some(_)) => {
+                    return Self::PlainIp;
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    log::error!(
+                        "Failed to parse ipv4 from response: {}",
+                        pretty_error(&e)
+                    );
+                }
+            }
         }
 
         Self::Unknown
@@ -125,7 +148,9 @@ async fn get_output_path(
     } else {
         raw_config.output.path.clone()
     };
-    tokio::fs::create_dir_all(&output_path).await?;
+    tokio::fs::create_dir_all(&output_path).await.wrap_err_with(|| {
+        format!("failed to create output directory: {}", output_path.display())
+    })?;
     Ok(output_path)
 }
 

@@ -99,28 +99,35 @@ impl Proxy {
             .wrap_err("Got error HTTP status code when checking proxy")?;
         drop(client);
         self.timeout = Some(start.elapsed());
-        self.exit_ip =
-            match config.check_website_type {
-                CheckWebsiteType::HttpbinIp => {
-                    let httpbin = response
-                        .json::<HttpbinResponse>()
-                        .await
-                        .wrap_err("failed to parse response as HttpBin")?;
-                    Some(parse_ipv4(&httpbin.origin).ok_or_eyre(
-                        "failed to parse ipv4 from httpbin response",
-                    )?)
-                }
-                CheckWebsiteType::PlainIp => {
-                    let text = response
-                        .text()
-                        .await
-                        .wrap_err("failed to decode response text")?;
-                    Some(parse_ipv4(&text).ok_or_eyre(
-                        "failed to parse ipv4 from response text",
-                    )?)
-                }
-                CheckWebsiteType::Unknown => None,
-            };
+        self.exit_ip = match config.check_website_type {
+            CheckWebsiteType::HttpbinIp => {
+                let httpbin = response
+                    .json::<HttpbinResponse>()
+                    .await
+                    .wrap_err("failed to parse response as HttpBin")?;
+                Some(
+                    parse_ipv4(&httpbin.origin)
+                        .wrap_err("failed to parse ipv4 from httpbin response")?
+                        .ok_or_eyre(
+                            "failed to parse ipv4 from httpbin response",
+                        )?,
+                )
+            }
+            CheckWebsiteType::PlainIp => {
+                let text = response
+                    .text()
+                    .await
+                    .wrap_err("failed to decode response text")?;
+                Some(
+                    parse_ipv4(&text)
+                        .wrap_err("failed to parse ipv4 from response text")?
+                        .ok_or_eyre(
+                            "failed to parse ipv4 from response text",
+                        )?,
+                )
+            }
+            CheckWebsiteType::Unknown => None,
+        };
         Ok(())
     }
 

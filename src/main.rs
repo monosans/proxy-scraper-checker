@@ -62,7 +62,8 @@ fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
-    let ui_impl = ui::UIImpl::new()?;
+    let ui_impl =
+        ui::UIImpl::new().wrap_err("failed to initialize user interface")?;
 
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let ui_task = tokio::task::spawn(ui_impl.run(tx.clone(), rx));
@@ -105,7 +106,8 @@ async fn main() -> color_eyre::Result<()> {
         #[cfg(feature = "tui")]
         tx.clone(),
     )
-    .await?;
+    .await
+    .wrap_err("failed to scrape proxies")?;
 
     drop(http_client);
 
@@ -127,7 +129,9 @@ async fn main() -> color_eyre::Result<()> {
         .wrap_err("failed to check proxies")?;
     }
 
-    output::save_proxies(config, storage).await?;
+    output::save_proxies(config, storage)
+        .await
+        .wrap_err("failed to save proxies")?;
 
     log::info!("Thank you for using proxy-scraper-checker!");
     #[cfg(feature = "tui")]

@@ -4,7 +4,9 @@ use color_eyre::eyre::WrapErr as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
-use crate::{config::Config, proxy::Proxy, storage::ProxyStorage};
+use crate::{
+    config::Config, proxy::Proxy, storage::ProxyStorage, utils::pretty_error,
+};
 
 async fn check_one(
     config: Arc<Config>,
@@ -27,14 +29,7 @@ async fn check_one(
         }
         Err(e) => {
             if log::log_enabled!(log::Level::Debug) {
-                log::debug!(
-                    "{} | {}",
-                    proxy.as_str(true),
-                    e.chain()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join(" \u{2192} ")
-                );
+                log::debug!("{} | {}", proxy.as_str(true), pretty_error(&e));
             }
             Err(e)
         }

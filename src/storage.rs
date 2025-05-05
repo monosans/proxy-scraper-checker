@@ -19,13 +19,15 @@ impl ProxyStorage {
     }
 
     pub fn get_grouped(&self) -> HashMap<ProxyType, Vec<&Proxy>> {
-        let mut groups: HashMap<ProxyType, Vec<&Proxy>> = self
+        let mut groups: HashMap<_, _> = self
             .enabled_protocols
             .iter()
             .map(|p| (p.clone(), Vec::new()))
             .collect();
         for proxy in &self.proxies {
-            groups.entry(proxy.protocol.clone()).or_default().push(proxy);
+            if let Some(proxies) = groups.get_mut(&proxy.protocol) {
+                proxies.push(proxy);
+            }
         }
         groups
     }

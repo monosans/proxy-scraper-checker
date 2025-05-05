@@ -214,7 +214,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
     let mut proxy_types: Vec<_> = state.sources_total.keys().collect();
     proxy_types.sort();
 
-    for (i, proxy_type) in proxy_types.iter().enumerate() {
+    for (i, proxy_type) in proxy_types.into_iter().enumerate() {
         let block =
             Block::bordered().title(proxy_type.to_string().to_uppercase());
         f.render_widget(block.clone(), proxies_layout[i]);
@@ -286,11 +286,11 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         );
     }
 
-    let mut lines = vec![
-        Line::from("Up/PageUp/k - scroll logs up"),
-        Line::from("Down/PageDown/j - scroll logs down"),
-    ];
-    if matches!(state.mode, AppMode::Done) {
+    let done = matches!(state.mode, AppMode::Done);
+    let mut lines = Vec::with_capacity(2 + usize::from(done));
+    lines.push(Line::from("Up/PageUp/k - scroll logs up"));
+    lines.push(Line::from("Down/PageDown/j - scroll logs down"));
+    if done {
         lines.push(
             Line::from("Enter/ESC/q/Ctrl-C - exit")
                 .style(Style::default().fg(Color::Red)),

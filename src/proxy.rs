@@ -1,4 +1,4 @@
-use std::{fmt, sync::Arc};
+use std::{fmt, fmt::Write as _, sync::Arc};
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _, eyre};
 
@@ -21,7 +21,7 @@ impl TryFrom<&str> for ProxyType {
     type Error = color_eyre::Report;
 
     fn try_from(string: &str) -> color_eyre::Result<Self> {
-        match string {
+        match string.to_ascii_lowercase().as_str() {
             "http" | "https" => Ok(Self::Http),
             "socks4" => Ok(Self::Socks4),
             "socks5" => Ok(Self::Socks5),
@@ -60,24 +60,34 @@ pub struct Proxy {
     pub exit_ip: Option<String>,
 }
 
+impl TryFrom<&mut Proxy> for reqwest::Proxy {
+    type Error = color_eyre::Report;
+
+    fn try_from(value: &mut Proxy) -> Result<Self, Self::Error> {
+        let proxy = Self::all(format!(
+            "{}://{}:{}",
+            value.protocol, value.host, value.port
+        ))
+        .wrap_err("failed to create reqwest::Proxy")?;
+
+        if let (Some(username), Some(password)) =
+            (value.username.as_ref(), value.password.as_ref())
+        {
+            Ok(proxy.basic_auth(username, password))
+        } else {
+            Ok(proxy)
+        }
+    }
+}
+
 impl Proxy {
     pub async fn check(
         &mut self,
         config: Arc<Config>,
     ) -> color_eyre::Result<()> {
-        let mut proxy = reqwest::Proxy::all(format!(
-            "{}://{}:{}",
-            self.protocol, self.host, self.port
-        ))
-        .wrap_err("failed to create reqwest::Proxy")?;
-        if let (Some(username), Some(password)) =
-            (self.username.as_ref(), self.password.as_ref())
-        {
-            proxy = proxy.basic_auth(username, password);
-        }
         let client = reqwest::Client::builder()
             .user_agent(USER_AGENT)
-            .proxy(proxy)
+            .proxy(self.try_into()?)
             .timeout(config.timeout)
             .pool_max_idle_per_host(0)
             .tcp_keepalive(None)
@@ -134,20 +144,14 @@ impl Proxy {
     pub fn as_str(&self, include_protocol: bool) -> String {
         let mut s = String::new();
         if include_protocol {
-            s.push_str(&self.protocol.to_string());
-            s.push_str("://");
+            write!(&mut s, "{}://", self.protocol).unwrap();
         }
         if let (Some(username), Some(password)) =
             (self.username.as_ref(), self.password.as_ref())
         {
-            s.push_str(username);
-            s.push(':');
-            s.push_str(password);
-            s.push('@');
+            write!(&mut s, "{username}:{password}@").unwrap();
         }
-        s.push_str(&self.host);
-        s.push(':');
-        s.push_str(&self.port.to_string());
+        write!(&mut s, "{}:{}", self.host, self.port).unwrap();
         s
     }
 }

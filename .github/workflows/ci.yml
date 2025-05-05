@@ -28,10 +28,10 @@ jobs:
           - target: aarch64-apple-darwin
             runner: macos-15
             cross: false
-          # - target: aarch64-pc-windows-msvc
-          #   runner: windows-11-arm
-          #   cross: false
-          #   executable: proxy-scraper-checker.exe
+          - target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+            cross: false
+            executable: proxy-scraper-checker.exe
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
             cross: false
@@ -231,16 +231,14 @@ jobs:
             cross: true
       fail-fast: false
     runs-on: ${{ matrix.runner }}
-    env:
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: rustup toolchain install beta --profile minimal --target '${{ matrix.target }}' --allow-downgrade
-      - run: rustup default beta
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: beta
+          target: ${{ matrix.target }}
       - if: ${{ matrix.cross  }}
         run: cargo +beta install cross --git https://github.com/cross-rs/cross
       - if: ${{ matrix.cross  }}
@@ -396,15 +394,14 @@ jobs:
           - "--features tui"
           - ""
       fail-fast: false
-    env:
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: rustup toolchain install beta --profile minimal --component clippy --allow-downgrade
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: beta
+          components: clippy
       - run: cargo +beta clippy --all-targets ${{ matrix.features }} -- -Dwarnings
   pre-commit:
     runs-on: ubuntu-24.04
@@ -424,5 +421,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: rustup toolchain install nightly --profile minimal --component rustfmt --allow-downgrade
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt
       - run: cargo +nightly fmt --check

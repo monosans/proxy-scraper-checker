@@ -63,10 +63,7 @@ impl Config {
         let max_concurrent_checks =
             match rlimit::increase_nofile_limit(u64::MAX) {
                 Ok(lim) => {
-                    #[cfg(target_pointer_width = "32")]
-                    let lim = cast::usize(lim).unwrap_or(usize::MAX);
-                    #[cfg(not(target_pointer_width = "32"))]
-                    let lim = cast::usize(lim);
+                    let lim = usize::try_from(lim).unwrap_or(usize::MAX);
 
                     if raw_config.max_concurrent_checks > lim {
                         log::warn!(

@@ -22,7 +22,7 @@ impl ProxyStorage {
         let mut groups: HashMap<_, _> = self
             .enabled_protocols
             .iter()
-            .map(|p| (p.clone(), Vec::new()))
+            .map(move |p| (p.clone(), Vec::new()))
             .collect();
         for proxy in &self.proxies {
             if let Some(proxies) = groups.get_mut(&proxy.protocol) {

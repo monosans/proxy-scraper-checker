@@ -210,7 +210,7 @@ impl Config {
                 (ProxyType::Socks5, raw_config.socks5),
             ]
             .into_iter()
-            .filter_map(|(proxy_type, section)| {
+            .filter_map(move |(proxy_type, section)| {
                 section.enabled.then_some((proxy_type, section.sources))
             })
             .collect(),

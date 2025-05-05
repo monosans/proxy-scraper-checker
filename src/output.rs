@@ -21,7 +21,7 @@ fn sort_by_timeout(proxy: &Proxy) -> tokio::time::Duration {
 fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
     let host_key = proxy.host.parse::<Ipv4Addr>().map_or_else(
         move |_| iter::repeat_n(u8::MAX, 4).chain(proxy.host.bytes()).collect(),
-        |ip| ip.octets().to_vec(),
+        move |ip| ip.octets().to_vec(),
     );
     (proxy.protocol.clone(), host_key, proxy.port)
 }
@@ -60,7 +60,7 @@ pub async fn save_proxies(
         };
 
         let mut sorted_proxies: Vec<_> = storage.iter().collect();
-        sorted_proxies.sort_by_key(|p| sort_by_timeout(p));
+        sorted_proxies.sort_by_key(move |p| sort_by_timeout(p));
 
         let mut proxy_dicts = Vec::with_capacity(sorted_proxies.len());
 
@@ -87,9 +87,9 @@ pub async fn save_proxies(
                 password: proxy.password.clone(),
                 host: proxy.host.clone(),
                 port: proxy.port,
-                timeout: proxy
-                    .timeout
-                    .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
+                timeout: proxy.timeout.map(move |d| {
+                    (d.as_secs_f64() * 100.0).round() / 100.0_f64
+                }),
                 exit_ip: proxy.exit_ip.clone(),
                 geolocation,
             });
@@ -124,9 +124,9 @@ pub async fn save_proxies(
     if config.output_txt {
         let mut sorted_proxies: Vec<_> = storage.iter().collect();
         if config.sort_by_speed {
-            sorted_proxies.sort_by_key(|p| sort_by_timeout(p));
+            sorted_proxies.sort_by_key(move |p| sort_by_timeout(p));
         } else {
-            sorted_proxies.sort_by_key(|p| sort_naturally(p));
+            sorted_proxies.sort_by_key(move |p| sort_naturally(p));
         }
         let mut grouped_proxies = storage.get_grouped();
 
@@ -166,9 +166,9 @@ pub async fn save_proxies(
 
             for (proto, proxies) in &mut grouped_proxies {
                 if config.sort_by_speed {
-                    proxies.sort_by_key(|p| sort_by_timeout(p));
+                    proxies.sort_by_key(move |p| sort_by_timeout(p));
                 } else {
-                    proxies.sort_by_key(|p| sort_naturally(p));
+                    proxies.sort_by_key(move |p| sort_naturally(p));
                 }
                 let text =
                     create_proxy_list_str(proxies, anonymous_only, false);

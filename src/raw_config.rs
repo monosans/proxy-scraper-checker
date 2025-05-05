@@ -99,7 +99,7 @@ pub struct ProxySection {
 const CONFIG_ENV_VAR: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
 
 pub fn get_config_path() -> String {
-    env::var(CONFIG_ENV_VAR).unwrap_or_else(|_| "config.toml".to_owned())
+    env::var(CONFIG_ENV_VAR).unwrap_or_else(move |_| "config.toml".to_owned())
 }
 
 pub async fn read_config(path: &str) -> color_eyre::Result<RawConfig> {

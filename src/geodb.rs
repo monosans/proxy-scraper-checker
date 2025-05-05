@@ -95,7 +95,7 @@ pub async fn download_geodb(
         get_geodb_path().await.wrap_err("failed to get GeoDB path")?;
 
     let mut headers = reqwest::header::HeaderMap::new();
-    if tokio::fs::metadata(&geodb_file).await.is_ok_and(|m| m.is_file()) {
+    if tokio::fs::metadata(&geodb_file).await.is_ok_and(move |m| m.is_file()) {
         if let Some(etag) = read_etag().await.wrap_err("failed to read ETag")? {
             headers.insert(reqwest::header::IF_NONE_MATCH, etag);
         }

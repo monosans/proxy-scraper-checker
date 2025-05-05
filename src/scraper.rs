@@ -102,8 +102,12 @@ async fn scrape_one(
                 .ok_or_eyre("failed to match \"port\" regex capture group")?
                 .as_str()
                 .parse()?,
-            username: capture.name("username").map(|m| m.as_str().to_owned()),
-            password: capture.name("password").map(|m| m.as_str().to_owned()),
+            username: capture
+                .name("username")
+                .map(move |m| m.as_str().to_owned()),
+            password: capture
+                .name("password")
+                .map(move |m| m.as_str().to_owned()),
             timeout: None,
             exit_ip: None,
         };

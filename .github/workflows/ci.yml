@@ -239,9 +239,10 @@ jobs:
         with:
           toolchain: beta
           target: ${{ matrix.target }}
-          rustflags: "${{ matrix.cross && '-Dwarnings' || '' }}"
       - if: ${{ matrix.cross  }}
         run: cargo +beta install cross --git https://github.com/cross-rs/cross
+        env:
+          RUSTFLAGS: ""
       - if: ${{ matrix.cross  }}
         run: cross +beta build --features tui --release --target '${{ matrix.target }}' --locked
       - if: ${{ !matrix.cross }}

@@ -5,115 +5,16 @@ use std::{
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
-use crate::{
-    parsers::parse_ipv4,
-    proxy::ProxyType,
-    raw_config::RawConfig,
-    utils::{is_docker, pretty_error},
-};
+use crate::{proxy::ProxyType, raw_config::RawConfig, utils::is_docker};
 
 pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
 pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
                               AppleWebKit/537.36 (KHTML, like Gecko) \
                               Chrome/135.0.0.0 Safari/537.36";
 
-#[derive(Clone)]
-pub enum CheckWebsiteType {
-    Unknown,
-    PlainIp,
-    HttpbinIp,
-}
-
 #[derive(serde::Deserialize)]
 pub struct HttpbinResponse {
     pub origin: String,
-}
-
-impl CheckWebsiteType {
-    pub async fn guess(
-        check_website: &str,
-        http_client: reqwest::Client,
-    ) -> Self {
-        if check_website.is_empty() {
-            return Self::Unknown;
-        }
-
-        let response = match http_client.get(check_website).send().await {
-            Ok(resp) => resp,
-            Err(err) => {
-                log::error!(
-                    "Failed to open check_website without proxy, it will be \
-                     impossible to determine anonymity and geolocation of \
-                     proxies: {err}",
-                );
-                return Self::Unknown;
-            }
-        };
-
-        let response = match response.error_for_status() {
-            Ok(response) => response,
-            Err(err) => {
-                if let Some(status) = err.status() {
-                    log::error!(
-                        "check_website returned error HTTP status code: \
-                         {status}"
-                    );
-                } else {
-                    log::error!(
-                        "check_website returned error HTTP status code"
-                    );
-                }
-                return Self::Unknown;
-            }
-        };
-
-        let body = match response.text().await {
-            Ok(text) => text,
-            Err(err) => {
-                log::error!("Failed to decode check_website response: {err}");
-                return Self::Unknown;
-            }
-        };
-
-        if let Ok(httpbin) = serde_json::from_str::<HttpbinResponse>(&body) {
-            match parse_ipv4(&httpbin.origin) {
-                Ok(Some(_)) => {
-                    return Self::HttpbinIp;
-                }
-                Ok(None) => {
-                    log::error!("Failed to parse ipv4 from httpbin response");
-                }
-                Err(e) => {
-                    log::error!(
-                        "Failed to parse ipv4 from httpbin response: {}",
-                        pretty_error(&e)
-                    );
-                }
-            }
-        } else {
-            match parse_ipv4(&body) {
-                Ok(Some(_)) => {
-                    return Self::PlainIp;
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    log::error!(
-                        "Failed to parse ipv4 from response: {}",
-                        pretty_error(&e)
-                    );
-                }
-            }
-        }
-
-        Self::Unknown
-    }
-
-    pub const fn supports_geolocation(&self) -> bool {
-        match self {
-            Self::Unknown => false,
-            Self::PlainIp | Self::HttpbinIp => true,
-        }
-    }
 }
 
 #[expect(clippy::struct_excessive_bools)]
@@ -123,7 +24,6 @@ pub struct Config {
     pub proxies_per_source_limit: usize,
     pub max_concurrent_checks: usize,
     pub check_website: String,
-    pub check_website_type: CheckWebsiteType,
     pub sort_by_speed: bool,
     pub enable_geolocation: bool,
     pub debug: bool,
@@ -157,23 +57,17 @@ async fn get_output_path(
 impl Config {
     pub async fn from_raw_config(
         raw_config: RawConfig,
-        http_client: reqwest::Client,
     ) -> color_eyre::Result<Self> {
-        let (check_website_type, output_path) = tokio::try_join!(
-            async {
-                Ok(CheckWebsiteType::guess(
-                    &raw_config.check_website,
-                    http_client,
-                )
-                .await)
-            },
-            get_output_path(&raw_config)
-        )?;
+        let output_path = get_output_path(&raw_config).await?;
 
         let max_concurrent_checks =
             match rlimit::increase_nofile_limit(u64::MAX) {
                 Ok(lim) => {
+                    #[cfg(target_pointer_width = "32")]
+                    let lim = cast::usize(lim).unwrap_or(usize::MAX);
+                    #[cfg(not(target_pointer_width = "32"))]
                     let lim = cast::usize(lim);
+
                     if raw_config.max_concurrent_checks > lim {
                         log::warn!(
                             "max_concurrent_checks config value is too high \
@@ -196,10 +90,8 @@ impl Config {
             proxies_per_source_limit: raw_config.proxies_per_source_limit,
             max_concurrent_checks,
             check_website: raw_config.check_website,
-            check_website_type: check_website_type.clone(),
             sort_by_speed: raw_config.sort_by_speed,
-            enable_geolocation: raw_config.enable_geolocation
-                && check_website_type.supports_geolocation(),
+            enable_geolocation: raw_config.enable_geolocation,
             debug: raw_config.debug,
             output_path,
             output_json: raw_config.output.json,

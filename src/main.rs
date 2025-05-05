@@ -68,16 +68,13 @@ async fn main() -> color_eyre::Result<()> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let ui_task = tokio::task::spawn(ui_impl.run(tx.clone(), rx));
 
-    let http_client = create_reqwest_client()
-        .wrap_err("failed to create reqwest HTTP client")?;
-
     let raw_config_path = raw_config::get_config_path();
     let raw_config = raw_config::read_config(&raw_config_path)
         .await
         .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
 
     let config = Arc::new(
-        config::Config::from_raw_config(raw_config, http_client.clone())
+        config::Config::from_raw_config(raw_config)
             .await
             .wrap_err("failed to create Config from RawConfig")?,
     );
@@ -85,6 +82,9 @@ async fn main() -> color_eyre::Result<()> {
     if config.debug {
         ui::UIImpl::set_log_level(log::LevelFilter::Debug);
     }
+
+    let http_client = create_reqwest_client()
+        .wrap_err("failed to create reqwest HTTP client")?;
 
     let maybe_geodb_task = config.enable_geolocation.then(|| {
         let http_client = http_client.clone();

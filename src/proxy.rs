@@ -1,9 +1,9 @@
 use std::{fmt, fmt::Write as _, sync::Arc};
 
-use color_eyre::eyre::{OptionExt as _, WrapErr as _, eyre};
+use color_eyre::eyre::{WrapErr as _, eyre};
 
 use crate::{
-    config::{CheckWebsiteType, Config, HttpbinResponse, USER_AGENT},
+    config::{Config, HttpbinResponse, USER_AGENT},
     parsers::parse_ipv4,
 };
 
@@ -109,35 +109,20 @@ impl Proxy {
             .wrap_err("Got error HTTP status code when checking proxy")?;
         drop(client);
         self.timeout = Some(start.elapsed());
-        self.exit_ip = match config.check_website_type {
-            CheckWebsiteType::HttpbinIp => {
-                let httpbin = response
-                    .json::<HttpbinResponse>()
-                    .await
-                    .wrap_err("failed to parse response as HttpBin")?;
-                Some(
-                    parse_ipv4(&httpbin.origin)
-                        .wrap_err("failed to parse ipv4 from httpbin response")?
-                        .ok_or_eyre(
-                            "failed to parse ipv4 from httpbin response",
-                        )?,
-                )
+        self.exit_ip = response.text().await.map_or(None, move |text| {
+            if let Ok(httpbin) = serde_json::from_str::<HttpbinResponse>(&text)
+            {
+                match parse_ipv4(&httpbin.origin) {
+                    Ok(Some(ipv4)) => Some(ipv4),
+                    Ok(None) | Err(_) => None,
+                }
+            } else {
+                match parse_ipv4(&text) {
+                    Ok(Some(ipv4)) => Some(ipv4),
+                    Ok(None) | Err(_) => None,
+                }
             }
-            CheckWebsiteType::PlainIp => {
-                let text = response
-                    .text()
-                    .await
-                    .wrap_err("failed to decode response text")?;
-                Some(
-                    parse_ipv4(&text)
-                        .wrap_err("failed to parse ipv4 from response text")?
-                        .ok_or_eyre(
-                            "failed to parse ipv4 from response text",
-                        )?,
-                )
-            }
-            CheckWebsiteType::Unknown => None,
-        };
+        });
         Ok(())
     }
 

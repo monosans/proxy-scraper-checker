@@ -6,6 +6,7 @@ license = "MIT"
 publish = false
 
 [dependencies]
+cast = { version = "0.3.0", features = ["std"] }
 color-eyre = "=0.6.4"
 crossterm = { version = "=0.28.1", features = [
     "event-stream",

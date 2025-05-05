@@ -41,8 +41,9 @@ pub async fn check_all(
     storage: ProxyStorage,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<ProxyStorage> {
-    let semaphore =
-        Arc::new(tokio::sync::Semaphore::new(config.max_concurrent_checks));
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(
+        config.max_concurrent_checks.min(tokio::sync::Semaphore::MAX_PERMITS),
+    ));
     let mut join_set = tokio::task::JoinSet::new();
     for proxy in storage {
         let config = Arc::clone(&config);

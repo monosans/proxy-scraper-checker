@@ -1,9 +1,5 @@
 #![expect(
-    clippy::arithmetic_side_effects,
-    clippy::as_conversions,
-    clippy::cast_precision_loss,
     clippy::indexing_slicing,
-    clippy::integer_division_remainder_used,
     clippy::missing_asserts_for_indexing,
     clippy::wildcard_enum_match_arm
 )]
@@ -124,6 +120,7 @@ async fn tick_event_listener(
 ) -> Result<(), tokio::sync::mpsc::error::SendError<Event>> {
     let mut tick =
         tokio::time::interval(tokio::time::Duration::from_secs_f64(1.0 / FPS));
+    #[expect(clippy::integer_division_remainder_used)]
     loop {
         tokio::select! {
             biased;
@@ -141,6 +138,7 @@ async fn crossterm_event_listener(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> Result<(), tokio::sync::mpsc::error::SendError<Event>> {
     let mut reader = crossterm::event::EventStream::new();
+    #[expect(clippy::integer_division_remainder_used)]
     loop {
         tokio::select! {
             biased;
@@ -198,10 +196,13 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
     f.render_widget(
         Gauge::default()
             .block(Block::bordered().title("GeoDB download"))
-            .ratio(if state.geodb_total == 0 {
-                1.0
-            } else {
-                (state.geodb_downloaded as f64) / (state.geodb_total as f64)
+            .ratio({
+                let total = cast::f64(state.geodb_total);
+                if total == 0.0 {
+                    1.0
+                } else {
+                    cast::f64(state.geodb_downloaded) / total
+                }
             }),
         outer_layout[1],
     );
@@ -231,63 +232,57 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
 
         f.render_widget(
             Gauge::default()
-                .ratio(if sources_total == 0 {
-                    0.0
-                } else {
-                    sources_scraped as f64 / sources_total as f64
+                .ratio({
+                    let total = cast::f64(sources_total);
+                    if total == 0.0 {
+                        1.0
+                    } else {
+                        cast::f64(sources_scraped) / total
+                    }
                 })
                 .block(Block::bordered().title("Scraping sources"))
                 .label(format!("{sources_scraped}/{sources_total}")),
             layout[0],
         );
 
-        let proxies_checked =
-            state.proxies_checked.get(proxy_type).copied().unwrap_or_default();
-        let proxies_working =
-            state.proxies_working.get(proxy_type).copied().unwrap_or_default();
         let proxies_total =
             state.proxies_total.get(proxy_type).copied().unwrap_or_default();
-
+        let proxies_checked =
+            state.proxies_checked.get(proxy_type).copied().unwrap_or_default();
         f.render_widget(
             Gauge::default()
-                .ratio(if proxies_total == 0 {
-                    0.0
-                } else {
-                    proxies_checked as f64 / proxies_total as f64
+                .ratio({
+                    let total = cast::f64(proxies_total);
+                    if total == 0.0 {
+                        1.0
+                    } else {
+                        cast::f64(proxies_checked) / total
+                    }
                 })
                 .block(Block::bordered().title("Checking proxies"))
                 .label(format!("{proxies_checked}/{proxies_total}")),
             layout[1],
         );
 
+        let working_proxies_block = Block::bordered().title("Working proxies");
+        f.render_widget(working_proxies_block.clone(), layout[2]);
+
+        let proxies_working =
+            state.proxies_working.get(proxy_type).copied().unwrap_or_default();
         f.render_widget(
-            Gauge::default()
-                .ratio(if proxies_total == 0 {
-                    0.0
-                } else {
-                    proxies_checked as f64 / proxies_total as f64
-                })
-                .block(
-                    Block::bordered()
-                        .title("Working proxies / checked proxies"),
-                )
-                .label(format!(
-                    "{}/{} ({:.1}%)",
-                    proxies_working,
-                    proxies_checked,
-                    if proxies_working != 0 {
-                        (proxies_working as f64 / proxies_checked as f64)
-                            * 100.0_f64
-                    } else {
-                        0.0_f64
-                    }
-                )),
-            layout[2],
+            Line::from(format!(
+                "{} ({:.1}%)",
+                proxies_working,
+                (cast::f64(proxies_working) / cast::f64(proxies_checked))
+                    * 100.0_f64
+            ))
+            .alignment(Alignment::Center),
+            working_proxies_block.inner(layout[2]),
         );
     }
 
     let done = matches!(state.mode, AppMode::Done);
-    let mut lines = Vec::with_capacity(2 + usize::from(done));
+    let mut lines = Vec::with_capacity(usize::from(done).saturating_add(2));
     lines.push(Line::from("Up/PageUp/k - scroll logs up"));
     lines.push(Line::from("Down/PageDown/j - scroll logs down"));
     if done {
@@ -353,22 +348,35 @@ async fn handle_event(
                     state.geodb_total = bytes.unwrap_or_default();
                 }
                 AppEvent::GeoDbDownloaded(bytes) => {
-                    state.geodb_downloaded += bytes;
+                    state.geodb_downloaded =
+                        state.geodb_downloaded.saturating_add(bytes);
                 }
                 AppEvent::SourcesTotal(proxy_type, amount) => {
                     state.sources_total.insert(proxy_type, amount);
                 }
                 AppEvent::SourceScraped(proxy_type) => {
-                    *state.sources_scraped.entry(proxy_type).or_default() += 1;
+                    state
+                        .sources_scraped
+                        .entry(proxy_type)
+                        .and_modify(|c| *c = c.saturating_add(1))
+                        .or_insert(1);
                 }
                 AppEvent::TotalProxies(proxy_type, amount) => {
                     state.proxies_total.insert(proxy_type, amount);
                 }
                 AppEvent::ProxyChecked(proxy_type) => {
-                    *state.proxies_checked.entry(proxy_type).or_default() += 1;
+                    state
+                        .proxies_checked
+                        .entry(proxy_type)
+                        .and_modify(|c| *c = c.saturating_add(1))
+                        .or_insert(1);
                 }
                 AppEvent::ProxyWorking(proxy_type) => {
-                    *state.proxies_working.entry(proxy_type).or_default() += 1;
+                    state
+                        .proxies_working
+                        .entry(proxy_type)
+                        .and_modify(|c| *c = c.saturating_add(1))
+                        .or_insert(1);
                 }
                 AppEvent::Done => {
                     state.mode = if is_interactive().await {

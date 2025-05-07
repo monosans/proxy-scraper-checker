@@ -239,7 +239,7 @@ jobs:
         with:
           toolchain: beta
           target: ${{ matrix.target }}
-          cache: false
+          cache-key: ${{ matrix.target }}
       - if: ${{ matrix.cross  }}
         run: cargo +beta install cross --git https://github.com/cross-rs/cross
         env:
@@ -405,7 +405,7 @@ jobs:
         with:
           toolchain: beta
           components: clippy
-          cache: false
+          cache-key: x86_64-unknown-linux-gnu
       - run: cargo +beta clippy --all-targets ${{ matrix.features }} -- -Dwarnings
   pre-commit:
     runs-on: ubuntu-24.04
@@ -429,5 +429,5 @@ jobs:
         with:
           toolchain: nightly
           components: rustfmt
-          cache: false
+          cache-key: x86_64-unknown-linux-gnu
       - run: cargo +nightly fmt --check

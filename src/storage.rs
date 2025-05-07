@@ -35,6 +35,10 @@ impl ProxyStorage {
     pub fn iter(&self) -> hash_set::Iter<'_, Proxy> {
         self.proxies.iter()
     }
+
+    pub fn len(&self) -> usize {
+        self.proxies.len()
+    }
 }
 
 impl IntoIterator for ProxyStorage {

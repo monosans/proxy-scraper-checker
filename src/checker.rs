@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::WrapErr as _;
+use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
@@ -16,20 +16,21 @@ pub async fn check_all(
         return Ok(ProxyStorage::new(config.sources.keys().cloned().collect()));
     }
 
+    let new_storage = Arc::new(tokio::sync::Mutex::new(ProxyStorage::new(
+        config.sources.keys().cloned().collect(),
+    )));
+
     let queue = Arc::new(tokio::sync::Mutex::new(
         storage.into_iter().collect::<Vec<_>>(),
     ));
 
-    let (result_tx, mut result_rx) = tokio::sync::mpsc::unbounded_channel();
-
     let mut join_set = tokio::task::JoinSet::<color_eyre::Result<()>>::new();
-
     for _ in 0..workers_count {
         let queue = Arc::clone(&queue);
         let config = Arc::clone(&config);
+        let new_storage = Arc::clone(&new_storage);
         #[cfg(feature = "tui")]
         let tx = tx.clone();
-        let result_tx = result_tx.clone();
         join_set.spawn(async move {
             loop {
                 let Some(mut proxy) = queue.lock().await.pop() else {
@@ -49,7 +50,7 @@ pub async fn check_all(
                         tx.send(Event::App(AppEvent::ProxyWorking(
                             proxy.protocol.clone(),
                         )))?;
-                        result_tx.send(proxy)?;
+                        new_storage.lock().await.insert(proxy);
                     }
                     Err(e) => {
                         if log::log_enabled!(log::Level::Debug) {
@@ -65,17 +66,12 @@ pub async fn check_all(
         });
     }
 
-    drop(result_tx);
-
     while let Some(res) = join_set.join_next().await {
         res.wrap_err("failed to join proxy checking task")?
             .wrap_err("proxy checking worker failed")?;
     }
 
-    let mut new_storage =
-        ProxyStorage::new(config.sources.keys().cloned().collect());
-    while let Some(proxy) = result_rx.recv().await {
-        new_storage.insert(proxy);
-    }
-    Ok(new_storage)
+    Ok(Arc::into_inner(new_storage)
+        .ok_or_eyre("failed to unwrap Arc")?
+        .into_inner())
 }

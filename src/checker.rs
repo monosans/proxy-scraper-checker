@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::sync::Arc;
 
 use color_eyre::eyre::WrapErr as _;
 
@@ -17,7 +17,7 @@ pub async fn check_all(
     }
 
     let queue = Arc::new(tokio::sync::Mutex::new(
-        storage.into_iter().collect::<VecDeque<_>>(),
+        storage.into_iter().collect::<Vec<_>>(),
     ));
 
     let (result_tx, mut result_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -32,7 +32,7 @@ pub async fn check_all(
         let result_tx = result_tx.clone();
         join_set.spawn(async move {
             loop {
-                let Some(mut proxy) = queue.lock().await.pop_front() else {
+                let Some(mut proxy) = queue.lock().await.pop() else {
                     break Ok(());
                 };
                 let check_result = proxy

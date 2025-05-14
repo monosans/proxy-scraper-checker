@@ -237,12 +237,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df8670b8c7b9dae1793364eafadf7239c40d669904660c5960d74cfd80b46a53"
 
 [[package]]
-name = "cast"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
-
-[[package]]
 name = "castaway"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1410,7 +1404,6 @@ dependencies = [
 name = "proxy-scraper-checker"
 version = "0.1.0"
 dependencies = [
- "cast",
  "color-eyre",
  "crossterm",
  "derivative",
@@ -1682,9 +1675,9 @@ dependencies = [
 
 [[package]]
 name = "resolv-conf"
-version = "0.7.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc7c8f7f733062b66dc1c63f9db168ac0b97a9210e247fa90fdc9ad08f51b302"
+checksum = "95325155c684b1c89f7765e30bc1c42e4a6da51ca513615660cb8a62ef9a88e3"
 
 [[package]]
 name = "ring"

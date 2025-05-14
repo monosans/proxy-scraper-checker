@@ -197,11 +197,11 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         Gauge::default()
             .block(Block::bordered().title("GeoDB download"))
             .ratio({
-                let total = cast::f64(state.geodb_total);
+                let total = state.geodb_total as f64;
                 if total == 0.0 {
                     1.0
                 } else {
-                    cast::f64(state.geodb_downloaded) / total
+                    (state.geodb_downloaded as f64) / total
                 }
             }),
         outer_layout[1],
@@ -235,11 +235,11 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         f.render_widget(
             Gauge::default()
                 .ratio({
-                    let total = cast::f64(sources_total);
+                    let total = sources_total as f64;
                     if total == 0.0 {
                         1.0
                     } else {
-                        cast::f64(sources_scraped) / total
+                        (sources_scraped as f64) / total
                     }
                 })
                 .block(Block::bordered().title("Scraping sources"))
@@ -254,11 +254,11 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         f.render_widget(
             Gauge::default()
                 .ratio({
-                    let total = cast::f64(proxies_total);
+                    let total = proxies_total as f64;
                     if total == 0.0 {
                         1.0
                     } else {
-                        cast::f64(proxies_checked) / total
+                        (proxies_checked as f64) / total
                     }
                 })
                 .block(Block::bordered().title("Checking proxies"))
@@ -275,7 +275,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
             Line::from(format!(
                 "{} ({:.1}%)",
                 proxies_working,
-                (cast::f64(proxies_working) / cast::f64(proxies_checked))
+                ((proxies_working as f64) / (proxies_checked as f64))
                     * 100.0_f64
             ))
             .alignment(Alignment::Center),

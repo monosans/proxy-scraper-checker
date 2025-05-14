@@ -68,7 +68,8 @@ async fn scrape_one(
         }
     };
 
-    let matches: Vec<_> = PROXY_REGEX.captures_iter(&text).collect();
+    let matches =
+        PROXY_REGEX.captures_iter(&text).collect::<Result<Vec<_>, _>>()?;
 
     if matches.is_empty() {
         log::warn!("{source} | No proxies found");
@@ -90,11 +91,9 @@ async fn scrape_one(
     let mut seen_protocols = HashSet::with_capacity(1);
     let mut storage = storage.lock().await;
     for capture in matches {
-        let capture =
-            capture.wrap_err("failed to match regex captures groups")?;
         let proxy = Proxy {
             protocol: match capture.name("protocol") {
-                Some(m) => m.as_str().try_into()?,
+                Some(m) => m.as_str().parse()?,
                 None => proto.clone(),
             },
             host: capture

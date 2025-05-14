@@ -1,4 +1,8 @@
-use std::{fmt, fmt::Write as _, sync::Arc};
+use std::{
+    fmt::{self, Write as _},
+    str::FromStr,
+    sync::Arc,
+};
 
 use color_eyre::eyre::{WrapErr as _, eyre};
 
@@ -8,24 +12,22 @@ use crate::{
 };
 
 #[derive(serde::Serialize, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[serde(rename_all = "lowercase")]
 pub enum ProxyType {
-    #[serde(rename = "http")]
     Http,
-    #[serde(rename = "socks4")]
     Socks4,
-    #[serde(rename = "socks5")]
     Socks5,
 }
 
-impl TryFrom<&str> for ProxyType {
-    type Error = color_eyre::Report;
+impl FromStr for ProxyType {
+    type Err = color_eyre::Report;
 
-    fn try_from(string: &str) -> color_eyre::Result<Self> {
-        match string.to_ascii_lowercase().as_str() {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
             "http" | "https" => Ok(Self::Http),
             "socks4" => Ok(Self::Socks4),
             "socks5" => Ok(Self::Socks5),
-            _ => Err(eyre!("Failed to convert {string} to ProxyType")),
+            _ => Err(eyre!("Failed to convert {s} to ProxyType")),
         }
     }
 }

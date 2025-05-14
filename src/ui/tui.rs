@@ -197,11 +197,10 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         Gauge::default()
             .block(Block::bordered().title("GeoDB download"))
             .ratio({
-                let total = state.geodb_total as f64;
-                if total == 0.0 {
+                if state.geodb_total == 0 {
                     1.0
                 } else {
-                    (state.geodb_downloaded as f64) / total
+                    (state.geodb_downloaded as f64) / (state.geodb_total as f64)
                 }
             }),
         outer_layout[1],
@@ -235,11 +234,10 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         f.render_widget(
             Gauge::default()
                 .ratio({
-                    let total = sources_total as f64;
-                    if total == 0.0 {
+                    if sources_total == 0 {
                         1.0
                     } else {
-                        (sources_scraped as f64) / total
+                        (sources_scraped as f64) / (sources_total as f64)
                     }
                 })
                 .block(Block::bordered().title("Scraping sources"))
@@ -254,11 +252,10 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         f.render_widget(
             Gauge::default()
                 .ratio({
-                    let total = proxies_total as f64;
-                    if total == 0.0 {
+                    if proxies_total == 0 {
                         1.0
                     } else {
-                        (proxies_checked as f64) / total
+                        (proxies_checked as f64) / (proxies_total as f64)
                     }
                 })
                 .block(Block::bordered().title("Checking proxies"))
@@ -272,12 +269,14 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         let proxies_working =
             state.proxies_working.get(proxy_type).copied().unwrap_or_default();
         f.render_widget(
-            Line::from(format!(
-                "{} ({:.1}%)",
-                proxies_working,
-                ((proxies_working as f64) / (proxies_checked as f64))
-                    * 100.0_f64
-            ))
+            Line::from(format!("{} ({:.1}%)", proxies_working, {
+                if proxies_checked == 0 {
+                    0.0_f64
+                } else {
+                    (proxies_working as f64) / (proxies_checked as f64)
+                        * 100.0_f64
+                }
+            }))
             .alignment(Alignment::Center),
             working_proxies_block.inner(layout[2]),
         );

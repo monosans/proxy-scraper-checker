@@ -56,7 +56,7 @@ impl super::UI for Tui {
         join_set.spawn(tick_event_listener(tx.clone()));
         join_set.spawn(crossterm_event_listener(tx));
 
-        let mut app_state = AppState::new();
+        let mut app_state = AppState::default();
         let logger_state = TuiWidgetState::default();
         while !matches!(app_state.mode, AppMode::Quit) {
             if let Some(event) = rx.recv().await {
@@ -107,12 +107,6 @@ pub struct AppState {
     pub proxies_total: HashMap<ProxyType, usize>,
     pub proxies_checked: HashMap<ProxyType, usize>,
     pub proxies_working: HashMap<ProxyType, usize>,
-}
-
-impl AppState {
-    pub fn new() -> Self {
-        Self::default()
-    }
 }
 
 async fn tick_event_listener(

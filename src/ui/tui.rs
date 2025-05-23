@@ -164,7 +164,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         .constraints([
             // Logs
             Constraint::Fill(1),
-            // GeoDB download
+            // Geolocation database download
             Constraint::Length(3),
             // Scraping and checking
             Constraint::Length(1 + (3 * 3) + 1),
@@ -189,7 +189,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
 
     f.render_widget(
         Gauge::default()
-            .block(Block::bordered().title("GeoDB download"))
+            .block(Block::bordered().title("Geolocation database download"))
             .ratio({
                 if state.geodb_total == 0 {
                     1.0
@@ -202,9 +202,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
 
     let proxies_layout = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints(
-            state.sources_total.keys().map(move |_| Constraint::Fill(1)),
-        )
+        .constraints(state.sources_total.keys().map(|_| Constraint::Fill(1)))
         .split(outer_layout[2]);
 
     let mut proxy_types: Vec<_> = state.sources_total.keys().collect();
@@ -353,7 +351,7 @@ async fn handle_event(
                     state
                         .sources_scraped
                         .entry(proxy_type)
-                        .and_modify(move |c| *c = c.saturating_add(1))
+                        .and_modify(|c| *c = c.saturating_add(1))
                         .or_insert(1);
                 }
                 AppEvent::TotalProxies(proxy_type, amount) => {
@@ -363,14 +361,14 @@ async fn handle_event(
                     state
                         .proxies_checked
                         .entry(proxy_type)
-                        .and_modify(move |c| *c = c.saturating_add(1))
+                        .and_modify(|c| *c = c.saturating_add(1))
                         .or_insert(1);
                 }
                 AppEvent::ProxyWorking(proxy_type) => {
                     state
                         .proxies_working
                         .entry(proxy_type)
-                        .and_modify(move |c| *c = c.saturating_add(1))
+                        .and_modify(|c| *c = c.saturating_add(1))
                         .or_insert(1);
                 }
                 AppEvent::Done => {

@@ -1,7 +1,6 @@
 use std::{
     fmt::{self, Write as _},
     str::FromStr,
-    sync::Arc,
 };
 
 use color_eyre::eyre::{WrapErr as _, eyre};
@@ -27,7 +26,7 @@ impl FromStr for ProxyType {
             "http" | "https" => Ok(Self::Http),
             "socks4" => Ok(Self::Socks4),
             "socks5" => Ok(Self::Socks5),
-            _ => Err(eyre!("Failed to convert {s} to ProxyType")),
+            _ => Err(eyre!("failed to convert {s} to ProxyType")),
         }
     }
 }
@@ -83,14 +82,11 @@ impl TryFrom<&mut Proxy> for reqwest::Proxy {
 }
 
 impl Proxy {
-    pub async fn check(
-        &mut self,
-        config: Arc<Config>,
-    ) -> color_eyre::Result<()> {
+    pub async fn check(&mut self, config: &Config) -> color_eyre::Result<()> {
         let client = reqwest::Client::builder()
             .user_agent(USER_AGENT)
             .proxy(self.try_into()?)
-            .timeout(config.timeout)
+            .timeout(config.checking.timeout)
             .pool_max_idle_per_host(0)
             .tcp_keepalive(None)
             .use_rustls_tls()
@@ -98,31 +94,18 @@ impl Proxy {
             .wrap_err("failed to create reqwest::Client")?;
         let start = tokio::time::Instant::now();
         let response = client
-            .get(&config.check_website)
+            .get(&config.checking.check_url)
             .send()
-            .await
-            .wrap_err_with(|| {
-                format!(
-                    "failed to send HTTP request to {}",
-                    config.check_website
-                )
-            })?
-            .error_for_status()
-            .wrap_err("Got error HTTP status code when checking proxy")?;
+            .await?
+            .error_for_status()?;
         drop(client);
         self.timeout = Some(start.elapsed());
-        self.exit_ip = response.text().await.map_or(None, move |text| {
+        self.exit_ip = response.text().await.map_or(None, |text| {
             if let Ok(httpbin) = serde_json::from_str::<HttpbinResponse>(&text)
             {
-                match parse_ipv4(&httpbin.origin) {
-                    Ok(Some(ipv4)) => Some(ipv4),
-                    Ok(None) | Err(_) => None,
-                }
+                parse_ipv4(&httpbin.origin)
             } else {
-                match parse_ipv4(&text) {
-                    Ok(Some(ipv4)) => Some(ipv4),
-                    Ok(None) | Err(_) => None,
-                }
+                parse_ipv4(&text)
             }
         });
         Ok(())

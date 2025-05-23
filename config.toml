@@ -1,58 +1,74 @@
-# The number of seconds to wait for a proxied request.
-# The higher the number, the longer the check will take
-# and the more proxies you get.
-timeout = 5
-
-# The number of seconds to wait for the proxies to be downloaded from the source.
-source_timeout = 5
-
-# Maximum number of proxies from a single source.
-# If the source has more proxies than this value,
-# then the source has a huge number of low-quality proxies and can be ignored.
-# Set to 0 to disable this limit.
-proxies_per_source_limit = 100000
-
-# Maximum concurrent proxy checks.
-# Don't be in a hurry to set high values.
-# Make sure you have enough RAM first, gradually increasing the default value.
-max_concurrent_checks = 4096
-
-# URL to which to send a request to check the proxy.
-# If it is not httpbin or a service that returns an IP address,
-# it will be impossible to determine the anonymity and geolocation of the proxy.
-# Example:
-# check_website = "https://google.com"
-# check_website = "https://httpbin.smp.io/ip"
-# Disable checking:
-# check_website = ""
-check_website = "https://checkip.amazonaws.com"
-
-# Set to false to sort proxies alphabetically.
-sort_by_speed = true
-
-# Save the geolocation of the proxy exit-node.
-# Uses offline geolocation database.
-# Only works for json output.
-enable_geolocation = true
-
-# Enable debug logging.
+# Use debug logging level
+# Useful for debugging but can produce a lot of output
 debug = false
 
+
+[scraping]
+# Max proxies to collect from each individual source
+# If the source has too much proxies, then likely many of these don't work
+# Set to 0 to disable this limit
+max_proxies_per_source = 100000
+
+# The number of seconds to wait for the source to be fetched
+timeout = 5.0
+
+
+[checking]
+# Website used to check proxy functionality
+# Use httpbin-compatible services to get geolocation and anonymity info
+# Examples:
+#   "https://httpbin.org/ip"         (or any other httpbin-compatible service) - Supports getting geolocation and anonymity info
+#   "https://checkip.amazonaws.com"  (or any other plain-ip service) - Supports getting geolocation and anonymity info
+#   "https://google.com"             - Checks general connectivity
+#   ""                               - Disable checking entirely
+check_url = "https://checkip.amazonaws.com"
+
+# Enable logging of proxy rejection reasons
+# Useful for debugging but can produce a lot of output
+debug = false
+
+# Maximum concurrent proxy checks
+# Make sure you have enough RAM first and your network can handle it, gradually increasing the default value
+max_concurrent_checks = 4096
+
+# The number of seconds to wait for a proxied request
+# Higher values = more working proxies but slower checking
+# Lower values = faster checking but may miss slower proxies
+timeout = 5.0
+
+
 [output]
-# Path to the folder where the proxies will be saved.
-# Leave blank to save the proxies to the current directory.
-# This option is ignored in Docker.
+# Directory where proxies will be saved
+# Leave empty to use current directory
+# Note: Ignored when running in Docker
 path = "./out"
 
-json = true
-txt = true
+# Sort proxies by response speed (fastest first)
+# Set to false to sort alphabetically by IP address
+sort_by_speed = true
+
+
+# Text output format - simple list of proxies
+[output.txt]
+enabled = true
+
+
+# JSON output format - detailed proxy information
+[output.json]
+enabled = true
+
+# Include geolocation data for each proxy
+# Uses offline database for privacy and speed
+include_geolocation = true
+
 
 # If you have sources with a protocol prefix, such as socks5://127.0.0.1:1050, you can add them to any of these sections.
-[http]
+[scraping.http]
 enabled = true
-sources = [
-    # Local proxy list example
-    # "./http_proxies.txt",
+urls = [
+    # You can add local files like this:
+    # "./my_http_proxies.txt",
+
     "https://api.openproxylist.xyz/http.txt",
     "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http",
     "https://api.proxyscrape.com/v2/?request=getproxies&protocol=https",
@@ -110,11 +126,12 @@ sources = [
     "https://www.proxy-list.download/api/v1/get?type=https",
 ]
 
-[socks4]
+[scraping.socks4]
 enabled = true
-sources = [
-    # Local proxy list example
-    # "./socks4_proxies.txt",
+urls = [
+    # You can add local files like this:
+    # "./my_socks4_proxies.txt",
+
     "https://api.openproxylist.xyz/socks4.txt",
     "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4",
     "https://openproxy.space/list/socks4",
@@ -148,11 +165,12 @@ sources = [
     "https://www.proxy-list.download/api/v1/get?type=socks4",
 ]
 
-[socks5]
+[scraping.socks5]
 enabled = true
-sources = [
-    # Local proxy list example
-    # "./socks5_proxies.txt",
+urls = [
+    # You can add local files like this:
+    # "./my_socks5_proxies.txt",
+
     "https://api.openproxylist.xyz/socks5.txt",
     "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks5",
     "https://openproxy.space/list/socks5",

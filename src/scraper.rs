@@ -1,6 +1,4 @@
-#[cfg(feature = "tui")]
-use std::collections::HashSet;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
@@ -10,52 +8,40 @@ use crate::{
     config::Config,
     parsers::PROXY_REGEX,
     proxy::{Proxy, ProxyType},
-    storage::ProxyStorage,
     utils::{is_http_url, pretty_error},
 };
 
 async fn fetch_text(
-    config: Arc<Config>,
+    config: &Config,
     http_client: reqwest::Client,
     source: &str,
 ) -> color_eyre::Result<String> {
-    if is_http_url(source) {
+    Ok(if is_http_url(source) {
         http_client
             .get(source)
-            .timeout(config.source_timeout)
+            .timeout(config.scraping.timeout)
             .send()
-            .await
-            .wrap_err_with(move || {
-                format!("failed to send request to {source}")
-            })?
-            .error_for_status()
-            .wrap_err_with(move || {
-                format!("got error status code from {source}")
-            })?
+            .await?
+            .error_for_status()?
             .text()
-            .await
-            .wrap_err_with(move || {
-                format!("failed to decode {source} response as text")
-            })
+            .await?
     } else {
         tokio::fs::read_to_string(
             source.strip_prefix("file://").unwrap_or(source),
         )
-        .await
-        .wrap_err("failed to read file to string")
-    }
+        .await?
+    })
 }
 
 async fn scrape_one(
     config: Arc<Config>,
     http_client: reqwest::Client,
     proto: ProxyType,
+    proxies: Arc<tokio::sync::Mutex<HashSet<Proxy>>>,
     source: &str,
-    storage: Arc<tokio::sync::Mutex<ProxyStorage>>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
-    let text_result =
-        fetch_text(Arc::clone(&config), http_client.clone(), source).await;
+    let text_result = fetch_text(&config, http_client.clone(), source).await;
 
     #[cfg(feature = "tui")]
     tx.send(Event::App(AppEvent::SourceScraped(proto.clone())))?;
@@ -76,8 +62,8 @@ async fn scrape_one(
         return Ok(());
     }
 
-    if config.proxies_per_source_limit != 0
-        && matches.len() > config.proxies_per_source_limit
+    if config.scraping.max_proxies_per_source != 0
+        && matches.len() > config.scraping.max_proxies_per_source
     {
         log::warn!(
             "{} | Too many proxies ({}) - skipped",
@@ -88,43 +74,45 @@ async fn scrape_one(
     }
 
     #[cfg(feature = "tui")]
-    let mut seen_protocols = HashSet::with_capacity(1);
-    let mut storage = storage.lock().await;
+    let mut seen_protocols = HashSet::new();
+    let mut proxies = proxies.lock().await;
     for capture in matches {
-        let proxy = Proxy {
-            protocol: match capture.name("protocol") {
-                Some(m) => m.as_str().parse()?,
-                None => proto.clone(),
-            },
-            host: capture
-                .name("host")
-                .ok_or_eyre("failed to match \"host\" regex capture group")?
-                .as_str()
-                .to_owned(),
-            port: capture
-                .name("port")
-                .ok_or_eyre("failed to match \"port\" regex capture group")?
-                .as_str()
-                .parse()?,
-            username: capture
-                .name("username")
-                .map(move |m| m.as_str().to_owned()),
-            password: capture
-                .name("password")
-                .map(move |m| m.as_str().to_owned()),
-            timeout: None,
-            exit_ip: None,
+        let protocol = match capture.name("protocol") {
+            Some(m) => m.as_str().parse()?,
+            None => proto.clone(),
         };
-        #[cfg(feature = "tui")]
-        seen_protocols.insert(proxy.protocol.clone());
-        storage.insert(proxy);
+        if config.protocol_is_enabled(&protocol) {
+            #[cfg(feature = "tui")]
+            seen_protocols.insert(protocol.clone());
+            proxies.insert(Proxy {
+                protocol,
+                host: capture
+                    .name("host")
+                    .ok_or_eyre("failed to match \"host\" regex capture group")?
+                    .as_str()
+                    .to_owned(),
+                port: capture
+                    .name("port")
+                    .ok_or_eyre("failed to match \"port\" regex capture group")?
+                    .as_str()
+                    .parse()?,
+                username: capture
+                    .name("username")
+                    .map(move |m| m.as_str().to_owned()),
+                password: capture
+                    .name("password")
+                    .map(move |m| m.as_str().to_owned()),
+                timeout: None,
+                exit_ip: None,
+            });
+        }
     }
     #[cfg(feature = "tui")]
     for proto in seen_protocols {
-        let count = storage.iter().filter(|p| p.protocol == proto).count();
+        let count = proxies.iter().filter(|p| p.protocol == proto).count();
         tx.send(Event::App(AppEvent::TotalProxies(proto, count)))?;
     }
-    drop(storage);
+    drop(proxies);
     Ok(())
 }
 
@@ -132,13 +120,11 @@ pub async fn scrape_all(
     config: Arc<Config>,
     http_client: reqwest::Client,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> color_eyre::Result<ProxyStorage> {
-    let storage = Arc::new(tokio::sync::Mutex::new(ProxyStorage::new(
-        config.sources.keys().cloned().collect(),
-    )));
+) -> color_eyre::Result<HashSet<Proxy>> {
+    let proxies = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
 
     let mut join_set = tokio::task::JoinSet::new();
-    for (proto, sources) in config.sources.clone() {
+    for (proto, sources) in config.scraping.sources.clone() {
         #[cfg(feature = "tui")]
         tx.send(Event::App(AppEvent::SourcesTotal(
             proto.clone(),
@@ -148,7 +134,7 @@ pub async fn scrape_all(
             let config = Arc::clone(&config);
             let http_client = http_client.clone();
             let proto = proto.clone();
-            let storage = Arc::clone(&storage);
+            let proxies = Arc::clone(&proxies);
             #[cfg(feature = "tui")]
             let tx = tx.clone();
             join_set.spawn(async move {
@@ -156,8 +142,8 @@ pub async fn scrape_all(
                     config,
                     http_client,
                     proto,
+                    proxies,
                     &source,
-                    storage,
                     #[cfg(feature = "tui")]
                     tx,
                 )
@@ -171,7 +157,7 @@ pub async fn scrape_all(
             .wrap_err("proxy scrape task failed")?;
     }
 
-    Ok(Arc::into_inner(storage)
+    Ok(Arc::into_inner(proxies)
         .ok_or_eyre("failed to unwrap Arc")?
         .into_inner())
 }

@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io, iter,
     net::{IpAddr, Ipv4Addr},
     sync::Arc,
@@ -10,7 +11,6 @@ use crate::{
     config::Config,
     geodb::get_geodb_path,
     proxy::{Proxy, ProxyType},
-    storage::ProxyStorage,
     utils::is_docker,
 };
 
@@ -21,7 +21,7 @@ fn sort_by_timeout(proxy: &Proxy) -> tokio::time::Duration {
 fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
     let host_key = proxy.host.parse::<Ipv4Addr>().map_or_else(
         move |_| iter::repeat_n(u8::MAX, 4).chain(proxy.host.bytes()).collect(),
-        move |ip| ip.octets().to_vec(),
+        |ip| ip.octets().to_vec(),
     );
     (proxy.protocol.clone(), host_key, proxy.port)
 }
@@ -38,33 +38,50 @@ struct ProxyJson<'a> {
     geolocation: Option<maxminddb::geoip2::City<'a>>,
 }
 
+fn group_proxies<'a>(
+    config: &Config,
+    proxies: &'a Vec<Proxy>,
+) -> HashMap<ProxyType, Vec<&'a Proxy>> {
+    let mut groups: HashMap<_, _> =
+        config.enabled_protocols().map(|p| (p.clone(), Vec::new())).collect();
+    for proxy in proxies {
+        if let Some(proxies) = groups.get_mut(&proxy.protocol) {
+            proxies.push(proxy);
+        }
+    }
+    groups
+}
+
 #[expect(clippy::too_many_lines)]
 pub async fn save_proxies(
     config: Arc<Config>,
-    storage: ProxyStorage,
+    mut proxies: Vec<Proxy>,
 ) -> color_eyre::Result<()> {
-    if config.output_json {
-        let maybe_mmdb = if config.enable_geolocation {
-            let geodb_path =
-                get_geodb_path().await.wrap_err("failed to get GeoDB path")?;
+    if config.output.sort_by_speed {
+        proxies.sort_by_key(sort_by_timeout);
+    } else {
+        proxies.sort_by_key(sort_naturally);
+    }
+
+    if config.output.json.enabled {
+        let maybe_mmdb = if config.output.json.include_geolocation {
+            let geodb_path = get_geodb_path()
+                .await
+                .wrap_err("failed to get geolocation database path")?;
             Some(
                 tokio::task::spawn_blocking(move || {
                     maxminddb::Reader::open_mmap(geodb_path)
                 })
                 .await
                 .wrap_err("failed to spawn tokio blocking task")?
-                .wrap_err("failed to open GeoDB")?,
+                .wrap_err("failed to open geolocation database")?,
             )
         } else {
             None
         };
 
-        let mut sorted_proxies: Vec<_> = storage.iter().collect();
-        sorted_proxies.sort_by_key(move |p| sort_by_timeout(p));
-
-        let mut proxy_dicts = Vec::with_capacity(sorted_proxies.len());
-
-        for proxy in sorted_proxies {
+        let mut proxy_dicts = Vec::with_capacity(proxies.len());
+        for proxy in &proxies {
             let geolocation = if let Some(mmdb) = &maybe_mmdb {
                 if let Some(exit_ip) = proxy.exit_ip.clone() {
                     let exit_ip_addr: IpAddr = exit_ip.parse().wrap_err(
@@ -72,7 +89,7 @@ pub async fn save_proxies(
                     )?;
                     mmdb.lookup::<maxminddb::geoip2::City>(exit_ip_addr)
                         .wrap_err_with(move || {
-                            format!("failed to lookup {exit_ip_addr} in GeoDB")
+                            format!("failed to lookup {exit_ip_addr} in geolocation database")
                         })?
                 } else {
                     None
@@ -87,17 +104,17 @@ pub async fn save_proxies(
                 password: proxy.password.clone(),
                 host: proxy.host.clone(),
                 port: proxy.port,
-                timeout: proxy.timeout.map(move |d| {
-                    (d.as_secs_f64() * 100.0).round() / 100.0_f64
-                }),
+                timeout: proxy
+                    .timeout
+                    .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
                 exit_ip: proxy.exit_ip.clone(),
                 geolocation,
             });
         }
 
         for (path, pretty) in [
-            (config.output_path.join("proxies.json"), false),
-            (config.output_path.join("proxies_pretty.json"), true),
+            (config.output.path.join("proxies.json"), false),
+            (config.output.path.join("proxies_pretty.json"), true),
         ] {
             match tokio::fs::remove_file(&path).await {
                 Ok(()) => Ok(()),
@@ -121,19 +138,13 @@ pub async fn save_proxies(
         }
     }
 
-    if config.output_txt {
-        let mut sorted_proxies: Vec<_> = storage.iter().collect();
-        if config.sort_by_speed {
-            sorted_proxies.sort_by_key(move |p| sort_by_timeout(p));
-        } else {
-            sorted_proxies.sort_by_key(move |p| sort_naturally(p));
-        }
-        let mut grouped_proxies = storage.get_grouped();
+    if config.output.txt.enabled {
+        let grouped_proxies = group_proxies(&config, &proxies);
 
         for (anonymous_only, directory) in
             [(false, "proxies"), (true, "proxies_anonymous")]
         {
-            let directory_path = config.output_path.join(directory);
+            let directory_path = config.output.path.join(directory);
             match tokio::fs::remove_dir_all(&directory_path).await {
                 Ok(()) => Ok(()),
                 Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
@@ -153,8 +164,11 @@ pub async fn save_proxies(
                 },
             )?;
 
-            let text =
-                create_proxy_list_str(&sorted_proxies, anonymous_only, true);
+            let text = create_proxy_list_str(
+                &proxies.iter().collect(),
+                anonymous_only,
+                true,
+            );
             tokio::fs::write(directory_path.join("all.txt"), text)
                 .await
                 .wrap_err_with(|| {
@@ -164,12 +178,7 @@ pub async fn save_proxies(
                     )
                 })?;
 
-            for (proto, proxies) in &mut grouped_proxies {
-                if config.sort_by_speed {
-                    proxies.sort_by_key(move |p| sort_by_timeout(p));
-                } else {
-                    proxies.sort_by_key(move |p| sort_naturally(p));
-                }
+            for (proto, proxies) in &grouped_proxies {
                 let text =
                     create_proxy_list_str(proxies, anonymous_only, false);
                 tokio::fs::write(
@@ -187,8 +196,8 @@ pub async fn save_proxies(
         }
     }
 
-    let path = config.output_path.canonicalize().wrap_err_with(move || {
-        format!("failed to canonicalize {}", config.output_path.display())
+    let path = config.output.path.canonicalize().wrap_err_with(move || {
+        format!("failed to canonicalize {}", config.output.path.display())
     })?;
     if is_docker().await {
         log::info!(

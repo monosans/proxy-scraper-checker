@@ -1,34 +1,33 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
-use crate::{config::Config, storage::ProxyStorage, utils::pretty_error};
+use crate::{config::Config, proxy::Proxy, utils::pretty_error};
 
 pub async fn check_all(
     config: Arc<Config>,
-    storage: ProxyStorage,
+    proxies: HashSet<Proxy>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> color_eyre::Result<ProxyStorage> {
-    let workers_count = config.max_concurrent_checks.min(storage.len());
+) -> color_eyre::Result<Vec<Proxy>> {
+    let workers_count =
+        config.checking.max_concurrent_checks.min(proxies.len());
     if workers_count == 0 {
-        return Ok(ProxyStorage::new(config.sources.keys().cloned().collect()));
+        return Ok(Vec::new());
     }
 
-    let new_storage = Arc::new(tokio::sync::Mutex::new(ProxyStorage::new(
-        config.sources.keys().cloned().collect(),
-    )));
+    let checked_proxies = Arc::new(tokio::sync::Mutex::new(Vec::new()));
 
     let queue = Arc::new(tokio::sync::Mutex::new(
-        storage.into_iter().collect::<Vec<_>>(),
+        proxies.into_iter().collect::<Vec<_>>(),
     ));
 
     let mut join_set = tokio::task::JoinSet::<color_eyre::Result<()>>::new();
     for _ in 0..workers_count {
         let queue = Arc::clone(&queue);
         let config = Arc::clone(&config);
-        let new_storage = Arc::clone(&new_storage);
+        let new_storage = Arc::clone(&checked_proxies);
         #[cfg(feature = "tui")]
         let tx = tx.clone();
         join_set.spawn(async move {
@@ -36,10 +35,7 @@ pub async fn check_all(
                 let Some(mut proxy) = queue.lock().await.pop() else {
                     break Ok(());
                 };
-                let check_result = proxy
-                    .check(Arc::clone(&config))
-                    .await
-                    .wrap_err("proxy did not pass checking");
+                let check_result = proxy.check(&config).await;
                 #[cfg(feature = "tui")]
                 tx.send(Event::App(AppEvent::ProxyChecked(
                     proxy.protocol.clone(),
@@ -50,17 +46,21 @@ pub async fn check_all(
                         tx.send(Event::App(AppEvent::ProxyWorking(
                             proxy.protocol.clone(),
                         )))?;
-                        new_storage.lock().await.insert(proxy);
+                        new_storage.lock().await.push(proxy);
                     }
-                    Err(e) => {
-                        if log::log_enabled!(log::Level::Debug) {
-                            log::debug!(
-                                "{} | {}",
-                                proxy.as_str(true),
-                                pretty_error(&e)
-                            );
-                        }
+                    Err(e) if config.checking.debug => {
+                        log::log!(
+                            if log::log_enabled!(log::Level::Debug) {
+                                log::Level::Debug
+                            } else {
+                                log::Level::Info
+                            },
+                            "{} | {}",
+                            proxy.as_str(true),
+                            pretty_error(&e)
+                        );
                     }
+                    Err(_) => {}
                 }
             }
         });
@@ -71,7 +71,7 @@ pub async fn check_all(
             .wrap_err("proxy checking worker failed")?;
     }
 
-    Ok(Arc::into_inner(new_storage)
+    Ok(Arc::into_inner(checked_proxies)
         .ok_or_eyre("failed to unwrap Arc")?
         .into_inner())
 }

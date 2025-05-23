@@ -1,6 +1,6 @@
 use std::{io, path::PathBuf};
 
-use color_eyre::eyre::WrapErr as _;
+use color_eyre::eyre::{WrapErr as _, eyre};
 use tokio::io::AsyncWriteExt as _;
 
 #[cfg(feature = "tui")]
@@ -17,8 +17,9 @@ pub async fn get_geodb_path() -> color_eyre::Result<PathBuf> {
 }
 
 async fn get_geodb_etag_path() -> color_eyre::Result<PathBuf> {
-    let mut geodb_path =
-        get_geodb_path().await.wrap_err("failed to get GeoDB path")?;
+    let mut geodb_path = get_geodb_path()
+        .await
+        .wrap_err("failed to get geolocation database path")?;
     geodb_path.set_extension("mmdb.etag");
     Ok(geodb_path)
 }
@@ -27,7 +28,7 @@ async fn read_etag() -> color_eyre::Result<Option<reqwest::header::HeaderValue>>
 {
     let etag_path = get_geodb_etag_path()
         .await
-        .wrap_err("failed to get GeoDB ETag path")?;
+        .wrap_err("failed to get geolocation database ETag path")?;
     match tokio::fs::read_to_string(&etag_path).await {
         Ok(text) => Ok(text.parse().ok()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
@@ -40,7 +41,7 @@ async fn read_etag() -> color_eyre::Result<Option<reqwest::header::HeaderValue>>
 async fn remove_etag() -> color_eyre::Result<()> {
     let etag_path = get_geodb_etag_path()
         .await
-        .wrap_err("failed to get GeoDB ETag path")?;
+        .wrap_err("failed to get geolocation database ETag path")?;
     match tokio::fs::remove_file(&etag_path).await {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
@@ -55,7 +56,7 @@ async fn save_etag(
 ) -> color_eyre::Result<()> {
     let etag_file = get_geodb_etag_path()
         .await
-        .wrap_err("failed to get GeoDB ETag path")?;
+        .wrap_err("failed to get geolocation database ETag path")?;
     tokio::fs::write(&etag_file, etag).await.wrap_err_with(move || {
         format!("failed to write to file {}", etag_file.display())
     })
@@ -67,8 +68,9 @@ async fn save_geodb(
 ) -> color_eyre::Result<()> {
     #[cfg(feature = "tui")]
     tx.send(Event::App(AppEvent::GeoDbTotal(response.content_length())))?;
-    let geodb_file =
-        get_geodb_path().await.wrap_err("failed to get GeoDB path")?;
+    let geodb_file = get_geodb_path()
+        .await
+        .wrap_err("failed to get geolocation database path")?;
     let mut file =
         tokio::fs::File::create(&geodb_file).await.wrap_err_with(|| {
             format!("failed to create file {}", geodb_file.display())
@@ -76,7 +78,7 @@ async fn save_geodb(
     while let Some(chunk) = response
         .chunk()
         .await
-        .wrap_err("failed to read GeoDB response chunk")?
+        .wrap_err("failed to read geolocation database response chunk")?
     {
         file.write_all(&chunk).await.wrap_err_with(|| {
             format!("failed to write to file {}", geodb_file.display())
@@ -91,11 +93,12 @@ pub async fn download_geodb(
     http_client: reqwest::Client,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
-    let geodb_file =
-        get_geodb_path().await.wrap_err("failed to get GeoDB path")?;
+    let geodb_file = get_geodb_path()
+        .await
+        .wrap_err("failed to get geolocation database path")?;
 
     let mut headers = reqwest::header::HeaderMap::new();
-    if tokio::fs::metadata(&geodb_file).await.is_ok_and(move |m| m.is_file()) {
+    if tokio::fs::metadata(&geodb_file).await.is_ok_and(|m| m.is_file()) {
         if let Some(etag) = read_etag().await.wrap_err("failed to read ETag")? {
             headers.insert(reqwest::header::IF_NONE_MATCH, etag);
         }
@@ -106,9 +109,11 @@ pub async fn download_geodb(
         .headers(headers)
         .send()
         .await
-        .wrap_err("failed to send GeoDB download request")?
+        .wrap_err("failed to send geolocation database download request")?
         .error_for_status()
-        .wrap_err("got error HTTP status code when downloading GeoDB")?;
+        .wrap_err(
+            "got error HTTP status code when downloading geolocation database",
+        )?;
 
     if response.status() == reqwest::StatusCode::NOT_MODIFIED {
         log::info!(
@@ -116,6 +121,14 @@ pub async fn download_geodb(
             geodb_file.display()
         );
         return Ok(());
+    }
+
+    if response.status() != reqwest::StatusCode::OK {
+        return Err(eyre!(
+            "HTTP status error ({}) for url ({})",
+            response.status(),
+            response.url()
+        ));
     }
 
     let etag = response.headers().get(reqwest::header::ETAG).cloned();
@@ -126,7 +139,7 @@ pub async fn download_geodb(
         tx.clone(),
     )
     .await
-    .wrap_err("failed to save GeoDB")?;
+    .wrap_err("failed to save geolocation database")?;
 
     if is_docker().await {
         log::info!(
@@ -142,8 +155,12 @@ pub async fn download_geodb(
     }
 
     if let Some(etag_value) = etag {
-        save_etag(etag_value).await.wrap_err("failed to save GeoDB ETag")
+        save_etag(etag_value)
+            .await
+            .wrap_err("failed to save geolocation database ETag")
     } else {
-        remove_etag().await.wrap_err("failed to remove GeoDB ETag")
+        remove_etag()
+            .await
+            .wrap_err("failed to remove geolocation database ETag")
     }
 }

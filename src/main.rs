@@ -44,7 +44,6 @@ mod parsers;
 mod proxy;
 mod raw_config;
 mod scraper;
-mod storage;
 mod ui;
 mod utils;
 
@@ -71,7 +70,7 @@ async fn main() -> color_eyre::Result<()> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let ui_task = tokio::task::spawn(ui_impl.run(tx.clone(), rx));
 
-    let raw_config_path = raw_config::get_config_path();
+    let raw_config_path = raw_config::get_config_path().await;
     let raw_config = raw_config::read_config(&raw_config_path)
         .await
         .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
@@ -89,7 +88,7 @@ async fn main() -> color_eyre::Result<()> {
     let http_client = create_reqwest_client()
         .wrap_err("failed to create reqwest HTTP client")?;
 
-    let maybe_geodb_task = config.enable_geolocation.then(|| {
+    let maybe_geodb_task = config.geolocation_enabled().then(|| {
         let http_client = http_client.clone();
         #[cfg(feature = "tui")]
         let tx = tx.clone();
@@ -103,7 +102,7 @@ async fn main() -> color_eyre::Result<()> {
         })
     });
 
-    let mut storage = scraper::scrape_all(
+    let proxies = scraper::scrape_all(
         Arc::clone(&config),
         http_client.clone(),
         #[cfg(feature = "tui")]
@@ -117,22 +116,24 @@ async fn main() -> color_eyre::Result<()> {
     if let Some(geodb_task) = maybe_geodb_task {
         geodb_task
             .await
-            .wrap_err("failed to join GeoDB download task")?
-            .wrap_err("failed to download GeoDB")?;
+            .wrap_err("failed to join geolocation database download task")?
+            .wrap_err("failed to download geolocation database")?;
     }
 
-    if !config.check_website.is_empty() {
-        storage = checker::check_all(
+    let proxies = if config.checking.check_url.is_empty() {
+        proxies.into_iter().collect()
+    } else {
+        checker::check_all(
             Arc::clone(&config),
-            storage,
+            proxies,
             #[cfg(feature = "tui")]
             tx.clone(),
         )
         .await
-        .wrap_err("failed to check proxies")?;
-    }
+        .wrap_err("failed to check proxies")?
+    };
 
-    output::save_proxies(config, storage)
+    output::save_proxies(config, proxies)
         .await
         .wrap_err("failed to save proxies")?;
 

@@ -115,7 +115,7 @@ pub async fn save_proxies(
                             .wrap_err_with(move || {
                                 format!(
                                     "failed to lookup {exit_ip_addr} in ASN \
-                                 database"
+                                     database"
                                 )
                             })?
                     } else {

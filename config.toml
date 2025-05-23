@@ -15,10 +15,10 @@ timeout = 5.0
 
 [checking]
 # Website used to check proxy functionality
-# Use httpbin-compatible services to get geolocation and anonymity info
+# Use httpbin-compatible services to get ASN, geolocation and anonymity info
 # Examples:
-#   "https://httpbin.org/ip"         (or any other httpbin-compatible service) - Supports getting geolocation and anonymity info
-#   "https://checkip.amazonaws.com"  (or any other plain-ip service) - Supports getting geolocation and anonymity info
+#   "https://httpbin.org/ip"         (or any other httpbin-compatible service) - Supports getting ASN, geolocation and anonymity info
+#   "https://checkip.amazonaws.com"  (or any other plain-ip service) - Supports getting ASN, geolocation and anonymity info
 #   "https://google.com"             - Checks general connectivity
 #   ""                               - Disable checking entirely
 check_url = "https://checkip.amazonaws.com"
@@ -56,6 +56,10 @@ enabled = true
 # JSON output format - detailed proxy information
 [output.json]
 enabled = true
+
+# Include ASN (Autonomous System Number) data for each proxy
+# Uses offline database for privacy and speed
+include_asn = true
 
 # Include geolocation data for each proxy
 # Uses offline database for privacy and speed

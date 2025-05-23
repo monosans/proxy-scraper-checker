@@ -64,6 +64,7 @@ pub struct TxtOutputConfig {
 #[derive(Deserialize)]
 pub struct JsonOutputConfig {
     pub enabled: bool,
+    pub include_asn: bool,
     pub include_geolocation: bool,
 }
 

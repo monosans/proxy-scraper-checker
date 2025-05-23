@@ -8,7 +8,7 @@ HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
 - Written in Rust.
 - Can determine if the proxy is anonymous.
-- Supports determining the geolocation of the proxy exit node.
+- Supports determining the geolocation and ASN of the proxy exit node.
 - Can sort proxies by speed.
 - Uses regex to find proxies of format `protocol://username:password@host:port` on a web page or in a local file, allowing proxies to be extracted even from json without code changes.
 - Supports proxies with authentication.

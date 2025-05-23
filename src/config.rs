@@ -36,6 +36,7 @@ pub struct TxtOutputConfig {
 
 pub struct JsonOutputConfig {
     pub enabled: bool,
+    pub include_asn: bool,
     pub include_geolocation: bool,
 }
 
@@ -75,6 +76,10 @@ async fn get_output_path(
 }
 
 impl Config {
+    pub const fn asn_enabled(&self) -> bool {
+        self.output.json.enabled && self.output.json.include_asn
+    }
+
     pub const fn geolocation_enabled(&self) -> bool {
         self.output.json.enabled && self.output.json.include_geolocation
     }
@@ -145,6 +150,7 @@ impl Config {
                 txt: TxtOutputConfig { enabled: raw_config.output.txt.enabled },
                 json: JsonOutputConfig {
                     enabled: raw_config.output.json.enabled,
+                    include_asn: raw_config.output.json.include_asn,
                     include_geolocation: raw_config
                         .output
                         .json

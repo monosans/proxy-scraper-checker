@@ -22,6 +22,7 @@ use tui_logger::{TuiLoggerWidget, TuiWidgetEvent, TuiWidgetState};
 
 use crate::{
     event::{AppEvent, Event},
+    ipdb,
     proxy::ProxyType,
     utils::is_docker,
 };
@@ -98,8 +99,11 @@ pub enum AppMode {
 pub struct AppState {
     pub mode: AppMode,
 
-    pub geodb_total: u64,
-    pub geodb_downloaded: usize,
+    pub asn_db_total: u64,
+    pub asn_db_downloaded: usize,
+
+    pub geo_db_total: u64,
+    pub geo_db_downloaded: usize,
 
     pub sources_total: HashMap<ProxyType, usize>,
     pub sources_scraped: HashMap<ProxyType, usize>,
@@ -164,7 +168,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         .constraints([
             // Logs
             Constraint::Fill(1),
-            // Geolocation database download
+            // IP database download
             Constraint::Length(3),
             // Scraping and checking
             Constraint::Length(1 + (3 * 3) + 1),
@@ -187,17 +191,35 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         outer_layout[0],
     );
 
+    let ipdb_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Fill(1); 2])
+        .split(outer_layout[1]);
+    f.render_widget(
+        Gauge::default()
+            .block(Block::bordered().title("ASN database download"))
+            .ratio({
+                if state.asn_db_total == 0 {
+                    1.0
+                } else {
+                    (state.asn_db_downloaded as f64)
+                        / (state.asn_db_total as f64)
+                }
+            }),
+        ipdb_layout[0],
+    );
     f.render_widget(
         Gauge::default()
             .block(Block::bordered().title("Geolocation database download"))
             .ratio({
-                if state.geodb_total == 0 {
+                if state.geo_db_total == 0 {
                     1.0
                 } else {
-                    (state.geodb_downloaded as f64) / (state.geodb_total as f64)
+                    (state.geo_db_downloaded as f64)
+                        / (state.geo_db_total as f64)
                 }
             }),
-        outer_layout[1],
+        ipdb_layout[1],
     );
 
     let proxies_layout = Layout::default()
@@ -337,12 +359,19 @@ async fn handle_event(
         }
         Event::App(app_event) => {
             match app_event {
-                AppEvent::GeoDbTotal(bytes) => {
-                    state.geodb_total = bytes.unwrap_or_default();
+                AppEvent::IpDbTotal(ipdb::DbType::Asn, bytes) => {
+                    state.asn_db_total = bytes.unwrap_or_default();
                 }
-                AppEvent::GeoDbDownloaded(bytes) => {
-                    state.geodb_downloaded =
-                        state.geodb_downloaded.saturating_add(bytes);
+                AppEvent::IpDbTotal(ipdb::DbType::Geo, bytes) => {
+                    state.geo_db_total = bytes.unwrap_or_default();
+                }
+                AppEvent::IpDbDownloaded(ipdb::DbType::Asn, bytes) => {
+                    state.asn_db_downloaded =
+                        state.asn_db_downloaded.saturating_add(bytes);
+                }
+                AppEvent::IpDbDownloaded(ipdb::DbType::Geo, bytes) => {
+                    state.geo_db_downloaded =
+                        state.geo_db_downloaded.saturating_add(bytes);
                 }
                 AppEvent::SourcesTotal(proxy_type, amount) => {
                     state.sources_total.insert(proxy_type, amount);

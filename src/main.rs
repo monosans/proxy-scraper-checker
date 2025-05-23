@@ -38,7 +38,7 @@ mod checker;
 mod config;
 mod event;
 mod fs;
-mod geodb;
+mod ipdb;
 mod output;
 mod parsers;
 mod proxy;
@@ -88,19 +88,37 @@ async fn main() -> color_eyre::Result<()> {
     let http_client = create_reqwest_client()
         .wrap_err("failed to create reqwest HTTP client")?;
 
-    let maybe_geodb_task = config.geolocation_enabled().then(|| {
+    let mut output_dependencies_tasks = tokio::task::JoinSet::new();
+
+    if config.asn_enabled() {
         let http_client = http_client.clone();
         #[cfg(feature = "tui")]
         let tx = tx.clone();
-        tokio::spawn(async move {
-            geodb::download_geodb(
-                http_client,
-                #[cfg(feature = "tui")]
-                tx,
-            )
-            .await
-        })
-    });
+        output_dependencies_tasks.spawn(async move {
+            ipdb::DbType::Asn
+                .download_db(
+                    http_client,
+                    #[cfg(feature = "tui")]
+                    tx,
+                )
+                .await
+        });
+    }
+
+    if config.geolocation_enabled() {
+        let http_client = http_client.clone();
+        #[cfg(feature = "tui")]
+        let tx = tx.clone();
+        output_dependencies_tasks.spawn(async move {
+            ipdb::DbType::Geo
+                .download_db(
+                    http_client,
+                    #[cfg(feature = "tui")]
+                    tx,
+                )
+                .await
+        });
+    }
 
     let proxies = scraper::scrape_all(
         Arc::clone(&config),
@@ -113,11 +131,8 @@ async fn main() -> color_eyre::Result<()> {
 
     drop(http_client);
 
-    if let Some(geodb_task) = maybe_geodb_task {
-        geodb_task
-            .await
-            .wrap_err("failed to join geolocation database download task")?
-            .wrap_err("failed to download geolocation database")?;
+    while let Some(task) = output_dependencies_tasks.join_next().await {
+        task.wrap_err("failed to join output dependencies task")??;
     }
 
     let proxies = if config.checking.check_url.is_empty() {

@@ -1,10 +1,12 @@
 #[cfg(feature = "tui")]
+use crate::ipdb;
+#[cfg(feature = "tui")]
 use crate::proxy::ProxyType;
 
 #[cfg(feature = "tui")]
 pub enum AppEvent {
-    GeoDbTotal(Option<u64>),
-    GeoDbDownloaded(usize),
+    IpDbTotal(ipdb::DbType, Option<u64>),
+    IpDbDownloaded(ipdb::DbType, usize),
 
     SourcesTotal(ProxyType, usize),
     SourceScraped(ProxyType),

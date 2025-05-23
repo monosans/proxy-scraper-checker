@@ -9,7 +9,7 @@ use color_eyre::eyre::WrapErr as _;
 
 use crate::{
     config::Config,
-    geodb::get_geodb_path,
+    ipdb,
     proxy::{Proxy, ProxyType},
     utils::is_docker,
 };
@@ -35,6 +35,7 @@ struct ProxyJson<'a> {
     port: u16,
     timeout: Option<f64>,
     exit_ip: Option<String>,
+    asn: Option<maxminddb::geoip2::Asn<'a>>,
     geolocation: Option<maxminddb::geoip2::City<'a>>,
 }
 
@@ -64,13 +65,25 @@ pub async fn save_proxies(
     }
 
     if config.output.json.enabled {
-        let maybe_mmdb = if config.output.json.include_geolocation {
-            let geodb_path = get_geodb_path()
-                .await
-                .wrap_err("failed to get geolocation database path")?;
+        let maybe_asn_db = if config.output.json.include_asn {
+            let path = ipdb::DbType::Asn.db_path().await?;
             Some(
                 tokio::task::spawn_blocking(move || {
-                    maxminddb::Reader::open_mmap(geodb_path)
+                    maxminddb::Reader::open_mmap(path)
+                })
+                .await
+                .wrap_err("failed to spawn tokio blocking task")?
+                .wrap_err("failed to open ASN database")?,
+            )
+        } else {
+            None
+        };
+
+        let maybe_geo_db = if config.output.json.include_geolocation {
+            let path = ipdb::DbType::Geo.db_path().await?;
+            Some(
+                tokio::task::spawn_blocking(move || {
+                    maxminddb::Reader::open_mmap(path)
                 })
                 .await
                 .wrap_err("failed to spawn tokio blocking task")?
@@ -82,22 +95,6 @@ pub async fn save_proxies(
 
         let mut proxy_dicts = Vec::with_capacity(proxies.len());
         for proxy in &proxies {
-            let geolocation = if let Some(mmdb) = &maybe_mmdb {
-                if let Some(exit_ip) = proxy.exit_ip.clone() {
-                    let exit_ip_addr: IpAddr = exit_ip.parse().wrap_err(
-                        "failed to parse proxy's exit ip as IpAddr",
-                    )?;
-                    mmdb.lookup::<maxminddb::geoip2::City>(exit_ip_addr)
-                        .wrap_err_with(move || {
-                            format!("failed to lookup {exit_ip_addr} in geolocation database")
-                        })?
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
             proxy_dicts.push(ProxyJson {
                 protocol: proxy.protocol.clone(),
                 username: proxy.username.clone(),
@@ -108,7 +105,44 @@ pub async fn save_proxies(
                     .timeout
                     .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
                 exit_ip: proxy.exit_ip.clone(),
-                geolocation,
+                asn: if let Some(asn_db) = &maybe_asn_db {
+                    if let Some(exit_ip) = proxy.exit_ip.clone() {
+                        let exit_ip_addr: IpAddr = exit_ip.parse().wrap_err(
+                            "failed to parse proxy's exit ip as IpAddr",
+                        )?;
+                        asn_db
+                            .lookup::<maxminddb::geoip2::Asn>(exit_ip_addr)
+                            .wrap_err_with(move || {
+                                format!(
+                                    "failed to lookup {exit_ip_addr} in ASN \
+                                 database"
+                                )
+                            })?
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                },
+                geolocation: if let Some(geo_db) = &maybe_geo_db {
+                    if let Some(exit_ip) = proxy.exit_ip.clone() {
+                        let exit_ip_addr: IpAddr = exit_ip.parse().wrap_err(
+                            "failed to parse proxy's exit ip as IpAddr",
+                        )?;
+                        geo_db
+                            .lookup::<maxminddb::geoip2::City>(exit_ip_addr)
+                            .wrap_err_with(move || {
+                            format!(
+                                "failed to lookup {exit_ip_addr} in \
+                                 geolocation database"
+                            )
+                        })?
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                },
             });
         }
 
@@ -196,9 +230,11 @@ pub async fn save_proxies(
         }
     }
 
-    let path = config.output.path.canonicalize().wrap_err_with(move || {
-        format!("failed to canonicalize {}", config.output.path.display())
-    })?;
+    let path = config
+        .output
+        .path
+        .canonicalize()
+        .unwrap_or_else(move |_| config.output.path.clone());
     if is_docker().await {
         log::info!(
             "Proxies have been saved to ./out ({} in container)",

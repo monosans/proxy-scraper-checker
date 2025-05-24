@@ -98,10 +98,10 @@ async fn scrape_one(
                     .parse()?,
                 username: capture
                     .name("username")
-                    .map(move |m| m.as_str().to_owned()),
+                    .map(|m| m.as_str().to_owned()),
                 password: capture
                     .name("password")
-                    .map(move |m| m.as_str().to_owned()),
+                    .map(|m| m.as_str().to_owned()),
                 timeout: None,
                 exit_ip: None,
             });

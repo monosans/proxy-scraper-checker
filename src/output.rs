@@ -14,8 +14,12 @@ use crate::{
     utils::is_docker,
 };
 
-fn sort_by_timeout(proxy: &Proxy) -> tokio::time::Duration {
-    proxy.timeout.unwrap_or(tokio::time::Duration::MAX)
+const fn sort_by_timeout(proxy: &Proxy) -> tokio::time::Duration {
+    if let Some(timeout) = proxy.timeout {
+        timeout
+    } else {
+        tokio::time::Duration::MAX
+    }
 }
 
 fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {

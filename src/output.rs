@@ -65,30 +65,16 @@ pub async fn save_proxies(
     }
 
     if config.output.json.enabled {
+        #[expect(clippy::if_then_some_else_none)]
         let maybe_asn_db = if config.output.json.include_asn {
-            let path = ipdb::DbType::Asn.db_path().await?;
-            Some(
-                tokio::task::spawn_blocking(move || {
-                    maxminddb::Reader::open_mmap(path)
-                })
-                .await
-                .wrap_err("failed to spawn tokio blocking task")?
-                .wrap_err("failed to open ASN database")?,
-            )
+            Some(ipdb::DbType::Asn.open_mmap().await?)
         } else {
             None
         };
 
+        #[expect(clippy::if_then_some_else_none)]
         let maybe_geo_db = if config.output.json.include_geolocation {
-            let path = ipdb::DbType::Geo.db_path().await?;
-            Some(
-                tokio::task::spawn_blocking(move || {
-                    maxminddb::Reader::open_mmap(path)
-                })
-                .await
-                .wrap_err("failed to spawn tokio blocking task")?
-                .wrap_err("failed to open geolocation database")?,
-            )
+            Some(ipdb::DbType::Geo.open_mmap().await?)
         } else {
             None
         };

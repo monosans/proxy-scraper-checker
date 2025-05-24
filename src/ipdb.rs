@@ -14,6 +14,13 @@ pub enum DbType {
 }
 
 impl DbType {
+    const fn name(&self) -> &'static str {
+        match self {
+            Self::Asn => "ASN",
+            Self::Geo => "geolocation",
+        }
+    }
+
     const fn url(&self) -> &'static str {
         match self {
             Self::Asn => {
@@ -25,14 +32,7 @@ impl DbType {
         }
     }
 
-    const fn name(&self) -> &'static str {
-        match self {
-            Self::Asn => "ASN",
-            Self::Geo => "geolocation",
-        }
-    }
-
-    pub async fn db_path(&self) -> color_eyre::Result<PathBuf> {
+    async fn db_path(&self) -> color_eyre::Result<PathBuf> {
         let mut cache_path =
             get_cache_path().await.wrap_err("failed to get cache path")?;
         match self {
@@ -48,40 +48,6 @@ impl DbType {
         })?;
         db_path.set_extension("mmdb.etag");
         Ok(db_path)
-    }
-
-    async fn read_etag(
-        &self,
-    ) -> color_eyre::Result<Option<reqwest::header::HeaderValue>> {
-        let path = self.etag_path().await?;
-        match tokio::fs::read_to_string(&path).await {
-            Ok(text) => Ok(text.parse().ok()),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e).wrap_err_with(move || {
-                format!("failed to read file {} to string", path.display())
-            }),
-        }
-    }
-
-    async fn remove_etag(&self) -> color_eyre::Result<()> {
-        let path = self.etag_path().await?;
-        match tokio::fs::remove_file(&path).await {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(e).wrap_err_with(move || {
-                format!("failed to remove {}", path.display())
-            }),
-        }
-    }
-
-    async fn save_etag(
-        &self,
-        etag: reqwest::header::HeaderValue,
-    ) -> color_eyre::Result<()> {
-        let path = self.etag_path().await?;
-        tokio::fs::write(&path, etag).await.wrap_err_with(move || {
-            format!("failed to write to file {}", path.display())
-        })
     }
 
     async fn save_db(
@@ -115,7 +81,41 @@ impl DbType {
         Ok(())
     }
 
-    pub async fn download_db(
+    async fn save_etag(
+        &self,
+        etag: reqwest::header::HeaderValue,
+    ) -> color_eyre::Result<()> {
+        let path = self.etag_path().await?;
+        tokio::fs::write(&path, etag).await.wrap_err_with(move || {
+            format!("failed to write to file {}", path.display())
+        })
+    }
+
+    async fn read_etag(
+        &self,
+    ) -> color_eyre::Result<Option<reqwest::header::HeaderValue>> {
+        let path = self.etag_path().await?;
+        match tokio::fs::read_to_string(&path).await {
+            Ok(text) => Ok(text.parse().ok()),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e).wrap_err_with(move || {
+                format!("failed to read file {} to string", path.display())
+            }),
+        }
+    }
+
+    async fn remove_etag(&self) -> color_eyre::Result<()> {
+        let path = self.etag_path().await?;
+        match tokio::fs::remove_file(&path).await {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e).wrap_err_with(move || {
+                format!("failed to remove {}", path.display())
+            }),
+        }
+    }
+
+    pub async fn download(
         self,
         http_client: reqwest::Client,
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
@@ -199,5 +199,17 @@ impl DbType {
                 format!("failed to remove {} database ETag", self.name())
             })
         }
+    }
+
+    pub async fn open_mmap(
+        self,
+    ) -> color_eyre::Result<maxminddb::Reader<maxminddb::Mmap>> {
+        let path = self.db_path().await?;
+        tokio::task::spawn_blocking(move || maxminddb::Reader::open_mmap(path))
+            .await
+            .wrap_err("failed to spawn tokio blocking task")?
+            .wrap_err_with(move || {
+                format!("failed to open {} database", self.name())
+            })
     }
 }

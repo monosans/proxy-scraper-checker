@@ -96,7 +96,7 @@ async fn main() -> color_eyre::Result<()> {
         let tx = tx.clone();
         output_dependencies_tasks.spawn(async move {
             ipdb::DbType::Asn
-                .download_db(
+                .download(
                     http_client,
                     #[cfg(feature = "tui")]
                     tx,
@@ -111,7 +111,7 @@ async fn main() -> color_eyre::Result<()> {
         let tx = tx.clone();
         output_dependencies_tasks.spawn(async move {
             ipdb::DbType::Geo
-                .download_db(
+                .download(
                     http_client,
                     #[cfg(feature = "tui")]
                     tx,

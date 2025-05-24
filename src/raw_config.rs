@@ -3,7 +3,7 @@ use std::{collections::HashSet, env, num::NonZero, path::PathBuf};
 use color_eyre::eyre::WrapErr as _;
 use serde::{Deserialize, Deserializer};
 
-use crate::utils::{is_docker, is_http_url};
+use crate::utils::is_http_url;
 
 fn validate_positive_f64<'de, D: Deserializer<'de>>(
     deserializer: D,
@@ -113,17 +113,10 @@ impl<'de> Deserialize<'de> for OutputConfig {
     }
 }
 
-const CONFIG_ENV_VAR: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
-const DEFAULT_CONFIG_PATH: &str = "config.toml";
+const CONFIG_ENV: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
 
-pub async fn get_config_path() -> String {
-    if is_docker().await {
-        DEFAULT_CONFIG_PATH.to_owned()
-    } else if let Ok(config_path) = env::var(CONFIG_ENV_VAR) {
-        config_path
-    } else {
-        DEFAULT_CONFIG_PATH.to_owned()
-    }
+pub fn get_config_path() -> String {
+    env::var(CONFIG_ENV).unwrap_or_else(|_| "config.toml".to_owned())
 }
 
 pub async fn read_config(path: &str) -> color_eyre::Result<RawConfig> {

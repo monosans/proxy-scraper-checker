@@ -23,7 +23,7 @@ serde = "=1.0.219"
 serde_json = "=1.0.140"
 tokio = { version = "=1.45.0", features = ["full"] }
 toml = "=0.8.22"
-tui-logger = { version = "=0.17.2", optional = true }
+tui-logger = { version = "=0.17.3", optional = true }
 url = "=2.5.4"
 
 [features]

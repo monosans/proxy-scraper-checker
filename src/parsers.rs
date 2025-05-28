@@ -20,9 +20,7 @@ static IPV4_REGEX: LazyLock<fancy_regex::Regex> = LazyLock::new(|| {
 });
 
 pub fn parse_ipv4(s: &str) -> Option<String> {
-    if let Ok(Some(captures)) =
-        IPV4_REGEX.captures(s).wrap_err("failed to match regex capture groups")
-    {
+    if let Ok(Some(captures)) = IPV4_REGEX.captures(s) {
         captures.name("host").map(|capture| capture.as_str().to_owned())
     } else {
         None

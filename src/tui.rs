@@ -18,6 +18,10 @@ use ratatui::{
     text::{Line, Text},
     widgets::{Block, Gauge},
 };
+use tracing_log::AsLog as _;
+use tracing_subscriber::{
+    layer::SubscriberExt as _, util::SubscriberInitExt as _,
+};
 use tui_logger::{TuiLoggerWidget, TuiWidgetEvent, TuiWidgetState};
 
 use crate::{
@@ -33,22 +37,25 @@ pub struct Tui {
     terminal: DefaultTerminal,
 }
 
-impl super::UI for Tui {
-    fn new() -> color_eyre::Result<Self> {
-        tui_logger::init_logger(log::LevelFilter::Info)
+impl Tui {
+    pub fn new(
+        filter: tracing_subscriber::filter::LevelFilter,
+    ) -> color_eyre::Result<Self> {
+        tui_logger::init_logger(filter.as_log())
             .wrap_err("failed to initialize tui_logger")?;
-        tui_logger::set_default_level(log::LevelFilter::Trace);
+
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(tui_logger::TuiTracingSubscriberLayer)
+            .init();
+
         Ok(Self {
             terminal: ratatui::try_init()
                 .wrap_err("failed to initialize ratatui")?,
         })
     }
 
-    fn set_log_level(log_level: log::LevelFilter) {
-        log::set_max_level(log_level);
-    }
-
-    async fn run(
+    pub async fn run(
         mut self,
         tx: tokio::sync::mpsc::UnboundedSender<Event>,
         mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,

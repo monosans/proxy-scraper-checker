@@ -226,12 +226,12 @@ pub async fn save_proxies(
         .canonicalize()
         .unwrap_or_else(move |_| config.output.path.clone());
     if is_docker().await {
-        log::info!(
+        tracing::info!(
             "Proxies have been saved to ./out ({} in container)",
             path.display()
         );
     } else {
-        log::info!("Proxies have been saved to {}", path.display());
+        tracing::info!("Proxies have been saved to {}", path.display());
     }
 
     Ok(())

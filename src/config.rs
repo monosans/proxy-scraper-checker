@@ -104,7 +104,7 @@ impl Config {
                 let lim = usize::try_from(lim).unwrap_or(usize::MAX);
 
                 if raw_config.checking.max_concurrent_checks.get() > lim {
-                    log::warn!(
+                    tracing::warn!(
                         "max_concurrent_checks config value is too high for \
                          your OS. It will be ignored and {lim} will be used."
                     );

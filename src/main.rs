@@ -36,6 +36,7 @@
 
 mod checker;
 mod config;
+#[cfg(feature = "tui")]
 mod event;
 mod fs;
 mod ipdb;
@@ -44,13 +45,13 @@ mod parsers;
 mod proxy;
 mod raw_config;
 mod scraper;
-mod ui;
+#[cfg(feature = "tui")]
+mod tui;
 mod utils;
 
 use std::sync::Arc;
 
 use color_eyre::eyre::WrapErr as _;
-use ui::UI as _;
 
 fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
     reqwest::Client::builder()
@@ -64,11 +65,6 @@ fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
-    let ui_impl =
-        ui::UIImpl::new().wrap_err("failed to initialize user interface")?;
-
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    let ui_task = tokio::task::spawn(ui_impl.run(tx.clone(), rx));
 
     let raw_config_path = raw_config::get_config_path();
     let raw_config = raw_config::read_config(&raw_config_path)
@@ -81,9 +77,21 @@ async fn main() -> color_eyre::Result<()> {
             .wrap_err("failed to create Config from RawConfig")?,
     );
 
-    if config.debug {
-        ui::UIImpl::set_log_level(log::LevelFilter::Debug);
-    }
+    let filter = if config.debug {
+        tracing_subscriber::filter::LevelFilter::DEBUG
+    } else {
+        tracing_subscriber::filter::LevelFilter::INFO
+    };
+
+    #[cfg(feature = "tui")]
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+
+    #[cfg(feature = "tui")]
+    let tui_task =
+        tokio::task::spawn(tui::Tui::new(filter)?.run(tx.clone(), rx));
+
+    #[cfg(not(feature = "tui"))]
+    tracing_subscriber::fmt().with_max_level(filter).init();
 
     let http_client = create_reqwest_client()
         .wrap_err("failed to create reqwest HTTP client")?;
@@ -134,6 +142,7 @@ async fn main() -> color_eyre::Result<()> {
     while let Some(task) = output_dependencies_tasks.join_next().await {
         task.wrap_err("failed to join output dependencies task")??;
     }
+    drop(output_dependencies_tasks);
 
     let proxies = if config.checking.check_url.is_empty() {
         proxies.into_iter().collect()
@@ -152,9 +161,16 @@ async fn main() -> color_eyre::Result<()> {
         .await
         .wrap_err("failed to save proxies")?;
 
-    log::info!("Thank you for using proxy-scraper-checker!");
+    tracing::info!("Thank you for using proxy-scraper-checker!");
+
     #[cfg(feature = "tui")]
     tx.send(event::Event::App(event::AppEvent::Done))?;
+
+    #[cfg(feature = "tui")]
     drop(tx);
-    ui_task.await?
+
+    #[cfg(feature = "tui")]
+    tui_task.await??;
+
+    Ok(())
 }

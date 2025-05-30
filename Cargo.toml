@@ -6,7 +6,7 @@ license = "MIT"
 publish = false
 
 [dependencies]
-color-eyre = "=0.6.4"
+color-eyre = "=0.6.5"
 crossterm = { version = "=0.28.1", features = [
     "event-stream",
 ], optional = true }

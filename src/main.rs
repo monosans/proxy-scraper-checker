@@ -52,6 +52,10 @@ mod utils;
 use std::sync::Arc;
 
 use color_eyre::eyre::WrapErr as _;
+#[cfg(not(feature = "tui"))]
+use tracing_subscriber::{
+    layer::SubscriberExt as _, util::SubscriberInitExt as _,
+};
 
 fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
     reqwest::Client::builder()

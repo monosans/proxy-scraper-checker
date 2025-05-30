@@ -49,7 +49,7 @@ async fn scrape_one(
     let text = match text_result {
         Ok(text) => text,
         Err(e) => {
-            log::warn!("{} | {}", source, pretty_error(&e));
+            tracing::warn!("{} | {}", source, pretty_error(&e));
             return Ok(());
         }
     };
@@ -58,14 +58,14 @@ async fn scrape_one(
         PROXY_REGEX.captures_iter(&text).collect::<Result<Vec<_>, _>>()?;
 
     if matches.is_empty() {
-        log::warn!("{source} | No proxies found");
+        tracing::warn!("{source} | No proxies found");
         return Ok(());
     }
 
     if config.scraping.max_proxies_per_source != 0
         && matches.len() > config.scraping.max_proxies_per_source
     {
-        log::warn!(
+        tracing::warn!(
             "{} | Too many proxies ({}) - skipped",
             source,
             matches.len(),

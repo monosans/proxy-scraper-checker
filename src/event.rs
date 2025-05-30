@@ -1,9 +1,5 @@
-#[cfg(feature = "tui")]
-use crate::ipdb;
-#[cfg(feature = "tui")]
-use crate::proxy::ProxyType;
+use crate::{ipdb, proxy::ProxyType};
 
-#[cfg(feature = "tui")]
 pub enum AppEvent {
     IpDbTotal(ipdb::DbType, Option<u64>),
     IpDbDownloaded(ipdb::DbType, usize),
@@ -18,12 +14,8 @@ pub enum AppEvent {
     Done,
 }
 
-#[cfg(feature = "tui")]
 pub enum Event {
     Tick,
     Crossterm(crossterm::event::Event),
     App(AppEvent),
 }
-
-#[cfg(not(feature = "tui"))]
-pub enum Event {}

@@ -45,7 +45,7 @@ struct ProxyJson<'a> {
 
 fn group_proxies<'a>(
     config: &Config,
-    proxies: &'a Vec<Proxy>,
+    proxies: &'a [Proxy],
 ) -> HashMap<ProxyType, Vec<&'a Proxy>> {
     let mut groups: HashMap<_, _> =
         config.enabled_protocols().map(|p| (p.clone(), Vec::new())).collect();
@@ -189,7 +189,7 @@ pub async fn save_proxies(
             )?;
 
             let text = create_proxy_list_str(
-                &proxies.iter().collect(),
+                &proxies.iter().collect::<Vec<_>>(),
                 anonymous_only,
                 true,
             );
@@ -226,19 +226,19 @@ pub async fn save_proxies(
         .canonicalize()
         .unwrap_or_else(move |_| config.output.path.clone());
     if is_docker().await {
-        log::info!(
+        tracing::info!(
             "Proxies have been saved to ./out ({} in container)",
             path.display()
         );
     } else {
-        log::info!("Proxies have been saved to {}", path.display());
+        tracing::info!("Proxies have been saved to {}", path.display());
     }
 
     Ok(())
 }
 
 fn create_proxy_list_str(
-    proxies: &Vec<&Proxy>,
+    proxies: &[&Proxy],
     anonymous_only: bool,
     include_protocol: bool,
 ) -> String {

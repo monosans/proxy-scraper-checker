@@ -83,7 +83,7 @@ impl DbType {
 
     async fn save_etag(
         &self,
-        etag: reqwest::header::HeaderValue,
+        etag: impl AsRef<[u8]>,
     ) -> color_eyre::Result<()> {
         let path = self.etag_path().await?;
         tokio::fs::write(&path, etag).await.wrap_err_with(move || {
@@ -150,7 +150,7 @@ impl DbType {
             })?;
 
         if response.status() == reqwest::StatusCode::NOT_MODIFIED {
-            log::info!(
+            tracing::info!(
                 "Latest {} database is already cached at {}",
                 self.name(),
                 db_path.display()
@@ -177,13 +177,13 @@ impl DbType {
         .wrap_err_with(|| format!("failed to save {} database", self.name()))?;
 
         if is_docker().await {
-            log::info!(
+            tracing::info!(
                 "Downloaded {} database to Docker volume ({} in container)",
                 self.name(),
                 db_path.display()
             );
         } else {
-            log::info!(
+            tracing::info!(
                 "Downloaded {} database to {}",
                 self.name(),
                 db_path.display()

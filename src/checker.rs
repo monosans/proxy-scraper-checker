@@ -48,13 +48,10 @@ pub async fn check_all(
                         )))?;
                         new_storage.lock().await.push(proxy);
                     }
-                    Err(e) if config.checking.debug => {
-                        log::log!(
-                            if log::log_enabled!(log::Level::Debug) {
-                                log::Level::Debug
-                            } else {
-                                log::Level::Info
-                            },
+                    Err(e)
+                        if tracing::event_enabled!(tracing::Level::DEBUG) =>
+                    {
+                        tracing::debug!(
                             "{} | {}",
                             proxy.as_str(true),
                             pretty_error(&e)

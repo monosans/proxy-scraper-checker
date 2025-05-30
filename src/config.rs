@@ -25,7 +25,6 @@ pub struct ScrapingConfig {
 
 pub struct CheckingConfig {
     pub check_url: String,
-    pub debug: bool,
     pub max_concurrent_checks: usize,
     pub timeout: tokio::time::Duration,
 }
@@ -104,7 +103,7 @@ impl Config {
                 let lim = usize::try_from(lim).unwrap_or(usize::MAX);
 
                 if raw_config.checking.max_concurrent_checks.get() > lim {
-                    log::warn!(
+                    tracing::warn!(
                         "max_concurrent_checks config value is too high for \
                          your OS. It will be ignored and {lim} will be used."
                     );
@@ -138,7 +137,6 @@ impl Config {
             },
             checking: CheckingConfig {
                 check_url: raw_config.checking.check_url,
-                debug: raw_config.checking.debug,
                 max_concurrent_checks,
                 timeout: tokio::time::Duration::from_secs_f64(
                     raw_config.checking.timeout,

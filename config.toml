@@ -1,5 +1,5 @@
 # Use debug logging level
-# Useful for debugging but can produce a lot of output
+# Produces a lot of output
 debug = false
 
 
@@ -22,10 +22,6 @@ timeout = 5.0
 #   "https://google.com"             - Checks general connectivity
 #   ""                               - Disable checking entirely
 check_url = "https://checkip.amazonaws.com"
-
-# Enable logging of proxy rejection reasons
-# Useful for debugging but can produce a lot of output
-debug = false
 
 # Maximum concurrent proxy checks
 # Make sure you have enough RAM first and your network can handle it, gradually increasing the default value

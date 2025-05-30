@@ -83,7 +83,7 @@ impl DbType {
 
     async fn save_etag(
         &self,
-        etag: reqwest::header::HeaderValue,
+        etag: impl AsRef<[u8]>,
     ) -> color_eyre::Result<()> {
         let path = self.etag_path().await?;
         tokio::fs::write(&path, etag).await.wrap_err_with(move || {

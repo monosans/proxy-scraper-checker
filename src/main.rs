@@ -71,9 +71,11 @@ async fn main() -> color_eyre::Result<()> {
     color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
 
     let raw_config_path = raw_config::get_config_path();
-    let raw_config = raw_config::read_config(&raw_config_path)
-        .await
-        .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
+    let raw_config = raw_config::read_config(std::path::Path::new(
+        &raw_config_path,
+    ))
+    .await
+    .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
 
     let config = Arc::new(
         config::Config::from_raw_config(raw_config)

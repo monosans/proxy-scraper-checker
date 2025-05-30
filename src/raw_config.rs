@@ -1,4 +1,9 @@
-use std::{collections::HashSet, env, num::NonZero, path::PathBuf};
+use std::{
+    collections::HashSet,
+    env,
+    num::NonZero,
+    path::{Path, PathBuf},
+};
 
 use color_eyre::eyre::WrapErr as _;
 use serde::{Deserialize, Deserializer};
@@ -119,11 +124,12 @@ pub fn get_config_path() -> String {
     env::var(CONFIG_ENV).unwrap_or_else(|_| "config.toml".to_owned())
 }
 
-pub async fn read_config(path: &str) -> color_eyre::Result<RawConfig> {
-    let raw_config = tokio::fs::read_to_string(path)
-        .await
-        .wrap_err_with(move || format!("failed to read {path} to string"))?;
+pub async fn read_config(path: &Path) -> color_eyre::Result<RawConfig> {
+    let raw_config =
+        tokio::fs::read_to_string(path).await.wrap_err_with(move || {
+            format!("failed to read {} to string", path.display())
+        })?;
     toml::from_str(&raw_config).wrap_err_with(move || {
-        format!("failed to parse {path} as TOML config file")
+        format!("failed to parse {} as TOML config file", path.display())
     })
 }

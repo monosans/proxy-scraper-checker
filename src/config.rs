@@ -25,7 +25,6 @@ pub struct ScrapingConfig {
 
 pub struct CheckingConfig {
     pub check_url: String,
-    pub debug: bool,
     pub max_concurrent_checks: usize,
     pub timeout: tokio::time::Duration,
 }
@@ -138,7 +137,6 @@ impl Config {
             },
             checking: CheckingConfig {
                 check_url: raw_config.checking.check_url,
-                debug: raw_config.checking.debug,
                 max_concurrent_checks,
                 timeout: tokio::time::Duration::from_secs_f64(
                     raw_config.checking.timeout,

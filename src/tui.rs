@@ -18,7 +18,6 @@ use ratatui::{
     text::{Line, Text},
     widgets::{Block, Gauge},
 };
-use tracing_log::AsLog as _;
 use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
@@ -39,14 +38,13 @@ pub struct Tui {
 
 impl Tui {
     pub fn new(
-        level_filter: tracing::level_filters::LevelFilter,
-        targets_filter: tracing_subscriber::filter::Targets,
+        filter: tracing_subscriber::filter::Targets,
     ) -> color_eyre::Result<Self> {
-        tui_logger::init_logger(level_filter.as_log())
+        tui_logger::init_logger(tui_logger::LevelFilter::Trace)
             .wrap_err("failed to initialize tui_logger")?;
 
         tracing_subscriber::registry()
-            .with(targets_filter)
+            .with(filter)
             .with(tui_logger::TuiTracingSubscriberLayer)
             .init();
 

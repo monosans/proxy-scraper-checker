@@ -55,7 +55,6 @@ pub struct ScrapingConfig {
 pub struct CheckingConfig {
     #[serde(deserialize_with = "validate_http_url")]
     pub check_url: String,
-    pub debug: bool,
     pub max_concurrent_checks: NonZero<usize>,
     #[serde(deserialize_with = "validate_positive_f64")]
     pub timeout: f64,

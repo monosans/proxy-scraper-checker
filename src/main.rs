@@ -83,25 +83,28 @@ async fn main() -> color_eyre::Result<()> {
             .wrap_err("failed to create Config from RawConfig")?,
     );
 
-    let level_filter = if config.debug {
-        tracing::level_filters::LevelFilter::DEBUG
-    } else {
-        tracing::level_filters::LevelFilter::INFO
-    };
     let targets_filter = tracing_subscriber::filter::Targets::new()
-        .with_default(level_filter)
+        .with_default(tracing::level_filters::LevelFilter::INFO)
+        // TODO: remove for hickory_proto >= 0.25.0
         .with_target(
             "hickory_proto::xfer::dns_exchange",
             tracing::level_filters::LevelFilter::ERROR,
+        )
+        .with_target(
+            "proxy_scraper_checker",
+            if config.debug {
+                tracing::level_filters::LevelFilter::DEBUG
+            } else {
+                tracing::level_filters::LevelFilter::INFO
+            },
         );
 
     #[cfg(feature = "tui")]
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     #[cfg(feature = "tui")]
-    let tui_task = tokio::task::spawn(
-        tui::Tui::new(level_filter, targets_filter)?.run(tx.clone(), rx),
-    );
+    let tui_task =
+        tokio::task::spawn(tui::Tui::new(targets_filter)?.run(tx.clone(), rx));
 
     #[cfg(not(feature = "tui"))]
     tracing_subscriber::registry()
@@ -163,6 +166,9 @@ async fn main() -> color_eyre::Result<()> {
     let proxies = if config.checking.check_url.is_empty() {
         proxies.into_iter().collect()
     } else {
+        #[cfg(not(feature = "tui"))]
+        tracing::info!("Started checking {} proxies", proxies.len());
+
         checker::check_all(
             Arc::clone(&config),
             proxies,

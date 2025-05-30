@@ -77,21 +77,31 @@ async fn main() -> color_eyre::Result<()> {
             .wrap_err("failed to create Config from RawConfig")?,
     );
 
-    let filter = if config.debug {
-        tracing_subscriber::filter::LevelFilter::DEBUG
+    let level_filter = if config.debug {
+        tracing::level_filters::LevelFilter::DEBUG
     } else {
-        tracing_subscriber::filter::LevelFilter::INFO
+        tracing::level_filters::LevelFilter::INFO
     };
+    let targets_filter = tracing_subscriber::filter::Targets::new()
+        .with_default(level_filter)
+        .with_target(
+            "hickory_proto::xfer::dns_exchange",
+            tracing::level_filters::LevelFilter::ERROR,
+        );
 
     #[cfg(feature = "tui")]
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     #[cfg(feature = "tui")]
-    let tui_task =
-        tokio::task::spawn(tui::Tui::new(filter)?.run(tx.clone(), rx));
+    let tui_task = tokio::task::spawn(
+        tui::Tui::new(level_filter, targets_filter)?.run(tx.clone(), rx),
+    );
 
     #[cfg(not(feature = "tui"))]
-    tracing_subscriber::fmt().with_max_level(filter).init();
+    tracing_subscriber::registry()
+        .with(targets_filter)
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
     let http_client = create_reqwest_client()
         .wrap_err("failed to create reqwest HTTP client")?;

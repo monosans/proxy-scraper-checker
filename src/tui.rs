@@ -39,13 +39,14 @@ pub struct Tui {
 
 impl Tui {
     pub fn new(
-        filter: tracing_subscriber::filter::LevelFilter,
+        level_filter: tracing::level_filters::LevelFilter,
+        targets_filter: tracing_subscriber::filter::Targets,
     ) -> color_eyre::Result<Self> {
-        tui_logger::init_logger(filter.as_log())
+        tui_logger::init_logger(level_filter.as_log())
             .wrap_err("failed to initialize tui_logger")?;
 
         tracing_subscriber::registry()
-            .with(filter)
+            .with(targets_filter)
             .with(tui_logger::TuiTracingSubscriberLayer)
             .init();
 

@@ -49,7 +49,9 @@ pub async fn check_all(
                         new_storage.lock().await.push(proxy);
                     }
                     Err(e) if config.checking.debug => {
-                        if tracing::level_enabled!(tracing::Level::DEBUG) {
+                        if tracing::level_enabled!(
+                            tracing::level_filters::LevelFilter::DEBUG
+                        ) {
                             tracing::debug!(
                                 "{} | {}",
                                 proxy.as_str(true),

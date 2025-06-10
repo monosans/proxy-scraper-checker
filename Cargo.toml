@@ -33,7 +33,7 @@ url = "=2.5.4"
 tui = ["dep:crossterm", "dep:futures", "dep:ratatui", "dep:tui-logger"]
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-reqwest = { version = "=0.12.19", default-features = false, features = [
+reqwest = { version = "=0.12.20", default-features = false, features = [
     "brotli",
     "charset",
     "gzip",
@@ -46,7 +46,7 @@ reqwest = { version = "=0.12.19", default-features = false, features = [
 ] }
 
 [target.'cfg(target_os = "android")'.dependencies]
-reqwest = { version = "=0.12.19", default-features = false, features = [
+reqwest = { version = "=0.12.20", default-features = false, features = [
     "brotli",
     "charset",
     "gzip",

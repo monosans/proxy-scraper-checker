@@ -83,21 +83,23 @@ async fn main() -> color_eyre::Result<()> {
             .wrap_err("failed to create Config from RawConfig")?,
     );
 
-    let targets_filter = tracing_subscriber::filter::Targets::new()
-        .with_default(tracing::level_filters::LevelFilter::INFO)
-        // TODO: remove for hickory_proto >= 0.25.0
-        .with_target(
-            "hickory_proto::xfer::dns_exchange",
-            tracing::level_filters::LevelFilter::ERROR,
-        )
-        .with_target(
-            "proxy_scraper_checker",
-            if config.debug {
-                tracing::level_filters::LevelFilter::DEBUG
-            } else {
-                tracing::level_filters::LevelFilter::INFO
-            },
-        );
+    let targets_filter = {
+        let base = tracing_subscriber::filter::Targets::new()
+            .with_default(tracing::level_filters::LevelFilter::INFO)
+            .with_target(
+                // TODO: remove for hickory_proto >= 0.25.0
+                "hickory_proto::xfer::dns_exchange",
+                tracing::level_filters::LevelFilter::ERROR,
+            );
+        if config.debug {
+            base.with_target(
+                "proxy_scraper_checker::checker",
+                tracing::level_filters::LevelFilter::DEBUG,
+            )
+        } else {
+            base
+        }
+    };
 
     #[cfg(feature = "tui")]
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();

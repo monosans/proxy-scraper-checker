@@ -70,11 +70,10 @@ pub async fn check_all(
                 return Err(e).wrap_err("proxy checking task failed");
             }
             Err(e) => {
-                if e.is_panic() {
-                    tracing::error!("proxy checking task panicked: {}", e);
-                } else {
-                    tracing::error!("proxy checking task was cancelled: {}", e);
-                }
+                tracing::error!(
+                    "proxy checking task panicked or was cancelled: {}",
+                    e
+                );
             }
         }
     }

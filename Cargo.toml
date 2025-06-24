@@ -40,9 +40,9 @@ reqwest = { version = "=0.12.20", default-features = false, features = [
     "hickory-dns",
     "http2",
     "json",
-    "macos-system-configuration",
     "rustls-tls",
     "socks",
+    "system-proxy",
 ] }
 
 [target.'cfg(target_os = "android")'.dependencies]
@@ -52,9 +52,9 @@ reqwest = { version = "=0.12.20", default-features = false, features = [
     "gzip",
     "http2",
     "json",
-    "macos-system-configuration",
     "rustls-tls",
     "socks",
+    "system-proxy",
 ] }
 
 [profile.release]

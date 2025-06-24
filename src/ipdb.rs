@@ -122,6 +122,7 @@ impl DbType {
     ) -> color_eyre::Result<()> {
         let db_path = self.db_path().await?;
         let mut headers = reqwest::header::HeaderMap::new();
+        #[expect(clippy::collapsible_if)]
         if tokio::fs::metadata(&db_path).await.is_ok_and(|m| m.is_file()) {
             if let Some(etag) =
                 self.read_etag().await.wrap_err("failed to read ETag")?

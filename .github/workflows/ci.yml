@@ -403,10 +403,10 @@ jobs:
           persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: beta
+          toolchain: stable
           components: clippy
           cache-key: x86_64-unknown-linux-gnu
-      - run: cargo +beta clippy --all-targets ${{ matrix.features }} -- -Dwarnings
+      - run: cargo +stable clippy --all-targets ${{ matrix.features }} -- -Dwarnings
   pre-commit:
     runs-on: ubuntu-24.04
     steps:

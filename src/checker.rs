@@ -64,8 +64,19 @@ pub async fn check_all(
     }
 
     while let Some(res) = join_set.join_next().await {
-        res.wrap_err("failed to join proxy checking task")?
-            .wrap_err("proxy checking worker failed")?;
+        match res {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                return Err(e).wrap_err("proxy checking task failed");
+            }
+            Err(e) => {
+                if e.is_panic() {
+                    tracing::error!("proxy checking task panicked: {}", e);
+                } else {
+                    tracing::error!("proxy checking task was cancelled: {}", e);
+                }
+            }
+        }
     }
 
     Ok(Arc::into_inner(checked_proxies)

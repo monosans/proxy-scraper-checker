@@ -78,7 +78,7 @@ impl Tui {
         }
         drop(rx);
         while let Some(task) = join_set.join_next().await {
-            task.wrap_err("failed to join event listener task")?
+            task.wrap_err("event listener task panicked or was cancelled")?
                 .wrap_err("event listener task failed")?;
         }
         Ok(())

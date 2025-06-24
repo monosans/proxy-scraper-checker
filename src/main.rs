@@ -161,7 +161,7 @@ async fn main() -> color_eyre::Result<()> {
     drop(http_client);
 
     while let Some(task) = output_dependencies_tasks.join_next().await {
-        task.wrap_err("failed to join output dependencies task")??;
+        task.wrap_err("output dependencies task panicked or was cancelled")??;
     }
     drop(output_dependencies_tasks);
 

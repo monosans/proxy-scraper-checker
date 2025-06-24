@@ -153,8 +153,8 @@ pub async fn scrape_all(
     }
 
     while let Some(res) = join_set.join_next().await {
-        res.wrap_err("failed to join proxy scrape task")?
-            .wrap_err("proxy scrape task failed")?;
+        res.wrap_err("proxy scraping task panicked or was cancelled")?
+            .wrap_err("proxy scraping task failed")?;
     }
 
     Ok(Arc::into_inner(proxies)

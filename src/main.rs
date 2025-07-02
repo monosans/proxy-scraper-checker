@@ -87,6 +87,10 @@ async fn main() -> color_eyre::Result<()> {
         let base = tracing_subscriber::filter::Targets::new()
             .with_default(tracing::level_filters::LevelFilter::INFO)
             .with_target(
+                "hickory_proto::udp::udp_client_stream",
+                tracing::level_filters::LevelFilter::ERROR,
+            )
+            .with_target(
                 // TODO: remove for hickory_proto >= 0.25.0
                 "hickory_proto::xfer::dns_exchange",
                 tracing::level_filters::LevelFilter::ERROR,

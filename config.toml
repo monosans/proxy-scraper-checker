@@ -21,7 +21,7 @@ timeout = 5.0
 #   "https://checkip.amazonaws.com"  (or any other plain-ip service) - Supports getting ASN, geolocation and anonymity info
 #   "https://google.com"             - Checks general connectivity
 #   ""                               - Disable checking entirely
-check_url = "https://checkip.amazonaws.com"
+check_url = "https://api.ipify.org"
 
 # Maximum concurrent proxy checks
 # Make sure you have enough RAM first and your network can handle it, gradually increasing the default value

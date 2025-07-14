@@ -69,10 +69,10 @@ urls = [
     # You can add local files like this:
     # "./my_http_proxies.txt",
 
-    "https://api.openproxylist.xyz/http.txt",
-    "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http",
-    "https://api.proxyscrape.com/v2/?request=getproxies&protocol=https",
-    "https://openproxy.space/list/http",
+    "https://openproxylist.xyz/http.txt",
+    "https://openproxylist.xyz/https.txt",
+    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=http",
+    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=https",
     "https://proxyspace.pro/http.txt",
     "https://proxyspace.pro/https.txt",
     "https://raw.githubusercontent.com/AlestackOverglow/proxy-list/refs/heads/main/proxies_with_protocol.txt",
@@ -132,9 +132,8 @@ urls = [
     # You can add local files like this:
     # "./my_socks4_proxies.txt",
 
-    "https://api.openproxylist.xyz/socks4.txt",
-    "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4",
-    "https://openproxy.space/list/socks4",
+    "https://openproxylist.xyz/socks4.txt",
+    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks4",
     "https://proxyspace.pro/socks4.txt",
     "https://raw.githubusercontent.com/ALIILAPRO/Proxy/refs/heads/main/socks4.txt",
     "https://raw.githubusercontent.com/Anonym0usWork1221/Free-Proxies/refs/heads/main/proxy_files/socks4_proxies.txt",
@@ -171,9 +170,8 @@ urls = [
     # You can add local files like this:
     # "./my_socks5_proxies.txt",
 
-    "https://api.openproxylist.xyz/socks5.txt",
-    "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks5",
-    "https://openproxy.space/list/socks5",
+    "https://openproxylist.xyz/socks5.txt",
+    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks5",
     "https://proxyspace.pro/socks5.txt",
     "https://raw.githubusercontent.com/ALIILAPRO/Proxy/refs/heads/main/socks5.txt",
     "https://raw.githubusercontent.com/Anonym0usWork1221/Free-Proxies/refs/heads/main/proxy_files/socks5_proxies.txt",

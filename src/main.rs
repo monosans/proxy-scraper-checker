@@ -66,58 +66,12 @@ fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
         .build()
 }
 
-#[tokio::main]
-async fn main() -> color_eyre::Result<()> {
-    color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
-
-    let raw_config_path = raw_config::get_config_path();
-    let raw_config = raw_config::read_config(std::path::Path::new(
-        &raw_config_path,
-    ))
-    .await
-    .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
-
-    let config = Arc::new(
-        config::Config::from_raw_config(raw_config)
-            .await
-            .wrap_err("failed to create Config from RawConfig")?,
-    );
-
-    let targets_filter = {
-        let base = tracing_subscriber::filter::Targets::new()
-            .with_default(tracing::level_filters::LevelFilter::INFO)
-            .with_target(
-                "hickory_proto::udp::udp_client_stream",
-                tracing::level_filters::LevelFilter::ERROR,
-            )
-            .with_target(
-                // TODO: remove for hickory_proto >= 0.25.0
-                "hickory_proto::xfer::dns_exchange",
-                tracing::level_filters::LevelFilter::ERROR,
-            );
-        if config.debug {
-            base.with_target(
-                "proxy_scraper_checker::checker",
-                tracing::level_filters::LevelFilter::DEBUG,
-            )
-        } else {
-            base
-        }
-    };
-
-    #[cfg(feature = "tui")]
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-
-    #[cfg(feature = "tui")]
-    let tui_task =
-        tokio::task::spawn(tui::Tui::new(targets_filter)?.run(tx.clone(), rx));
-
-    #[cfg(not(feature = "tui"))]
-    tracing_subscriber::registry()
-        .with(targets_filter)
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
+async fn main_task(
+    config: Arc<config::Config>,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
+        event::Event,
+    >,
+) -> color_eyre::Result<()> {
     let http_client = create_reqwest_client()
         .wrap_err("failed to create reqwest HTTP client")?;
 
@@ -196,9 +150,74 @@ async fn main() -> color_eyre::Result<()> {
 
     #[cfg(feature = "tui")]
     drop(tx);
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> color_eyre::Result<()> {
+    color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
+
+    let raw_config_path = raw_config::get_config_path();
+    let raw_config = raw_config::read_config(std::path::Path::new(
+        &raw_config_path,
+    ))
+    .await
+    .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
+
+    let config = Arc::new(
+        config::Config::from_raw_config(raw_config)
+            .await
+            .wrap_err("failed to create Config from RawConfig")?,
+    );
+
+    let targets_filter = {
+        let base = tracing_subscriber::filter::Targets::new()
+            .with_default(tracing::level_filters::LevelFilter::INFO)
+            .with_target(
+                "hickory_proto::udp::udp_client_stream",
+                tracing::level_filters::LevelFilter::ERROR,
+            )
+            .with_target(
+                // TODO: remove for hickory_proto >= 0.25.0
+                "hickory_proto::xfer::dns_exchange",
+                tracing::level_filters::LevelFilter::ERROR,
+            );
+        if config.debug {
+            base.with_target(
+                "proxy_scraper_checker::checker",
+                tracing::level_filters::LevelFilter::DEBUG,
+            )
+        } else {
+            base
+        }
+    };
+
+    #[cfg(feature = "tui")]
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+
+    #[cfg(feature = "tui")]
+    let tui_task =
+        tokio::task::spawn(tui::Tui::new(targets_filter)?.run(tx.clone(), rx));
+
+    #[cfg(not(feature = "tui"))]
+    tracing_subscriber::registry()
+        .with(targets_filter)
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    let main_task = tokio::task::spawn(main_task(
+        config,
+        #[cfg(feature = "tui")]
+        tx,
+    ));
 
     #[cfg(feature = "tui")]
     tui_task.await??;
+    #[cfg(feature = "tui")]
+    main_task.abort();
+
+    #[cfg(not(feature = "tui"))]
+    main_task.await??;
 
     Ok(())
 }

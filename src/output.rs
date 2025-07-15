@@ -1,11 +1,11 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io, iter,
     net::{IpAddr, Ipv4Addr},
     sync::Arc,
 };
 
-use color_eyre::eyre::WrapErr as _;
+use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
 use crate::{
     config::Config,
@@ -60,8 +60,14 @@ fn group_proxies<'a>(
 #[expect(clippy::too_many_lines)]
 pub async fn save_proxies(
     config: Arc<Config>,
-    mut proxies: Vec<Proxy>,
+    proxies: Arc<tokio::sync::Mutex<HashSet<Proxy>>>,
 ) -> color_eyre::Result<()> {
+    let mut proxies: Vec<_> = Arc::into_inner(proxies)
+        .ok_or_eyre("failed to unwrap Arc")?
+        .into_inner()
+        .into_iter()
+        .filter(|p| config.checking.check_url.is_empty() || p.timeout.is_some())
+        .collect();
     if config.output.sort_by_speed {
         proxies.sort_by_key(sort_by_timeout);
     } else {

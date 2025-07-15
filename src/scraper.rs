@@ -119,10 +119,9 @@ async fn scrape_one(
 pub async fn scrape_all(
     config: Arc<Config>,
     http_client: reqwest::Client,
+    proxies: Arc<tokio::sync::Mutex<HashSet<Proxy>>>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<HashSet<Proxy>> {
-    let proxies = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
-
     let mut join_set = tokio::task::JoinSet::new();
     for (proto, sources) in config.scraping.sources.clone() {
         #[cfg(feature = "tui")]

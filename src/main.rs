@@ -49,7 +49,7 @@ mod scraper;
 mod tui;
 mod utils;
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use color_eyre::eyre::WrapErr as _;
 use tracing_subscriber::{
@@ -145,30 +145,31 @@ async fn wait_for_ip_database_tasks(
 
 async fn process_proxies(
     config: Arc<config::Config>,
-    proxies: std::collections::HashSet<crate::proxy::Proxy>,
-    #[cfg(feature = "tui")] tx: &tokio::sync::mpsc::UnboundedSender<
+    proxies: Arc<tokio::sync::Mutex<HashSet<crate::proxy::Proxy>>>,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> color_eyre::Result<Vec<crate::proxy::Proxy>> {
+) -> color_eyre::Result<()> {
     if config.checking.check_url.is_empty() {
-        Ok(proxies.into_iter().collect())
-    } else {
-        #[cfg(not(feature = "tui"))]
-        tracing::info!("Started checking {} proxies", proxies.len());
-
-        checker::check_all(
-            config,
-            proxies,
-            #[cfg(feature = "tui")]
-            tx.clone(),
-        )
-        .await
-        .wrap_err("failed to check proxies")
+        return Ok(());
     }
+    #[cfg(not(feature = "tui"))]
+    tracing::info!("Started checking {} proxies", proxies.lock().await.len());
+
+    checker::check_all(
+        config,
+        proxies,
+        #[cfg(feature = "tui")]
+        tx.clone(),
+    )
+    .await
+    .wrap_err("failed to check proxies")
 }
 
+#[expect(clippy::integer_division_remainder_used)]
 async fn main_task(
     config: Arc<config::Config>,
+    token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
@@ -183,37 +184,61 @@ async fn main_task(
         &tx,
     );
 
-    let proxies = scraper::scrape_all(
+    let proxies = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
+
+    let finalize = async || {
+        output::save_proxies(Arc::clone(&config), Arc::clone(&proxies))
+            .await
+            .wrap_err("failed to save proxies")?;
+        tracing::info!("Thank you for using proxy-scraper-checker!");
+
+        #[cfg(feature = "tui")]
+        drop(tx.send(event::Event::App(event::AppEvent::Done)));
+
+        Ok::<_, color_eyre::Report>(())
+    };
+
+    let scrape_task = tokio::task::spawn(scraper::scrape_all(
         Arc::clone(&config),
         http_client.clone(),
+        Arc::clone(&proxies),
         #[cfg(feature = "tui")]
         tx.clone(),
-    )
-    .await
-    .wrap_err("failed to scrape proxies")?;
+    ));
+    let scrape_handle = scrape_task.abort_handle();
 
-    drop(http_client);
+    tokio::select! {
+        biased;
+        scrape_result = scrape_task => {
+            scrape_result.wrap_err("scrape task failed")??;
+            wait_for_ip_database_tasks(ip_db_tasks).await?;
 
-    wait_for_ip_database_tasks(ip_db_tasks).await?;
+            let check_task = tokio::task::spawn(process_proxies(
+                Arc::clone(&config),
+                Arc::clone(&proxies),
+                #[cfg(feature = "tui")]
+                tx.clone(),
+            ));
+            let check_handle = check_task.abort_handle();
 
-    let proxies = process_proxies(
-        Arc::clone(&config),
-        proxies,
-        #[cfg(feature = "tui")]
-        &tx,
-    )
-    .await?;
-
-    output::save_proxies(config, proxies)
-        .await
-        .wrap_err("failed to save proxies")?;
-
-    tracing::info!("Thank you for using proxy-scraper-checker!");
-
-    #[cfg(feature = "tui")]
-    drop(tx.send(event::Event::App(event::AppEvent::Done)));
-
-    Ok(())
+            tokio::select! {
+                biased;
+                check_result = check_task => {
+                    check_result.wrap_err("check task failed")??;
+                    finalize().await
+                },
+                () = token.cancelled() => {
+                    check_handle.abort();
+                    finalize().await
+                }
+            }
+        },
+        () = token.cancelled() => {
+            scrape_handle.abort();
+            wait_for_ip_database_tasks(ip_db_tasks).await?;
+            finalize().await
+        }
+    }
 }
 
 #[cfg(feature = "tui")]
@@ -233,13 +258,17 @@ async fn run_with_tui(
     let terminal_guard = tui::RatatuiRestoreGuard;
 
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    let main_task = tokio::task::spawn(main_task(config, tx.clone()));
-    let main_task_handle = main_task.abort_handle();
+    let token = tokio_util::sync::CancellationToken::new();
+    let main_task = tokio::task::spawn(main_task(
+        Arc::clone(&config),
+        token.clone(),
+        tx.clone(),
+    ));
 
     tokio::try_join!(async move { main_task.await? }, async move {
         let result = tui::run(terminal, tx, rx).await;
         drop(terminal_guard);
-        main_task_handle.abort();
+        token.cancel();
         result
     })?;
 
@@ -247,6 +276,7 @@ async fn run_with_tui(
 }
 
 #[cfg(not(feature = "tui"))]
+#[expect(clippy::integer_division_remainder_used)]
 async fn run_without_tui(
     config: Arc<config::Config>,
     logging_filter: tracing_subscriber::filter::Targets,
@@ -256,7 +286,13 @@ async fn run_without_tui(
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    main_task(config).await
+    let token = tokio_util::sync::CancellationToken::new();
+    tokio::select! {
+        biased;
+        result = main_task(config, token.clone()) => result?,
+        _ = tokio::signal::ctrl_c() => token.cancel()
+    }
+    Ok(())
 }
 
 async fn load_config() -> color_eyre::Result<Arc<config::Config>> {

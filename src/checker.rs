@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
-use color_eyre::eyre::{OptionExt as _, WrapErr as _};
+use color_eyre::eyre::WrapErr as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
@@ -8,26 +8,26 @@ use crate::{config::Config, proxy::Proxy, utils::pretty_error};
 
 pub async fn check_all(
     config: Arc<Config>,
-    proxies: HashSet<Proxy>,
+    proxies: Arc<tokio::sync::Mutex<HashSet<Proxy>>>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> color_eyre::Result<Vec<Proxy>> {
+) -> color_eyre::Result<()> {
     let workers_count =
-        config.checking.max_concurrent_checks.min(proxies.len());
+        config.checking.max_concurrent_checks.min(proxies.lock().await.len());
     if workers_count == 0 {
-        return Ok(Vec::new());
+        return Ok(());
     }
 
-    let checked_proxies = Arc::new(tokio::sync::Mutex::new(Vec::new()));
-
-    let queue = Arc::new(tokio::sync::Mutex::new(
-        proxies.into_iter().collect::<Vec<_>>(),
-    ));
+    let mut guard = proxies.lock().await;
+    let queue =
+        Arc::new(tokio::sync::Mutex::new(guard.drain().collect::<Vec<_>>()));
+    guard.shrink_to_fit();
+    drop(guard);
 
     let mut join_set = tokio::task::JoinSet::<color_eyre::Result<()>>::new();
     for _ in 0..workers_count {
         let queue = Arc::clone(&queue);
         let config = Arc::clone(&config);
-        let new_storage = Arc::clone(&checked_proxies);
+        let proxies = Arc::clone(&proxies);
         #[cfg(feature = "tui")]
         let tx = tx.clone();
         join_set.spawn(async move {
@@ -46,7 +46,7 @@ pub async fn check_all(
                         drop(tx.send(Event::App(AppEvent::ProxyWorking(
                             proxy.protocol.clone(),
                         ))));
-                        new_storage.lock().await.push(proxy);
+                        proxies.lock().await.insert(proxy);
                     }
                     Err(e)
                         if tracing::event_enabled!(tracing::Level::DEBUG) =>
@@ -78,7 +78,5 @@ pub async fn check_all(
         }
     }
 
-    Ok(Arc::into_inner(checked_proxies)
-        .ok_or_eyre("failed to unwrap Arc")?
-        .into_inner())
+    Ok(())
 }

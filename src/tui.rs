@@ -70,6 +70,7 @@ pub async fn run(
 pub enum AppMode {
     #[default]
     Running,
+    Done,
     Quit,
 }
 
@@ -276,8 +277,13 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
     let lines = vec![
         Line::from("Up/PageUp/k - scroll logs up"),
         Line::from("Down/PageDown/j - scroll logs down"),
-        Line::from("ESC/q/Ctrl-C - exit")
-            .style(Style::default().fg(Color::Red)),
+        if matches!(state.mode, AppMode::Running) {
+            Line::from("ESC/q/Ctrl-C - stop")
+                .style(Style::default().fg(Color::Yellow))
+        } else {
+            Line::from("ESC/q/Ctrl-C - quit")
+                .style(Style::default().fg(Color::Red))
+        },
     ];
     f.render_widget(Text::from(lines).centered(), outer_layout[3]);
 }
@@ -297,12 +303,20 @@ async fn handle_event(
             match crossterm_event {
                 CrosstermEvent::Key(key_event) => match key_event.code {
                     KeyCode::Esc | KeyCode::Char('q' | 'Q') => {
-                        state.mode = AppMode::Quit;
+                        state.mode = if matches!(state.mode, AppMode::Running) {
+                            AppMode::Done
+                        } else {
+                            AppMode::Quit
+                        };
                     }
                     KeyCode::Char('c' | 'C')
                         if key_event.modifiers == KeyModifiers::CONTROL =>
                     {
-                        state.mode = AppMode::Quit;
+                        state.mode = if matches!(state.mode, AppMode::Running) {
+                            AppMode::Done
+                        } else {
+                            AppMode::Quit
+                        };
                     }
                     KeyCode::Up | KeyCode::PageUp | KeyCode::Char('k') => {
                         logger_state.transition(TuiWidgetEvent::PrevPageKey);
@@ -369,9 +383,11 @@ async fn handle_event(
                         .or_insert(1);
                 }
                 AppEvent::Done => {
-                    if !is_interactive().await {
-                        state.mode = AppMode::Quit;
-                    }
+                    state.mode = if is_interactive().await {
+                        AppMode::Quit
+                    } else {
+                        AppMode::Done
+                    };
                 }
             }
             false

@@ -95,9 +95,6 @@ impl Drop for Tui {
 pub enum AppMode {
     #[default]
     Running,
-    /// Wait for the user confirmation to close the UI
-    Done,
-    /// Close the UI
     Quit,
 }
 
@@ -301,17 +298,12 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
             working_proxies_block.inner(layout[2]),
         );
     }
-
-    let done = matches!(state.mode, AppMode::Done);
-    let mut lines = Vec::with_capacity(usize::from(done).saturating_add(2));
-    lines.push(Line::from("Up/PageUp/k - scroll logs up"));
-    lines.push(Line::from("Down/PageDown/j - scroll logs down"));
-    if done {
-        lines.push(
-            Line::from("Enter/ESC/q/Ctrl-C - exit")
-                .style(Style::default().fg(Color::Red)),
-        );
-    }
+    let lines = vec![
+        Line::from("Up/PageUp/k - scroll logs up"),
+        Line::from("Down/PageDown/j - scroll logs down"),
+        Line::from("ESC/q/Ctrl-C - exit")
+            .style(Style::default().fg(Color::Red)),
+    ];
     f.render_widget(Text::from(lines).centered(), outer_layout[3]);
 }
 
@@ -329,16 +321,11 @@ async fn handle_event(
         Event::Crossterm(crossterm_event) => {
             match crossterm_event {
                 CrosstermEvent::Key(key_event) => match key_event.code {
-                    KeyCode::Enter
-                    | KeyCode::Esc
-                    | KeyCode::Char('q' | 'Q')
-                        if matches!(state.mode, AppMode::Done) =>
-                    {
+                    KeyCode::Esc | KeyCode::Char('q' | 'Q') => {
                         state.mode = AppMode::Quit;
                     }
                     KeyCode::Char('c' | 'C')
-                        if key_event.modifiers == KeyModifiers::CONTROL
-                            && matches!(state.mode, AppMode::Done) =>
+                        if key_event.modifiers == KeyModifiers::CONTROL =>
                     {
                         state.mode = AppMode::Quit;
                     }
@@ -407,11 +394,9 @@ async fn handle_event(
                         .or_insert(1);
                 }
                 AppEvent::Done => {
-                    state.mode = if is_interactive().await {
-                        AppMode::Done
-                    } else {
-                        AppMode::Quit
-                    };
+                    if !is_interactive().await {
+                        state.mode = AppMode::Quit;
+                    }
                 }
             }
             false

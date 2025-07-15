@@ -66,67 +66,45 @@ fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
         .build()
 }
 
-#[tokio::main]
-async fn main() -> color_eyre::Result<()> {
-    color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
+fn create_logging_filter(
+    config: &config::Config,
+) -> tracing_subscriber::filter::Targets {
+    let base = tracing_subscriber::filter::Targets::new()
+        .with_default(tracing::level_filters::LevelFilter::INFO)
+        .with_target(
+            "hickory_proto::udp::udp_client_stream",
+            tracing::level_filters::LevelFilter::ERROR,
+        )
+        .with_target(
+            // TODO: remove for hickory_proto >= 0.25.0
+            "hickory_proto::xfer::dns_exchange",
+            tracing::level_filters::LevelFilter::ERROR,
+        );
 
-    let raw_config_path = raw_config::get_config_path();
-    let raw_config = raw_config::read_config(std::path::Path::new(
-        &raw_config_path,
-    ))
-    .await
-    .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
+    if config.debug {
+        base.with_target(
+            "proxy_scraper_checker::checker",
+            tracing::level_filters::LevelFilter::DEBUG,
+        )
+    } else {
+        base
+    }
+}
 
-    let config = Arc::new(
-        config::Config::from_raw_config(raw_config)
-            .await
-            .wrap_err("failed to create Config from RawConfig")?,
-    );
-
-    let targets_filter = {
-        let base = tracing_subscriber::filter::Targets::new()
-            .with_default(tracing::level_filters::LevelFilter::INFO)
-            .with_target(
-                "hickory_proto::udp::udp_client_stream",
-                tracing::level_filters::LevelFilter::ERROR,
-            )
-            .with_target(
-                // TODO: remove for hickory_proto >= 0.25.0
-                "hickory_proto::xfer::dns_exchange",
-                tracing::level_filters::LevelFilter::ERROR,
-            );
-        if config.debug {
-            base.with_target(
-                "proxy_scraper_checker::checker",
-                tracing::level_filters::LevelFilter::DEBUG,
-            )
-        } else {
-            base
-        }
-    };
-
-    #[cfg(feature = "tui")]
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-
-    #[cfg(feature = "tui")]
-    let tui_task =
-        tokio::task::spawn(tui::Tui::new(targets_filter)?.run(tx.clone(), rx));
-
-    #[cfg(not(feature = "tui"))]
-    tracing_subscriber::registry()
-        .with(targets_filter)
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
-    let http_client = create_reqwest_client()
-        .wrap_err("failed to create reqwest HTTP client")?;
-
+fn spawn_ip_database_tasks(
+    config: &Arc<config::Config>,
+    http_client: &reqwest::Client,
+    #[cfg(feature = "tui")] tx: &tokio::sync::mpsc::UnboundedSender<
+        event::Event,
+    >,
+) -> tokio::task::JoinSet<color_eyre::Result<()>> {
     let mut output_dependencies_tasks = tokio::task::JoinSet::new();
 
     if config.asn_enabled() {
         let http_client = http_client.clone();
         #[cfg(feature = "tui")]
         let tx = tx.clone();
+
         output_dependencies_tasks.spawn(async move {
             ipdb::DbType::Asn
                 .download(
@@ -142,6 +120,7 @@ async fn main() -> color_eyre::Result<()> {
         let http_client = http_client.clone();
         #[cfg(feature = "tui")]
         let tx = tx.clone();
+
         output_dependencies_tasks.spawn(async move {
             ipdb::DbType::Geo
                 .download(
@@ -152,6 +131,58 @@ async fn main() -> color_eyre::Result<()> {
                 .await
         });
     }
+
+    output_dependencies_tasks
+}
+
+async fn wait_for_ip_database_tasks(
+    mut tasks: tokio::task::JoinSet<color_eyre::Result<()>>,
+) -> color_eyre::Result<()> {
+    while let Some(task) = tasks.join_next().await {
+        task.wrap_err("output dependencies task panicked or was cancelled")??;
+    }
+    Ok(())
+}
+
+async fn process_proxies(
+    config: Arc<config::Config>,
+    proxies: std::collections::HashSet<crate::proxy::Proxy>,
+    #[cfg(feature = "tui")] tx: &tokio::sync::mpsc::UnboundedSender<
+        event::Event,
+    >,
+) -> color_eyre::Result<Vec<crate::proxy::Proxy>> {
+    if config.checking.check_url.is_empty() {
+        Ok(proxies.into_iter().collect())
+    } else {
+        #[cfg(not(feature = "tui"))]
+        tracing::info!("Started checking {} proxies", proxies.len());
+
+        checker::check_all(
+            config,
+            proxies,
+            #[cfg(feature = "tui")]
+            tx.clone(),
+        )
+        .await
+        .wrap_err("failed to check proxies")
+    }
+}
+
+async fn main_task(
+    config: Arc<config::Config>,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
+        event::Event,
+    >,
+) -> color_eyre::Result<()> {
+    let http_client = create_reqwest_client()
+        .wrap_err("failed to create reqwest HTTP client")?;
+
+    let ip_db_tasks = spawn_ip_database_tasks(
+        &config,
+        &http_client,
+        #[cfg(feature = "tui")]
+        &tx,
+    );
 
     let proxies = scraper::scrape_all(
         Arc::clone(&config),
@@ -164,26 +195,15 @@ async fn main() -> color_eyre::Result<()> {
 
     drop(http_client);
 
-    while let Some(task) = output_dependencies_tasks.join_next().await {
-        task.wrap_err("output dependencies task panicked or was cancelled")??;
-    }
-    drop(output_dependencies_tasks);
+    wait_for_ip_database_tasks(ip_db_tasks).await?;
 
-    let proxies = if config.checking.check_url.is_empty() {
-        proxies.into_iter().collect()
-    } else {
-        #[cfg(not(feature = "tui"))]
-        tracing::info!("Started checking {} proxies", proxies.len());
-
-        checker::check_all(
-            Arc::clone(&config),
-            proxies,
-            #[cfg(feature = "tui")]
-            tx.clone(),
-        )
-        .await
-        .wrap_err("failed to check proxies")?
-    };
+    let proxies = process_proxies(
+        Arc::clone(&config),
+        proxies,
+        #[cfg(feature = "tui")]
+        &tx,
+    )
+    .await?;
 
     output::save_proxies(config, proxies)
         .await
@@ -194,11 +214,88 @@ async fn main() -> color_eyre::Result<()> {
     #[cfg(feature = "tui")]
     tx.send(event::Event::App(event::AppEvent::Done))?;
 
-    #[cfg(feature = "tui")]
-    drop(tx);
+    Ok(())
+}
 
-    #[cfg(feature = "tui")]
+#[cfg(feature = "tui")]
+async fn cancellable_main(
+    config: Arc<config::Config>,
+    tx: tokio::sync::mpsc::UnboundedSender<event::Event>,
+    token: tokio_util::sync::CancellationToken,
+) -> color_eyre::Result<()> {
+    #[expect(clippy::integer_division_remainder_used)]
+    {
+        tokio::select! {
+            biased;
+            () = token.cancelled() => Ok(()),
+            r = main_task(config, tx) => r
+        }
+    }
+}
+
+#[cfg(feature = "tui")]
+async fn run_with_tui(
+    config: Arc<config::Config>,
+    logging_filter: tracing_subscriber::filter::Targets,
+) -> color_eyre::Result<()> {
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+
+    let tui_task =
+        tokio::task::spawn(tui::Tui::new(logging_filter)?.run(tx.clone(), rx));
+
+    let token = tokio_util::sync::CancellationToken::new();
+    let main_task =
+        tokio::task::spawn(cancellable_main(config, tx, token.clone()));
+
     tui_task.await??;
+    token.cancel();
+    drop(token);
+    main_task.await??;
 
     Ok(())
+}
+
+#[cfg(not(feature = "tui"))]
+async fn run_without_tui(
+    config: Arc<config::Config>,
+    logging_filter: tracing_subscriber::filter::Targets,
+) -> color_eyre::Result<()> {
+    tracing_subscriber::registry()
+        .with(logging_filter)
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    main_task(config).await
+}
+
+async fn load_config() -> color_eyre::Result<Arc<config::Config>> {
+    let raw_config_path = raw_config::get_config_path();
+    let raw_config = raw_config::read_config(std::path::Path::new(
+        &raw_config_path,
+    ))
+    .await
+    .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
+
+    let config = config::Config::from_raw_config(raw_config)
+        .await
+        .wrap_err("failed to create Config from RawConfig")?;
+
+    Ok(Arc::new(config))
+}
+
+#[tokio::main]
+async fn main() -> color_eyre::Result<()> {
+    color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
+
+    let config = load_config().await?;
+    let logging_filter = create_logging_filter(&config);
+
+    #[cfg(feature = "tui")]
+    {
+        run_with_tui(config, logging_filter).await
+    }
+    #[cfg(not(feature = "tui"))]
+    {
+        run_without_tui(config, logging_filter).await
+    }
 }

@@ -236,15 +236,12 @@ async fn run_with_tui(
     let main_task = tokio::task::spawn(main_task(config, tx.clone()));
     let main_task_handle = main_task.abort_handle();
 
-    tokio::try_join!(
-        async move {
-            tui::run(terminal, tx, rx).await?;
-            drop(terminal_guard);
-            main_task_handle.abort();
-            Ok(())
-        },
-        async move { main_task.await? },
-    )?;
+    tokio::try_join!(async move { main_task.await? }, async move {
+        tui::run(terminal, tx, rx).await?;
+        drop(terminal_guard);
+        main_task_handle.abort();
+        Ok(())
+    },)?;
 
     Ok(())
 }

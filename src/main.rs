@@ -211,7 +211,7 @@ async fn main_task(
     tracing::info!("Thank you for using proxy-scraper-checker!");
 
     #[cfg(feature = "tui")]
-    tx.send(event::Event::App(event::AppEvent::Done))?;
+    drop(tx.send(event::Event::App(event::AppEvent::Done)));
 
     Ok(())
 }
@@ -233,25 +233,32 @@ async fn run_with_tui(
     let terminal =
         ratatui::try_init().wrap_err("failed to initialize ratatui")?;
     let _terminal_guard = tui::RatatuiRestoreGuard;
-    let tui_task = tokio::task::spawn(tui::run(terminal, tx.clone(), rx));
 
-    let token = tokio_util::sync::CancellationToken::new();
-    let main_task = tokio::task::spawn({
-        let token = token.clone();
-        #[expect(clippy::integer_division_remainder_used)]
-        async move {
-            tokio::select! {
-                biased;
-                () = token.cancelled() => Ok(()),
-                r = main_task(config, tx) => r
+    let tui_task = tokio::task::spawn(tui::run(terminal, tx.clone(), rx));
+    let tui_task_handle = tui_task.abort_handle();
+
+    let main_task = tokio::task::spawn(main_task(config, tx));
+    let main_task_handle = main_task.abort_handle();
+
+    #[expect(clippy::integer_division_remainder_used)]
+    {
+        tokio::select! {
+            biased;
+            r = tui_task => {
+                main_task_handle.abort();
+                r??;
+            }
+            r = main_task => {
+                tui_task_handle.abort();
+                match r {
+                    Ok(r) => r?,
+                    Err(e) if e.is_cancelled() => {},
+                    Err(e) => return Err(e.into())
+                }
             }
         }
-    });
+    }
 
-    tui_task.await??;
-    token.cancel();
-    drop(token);
-    main_task.await??;
     Ok(())
 }
 

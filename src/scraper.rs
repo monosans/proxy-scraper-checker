@@ -44,7 +44,7 @@ async fn scrape_one(
     let text_result = fetch_text(&config, http_client.clone(), source).await;
 
     #[cfg(feature = "tui")]
-    tx.send(Event::App(AppEvent::SourceScraped(proto.clone())))?;
+    drop(tx.send(Event::App(AppEvent::SourceScraped(proto.clone()))));
 
     let text = match text_result {
         Ok(text) => text,
@@ -110,7 +110,7 @@ async fn scrape_one(
     #[cfg(feature = "tui")]
     for proto in seen_protocols {
         let count = proxies.iter().filter(|p| p.protocol == proto).count();
-        tx.send(Event::App(AppEvent::TotalProxies(proto, count)))?;
+        drop(tx.send(Event::App(AppEvent::TotalProxies(proto, count))));
     }
     drop(proxies);
     Ok(())
@@ -126,10 +126,10 @@ pub async fn scrape_all(
     let mut join_set = tokio::task::JoinSet::new();
     for (proto, sources) in config.scraping.sources.clone() {
         #[cfg(feature = "tui")]
-        tx.send(Event::App(AppEvent::SourcesTotal(
+        drop(tx.send(Event::App(AppEvent::SourcesTotal(
             proto.clone(),
             sources.len(),
-        )))?;
+        ))));
         for source in sources {
             let config = Arc::clone(&config);
             let http_client = http_client.clone();

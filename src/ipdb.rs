@@ -56,10 +56,10 @@ impl DbType {
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> color_eyre::Result<()> {
         #[cfg(feature = "tui")]
-        tx.send(Event::App(AppEvent::IpDbTotal(
+        drop(tx.send(Event::App(AppEvent::IpDbTotal(
             self.clone(),
             response.content_length(),
-        )))?;
+        ))));
 
         let db_path = self.db_path().await?;
         let mut file =
@@ -73,10 +73,10 @@ impl DbType {
                 format!("failed to write to file {}", db_path.display())
             })?;
             #[cfg(feature = "tui")]
-            tx.send(Event::App(AppEvent::IpDbDownloaded(
+            drop(tx.send(Event::App(AppEvent::IpDbDownloaded(
                 self.clone(),
                 chunk.len(),
-            )))?;
+            ))));
         }
         Ok(())
     }

@@ -230,18 +230,18 @@ async fn run_with_tui(
         .with(tui_logger::TuiTracingSubscriberLayer)
         .init();
 
-    let terminal =
-        ratatui::try_init().wrap_err("failed to initialize ratatui")?;
-    let _terminal_guard = tui::RatatuiRestoreGuard;
-
     let main_task = tokio::task::spawn(main_task(config, tx.clone()));
     let main_task_handle = main_task.abort_handle();
 
     tokio::try_join!(
         async move {
-            let result = tui::run(terminal, tx, rx).await;
+            let terminal =
+                ratatui::try_init().wrap_err("failed to initialize ratatui")?;
+            let terminal_guard = tui::RatatuiRestoreGuard;
+            tui::run(terminal, tx, rx).await?;
+            drop(terminal_guard);
             main_task_handle.abort();
-            result
+            Ok(())
         },
         async move { main_task.await? },
     )?;

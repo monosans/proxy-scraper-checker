@@ -244,16 +244,15 @@ async fn run_with_tui(
     {
         tokio::select! {
             biased;
-            r = tui_task => {
+            result = tui_task => {
                 main_task_handle.abort();
-                r??;
+                result??;
             }
-            r = main_task => {
+            result = main_task => {
                 tui_task_handle.abort();
-                match r {
-                    Ok(r) => r?,
+                match result {
                     Err(e) if e.is_cancelled() => {},
-                    Err(e) => return Err(e.into())
+                    other => other??,
                 }
             }
         }

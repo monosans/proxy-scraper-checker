@@ -66,6 +66,22 @@ fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
         .build()
 }
 
+#[cfg(feature = "tui")]
+async fn cancellable_main(
+    config: Arc<config::Config>,
+    tx: tokio::sync::mpsc::UnboundedSender<event::Event>,
+    token: tokio_util::sync::CancellationToken,
+) -> color_eyre::Result<()> {
+    #[expect(clippy::integer_division_remainder_used)]
+    {
+        tokio::select! {
+            biased;
+            () = token.cancelled() => Ok(()),
+            r = main_task(config, tx) => r
+        }
+    }
+}
+
 async fn main_task(
     config: Arc<config::Config>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
@@ -198,18 +214,18 @@ async fn main() -> color_eyre::Result<()> {
         tokio::task::spawn(tui::Tui::new(targets_filter)?.run(tx.clone(), rx));
 
     #[cfg(feature = "tui")]
-    let main_task = tokio::task::spawn(main_task(config, tx));
+    let token = tokio_util::sync::CancellationToken::new();
+
+    #[cfg(feature = "tui")]
+    let main_task =
+        tokio::task::spawn(cancellable_main(config, tx, token.clone()));
 
     #[cfg(feature = "tui")]
     tui_task.await??;
-
     #[cfg(feature = "tui")]
-    main_task.abort();
-
+    token.cancel();
     #[cfg(feature = "tui")]
-    if let Ok(v) = main_task.await {
-        v?;
-    }
+    main_task.await??;
 
     #[cfg(not(feature = "tui"))]
     tracing_subscriber::registry()

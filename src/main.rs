@@ -237,10 +237,10 @@ async fn run_with_tui(
     let main_task_handle = main_task.abort_handle();
 
     tokio::try_join!(async move { main_task.await? }, async move {
-        tui::run(terminal, tx, rx).await?;
+        let result = tui::run(terminal, tx, rx).await;
         drop(terminal_guard);
         main_task_handle.abort();
-        Ok(())
+        result
     })?;
 
     Ok(())

@@ -221,8 +221,6 @@ async fn run_with_tui(
     config: Arc<config::Config>,
     logging_filter: tracing_subscriber::filter::Targets,
 ) -> color_eyre::Result<()> {
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-
     tui_logger::init_logger(tui_logger::LevelFilter::Debug)
         .wrap_err("failed to initialize tui_logger")?;
     tracing_subscriber::registry()
@@ -230,14 +228,16 @@ async fn run_with_tui(
         .with(tui_logger::TuiTracingSubscriberLayer)
         .init();
 
+    let terminal =
+        ratatui::try_init().wrap_err("failed to initialize ratatui")?;
+    let terminal_guard = tui::RatatuiRestoreGuard;
+
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let main_task = tokio::task::spawn(main_task(config, tx.clone()));
     let main_task_handle = main_task.abort_handle();
 
     tokio::try_join!(
         async move {
-            let terminal =
-                ratatui::try_init().wrap_err("failed to initialize ratatui")?;
-            let terminal_guard = tui::RatatuiRestoreGuard;
             tui::run(terminal, tx, rx).await?;
             drop(terminal_guard);
             main_task_handle.abort();

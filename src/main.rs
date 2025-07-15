@@ -234,29 +234,17 @@ async fn run_with_tui(
         ratatui::try_init().wrap_err("failed to initialize ratatui")?;
     let _terminal_guard = tui::RatatuiRestoreGuard;
 
-    let tui_task = tokio::task::spawn(tui::run(terminal, tx.clone(), rx));
-    let tui_task_handle = tui_task.abort_handle();
-
-    let main_task = tokio::task::spawn(main_task(config, tx));
+    let main_task = tokio::task::spawn(main_task(config, tx.clone()));
     let main_task_handle = main_task.abort_handle();
 
-    #[expect(clippy::integer_division_remainder_used)]
-    {
-        tokio::select! {
-            biased;
-            result = tui_task => {
-                main_task_handle.abort();
-                result??;
-            }
-            result = main_task => {
-                tui_task_handle.abort();
-                match result {
-                    Err(e) if e.is_cancelled() => {},
-                    other => other??,
-                }
-            }
-        }
-    }
+    tokio::try_join!(
+        async move {
+            let result = tui::run(terminal, tx, rx).await;
+            main_task_handle.abort();
+            result
+        },
+        async move { main_task.await? },
+    )?;
 
     Ok(())
 }

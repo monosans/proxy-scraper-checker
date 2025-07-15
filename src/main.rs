@@ -52,7 +52,6 @@ mod utils;
 use std::sync::Arc;
 
 use color_eyre::eyre::WrapErr as _;
-#[cfg(not(feature = "tui"))]
 use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
@@ -218,40 +217,41 @@ async fn main_task(
 }
 
 #[cfg(feature = "tui")]
-async fn cancellable_main(
-    config: Arc<config::Config>,
-    tx: tokio::sync::mpsc::UnboundedSender<event::Event>,
-    token: tokio_util::sync::CancellationToken,
-) -> color_eyre::Result<()> {
-    #[expect(clippy::integer_division_remainder_used)]
-    {
-        tokio::select! {
-            biased;
-            () = token.cancelled() => Ok(()),
-            r = main_task(config, tx) => r
-        }
-    }
-}
-
-#[cfg(feature = "tui")]
 async fn run_with_tui(
     config: Arc<config::Config>,
     logging_filter: tracing_subscriber::filter::Targets,
 ) -> color_eyre::Result<()> {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-    let tui_task =
-        tokio::task::spawn(tui::Tui::new(logging_filter)?.run(tx.clone(), rx));
+    tui_logger::init_logger(tui_logger::LevelFilter::Debug)
+        .wrap_err("failed to initialize tui_logger")?;
+    tracing_subscriber::registry()
+        .with(logging_filter)
+        .with(tui_logger::TuiTracingSubscriberLayer)
+        .init();
+
+    let terminal =
+        ratatui::try_init().wrap_err("failed to initialize ratatui")?;
+    let _terminal_guard = tui::RatatuiRestoreGuard;
+    let tui_task = tokio::task::spawn(tui::run(terminal, tx.clone(), rx));
 
     let token = tokio_util::sync::CancellationToken::new();
-    let main_task =
-        tokio::task::spawn(cancellable_main(config, tx, token.clone()));
+    let main_task = tokio::task::spawn({
+        let token = token.clone();
+        #[expect(clippy::integer_division_remainder_used)]
+        async move {
+            tokio::select! {
+                biased;
+                () = token.cancelled() => Ok(()),
+                r = main_task(config, tx) => r
+            }
+        }
+    });
 
     tui_task.await??;
     token.cancel();
     drop(token);
     main_task.await??;
-
     Ok(())
 }
 

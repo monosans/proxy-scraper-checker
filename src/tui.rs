@@ -12,14 +12,11 @@ use crossterm::event::{
 };
 use futures::StreamExt as _;
 use ratatui::{
-    DefaultTerminal, Frame,
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Style},
     text::{Line, Text},
     widgets::{Block, Gauge},
-};
-use tracing_subscriber::{
-    layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
 use tui_logger::{TuiLoggerWidget, TuiWidgetEvent, TuiWidgetState};
 
@@ -32,63 +29,41 @@ use crate::{
 
 const FPS: f64 = 30.0;
 
-pub struct Tui {
-    terminal: DefaultTerminal,
-}
-
-impl Tui {
-    pub fn new(
-        filter: tracing_subscriber::filter::Targets,
-    ) -> color_eyre::Result<Self> {
-        tui_logger::init_logger(tui_logger::LevelFilter::Debug)
-            .wrap_err("failed to initialize tui_logger")?;
-
-        tracing_subscriber::registry()
-            .with(filter)
-            .with(tui_logger::TuiTracingSubscriberLayer)
-            .init();
-
-        Ok(Self {
-            terminal: ratatui::try_init()
-                .wrap_err("failed to initialize ratatui")?,
-        })
-    }
-
-    pub async fn run(
-        mut self,
-        tx: tokio::sync::mpsc::UnboundedSender<Event>,
-        mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
-    ) -> color_eyre::Result<()> {
-        let mut join_set = tokio::task::JoinSet::new();
-        join_set.spawn(tick_event_listener(tx.clone()));
-        join_set.spawn(crossterm_event_listener(tx));
-
-        let mut app_state = AppState::default();
-        let logger_state = TuiWidgetState::default();
-        while !matches!(app_state.mode, AppMode::Quit) {
-            if let Some(event) = rx.recv().await {
-                if handle_event(event, &mut app_state, &logger_state).await {
-                    self.terminal
-                        .draw(|frame| draw(frame, &app_state, &logger_state))
-                        .wrap_err("failed to draw tui")?;
-                }
-            } else {
-                break;
-            }
-        }
-        drop(rx);
-        while let Some(task) = join_set.join_next().await {
-            task.wrap_err("event listener task panicked or was cancelled")?
-                .wrap_err("event listener task failed")?;
-        }
-        Ok(())
-    }
-}
-
-impl Drop for Tui {
+pub struct RatatuiRestoreGuard;
+impl Drop for RatatuiRestoreGuard {
     fn drop(&mut self) {
         ratatui::restore();
     }
+}
+
+pub async fn run(
+    mut terminal: ratatui::DefaultTerminal,
+    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
+) -> color_eyre::Result<()> {
+    let mut join_set = tokio::task::JoinSet::new();
+    join_set.spawn(tick_event_listener(tx.clone()));
+    join_set.spawn(crossterm_event_listener(tx));
+
+    let mut app_state = AppState::default();
+    let logger_state = TuiWidgetState::default();
+    while !matches!(app_state.mode, AppMode::Quit) {
+        if let Some(event) = rx.recv().await {
+            if handle_event(event, &mut app_state, &logger_state).await {
+                terminal
+                    .draw(|frame| draw(frame, &app_state, &logger_state))
+                    .wrap_err("failed to draw tui")?;
+            }
+        } else {
+            break;
+        }
+    }
+    drop(rx);
+    while let Some(task) = join_set.join_next().await {
+        task.wrap_err("event listener task panicked or was cancelled")?
+            .wrap_err("event listener task failed")?;
+    }
+    Ok(())
 }
 
 #[derive(Default)]

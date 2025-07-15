@@ -148,8 +148,6 @@ async fn main_task(
     #[cfg(feature = "tui")]
     tx.send(event::Event::App(event::AppEvent::Done))?;
 
-    #[cfg(feature = "tui")]
-    drop(tx);
     Ok(())
 }
 
@@ -199,25 +197,27 @@ async fn main() -> color_eyre::Result<()> {
     let tui_task =
         tokio::task::spawn(tui::Tui::new(targets_filter)?.run(tx.clone(), rx));
 
+    #[cfg(feature = "tui")]
+    let main_task = tokio::task::spawn(main_task(config, tx));
+
+    #[cfg(feature = "tui")]
+    tui_task.await??;
+
+    #[cfg(feature = "tui")]
+    main_task.abort();
+
+    #[cfg(feature = "tui")]
+    if let Ok(v) = main_task.await {
+        v?;
+    }
+
     #[cfg(not(feature = "tui"))]
     tracing_subscriber::registry()
         .with(targets_filter)
         .with(tracing_subscriber::fmt::layer())
         .init();
-
-    let main_task = tokio::task::spawn(main_task(
-        config,
-        #[cfg(feature = "tui")]
-        tx,
-    ));
-
-    #[cfg(feature = "tui")]
-    tui_task.await??;
-    #[cfg(feature = "tui")]
-    main_task.abort();
-
     #[cfg(not(feature = "tui"))]
-    main_task.await??;
+    main_task(config).await?;
 
     Ok(())
 }

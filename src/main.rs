@@ -241,7 +241,7 @@ async fn run_with_tui(
         drop(terminal_guard);
         main_task_handle.abort();
         Ok(())
-    },)?;
+    })?;
 
     Ok(())
 }

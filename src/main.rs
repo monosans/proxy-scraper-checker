@@ -177,9 +177,7 @@ async fn process_proxies(
 }
 
 #[cfg(unix)]
-async fn watch_signals(
-    token: tokio_util::sync::CancellationToken,
-) -> color_eyre::Result<()> {
+async fn watch_signals(token: tokio_util::sync::CancellationToken) {
     let token_clone = token.clone();
     tokio::select! {
         biased;
@@ -223,13 +221,10 @@ async fn watch_signals(
             }
         } => {}
     };
-    Ok(())
 }
 
 #[cfg(not(unix))]
-async fn watch_signals(
-    token: tokio_util::sync::CancellationToken,
-) -> color_eyre::Result<()> {
+async fn watch_signals(token: tokio_util::sync::CancellationToken) {
     let token_clone = token.clone();
     tokio::select! {
         biased;
@@ -246,7 +241,6 @@ async fn watch_signals(
             }
         }
     };
-    Ok(())
 }
 
 async fn main_task(
@@ -281,13 +275,11 @@ async fn main_task(
     process_proxies(
         Arc::clone(&config),
         Arc::clone(&proxies),
-        token.clone(),
+        token,
         #[cfg(feature = "tui")]
         tx.clone(),
     )
     .await?;
-    token.cancel();
-    drop(token);
 
     output::save_proxies(config, proxies)
         .await
@@ -319,10 +311,10 @@ async fn run_with_tui(
 
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let token = tokio_util::sync::CancellationToken::new();
+    tokio::spawn(watch_signals(token.clone()));
 
     tokio::try_join!(
         main_task(config, token.clone(), tx.clone()),
-        watch_signals(token.clone()),
         async move {
             let result = tui::run(terminal, token, tx, rx).await;
             drop(terminal_guard);
@@ -344,10 +336,9 @@ async fn run_without_tui(
         .init();
 
     let token = tokio_util::sync::CancellationToken::new();
+    tokio::spawn(watch_signals(token.clone()));
 
-    tokio::try_join!(main_task(config, token.clone()), watch_signals(token))?;
-
-    Ok(())
+    main_task(config, token).await
 }
 
 #[tokio::main]

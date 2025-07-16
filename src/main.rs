@@ -49,9 +49,7 @@ mod scraper;
 #[cfg(feature = "tui")]
 mod tui;
 mod utils;
-use std::path::Path;
-
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, path::Path, sync::Arc};
 
 use color_eyre::eyre::WrapErr as _;
 use tracing_subscriber::{

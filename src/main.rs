@@ -56,6 +56,19 @@ use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
 
+async fn load_config() -> color_eyre::Result<Arc<config::Config>> {
+    let raw_config_path = raw_config::get_config_path();
+    let raw_config = raw_config::read_config(Path::new(&raw_config_path))
+        .await
+        .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
+
+    let config = config::Config::from_raw_config(raw_config)
+        .await
+        .wrap_err("failed to create Config from RawConfig")?;
+
+    Ok(Arc::new(config))
+}
+
 fn create_logging_filter(
     config: &config::Config,
 ) -> tracing_subscriber::filter::Targets {
@@ -88,18 +101,6 @@ fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
         .connect_timeout(tokio::time::Duration::from_secs(5))
         .use_rustls_tls()
         .build()
-}
-async fn load_config() -> color_eyre::Result<Arc<config::Config>> {
-    let raw_config_path = raw_config::get_config_path();
-    let raw_config = raw_config::read_config(Path::new(&raw_config_path))
-        .await
-        .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
-
-    let config = config::Config::from_raw_config(raw_config)
-        .await
-        .wrap_err("failed to create Config from RawConfig")?;
-
-    Ok(Arc::new(config))
 }
 
 async fn download_output_dependencies(
@@ -175,6 +176,58 @@ async fn process_proxies(
     .await
 }
 
+#[cfg(unix)]
+async fn watch_signals(
+    token: tokio_util::sync::CancellationToken,
+) -> color_eyre::Result<()> {
+    match (
+        tokio::signal::unix::signal(
+            tokio::signal::unix::SignalKind::interrupt(),
+        ),
+        tokio::signal::unix::signal(
+            tokio::signal::unix::SignalKind::terminate(),
+        ),
+    ) {
+        (Ok(mut a), Ok(mut b)) => {
+            tokio::select! {
+                _ = a.recv() => {
+                    tracing::info!("Received SIGINT, exiting...");
+                    token.cancel();
+                },
+                _ = b.recv() => {
+                    tracing::info!("Received SIGTERM, exiting...");
+                    token.cancel();
+                },
+            }
+        }
+        (Ok(mut s), Err(e)) => {
+            tracing::warn!("Failed to create SIGTERM handler: {}", e);
+            s.recv().await;
+            token.cancel();
+        }
+        (Err(e), Ok(mut s)) => {
+            tracing::warn!("Failed to create SIGINT handler: {}", e);
+            s.recv().await;
+            token.cancel();
+        }
+        (Err(e), Err(e2)) => {
+            tracing::warn!("Failed to create SIGINT handler: {}", e);
+            tracing::warn!("Failed to create SIGTERM handler: {}", e2);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+async fn watch_signals(
+    token: tokio_util::sync::CancellationToken,
+) -> color_eyre::Result<()> {
+    tokio::signal::ctrl_c().await;
+    tracing::info!("Received Ctrl+C, exiting...");
+    token.cancel();
+    Ok(())
+}
+
 async fn main_task(
     config: Arc<config::Config>,
     token: tokio_util::sync::CancellationToken,
@@ -246,6 +299,7 @@ async fn run_with_tui(
 
     tokio::try_join!(
         main_task(config, token.clone(), tx.clone()),
+        watch_signals(token.clone()),
         async move {
             let result = tui::run(terminal, token, tx, rx).await;
             drop(terminal_guard);
@@ -268,18 +322,7 @@ async fn run_without_tui(
 
     let token = tokio_util::sync::CancellationToken::new();
 
-    tokio::try_join!(main_task(config, token.clone()), async move {
-        match tokio::signal::ctrl_c().await {
-            Ok(()) => {
-                tracing::info!("Received Ctrl+C, exiting...");
-                token.cancel();
-            }
-            Err(e) => {
-                tracing::error!("Failed to listen for Ctrl+C: {}", e);
-            }
-        }
-        Ok(())
-    })?;
+    tokio::try_join!(main_task(config, token.clone()), watch_signals(token))?;
 
     Ok(())
 }

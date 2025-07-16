@@ -32,13 +32,13 @@ fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
 
 #[derive(serde::Serialize)]
 struct ProxyJson<'a> {
-    protocol: ProxyType,
-    username: Option<String>,
-    password: Option<String>,
-    host: String,
+    protocol: &'a ProxyType,
+    username: Option<&'a String>,
+    password: Option<&'a String>,
+    host: &'a str,
     port: u16,
     timeout: Option<f64>,
-    exit_ip: Option<String>,
+    exit_ip: Option<&'a String>,
     asn: Option<maxminddb::geoip2::Asn<'a>>,
     geolocation: Option<maxminddb::geoip2::City<'a>>,
 }
@@ -89,15 +89,15 @@ pub async fn save_proxies(
         let mut proxy_dicts = Vec::with_capacity(proxies.len());
         for proxy in &proxies {
             proxy_dicts.push(ProxyJson {
-                protocol: proxy.protocol.clone(),
-                username: proxy.username.clone(),
-                password: proxy.password.clone(),
-                host: proxy.host.clone(),
+                protocol: &proxy.protocol,
+                username: proxy.username.as_ref(),
+                password: proxy.password.as_ref(),
+                host: &proxy.host,
                 port: proxy.port,
                 timeout: proxy
                     .timeout
                     .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
-                exit_ip: proxy.exit_ip.clone(),
+                exit_ip: proxy.exit_ip.as_ref(),
                 asn: if let Some(asn_db) = &maybe_asn_db {
                     if let Some(exit_ip) = proxy.exit_ip.as_ref() {
                         let exit_ip_addr: IpAddr = exit_ip.parse().wrap_err(

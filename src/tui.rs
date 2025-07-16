@@ -106,7 +106,9 @@ async fn tick_event_listener(
                 break Ok(());
             },
             _ = tick.tick() =>{
-                drop(tx.send(Event::Tick));
+                if tx.send(Event::Tick).is_err() {
+                    break Ok(());
+                }
             }
         }
     }
@@ -125,7 +127,9 @@ async fn crossterm_event_listener(
             maybe = reader.next() => {
                 match maybe {
                     Some(Ok(event)) => {
-                        drop(tx.send(Event::Crossterm(event)));
+                        if tx.send(Event::Crossterm(event)).is_err() {
+                            break Ok(());
+                        }
                     },
                     Some(Err(_)) => {},
                     None => {

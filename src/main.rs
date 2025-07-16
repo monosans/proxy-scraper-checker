@@ -141,7 +141,7 @@ async fn download_output_dependencies(
 
 async fn process_proxies(
     config: Arc<config::Config>,
-    proxies: Arc<tokio::sync::Mutex<HashSet<crate::proxy::Proxy>>>,
+    proxies: Arc<tokio::sync::Mutex<HashSet<proxy::Proxy>>>,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,

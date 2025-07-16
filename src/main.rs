@@ -309,9 +309,10 @@ async fn run_with_tui(
         ratatui::try_init().wrap_err("failed to initialize ratatui")?;
     let terminal_guard = tui::RatatuiRestoreGuard;
 
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     let token = tokio_util::sync::CancellationToken::new();
     tokio::spawn(watch_signals(token.clone()));
+
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     tokio::try_join!(
         main_task(config, token.clone(), tx.clone()),

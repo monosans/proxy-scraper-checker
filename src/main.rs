@@ -222,9 +222,15 @@ async fn watch_signals(
 async fn watch_signals(
     token: tokio_util::sync::CancellationToken,
 ) -> color_eyre::Result<()> {
-    tokio::signal::ctrl_c().await;
-    tracing::info!("Received Ctrl+C, exiting...");
-    token.cancel();
+    match tokio::signal::ctrl_c().await {
+        Ok(()) => {
+            tracing::info!("Received Ctrl+C, exiting...");
+            token.cancel();
+        }
+        Err(e) => {
+            tracing::warn!("Failed to create Ctrl+C handler: {}", e);
+        }
+    }
     Ok(())
 }
 

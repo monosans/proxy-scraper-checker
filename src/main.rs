@@ -180,41 +180,42 @@ async fn process_proxies(
 async fn watch_signals(
     token: tokio_util::sync::CancellationToken,
 ) -> color_eyre::Result<()> {
-    match (
-        tokio::signal::unix::signal(
-            tokio::signal::unix::SignalKind::interrupt(),
-        ),
-        tokio::signal::unix::signal(
-            tokio::signal::unix::SignalKind::terminate(),
-        ),
-    ) {
-        (Ok(mut a), Ok(mut b)) => {
-            tokio::select! {
-                _ = a.recv() => {
-                    tracing::info!("Received SIGINT, exiting...");
+    let token_clone = token.clone();
+    tokio::select! {
+        biased;
+        () = token_clone.cancelled() =>{},
+        () = async move {
+            match (
+                tokio::signal::unix::signal(
+                    tokio::signal::unix::SignalKind::interrupt(),
+                ),
+                tokio::signal::unix::signal(
+                    tokio::signal::unix::SignalKind::terminate(),
+                ),
+            ) {
+                (Ok(mut a), Ok(mut b)) => {
+                    tokio::select! {
+                        _ = a.recv() => {
+                            tracing::info!("Received SIGINT, exiting...");
+                            token.cancel();
+                        },
+                        _ = b.recv() => {
+                            tracing::info!("Received SIGTERM, exiting...");
+                            token.cancel();
+                        },
+                    }
+                }
+                (Err(e), Ok(mut s)) | (Ok(mut s), Err(e)) => {
+                    tracing::warn!("Failed to create signal handler: {}", e);
+                    s.recv().await;
                     token.cancel();
-                },
-                _ = b.recv() => {
-                    tracing::info!("Received SIGTERM, exiting...");
-                    token.cancel();
-                },
+                }
+                (Err(e), Err(e2)) => {
+                    tracing::warn!("Failed to create signal handlers: {}, {}", e, e2);
+                }
             }
-        }
-        (Ok(mut s), Err(e)) => {
-            tracing::warn!("Failed to create SIGTERM handler: {}", e);
-            s.recv().await;
-            token.cancel();
-        }
-        (Err(e), Ok(mut s)) => {
-            tracing::warn!("Failed to create SIGINT handler: {}", e);
-            s.recv().await;
-            token.cancel();
-        }
-        (Err(e), Err(e2)) => {
-            tracing::warn!("Failed to create SIGINT handler: {}", e);
-            tracing::warn!("Failed to create SIGTERM handler: {}", e2);
-        }
-    }
+        } => {}
+    };
     Ok(())
 }
 
@@ -222,15 +223,22 @@ async fn watch_signals(
 async fn watch_signals(
     token: tokio_util::sync::CancellationToken,
 ) -> color_eyre::Result<()> {
-    match tokio::signal::ctrl_c().await {
-        Ok(()) => {
-            tracing::info!("Received Ctrl+C, exiting...");
-            token.cancel();
+    let token_clone = token.clone();
+    tokio::select! {
+        biased;
+        () = token_clone.cancelled() => {},
+        ctrl_c = tokio::signal::ctrl_c() => {
+            match ctrl_c {
+                Ok(()) => {
+                    tracing::info!("Received Ctrl+C, exiting...");
+                    token.cancel();
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to create Ctrl+C handler: {}", e);
+                }
+            }
         }
-        Err(e) => {
-            tracing::warn!("Failed to create Ctrl+C handler: {}", e);
-        }
-    }
+    };
     Ok(())
 }
 

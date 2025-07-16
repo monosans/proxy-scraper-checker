@@ -204,12 +204,19 @@ async fn watch_signals(
                             token.cancel();
                         },
                     }
-                }
-                (Err(e), Ok(mut s)) | (Ok(mut s), Err(e)) => {
-                    tracing::warn!("Failed to create signal handler: {}", e);
+                },
+                (Err(e), Ok(mut s)) => {
+                    tracing::warn!("Failed to create SIGINT handler: {}", e);
                     s.recv().await;
+                    tracing::info!("Received SIGTERM, exiting...");
                     token.cancel();
-                }
+                },
+                (Ok(mut s), Err(e)) => {
+                    tracing::warn!("Failed to create SIGTERM handler: {}", e);
+                    s.recv().await;
+                    tracing::info!("Received SIGINT, exiting...");
+                    token.cancel();
+                },
                 (Err(e), Err(e2)) => {
                     tracing::warn!("Failed to create signal handlers: {}, {}", e, e2);
                 }

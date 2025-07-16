@@ -62,8 +62,7 @@ pub async fn run(
     }
     drop(rx);
     while let Some(task) = join_set.join_next().await {
-        task.wrap_err("event listener task panicked or was cancelled")?
-            .wrap_err("event listener task failed")?;
+        task.wrap_err("event listener task panicked or was cancelled")?;
     }
     Ok(())
 }
@@ -94,20 +93,18 @@ pub struct AppState {
     pub proxies_working: HashMap<ProxyType, usize>,
 }
 
-async fn tick_event_listener(
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> Result<(), tokio::sync::mpsc::error::SendError<Event>> {
+async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
     let mut tick =
         tokio::time::interval(tokio::time::Duration::from_secs_f64(1.0 / FPS));
     loop {
         tokio::select! {
             biased;
             () = tx.closed() => {
-                break Ok(());
+                break;
             },
             _ = tick.tick() =>{
                 if tx.send(Event::Tick).is_err() {
-                    break Ok(());
+                    break;
                 }
             }
         }
@@ -116,24 +113,24 @@ async fn tick_event_listener(
 
 async fn crossterm_event_listener(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> Result<(), tokio::sync::mpsc::error::SendError<Event>> {
+) {
     let mut reader = crossterm::event::EventStream::new();
     loop {
         tokio::select! {
             biased;
             () = tx.closed() => {
-                break Ok(());
+                break;
             },
             maybe = reader.next() => {
                 match maybe {
                     Some(Ok(event)) => {
                         if tx.send(Event::Crossterm(event)).is_err() {
-                            break Ok(());
+                            break ;
                         }
                     },
                     Some(Err(_)) => {},
                     None => {
-                        break Ok(());
+                        break;
                     }
                 }
             }

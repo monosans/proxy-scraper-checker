@@ -183,7 +183,7 @@ async fn watch_signals(
     let token_clone = token.clone();
     tokio::select! {
         biased;
-        () = token_clone.cancelled() =>{},
+        () = token_clone.cancelled() => {},
         () = async move {
             match (
                 tokio::signal::unix::signal(
@@ -191,7 +191,7 @@ async fn watch_signals(
                 ),
                 tokio::signal::unix::signal(
                     tokio::signal::unix::SignalKind::terminate(),
-                ),
+                )
             ) {
                 (Ok(mut a), Ok(mut b)) => {
                     tokio::select! {
@@ -202,21 +202,21 @@ async fn watch_signals(
                         _ = b.recv() => {
                             tracing::info!("Received SIGTERM, exiting...");
                             token.cancel();
-                        },
-                    }
-                },
+                        }
+                    };
+                }
                 (Err(e), Ok(mut s)) => {
                     tracing::warn!("Failed to create SIGINT handler: {}", e);
                     s.recv().await;
                     tracing::info!("Received SIGTERM, exiting...");
                     token.cancel();
-                },
+                }
                 (Ok(mut s), Err(e)) => {
                     tracing::warn!("Failed to create SIGTERM handler: {}", e);
                     s.recv().await;
                     tracing::info!("Received SIGINT, exiting...");
                     token.cancel();
-                },
+                }
                 (Err(e), Err(e2)) => {
                     tracing::warn!("Failed to create signal handlers: {}, {}", e, e2);
                 }

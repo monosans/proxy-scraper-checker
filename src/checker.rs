@@ -66,7 +66,7 @@ pub async fn check_all(
                         }
                     }
                 } => res,
-                () = token.cancelled() => Ok(()),
+                () = token.cancelled() => Ok(())
             }
         });
     }

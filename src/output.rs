@@ -48,7 +48,7 @@ fn group_proxies<'a>(
     proxies: &'a [Proxy],
 ) -> HashMap<ProxyType, Vec<&'a Proxy>> {
     let mut groups: HashMap<_, _> =
-        config.enabled_protocols().map(|p| (p.clone(), Vec::new())).collect();
+        config.enabled_protocols().cloned().map(|p| (p, Vec::new())).collect();
     for proxy in proxies {
         if let Some(proxies) = groups.get_mut(&proxy.protocol) {
             proxies.push(proxy);
@@ -99,7 +99,7 @@ pub async fn save_proxies(
                     .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
                 exit_ip: proxy.exit_ip.clone(),
                 asn: if let Some(asn_db) = &maybe_asn_db {
-                    if let Some(exit_ip) = proxy.exit_ip.clone() {
+                    if let Some(exit_ip) = proxy.exit_ip.as_ref() {
                         let exit_ip_addr: IpAddr = exit_ip.parse().wrap_err(
                             "failed to parse proxy's exit ip as IpAddr",
                         )?;
@@ -118,7 +118,7 @@ pub async fn save_proxies(
                     None
                 },
                 geolocation: if let Some(geo_db) = &maybe_geo_db {
-                    if let Some(exit_ip) = proxy.exit_ip.clone() {
+                    if let Some(exit_ip) = proxy.exit_ip.as_ref() {
                         let exit_ip_addr: IpAddr = exit_ip.parse().wrap_err(
                             "failed to parse proxy's exit ip as IpAddr",
                         )?;

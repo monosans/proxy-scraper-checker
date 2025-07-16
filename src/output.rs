@@ -66,7 +66,7 @@ pub async fn save_proxies(
         .ok_or_eyre("failed to unwrap Arc")?
         .into_inner()
         .into_iter()
-        .filter(|p| config.checking.check_url.is_empty() || p.timeout.is_some())
+        .filter(|p| config.checking.check_url.is_empty() || p.is_checked())
         .collect();
     if config.output.sort_by_speed {
         proxies.sort_by_key(sort_by_timeout);

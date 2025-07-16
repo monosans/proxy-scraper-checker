@@ -82,6 +82,10 @@ impl TryFrom<&mut Proxy> for reqwest::Proxy {
 }
 
 impl Proxy {
+    pub const fn is_checked(&self) -> bool {
+        self.timeout.is_some()
+    }
+
     pub async fn check(&mut self, config: &Config) -> color_eyre::Result<()> {
         let client = reqwest::Client::builder()
             .user_agent(USER_AGENT)

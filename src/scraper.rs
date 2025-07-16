@@ -120,8 +120,9 @@ pub async fn scrape_all(
     config: Arc<Config>,
     http_client: reqwest::Client,
     proxies: Arc<tokio::sync::Mutex<HashSet<Proxy>>>,
+    token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> color_eyre::Result<HashSet<Proxy>> {
+) -> color_eyre::Result<()> {
     let mut join_set = tokio::task::JoinSet::new();
     for (proto, sources) in config.scraping.sources.clone() {
         #[cfg(feature = "tui")]
@@ -134,19 +135,23 @@ pub async fn scrape_all(
             let http_client = http_client.clone();
             let proto = proto.clone();
             let proxies = Arc::clone(&proxies);
+            let token = token.clone();
             #[cfg(feature = "tui")]
             let tx = tx.clone();
             join_set.spawn(async move {
-                scrape_one(
-                    config,
-                    http_client,
-                    proto,
-                    proxies,
-                    &source,
-                    #[cfg(feature = "tui")]
-                    tx,
-                )
-                .await
+                tokio::select! {
+                    biased;
+                    res = scrape_one(
+                        config,
+                        http_client,
+                        proto,
+                        proxies,
+                        &source,
+                        #[cfg(feature = "tui")]
+                        tx,
+                    ) => res,
+                    () = token.cancelled() => Ok(())
+                }
             });
         }
     }
@@ -156,7 +161,5 @@ pub async fn scrape_all(
             .wrap_err("proxy scraping task failed")?;
     }
 
-    Ok(Arc::into_inner(proxies)
-        .ok_or_eyre("failed to unwrap Arc")?
-        .into_inner())
+    Ok(())
 }

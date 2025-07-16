@@ -281,11 +281,13 @@ async fn main_task(
     process_proxies(
         Arc::clone(&config),
         Arc::clone(&proxies),
-        token,
+        token.clone(),
         #[cfg(feature = "tui")]
         tx.clone(),
     )
     .await?;
+    token.cancel();
+    drop(token);
 
     output::save_proxies(config, proxies)
         .await

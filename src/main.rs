@@ -49,6 +49,7 @@ mod scraper;
 #[cfg(feature = "tui")]
 mod tui;
 mod utils;
+use std::path::Path;
 
 use std::{collections::HashSet, sync::Arc};
 
@@ -275,11 +276,9 @@ async fn run_without_tui(
 
 async fn load_config() -> color_eyre::Result<Arc<config::Config>> {
     let raw_config_path = raw_config::get_config_path();
-    let raw_config = raw_config::read_config(std::path::Path::new(
-        &raw_config_path,
-    ))
-    .await
-    .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
+    let raw_config = raw_config::read_config(Path::new(&raw_config_path))
+        .await
+        .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
 
     let config = config::Config::from_raw_config(raw_config)
         .await

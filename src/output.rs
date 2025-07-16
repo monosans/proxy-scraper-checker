@@ -75,19 +75,22 @@ pub async fn save_proxies(
     }
 
     if config.output.json.enabled {
-        #[expect(clippy::if_then_some_else_none)]
-        let maybe_asn_db = if config.output.json.include_asn {
-            Some(ipdb::DbType::Asn.open_mmap().await?)
-        } else {
-            None
-        };
-
-        #[expect(clippy::if_then_some_else_none)]
-        let maybe_geo_db = if config.output.json.include_geolocation {
-            Some(ipdb::DbType::Geo.open_mmap().await?)
-        } else {
-            None
-        };
+        let (maybe_asn_db, maybe_geo_db) = tokio::try_join!(
+            async {
+                if config.output.json.include_asn {
+                    ipdb::DbType::Asn.open_mmap().await.map(Some)
+                } else {
+                    Ok(None)
+                }
+            },
+            async {
+                if config.output.json.include_geolocation {
+                    ipdb::DbType::Geo.open_mmap().await.map(Some)
+                } else {
+                    Ok(None)
+                }
+            }
+        )?;
 
         let mut proxy_dicts = Vec::with_capacity(proxies.len());
         for proxy in &proxies {

@@ -1,6 +1,6 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
-use color_eyre::eyre::WrapErr as _;
+use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
@@ -8,25 +8,31 @@ use crate::{config::Config, proxy::Proxy, utils::pretty_error};
 
 pub async fn check_all(
     config: Arc<Config>,
-    proxies: Arc<tokio::sync::Mutex<HashSet<Proxy>>>,
+    proxies: Vec<Proxy>,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> color_eyre::Result<()> {
-    let workers_count =
-        config.checking.max_concurrent_checks.min(proxies.lock().await.len());
-    if workers_count == 0 {
-        return Ok(());
+) -> color_eyre::Result<Vec<Proxy>> {
+    if config.checking.check_url.is_empty() {
+        return Ok(proxies);
     }
 
-    let queue = Arc::new(tokio::sync::Mutex::new(
-        proxies.lock().await.drain().collect::<Vec<_>>(),
-    ));
+    let workers_count =
+        config.checking.max_concurrent_checks.min(proxies.len());
+    if workers_count == 0 {
+        return Ok(Vec::new());
+    }
+
+    #[cfg(not(feature = "tui"))]
+    tracing::info!("Started checking {} proxies", proxies.len());
+
+    let queue = Arc::new(tokio::sync::Mutex::new(proxies));
+    let checked_proxies = Arc::new(tokio::sync::Mutex::new(Vec::new()));
 
     let mut join_set = tokio::task::JoinSet::<color_eyre::Result<()>>::new();
     for _ in 0..workers_count {
         let queue = Arc::clone(&queue);
         let config = Arc::clone(&config);
-        let proxies = Arc::clone(&proxies);
+        let checked_proxies = Arc::clone(&checked_proxies);
         let token = token.clone();
         #[cfg(feature = "tui")]
         let tx = tx.clone();
@@ -49,7 +55,7 @@ pub async fn check_all(
                                 drop(tx.send(Event::App(AppEvent::ProxyWorking(
                                     proxy.protocol.clone(),
                                 ))));
-                                proxies.lock().await.insert(proxy);
+                                checked_proxies.lock().await.push(proxy);
                             }
                             Err(e)
                                 if tracing::event_enabled!(
@@ -86,5 +92,7 @@ pub async fn check_all(
         }
     }
 
-    Ok(())
+    Ok(Arc::into_inner(checked_proxies)
+        .ok_or_eyre("failed to unwrap Arc")?
+        .into_inner())
 }

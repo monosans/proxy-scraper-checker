@@ -49,7 +49,8 @@ mod scraper;
 #[cfg(feature = "tui")]
 mod tui;
 mod utils;
-use std::{collections::HashSet, path::Path, sync::Arc};
+
+use std::{path::Path, sync::Arc};
 
 use color_eyre::eyre::WrapErr as _;
 use tracing_subscriber::{
@@ -152,30 +153,6 @@ async fn download_output_dependencies(
     Ok(())
 }
 
-async fn process_proxies(
-    config: Arc<config::Config>,
-    proxies: Arc<tokio::sync::Mutex<HashSet<proxy::Proxy>>>,
-    token: tokio_util::sync::CancellationToken,
-    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
-        event::Event,
-    >,
-) -> color_eyre::Result<()> {
-    if config.checking.check_url.is_empty() {
-        return Ok(());
-    }
-    #[cfg(not(feature = "tui"))]
-    tracing::info!("Started checking {} proxies", proxies.lock().await.len());
-
-    checker::check_all(
-        config,
-        proxies,
-        token,
-        #[cfg(feature = "tui")]
-        tx.clone(),
-    )
-    .await
-}
-
 #[cfg(unix)]
 async fn watch_signals(token: tokio_util::sync::CancellationToken) {
     let token_clone = token.clone();
@@ -252,9 +229,8 @@ async fn main_task(
 ) -> color_eyre::Result<()> {
     let http_client = create_reqwest_client()
         .wrap_err("failed to create reqwest HTTP client")?;
-    let proxies = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
 
-    tokio::try_join!(
+    let ((), mut proxies) = tokio::try_join!(
         download_output_dependencies(
             &config,
             http_client.clone(),
@@ -265,16 +241,15 @@ async fn main_task(
         scraper::scrape_all(
             Arc::clone(&config),
             http_client,
-            Arc::clone(&proxies),
             token.clone(),
             #[cfg(feature = "tui")]
             tx.clone(),
         ),
     )?;
 
-    process_proxies(
+    proxies = checker::check_all(
         Arc::clone(&config),
-        Arc::clone(&proxies),
+        proxies,
         token,
         #[cfg(feature = "tui")]
         tx.clone(),

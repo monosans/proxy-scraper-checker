@@ -38,6 +38,7 @@ impl Drop for RatatuiRestoreGuard {
 
 pub async fn run(
     mut terminal: ratatui::DefaultTerminal,
+    token: tokio_util::sync::CancellationToken,
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
     mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
 ) -> color_eyre::Result<()> {
@@ -49,7 +50,8 @@ pub async fn run(
     let logger_state = TuiWidgetState::default();
     while !matches!(app_state.mode, AppMode::Quit) {
         if let Some(event) = rx.recv().await {
-            if handle_event(event, &mut app_state, &logger_state).await {
+            if handle_event(event, &mut app_state, &token, &logger_state).await
+            {
                 terminal
                     .draw(|frame| draw(frame, &app_state, &logger_state))
                     .wrap_err("failed to draw tui")?;
@@ -70,6 +72,7 @@ pub async fn run(
 pub enum AppMode {
     #[default]
     Running,
+    Done,
     Quit,
 }
 
@@ -96,7 +99,6 @@ async fn tick_event_listener(
 ) -> Result<(), tokio::sync::mpsc::error::SendError<Event>> {
     let mut tick =
         tokio::time::interval(tokio::time::Duration::from_secs_f64(1.0 / FPS));
-    #[expect(clippy::integer_division_remainder_used)]
     loop {
         tokio::select! {
             biased;
@@ -104,7 +106,7 @@ async fn tick_event_listener(
                 break Ok(());
             },
             _ = tick.tick() =>{
-                tx.send(Event::Tick)?;
+                drop(tx.send(Event::Tick));
             }
         }
     }
@@ -114,7 +116,6 @@ async fn crossterm_event_listener(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> Result<(), tokio::sync::mpsc::error::SendError<Event>> {
     let mut reader = crossterm::event::EventStream::new();
-    #[expect(clippy::integer_division_remainder_used)]
     loop {
         tokio::select! {
             biased;
@@ -124,7 +125,7 @@ async fn crossterm_event_listener(
             maybe = reader.next() => {
                 match maybe {
                     Some(Ok(event)) => {
-                        tx.send(Event::Crossterm(event))?;
+                        drop(tx.send(Event::Crossterm(event)));
                     },
                     Some(Err(_)) => {},
                     None => {
@@ -276,8 +277,13 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
     let lines = vec![
         Line::from("Up/PageUp/k - scroll logs up"),
         Line::from("Down/PageDown/j - scroll logs down"),
-        Line::from("ESC/q/Ctrl-C - exit")
-            .style(Style::default().fg(Color::Red)),
+        if matches!(state.mode, AppMode::Running) {
+            Line::from("ESC/q/Ctrl-C - stop")
+                .style(Style::default().fg(Color::Yellow))
+        } else {
+            Line::from("ESC/q/Ctrl-C - quit")
+                .style(Style::default().fg(Color::Red))
+        },
     ];
     f.render_widget(Text::from(lines).centered(), outer_layout[3]);
 }
@@ -289,6 +295,7 @@ async fn is_interactive() -> bool {
 async fn handle_event(
     event: Event,
     state: &mut AppState,
+    token: &tokio_util::sync::CancellationToken,
     logger_state: &TuiWidgetState,
 ) -> bool {
     match event {
@@ -297,12 +304,22 @@ async fn handle_event(
             match crossterm_event {
                 CrosstermEvent::Key(key_event) => match key_event.code {
                     KeyCode::Esc | KeyCode::Char('q' | 'Q') => {
-                        state.mode = AppMode::Quit;
+                        state.mode = if matches!(state.mode, AppMode::Running) {
+                            AppMode::Done
+                        } else {
+                            AppMode::Quit
+                        };
+                        token.cancel();
                     }
                     KeyCode::Char('c' | 'C')
                         if key_event.modifiers == KeyModifiers::CONTROL =>
                     {
-                        state.mode = AppMode::Quit;
+                        state.mode = if matches!(state.mode, AppMode::Running) {
+                            AppMode::Done
+                        } else {
+                            AppMode::Quit
+                        };
+                        token.cancel();
                     }
                     KeyCode::Up | KeyCode::PageUp | KeyCode::Char('k') => {
                         logger_state.transition(TuiWidgetEvent::PrevPageKey);
@@ -369,9 +386,11 @@ async fn handle_event(
                         .or_insert(1);
                 }
                 AppEvent::Done => {
-                    if !is_interactive().await {
-                        state.mode = AppMode::Quit;
-                    }
+                    state.mode = if is_interactive().await {
+                        AppMode::Done
+                    } else {
+                        AppMode::Quit
+                    };
                 }
             }
             false

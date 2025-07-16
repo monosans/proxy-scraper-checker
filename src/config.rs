@@ -10,7 +10,7 @@ use crate::{proxy::ProxyType, raw_config::RawConfig, utils::is_docker};
 pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
 pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
                               AppleWebKit/537.36 (KHTML, like Gecko) \
-                              Chrome/136.0.0.0 Safari/537.36";
+                              Chrome/138.0.0.0 Safari/537.36";
 
 #[derive(serde::Deserialize)]
 pub struct HttpbinResponse {

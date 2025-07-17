@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
-use color_eyre::eyre::{OptionExt as _};
+use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 use serde::Deserialize;
 
 #[cfg(feature = "tui")]
@@ -46,19 +46,40 @@ async fn query_shodan(
 
     tracing::info!("Querying Shodan API with query: {}", discovery_config.search_query);
 
+    // Add rate limiting - Shodan free accounts are limited to 1 request per second
+    tokio::time::sleep(tokio::time::Duration::from_millis(1100)).await;
+
     let response = http_client
         .get(&url)
         .timeout(discovery_config.timeout)
         .send()
-        .await?
-        .error_for_status()?;
+        .await
+        .wrap_err("Failed to send request to Shodan API")?;
 
-    let shodan_response: ShodanResponse = response.json().await?;
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        return Err(color_eyre::eyre::eyre!(
+            "Shodan API request failed with status {}: {}",
+            status,
+            error_text
+        ));
+    }
+
+    let shodan_response: ShodanResponse = response
+        .json()
+        .await
+        .wrap_err("Failed to parse Shodan API response as JSON")?;
 
     let mut proxies = Vec::new();
     let max_results = discovery_config.max_results.min(shodan_response.matches.len());
 
     for result in shodan_response.matches.into_iter().take(max_results) {
+        // Validate that we have a valid IP and port
+        if result.ip_str.is_empty() || result.port == 0 {
+            continue;
+        }
+
         // Try to determine proxy type from product/banner info
         let proxy_type = determine_proxy_type(&result.product);
         
@@ -141,4 +162,57 @@ pub async fn discover_all(
     }
     drop(proxies);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::proxy::ProxyType;
+
+    #[test]
+    fn test_determine_proxy_type() {
+        // Test HTTP detection
+        assert_eq!(determine_proxy_type(&Some("squid".to_string())), ProxyType::Http);
+        assert_eq!(determine_proxy_type(&Some("HTTP proxy".to_string())), ProxyType::Http);
+        assert_eq!(determine_proxy_type(&Some("Apache HTTP Server".to_string())), ProxyType::Http);
+
+        // Test SOCKS5 detection
+        assert_eq!(determine_proxy_type(&Some("socks5".to_string())), ProxyType::Socks5);
+        assert_eq!(determine_proxy_type(&Some("SOCKS5 proxy".to_string())), ProxyType::Socks5);
+
+        // Test SOCKS4 detection
+        assert_eq!(determine_proxy_type(&Some("socks4".to_string())), ProxyType::Socks4);
+        assert_eq!(determine_proxy_type(&Some("SOCKS4 server".to_string())), ProxyType::Socks4);
+
+        // Test default fallback
+        assert_eq!(determine_proxy_type(&Some("unknown service".to_string())), ProxyType::Http);
+        assert_eq!(determine_proxy_type(&None), ProxyType::Http);
+    }
+
+    #[test]
+    fn test_shodan_response_parsing() {
+        let json_response = r#"
+        {
+            "matches": [
+                {
+                    "ip_str": "192.168.1.1",
+                    "port": 8080,
+                    "product": "squid"
+                },
+                {
+                    "ip_str": "10.0.0.1", 
+                    "port": 1080,
+                    "product": "socks5"
+                }
+            ]
+        }
+        "#;
+
+        let response: ShodanResponse = serde_json::from_str(json_response).unwrap();
+        assert_eq!(response.matches.len(), 2);
+        assert_eq!(response.matches[0].ip_str, "192.168.1.1");
+        assert_eq!(response.matches[0].port, 8080);
+        assert_eq!(response.matches[1].ip_str, "10.0.0.1");
+        assert_eq!(response.matches[1].port, 1080);
+    }
 }

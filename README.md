@@ -14,6 +14,7 @@ HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 - Supports proxies with authentication.
 - It is possible to specify the URL to which to send a request to check the proxy.
 - Supports saving to plain text and json.
+- **NEW:** Supports discovering fresh proxies using Shodan and similar search services.
 - Asynchronous.
 
 You can get proxies obtained using this project in [monosans/proxy-list](https://github.com/monosans/proxy-list).

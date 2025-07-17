@@ -70,6 +70,41 @@ async fn load_config() -> color_eyre::Result<Arc<config::Config>> {
     Ok(Arc::new(config))
 }
 
+fn show_safety_warnings(config: &config::Config) {
+    // Warn about high concurrent checks that could trigger detection
+    if config.checking.max_concurrent_checks >= 1000 {
+        tracing::warn!(
+            "⚠️  HIGH CONCURRENCY WARNING: {} concurrent checks may trigger detection systems!",
+            config.checking.max_concurrent_checks
+        );
+        tracing::warn!("Consider reducing max_concurrent_checks to 50-100 for safer operation.");
+        tracing::warn!("See README.md for detailed safety guidelines.");
+    }
+
+    // Warn about short timeouts that appear aggressive
+    if config.checking.timeout.as_secs_f64() < 3.0 {
+        tracing::warn!(
+            "⚠️  SHORT TIMEOUT WARNING: {:.1}s timeout may appear aggressive to target servers.",
+            config.checking.timeout.as_secs_f64()
+        );
+        tracing::warn!("Consider increasing timeout to 5-10 seconds for safer operation.");
+    }
+
+    // Warn about using default public proxy sources
+    if !config.scraping.sources.is_empty() {
+        let total_sources: usize = config.scraping.sources.values().map(|s| s.len()).sum();
+        if total_sources > 10 {
+            tracing::warn!("⚠️  PROXY SOURCE WARNING: Using {} public proxy sources.", total_sources);
+            tracing::warn!("Public sources may include honeypots or monitoring systems.");
+            tracing::warn!("Consider using a VPN and reducing the number of sources for safer operation.");
+        }
+    }
+
+    // General safety reminder
+    tracing::info!("💡 SAFETY TIP: Use a VPN when running this tool to protect your IP reputation.");
+    tracing::info!("💡 For detailed safety guidelines, see the README.md file.");
+}
+
 fn create_logging_filter(
     config: &config::Config,
 ) -> tracing_subscriber::filter::Targets {
@@ -280,6 +315,9 @@ async fn run_with_tui(
         .with(tui_logger::TuiTracingSubscriberLayer)
         .init();
 
+    // Show safety warnings after logging is initialized
+    show_safety_warnings(&config);
+
     let terminal =
         ratatui::try_init().wrap_err("failed to initialize ratatui")?;
     let terminal_guard = tui::RatatuiRestoreGuard;
@@ -302,7 +340,7 @@ async fn run_with_tui(
 }
 
 #[cfg(not(feature = "tui"))]
-async fn run_without_tui(
+async fn run_without_tui_with_warnings(
     config: Arc<config::Config>,
     logging_filter: tracing_subscriber::filter::Targets,
 ) -> color_eyre::Result<()> {
@@ -311,11 +349,16 @@ async fn run_without_tui(
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Show safety warnings after logging is initialized
+    show_safety_warnings(&config);
+
     let token = tokio_util::sync::CancellationToken::new();
     tokio::spawn(watch_signals(token.clone()));
 
     main_task(config, token).await
 }
+
+
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
@@ -330,6 +373,6 @@ async fn main() -> color_eyre::Result<()> {
     }
     #[cfg(not(feature = "tui"))]
     {
-        run_without_tui(config, logging_filter).await
+        run_without_tui_with_warnings(config, logging_filter).await
     }
 }

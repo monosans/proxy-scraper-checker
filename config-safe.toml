@@ -1,0 +1,87 @@
+# ⚠️  SAFER CONFIGURATION TEMPLATE ⚠️
+# This configuration template provides more conservative settings for safer operation.
+# Copy this file to config.toml and adjust as needed.
+
+# Use debug logging level
+# Produces a lot of output
+debug = false
+
+
+[scraping]
+# SAFER: Limit proxies per source to reduce load
+max_proxies_per_source = 1000
+
+# SAFER: Higher timeout appears less aggressive
+timeout = 10.0
+
+
+[checking]
+# Website used to check proxy functionality
+# Consider using your own check URL for better privacy
+check_url = "https://api.ipify.org"
+
+# SAFER: Much lower concurrent checks to avoid detection
+max_concurrent_checks = 50
+
+# SAFER: Higher timeout appears less aggressive and finds more working proxies
+timeout = 10.0
+
+
+[output]
+# Directory where proxies will be saved
+path = "./out"
+
+# Sort proxies by response speed (fastest first)
+sort_by_speed = true
+
+
+# Text output format - simple list of proxies
+[output.txt]
+enabled = true
+
+
+# JSON output format - detailed proxy information
+[output.json]
+enabled = true
+
+# Include ASN (Autonomous System Number) data for each proxy
+include_asn = true
+
+# Include geolocation data for each proxy
+include_geolocation = true
+
+
+# SAFER: Reduced number of proxy sources
+# Consider replacing these with your own trusted sources
+[scraping.http]
+enabled = true
+urls = [
+    # You can add local files like this:
+    # "./my_http_proxies.txt",
+
+    # Reduced to fewer, more reliable sources
+    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=http",
+    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/http.txt",
+]
+
+[scraping.socks4]
+enabled = true
+urls = [
+    # You can add local files like this:
+    # "./my_socks4_proxies.txt",
+
+    # Reduced to fewer, more reliable sources
+    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks4",
+    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks4.txt",
+]
+
+[scraping.socks5]
+enabled = true
+urls = [
+    # You can add local files like this:
+    # "./my_socks5_proxies.txt",
+
+    # Reduced to fewer, more reliable sources
+    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks5",
+    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks5.txt",
+]

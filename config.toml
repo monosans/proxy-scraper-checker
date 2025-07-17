@@ -1,14 +1,21 @@
+# ⚠️  SAFETY WARNING ⚠️
+# This tool makes many network requests and can impact your IP reputation.
+# Consider using a VPN and reducing concurrent checks for safer operation.
+# See README.md for detailed safety guidelines.
+
 # Use debug logging level
 # Produces a lot of output
 debug = false
 
 
 [scraping]
+# ⚠️  SAFETY: Lower this value to reduce load on proxy sources
 # Max proxies to collect from each individual source
 # If the source has too much proxies, then likely many of these don't work
 # Set to 0 to disable this limit
 max_proxies_per_source = 100000
 
+# ⚠️  SAFETY: Higher timeout values appear less aggressive to target servers
 # The number of seconds to wait for the source to be fetched
 timeout = 5.0
 
@@ -23,10 +30,13 @@ timeout = 5.0
 #   ""                               - Disable checking entirely
 check_url = "https://api.ipify.org"
 
+# ⚠️  SAFETY WARNING: High concurrent checks may trigger detection systems!
+# For safer operation, consider reducing this to 50-100
 # Maximum concurrent proxy checks
 # Make sure you have enough RAM first and your network can handle it, gradually increasing the default value
 max_concurrent_checks = 4096
 
+# ⚠️  SAFETY: Higher timeout values appear less aggressive and may find more working proxies
 # The number of seconds to wait for a proxied request
 # Higher values = more working proxies but slower checking
 # Lower values = faster checking but may miss slower proxies

@@ -387,11 +387,12 @@ async fn handle_event(
                         .or_insert(1);
                 }
                 AppEvent::Done => {
-                    state.mode = if is_interactive().await {
-                        AppMode::Done
-                    } else {
-                        AppMode::Quit
-                    };
+                    state.mode =
+                        if !token.is_cancelled() && is_interactive().await {
+                            AppMode::Done
+                        } else {
+                            AppMode::Quit
+                        };
                 }
             }
             false

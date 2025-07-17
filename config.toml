@@ -13,6 +13,29 @@ max_proxies_per_source = 100000
 timeout = 5.0
 
 
+# Discovery services like Shodan to find fresh proxies
+[discovery]
+# Enable discovery from Shodan and similar services
+enabled = false
+
+# Shodan API key - required if enabled is true
+# Get your free API key at https://www.shodan.io/
+shodan_api_key = ""
+
+# Search query for finding proxy servers
+# Examples:
+#   "port:8080,3128,1080 proxy"  - Search for common proxy ports
+#   "squid proxy"                - Search for Squid proxy servers
+#   "socks5"                     - Search for SOCKS5 proxies
+search_query = "port:8080,3128,1080 proxy"
+
+# Maximum number of results to retrieve from discovery
+max_results = 100
+
+# The number of seconds to wait for discovery API calls
+timeout = 10.0
+
+
 [checking]
 # Website used to check proxy functionality
 # Use httpbin-compatible services to get ASN, geolocation and anonymity info

@@ -125,6 +125,28 @@ pub async fn scrape_all(
     let proxies = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
 
     let mut join_set = tokio::task::JoinSet::new();
+    
+    // Add discovery task if enabled
+    if config.discovery.is_some() {
+        let config = Arc::clone(&config);
+        let http_client = http_client.clone();
+        let proxies = Arc::clone(&proxies);
+        let token = token.clone();
+        #[cfg(feature = "tui")]
+        let tx = tx.clone();
+        join_set.spawn(async move {
+            crate::discovery::discover_all(
+                config,
+                http_client,
+                proxies,
+                token,
+                #[cfg(feature = "tui")]
+                tx,
+            ).await
+        });
+    }
+    
+    // Add regular scraping tasks
     for (proto, sources) in config.scraping.sources.clone() {
         #[cfg(feature = "tui")]
         drop(tx.send(Event::App(AppEvent::SourcesTotal(

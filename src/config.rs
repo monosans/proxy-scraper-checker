@@ -17,6 +17,14 @@ pub struct HttpbinResponse {
     pub origin: String,
 }
 
+pub struct DiscoveryConfig {
+    pub enabled: bool,
+    pub shodan_api_key: Option<String>,
+    pub search_query: String,
+    pub max_results: usize,
+    pub timeout: tokio::time::Duration,
+}
+
 pub struct ScrapingConfig {
     pub max_proxies_per_source: usize,
     pub timeout: tokio::time::Duration,
@@ -49,6 +57,7 @@ pub struct OutputConfig {
 pub struct Config {
     pub debug: bool,
     pub scraping: ScrapingConfig,
+    pub discovery: Option<DiscoveryConfig>,
     pub checking: CheckingConfig,
     pub output: OutputConfig,
 }
@@ -135,6 +144,19 @@ impl Config {
                 })
                 .collect(),
             },
+            discovery: raw_config.discovery.and_then(|d| {
+                if d.enabled && d.shodan_api_key.is_some() {
+                    Some(DiscoveryConfig {
+                        enabled: d.enabled,
+                        shodan_api_key: d.shodan_api_key,
+                        search_query: d.search_query,
+                        max_results: d.max_results,
+                        timeout: tokio::time::Duration::from_secs_f64(d.timeout),
+                    })
+                } else {
+                    None
+                }
+            }),
             checking: CheckingConfig {
                 check_url: raw_config.checking.check_url,
                 max_concurrent_checks,

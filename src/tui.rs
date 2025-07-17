@@ -42,9 +42,8 @@ pub async fn run(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
     mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
 ) -> color_eyre::Result<()> {
-    let mut join_set = tokio::task::JoinSet::new();
-    join_set.spawn(tick_event_listener(tx.clone()));
-    join_set.spawn(crossterm_event_listener(tx));
+    tokio::spawn(tick_event_listener(tx.clone()));
+    tokio::spawn(crossterm_event_listener(tx));
 
     let mut app_state = AppState::default();
     let logger_state = TuiWidgetState::default();
@@ -59,10 +58,6 @@ pub async fn run(
         } else {
             break;
         }
-    }
-    drop(rx);
-    while let Some(task) = join_set.join_next().await {
-        task.wrap_err("event listener task panicked or was cancelled")?;
     }
     Ok(())
 }

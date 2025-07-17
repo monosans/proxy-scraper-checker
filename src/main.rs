@@ -37,6 +37,7 @@
 
 mod checker;
 mod config;
+mod discovery;
 #[cfg(feature = "tui")]
 mod event;
 mod fs;

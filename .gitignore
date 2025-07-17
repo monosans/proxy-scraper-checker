@@ -221,3 +221,6 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/jetbrains+all,linux,macos,rust,vim,visualstudiocode,windows
 
 !Cargo.lock
+
+# Test output directories
+test_out/

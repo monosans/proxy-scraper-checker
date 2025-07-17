@@ -41,6 +41,16 @@ pub struct ScrapingProtocolConfig {
 }
 
 #[derive(Deserialize)]
+pub struct DiscoveryConfig {
+    pub enabled: bool,
+    pub shodan_api_key: Option<String>,
+    pub search_query: String,
+    pub max_results: usize,
+    #[serde(deserialize_with = "validate_positive_f64")]
+    pub timeout: f64,
+}
+
+#[derive(Deserialize)]
 pub struct ScrapingConfig {
     pub max_proxies_per_source: usize,
     #[serde(deserialize_with = "validate_positive_f64")]
@@ -83,6 +93,7 @@ pub struct OutputConfig {
 pub struct RawConfig {
     pub debug: bool,
     pub scraping: ScrapingConfig,
+    pub discovery: Option<DiscoveryConfig>,
     pub checking: CheckingConfig,
     pub output: OutputConfig,
 }

@@ -1,0 +1,60 @@
+# Configuration example showing how to use the discovery feature with Shodan
+
+debug = false
+
+[scraping]
+max_proxies_per_source = 100000
+timeout = 5.0
+
+# Regular scraping can be disabled when using discovery
+[scraping.http]
+enabled = false
+urls = []
+
+[scraping.socks4]
+enabled = false
+urls = []
+
+[scraping.socks5]
+enabled = false  
+urls = []
+
+# Discovery configuration for finding fresh proxies
+[discovery]
+# Enable discovery from Shodan API
+enabled = true
+
+# Your Shodan API key - get one free at https://www.shodan.io/
+# Free accounts get 100 query credits per month
+shodan_api_key = "YOUR_SHODAN_API_KEY_HERE"
+
+# Search query examples:
+# "port:8080,3128,1080 proxy"     - Search multiple common proxy ports
+# "squid proxy"                   - Search for Squid proxy servers  
+# "socks5"                        - Search specifically for SOCKS5 proxies
+# "country:US proxy"              - Search for proxies in a specific country
+# "port:3128 product:squid"       - More specific Squid search
+search_query = "port:8080,3128,1080 proxy"
+
+# Maximum proxies to discover (Shodan returns up to 100 results per query)
+max_results = 50
+
+# Timeout for API calls (Shodan can be slow)
+timeout = 15.0
+
+[checking]
+check_url = "https://httpbin.org/ip"
+max_concurrent_checks = 100
+timeout = 5.0
+
+[output]
+path = "./out"
+sort_by_speed = true
+
+[output.txt]
+enabled = true
+
+[output.json]
+enabled = true
+include_asn = true
+include_geolocation = true

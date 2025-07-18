@@ -34,7 +34,6 @@ Get pre-checked proxies from [monosans/proxy-list](https://github.com/monosans/p
 > **Note:** For Termux users, see the dedicated section below.
 
 1. **Download** the appropriate binary from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
-
    - Not sure which one? Check the [platform support table](https://doc.rust-lang.org/beta/rustc/platform-support.html)
 
 2. **Extract** the archive to a dedicated folder
@@ -53,7 +52,6 @@ Get pre-checked proxies from [monosans/proxy-list](https://github.com/monosans/p
 1. **Install** [Docker Compose](https://docs.docker.com/compose/install/)
 
 2. **Download** the docker archive from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
-
    - Look for artifacts named `proxy-scraper-checker-docker`
 
 3. **Extract** to a folder and configure `config.toml`

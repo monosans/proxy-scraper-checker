@@ -167,51 +167,40 @@ pub async fn save_proxies(
 
     if config.output.txt.enabled {
         let grouped_proxies = group_proxies(&config, &proxies);
-
-        for (anonymous_only, directory) in
-            [(false, "proxies"), (true, "proxies_anonymous")]
-        {
-            let directory_path = config.output.path.join(directory);
-            match tokio::fs::remove_dir_all(&directory_path).await {
-                Ok(()) => Ok(()),
-                Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-                Err(e) => Err(e).wrap_err_with(|| {
-                    format!(
-                        "failed to remove directory {}",
-                        directory_path.display()
-                    )
-                }),
-            }?;
-            tokio::fs::create_dir_all(&directory_path).await.wrap_err_with(
-                || {
-                    format!(
-                        "failed to create directory: {}",
-                        directory_path.display()
-                    )
-                },
-            )?;
-
-            let text = create_proxy_list_str(
-                &proxies.iter().collect::<Vec<_>>(),
-                anonymous_only,
-                true,
-            );
-            tokio::fs::write(directory_path.join("all.txt"), text)
-                .await
-                .wrap_err_with(|| {
-                    format!(
-                        "failed to write proxies to {}",
-                        directory_path.join("all.txt").display()
-                    )
-                })?;
-
-            for (proto, proxies) in &grouped_proxies {
-                let text =
-                    create_proxy_list_str(proxies, anonymous_only, false);
-                tokio::fs::write(
-                    directory_path.join(format!("{proto}.txt")),
-                    text,
+        let directory_path = config.output.path.join("proxies");
+        match tokio::fs::remove_dir_all(&directory_path).await {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e).wrap_err_with(|| {
+                format!(
+                    "failed to remove directory {}",
+                    directory_path.display()
                 )
+            }),
+        }?;
+        tokio::fs::create_dir_all(&directory_path).await.wrap_err_with(
+            || {
+                format!(
+                    "failed to create directory: {}",
+                    directory_path.display()
+                )
+            },
+        )?;
+
+        let text =
+            create_proxy_list_str(&proxies.iter().collect::<Vec<_>>(), true);
+        tokio::fs::write(directory_path.join("all.txt"), text)
+            .await
+            .wrap_err_with(|| {
+                format!(
+                    "failed to write proxies to {}",
+                    directory_path.join("all.txt").display()
+                )
+            })?;
+
+        for (proto, proxies) in &grouped_proxies {
+            let text = create_proxy_list_str(proxies, false);
+            tokio::fs::write(directory_path.join(format!("{proto}.txt")), text)
                 .await
                 .wrap_err_with(|| {
                     format!(
@@ -219,7 +208,6 @@ pub async fn save_proxies(
                         directory_path.join(format!("{proto}.txt")).display()
                     )
                 })?;
-            }
         }
     }
 
@@ -240,20 +228,9 @@ pub async fn save_proxies(
     Ok(())
 }
 
-fn create_proxy_list_str(
-    proxies: &[&Proxy],
-    anonymous_only: bool,
-    include_protocol: bool,
-) -> String {
+fn create_proxy_list_str(proxies: &[&Proxy], include_protocol: bool) -> String {
     proxies
         .iter()
-        .filter(move |proxy| {
-            !anonymous_only
-                || proxy
-                    .exit_ip
-                    .as_ref()
-                    .is_some_and(move |ip| *ip != proxy.host)
-        })
         .map(move |proxy| proxy.as_str(include_protocol))
         .collect::<Vec<_>>()
         .join("\n")

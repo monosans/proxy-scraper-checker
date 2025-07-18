@@ -15,10 +15,10 @@ timeout = 5.0
 
 [checking]
 # Website used to check proxy functionality
-# Use httpbin-compatible services to get ASN, geolocation and anonymity info
+# Use httpbin-compatible services to get ASN, geolocation
 # Examples:
-#   "https://httpbin.org/ip"         (or any other httpbin-compatible service) - Supports getting ASN, geolocation and anonymity info
-#   "https://checkip.amazonaws.com"  (or any other plain-ip service) - Supports getting ASN, geolocation and anonymity info
+#   "https://httpbin.org/ip"         (or any other httpbin-compatible service) - Supports getting ASN and geolocation
+#   "https://checkip.amazonaws.com"  (or any other plain-ip service) - Supports getting ASN and geolocation
 #   "https://google.com"             - Checks general connectivity
 #   ""                               - Disable checking entirely
 check_url = "https://api.ipify.org"

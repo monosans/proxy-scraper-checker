@@ -1,72 +1,73 @@
-# Use debug logging level
-# Produces a lot of output
+# Enable debug logging (shows detailed checking process)
+# Warning: Produces very verbose output
 debug = false
 
 
 [scraping]
-# Max proxies to collect from each individual source
-# If the source has too much proxies, then likely many of these don't work
-# Set to 0 to disable this limit
+# Maximum proxies to collect per source (0 = unlimited)
+# Helps skip unreliable sources with too many proxies
 max_proxies_per_source = 100000
 
-# The number of seconds to wait for the source to be fetched
+# Request timeout for fetching proxy sources (seconds)
+# Higher values may find more sources but take longer
 timeout = 5.0
 
 
 [checking]
-# Website used to check proxy functionality
-# Use httpbin-compatible services to get ASN, geolocation
+# URL for testing proxy functionality
+# httpbin-compatible: Returns JSON with IP info for ASN/geo data
+# plain-text: Returns just IP address for basic connectivity
 # Examples:
-#   "https://httpbin.org/ip"         (or any other httpbin-compatible service) - Supports getting ASN and geolocation
-#   "https://checkip.amazonaws.com"  (or any other plain-ip service) - Supports getting ASN and geolocation
-#   "https://google.com"             - Checks general connectivity
-#   ""                               - Disable checking entirely
+#   "https://httpbin.org/ip" - Full featured testing
+#   "https://api.ipify.org"  - Simple IP return
+#   "https://google.com"     - Basic connectivity test
+#   ""                       - Skip checking (scrape only)
 check_url = "https://api.ipify.org"
 
-# Maximum concurrent proxy checks
-# Make sure you have enough RAM first and your network can handle it, gradually increasing the default value
+# Concurrent proxy checks (adjust based on RAM/network capacity)
+# Start low and increase gradually if system handles it well
 max_concurrent_checks = 4096
 
-# The number of seconds to wait for a proxied request
-# Higher values = more working proxies but slower checking
-# Lower values = faster checking but may miss slower proxies
+# Proxy response timeout (seconds)
+# Higher = more working proxies found, slower checking
+# Lower = faster checking, may miss slower proxies
 timeout = 5.0
 
 
 [output]
-# Directory where proxies will be saved
-# Leave empty to use current directory
-# Note: Ignored when running in Docker
+# Output directory (Docker ignores this setting)
 path = "./out"
 
-# Sort proxies by response speed (fastest first)
-# Set to false to sort alphabetically by IP address
+# Sort by response time (true) or IP address (false)
 sort_by_speed = true
 
 
-# Text output format - simple list of proxies
+# Plain text output (.txt files)
 [output.txt]
 enabled = true
 
 
-# JSON output format - detailed proxy information
+# JSON output with metadata (.json files)
 [output.json]
 enabled = true
 
-# Include ASN (Autonomous System Number) data for each proxy
-# Uses offline database for privacy and speed
+# Add ASN (network provider) info to JSON output
+# Uses offline MaxMind database
 include_asn = true
 
-# Include geolocation data for each proxy
-# Uses offline database for privacy and speed
+# Add geolocation (country/city) info to JSON output
+# Uses offline MaxMind database
 include_geolocation = true
 
 
-# If you have sources with a protocol prefix, such as socks5://127.0.0.1:1050, you can add them to any of these sections.
+# Proxy sources configuration
+# Add local files: ["./my_proxies.txt"] or URLs
+# Sources are fetched in parallel for speed
+
 [scraping.http]
 enabled = true
 urls = [
-    # You can add local files like this:
+    # Local file example:
     # "./my_http_proxies.txt",
 
     "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=http",
@@ -81,7 +82,7 @@ urls = [
 [scraping.socks4]
 enabled = true
 urls = [
-    # You can add local files like this:
+    # Local file example:
     # "./my_socks4_proxies.txt",
 
     "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks4",
@@ -94,7 +95,7 @@ urls = [
 [scraping.socks5]
 enabled = true
 urls = [
-    # You can add local files like this:
+    # Local file example:
     # "./my_socks5_proxies.txt",
 
     "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks5",

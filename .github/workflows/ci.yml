@@ -356,7 +356,7 @@ jobs:
 
           USER root
 
-          RUN groupmod --gid "${GID}" app \
+          RUN (getent group "${GID}" || groupmod --gid "${GID}" app) \
             && usermod --uid "${UID}" --gid "${GID}" app
 
           USER app

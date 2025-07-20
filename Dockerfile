@@ -21,7 +21,7 @@ ARG \
   UID=1000 \
   GID=1000
 
-RUN groupadd --gid "${GID}" app \
+RUN (getent group "${GID}" || groupadd --gid "${GID}" app) \
   && useradd --gid "${GID}" --no-log-init --create-home --uid "${UID}" app \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \
   && chown ${UID}:${GID} /home/app/.cache/proxy_scraper_checker

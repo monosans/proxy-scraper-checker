@@ -24,6 +24,10 @@ Collect, test, and organize HTTP/SOCKS4/SOCKS5 proxies from multiple sources wit
 
 Get pre-checked proxies from [monosans/proxy-list](https://github.com/monosans/proxy-list) - updated regularly using this tool.
 
+## ⚠️ SAFETY WARNING ⚠️
+
+This tool makes many network requests and can impact your IP-address reputation. Consider using a VPN for safer operation.
+
 ## 🚀 Quick Start
 
 > All configuration options are documented in `config.toml` - edit it to customize sources, timeouts, and output preferences.
@@ -34,6 +38,7 @@ Get pre-checked proxies from [monosans/proxy-list](https://github.com/monosans/p
 > **Note:** For Termux users, see the dedicated section below.
 
 1. **Download** the appropriate binary from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
+
    - Not sure which one? Check the [platform support table](https://doc.rust-lang.org/beta/rustc/platform-support.html)
 
 2. **Extract** the archive to a dedicated folder
@@ -52,6 +57,7 @@ Get pre-checked proxies from [monosans/proxy-list](https://github.com/monosans/p
 1. **Install** [Docker Compose](https://docs.docker.com/compose/install/)
 
 2. **Download** the docker archive from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
+
    - Look for artifacts named `proxy-scraper-checker-docker`
 
 3. **Extract** to a folder and configure `config.toml`

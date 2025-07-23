@@ -12,6 +12,7 @@ pub enum AppEvent {
     ProxyWorking(ProxyType),
 
     Done,
+    Quit,
 }
 
 pub enum Event {

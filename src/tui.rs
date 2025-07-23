@@ -390,6 +390,9 @@ fn handle_event(
                         state.mode = AppMode::Done;
                     }
                 }
+                AppEvent::Quit => {
+                    state.mode = AppMode::Quit;
+                }
             }
             false
         }

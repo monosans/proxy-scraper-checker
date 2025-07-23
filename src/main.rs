@@ -219,6 +219,7 @@ async fn run_with_tui(
 
     let token = tokio_util::sync::CancellationToken::new();
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    tokio::task::spawn(watch_signals(token.clone(), tx.clone()));
 
     tokio::try_join!(
         main_task(config, token.clone(), tx.clone()),
@@ -232,8 +233,13 @@ async fn run_with_tui(
     Ok(())
 }
 
-#[cfg(all(unix, not(feature = "tui")))]
-async fn watch_signals(token: tokio_util::sync::CancellationToken) {
+#[cfg(unix)]
+async fn watch_signals(
+    token: tokio_util::sync::CancellationToken,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
+        event::Event,
+    >,
+) {
     let token_clone = token.clone();
     tokio::select! {
         biased;
@@ -252,10 +258,14 @@ async fn watch_signals(token: tokio_util::sync::CancellationToken) {
                         _ = a.recv() => {
                             tracing::info!("Received SIGINT, exiting...");
                             token.cancel();
+                            #[cfg(feature="tui")]
+                            drop(tx.send(event::Event::App(event::AppEvent::Quit)));
                         },
                         _ = b.recv() => {
                             tracing::info!("Received SIGTERM, exiting...");
                             token.cancel();
+                            #[cfg(feature="tui")]
+                            drop(tx.send(event::Event::App(event::AppEvent::Quit)));
                         }
                     };
                 }
@@ -264,12 +274,16 @@ async fn watch_signals(token: tokio_util::sync::CancellationToken) {
                     s.recv().await;
                     tracing::info!("Received SIGTERM, exiting...");
                     token.cancel();
+                    #[cfg(feature="tui")]
+                    drop(tx.send(event::Event::App(event::AppEvent::Quit)));
                 }
                 (Ok(mut s), Err(e)) => {
                     tracing::warn!("Failed to create SIGTERM handler: {}", e);
                     s.recv().await;
                     tracing::info!("Received SIGINT, exiting...");
                     token.cancel();
+                    #[cfg(feature="tui")]
+                    drop(tx.send(event::Event::App(event::AppEvent::Quit)));
                 }
                 (Err(e), Err(e2)) => {
                     tracing::warn!("Failed to create signal handlers: {}, {}", e, e2);
@@ -279,8 +293,13 @@ async fn watch_signals(token: tokio_util::sync::CancellationToken) {
     };
 }
 
-#[cfg(all(not(unix), not(feature = "tui")))]
-async fn watch_signals(token: tokio_util::sync::CancellationToken) {
+#[cfg(not(unix))]
+async fn watch_signals(
+    token: tokio_util::sync::CancellationToken,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
+        event::Event,
+    >,
+) {
     let token_clone = token.clone();
     tokio::select! {
         biased;
@@ -290,6 +309,8 @@ async fn watch_signals(token: tokio_util::sync::CancellationToken) {
                 Ok(()) => {
                     tracing::info!("Received Ctrl+C, exiting...");
                     token.cancel();
+                    #[cfg(feature="tui")]
+                    drop(tx.send(event::Event::App(event::AppEvent::Quit)));
                 }
                 Err(e) => {
                     tracing::warn!("Failed to create Ctrl+C handler: {}", e);

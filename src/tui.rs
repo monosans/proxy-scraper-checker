@@ -24,7 +24,6 @@ use crate::{
     event::{AppEvent, Event},
     ipdb,
     proxy::ProxyType,
-    utils::is_docker,
 };
 
 const FPS: f64 = 30.0;
@@ -49,8 +48,7 @@ pub async fn run(
     let logger_state = TuiWidgetState::default();
     while !matches!(app_state.mode, AppMode::Quit) {
         if let Some(event) = rx.recv().await {
-            if handle_event(event, &mut app_state, &token, &logger_state).await
-            {
+            if handle_event(event, &mut app_state, &token, &logger_state) {
                 terminal
                     .draw(|frame| draw(frame, &app_state, &logger_state))
                     .wrap_err("failed to draw tui")?;
@@ -68,6 +66,15 @@ pub enum AppMode {
     Running,
     Done,
     Quit,
+}
+
+impl AppMode {
+    pub const fn next(&self) -> Self {
+        match self {
+            Self::Running => Self::Done,
+            Self::Done | Self::Quit => Self::Quit,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -148,7 +155,7 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
             // Scraping and checking
             Constraint::Length(1 + (3 * 3) + 1),
             // Hotkeys
-            Constraint::Length(3),
+            Constraint::Length(4),
         ])
         .split(outer_block.inner(f.area()));
 
@@ -270,25 +277,32 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
             working_proxies_block.inner(layout[2]),
         );
     }
-    let lines = vec![
-        Line::from("\u{2b06}\u{fe0f} Up/PageUp/k - scroll logs up"),
-        Line::from("\u{2b07}\u{fe0f} Down/PageDown/j - scroll logs down"),
-        if matches!(state.mode, AppMode::Running) {
-            Line::from("\u{1f6d1} ESC/q/Ctrl-C - stop")
-                .style(Style::default().fg(Color::Yellow))
+
+    let running = matches!(state.mode, AppMode::Running);
+    let mut lines = Vec::with_capacity(if running { 4 } else { 3 });
+    lines.push(Line::from("\u{2b06}\u{fe0f} Up / PageUp / k - scroll logs up"));
+    lines.push(Line::from(
+        "\u{2b07}\u{fe0f} Down / PageDown / j - scroll logs down",
+    ));
+    if running {
+        lines.push(
+            Line::from("\u{1f6d1} ESC / q - stop")
+                .style(Style::default().fg(Color::Yellow)),
+        );
+    }
+    lines.push(
+        Line::from(if running {
+            "\u{1f6aa} Ctrl-C - quit"
         } else {
-            Line::from("\u{1f6aa} ESC/q/Ctrl-C - quit")
-                .style(Style::default().fg(Color::Red))
-        },
-    ];
+            "\u{1f6aa} ESC / q / Ctrl-C - quit"
+        })
+        .style(Style::default().fg(Color::Red)),
+    );
+
     f.render_widget(Text::from(lines).centered(), outer_layout[3]);
 }
 
-async fn is_interactive() -> bool {
-    !is_docker().await
-}
-
-async fn handle_event(
+fn handle_event(
     event: Event,
     state: &mut AppState,
     token: &tokio_util::sync::CancellationToken,
@@ -300,21 +314,13 @@ async fn handle_event(
             match crossterm_event {
                 CrosstermEvent::Key(key_event) => match key_event.code {
                     KeyCode::Esc | KeyCode::Char('q' | 'Q') => {
-                        state.mode = if matches!(state.mode, AppMode::Running) {
-                            AppMode::Done
-                        } else {
-                            AppMode::Quit
-                        };
+                        state.mode = state.mode.next();
                         token.cancel();
                     }
                     KeyCode::Char('c' | 'C')
                         if key_event.modifiers == KeyModifiers::CONTROL =>
                     {
-                        state.mode = if matches!(state.mode, AppMode::Running) {
-                            AppMode::Done
-                        } else {
-                            AppMode::Quit
-                        };
+                        state.mode = AppMode::Quit;
                         token.cancel();
                     }
                     KeyCode::Up | KeyCode::PageUp | KeyCode::Char('k') => {
@@ -382,12 +388,9 @@ async fn handle_event(
                         .or_insert(1);
                 }
                 AppEvent::Done => {
-                    state.mode =
-                        if !token.is_cancelled() && is_interactive().await {
-                            AppMode::Done
-                        } else {
-                            AppMode::Quit
-                        };
+                    if matches!(state.mode, AppMode::Running) {
+                        state.mode = AppMode::Done;
+                    }
                 }
             }
             false

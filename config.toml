@@ -10,7 +10,7 @@ max_proxies_per_source = 100000
 
 # Request timeout for fetching proxy sources (seconds)
 # Higher values may find more sources but take longer
-timeout = 5.0
+timeout = 60.0
 
 
 [checking]

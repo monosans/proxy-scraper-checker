@@ -98,7 +98,8 @@ async fn fetch_text(
                             )
                         {
                             tracing::info!(
-                                "Request to {} returned status {}. Retrying attempt {}/{} after {:?}",
+                                "Request to {} returned status {}. Retrying \
+                                 attempt {}/{} after {:?}",
                                 source,
                                 status,
                                 attempt.saturating_add(1),
@@ -121,7 +122,8 @@ async fn fetch_text(
                             calculate_retry_timeout(None, attempt)
                     {
                         tracing::info!(
-                            "Connection error while requesting {}: {}. Retrying attempt {}/{} after {:?}",
+                            "Connection error while requesting {}: {}. \
+                             Retrying attempt {}/{} after {:?}",
                             source,
                             err,
                             attempt.saturating_add(1),

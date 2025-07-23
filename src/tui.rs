@@ -280,21 +280,19 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
 
     let running = matches!(state.mode, AppMode::Running);
     let mut lines = Vec::with_capacity(if running { 4 } else { 3 });
-    lines.push(Line::from("\u{2b06}\u{fe0f} Up / PageUp / k - scroll logs up"));
-    lines.push(Line::from(
-        "\u{2b07}\u{fe0f} Down / PageDown / j - scroll logs down",
-    ));
+    lines.push(Line::from("Up / PageUp / k - scroll logs up"));
+    lines.push(Line::from("Down / PageDown / j - scroll logs down"));
     if running {
         lines.push(
-            Line::from("\u{1f6d1} ESC / q - stop")
+            Line::from("ESC / q - stop")
                 .style(Style::default().fg(Color::Yellow)),
         );
     }
     lines.push(
         Line::from(if running {
-            "\u{1f6aa} Ctrl-C - quit"
+            "Ctrl-C - quit"
         } else {
-            "\u{1f6aa} ESC / q / Ctrl-C - quit"
+            "ESC / q / Ctrl-C - quit"
         })
         .style(Style::default().fg(Color::Red)),
     );

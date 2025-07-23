@@ -38,7 +38,6 @@ This tool makes many network requests and can impact your IP-address reputation.
 > **Note:** For Termux users, see the dedicated section below.
 
 1. **Download** the appropriate binary from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
-
    - Not sure which one? Check the [platform support table](https://doc.rust-lang.org/beta/rustc/platform-support.html)
 
 2. **Extract** the archive to a dedicated folder
@@ -57,7 +56,6 @@ This tool makes many network requests and can impact your IP-address reputation.
 1. **Install** [Docker Compose](https://docs.docker.com/compose/install/)
 
 2. **Download** the docker archive from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
-
    - Look for artifacts named `proxy-scraper-checker-docker`
 
 3. **Extract** to a folder and configure `config.toml`

@@ -14,7 +14,9 @@ derivative = "=2.2.0"
 dirs = "=6.0.0"
 fancy-regex = "=0.15.0"
 futures = { version = "=0.3.31", optional = true }
+httpdate = "=1.0.3"
 maxminddb = { version = "=0.26.0", features = ["mmap"] }
+rand = "=0.9.2"
 ratatui = { version = "=0.29.0", optional = true }
 rlimit = "=0.10.2"
 serde = "=1.0.219"

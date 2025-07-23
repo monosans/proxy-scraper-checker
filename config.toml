@@ -14,13 +14,13 @@ timeout = 60.0
 
 
 [checking]
-# URL for testing proxy functionality
+# URL for checking proxy functionality
 # httpbin-compatible: Returns JSON with IP info for ASN/geo data
 # plain-text: Returns just IP address for basic connectivity
 # Examples:
-#   "https://httpbin.org/ip" - Full featured testing
-#   "https://api.ipify.org"  - Simple IP return
-#   "https://google.com"     - Basic connectivity test
+#   "https://httpbin.org/ip" - JSON with "origin" key. Full featured checking.
+#   "https://api.ipify.org"  - Simple IP return. Full featured checking.
+#   "https://google.com"     - Basic connect/read check
 #   ""                       - Skip checking (scrape only)
 check_url = "https://api.ipify.org"
 

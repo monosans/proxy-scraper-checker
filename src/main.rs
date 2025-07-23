@@ -232,7 +232,54 @@ async fn run_with_tui(
     Ok(())
 }
 
-#[cfg(not(feature = "tui"))]
+#[cfg(all(unix, not(feature = "tui")))]
+async fn watch_signals(token: tokio_util::sync::CancellationToken) {
+    let token_clone = token.clone();
+    tokio::select! {
+        biased;
+        () = token_clone.cancelled() => {},
+        () = async move {
+            match (
+                tokio::signal::unix::signal(
+                    tokio::signal::unix::SignalKind::interrupt(),
+                ),
+                tokio::signal::unix::signal(
+                    tokio::signal::unix::SignalKind::terminate(),
+                )
+            ) {
+                (Ok(mut a), Ok(mut b)) => {
+                    tokio::select! {
+                        _ = a.recv() => {
+                            tracing::info!("Received SIGINT, exiting...");
+                            token.cancel();
+                        },
+                        _ = b.recv() => {
+                            tracing::info!("Received SIGTERM, exiting...");
+                            token.cancel();
+                        }
+                    };
+                }
+                (Err(e), Ok(mut s)) => {
+                    tracing::warn!("Failed to create SIGINT handler: {}", e);
+                    s.recv().await;
+                    tracing::info!("Received SIGTERM, exiting...");
+                    token.cancel();
+                }
+                (Ok(mut s), Err(e)) => {
+                    tracing::warn!("Failed to create SIGTERM handler: {}", e);
+                    s.recv().await;
+                    tracing::info!("Received SIGINT, exiting...");
+                    token.cancel();
+                }
+                (Err(e), Err(e2)) => {
+                    tracing::warn!("Failed to create signal handlers: {}, {}", e, e2);
+                }
+            }
+        } => {}
+    };
+}
+
+#[cfg(all(not(unix), not(feature = "tui")))]
 async fn watch_signals(token: tokio_util::sync::CancellationToken) {
     let token_clone = token.clone();
     tokio::select! {

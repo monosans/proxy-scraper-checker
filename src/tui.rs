@@ -271,13 +271,13 @@ fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
         );
     }
     let lines = vec![
-        Line::from("Up/PageUp/k - scroll logs up"),
-        Line::from("Down/PageDown/j - scroll logs down"),
+        Line::from("\u{2b06}\u{fe0f} Up/PageUp/k - scroll logs up"),
+        Line::from("\u{2b07}\u{fe0f} Down/PageDown/j - scroll logs down"),
         if matches!(state.mode, AppMode::Running) {
-            Line::from("ESC/q/Ctrl-C - stop")
+            Line::from("\u{1f6d1} ESC/q/Ctrl-C - stop")
                 .style(Style::default().fg(Color::Yellow))
         } else {
-            Line::from("ESC/q/Ctrl-C - quit")
+            Line::from("\u{1f6aa} ESC/q/Ctrl-C - quit")
                 .style(Style::default().fg(Color::Red))
         },
     ];

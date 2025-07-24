@@ -2,6 +2,12 @@ use std::time::{Duration, SystemTime};
 
 use color_eyre::Result;
 
+pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
+                              AppleWebKit/537.36 (KHTML, like Gecko) \
+                              Chrome/138.0.0.0 Safari/537.36";
+const TIMEOUT: Duration = tokio::time::Duration::from_secs(60);
+const CONNECT_TIMEOUT: Duration = tokio::time::Duration::from_secs(5);
+
 const DEFAULT_MAX_RETRIES: u32 = 2;
 const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(500);
 const MAX_RETRY_DELAY: Duration = Duration::from_secs(8);
@@ -118,4 +124,13 @@ pub async fn fetch_text(
             }
         }
     }
+}
+
+pub fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .timeout(TIMEOUT)
+        .connect_timeout(CONNECT_TIMEOUT)
+        .use_rustls_tls()
+        .build()
 }

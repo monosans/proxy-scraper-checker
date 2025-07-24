@@ -51,25 +51,12 @@ mod scraper;
 mod tui;
 mod utils;
 
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use color_eyre::eyre::WrapErr as _;
 use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
-
-async fn load_config() -> color_eyre::Result<Arc<config::Config>> {
-    let raw_config_path = raw_config::get_config_path();
-    let raw_config = raw_config::read_config(Path::new(&raw_config_path))
-        .await
-        .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
-
-    let config = config::Config::from_raw_config(raw_config)
-        .await
-        .wrap_err("failed to create Config from RawConfig")?;
-
-    Ok(Arc::new(config))
-}
 
 fn create_logging_filter(
     config: &config::Config,
@@ -94,15 +81,6 @@ fn create_logging_filter(
     } else {
         base
     }
-}
-
-fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
-    reqwest::Client::builder()
-        .user_agent(config::USER_AGENT)
-        .timeout(tokio::time::Duration::from_secs(60))
-        .connect_timeout(tokio::time::Duration::from_secs(5))
-        .use_rustls_tls()
-        .build()
 }
 
 async fn download_output_dependencies(
@@ -161,7 +139,7 @@ async fn main_task(
         event::Event,
     >,
 ) -> color_eyre::Result<()> {
-    let http_client = create_reqwest_client()
+    let http_client = http::create_reqwest_client()
         .wrap_err("failed to create reqwest HTTP client")?;
 
     let ((), mut proxies) = tokio::try_join!(
@@ -314,7 +292,7 @@ async fn run_without_tui(
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
 
-    let config = load_config().await?;
+    let config = config::load_config().await?;
     let logging_filter = create_logging_filter(&config);
 
     #[cfg(feature = "tui")]

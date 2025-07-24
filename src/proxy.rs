@@ -6,7 +6,8 @@ use std::{
 use color_eyre::eyre::{WrapErr as _, eyre};
 
 use crate::{
-    config::{Config, HttpbinResponse, USER_AGENT},
+    config::{Config, HttpbinResponse},
+    http::USER_AGENT,
     parsers::parse_ipv4,
 };
 

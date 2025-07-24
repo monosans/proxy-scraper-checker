@@ -1,16 +1,14 @@
 use std::{
     collections::{HashMap, HashSet, hash_map},
-    path::PathBuf,
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
-use crate::{proxy::ProxyType, raw_config::RawConfig, utils::is_docker};
+use crate::{proxy::ProxyType, raw_config, utils::is_docker};
 
 pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
-pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
-                              AppleWebKit/537.36 (KHTML, like Gecko) \
-                              Chrome/138.0.0.0 Safari/537.36";
 
 #[derive(serde::Deserialize)]
 pub struct HttpbinResponse {
@@ -54,7 +52,7 @@ pub struct Config {
 }
 
 async fn get_output_path(
-    raw_config: &RawConfig,
+    raw_config: &raw_config::RawConfig,
 ) -> color_eyre::Result<PathBuf> {
     let output_path = if is_docker().await {
         let mut path = tokio::task::spawn_blocking(dirs::data_local_dir)
@@ -94,7 +92,7 @@ impl Config {
     }
 
     pub async fn from_raw_config(
-        raw_config: RawConfig,
+        raw_config: raw_config::RawConfig,
     ) -> color_eyre::Result<Self> {
         let output_path = get_output_path(&raw_config).await?;
 
@@ -157,4 +155,17 @@ impl Config {
             },
         })
     }
+}
+
+pub async fn load_config() -> color_eyre::Result<Arc<Config>> {
+    let raw_config_path = raw_config::get_config_path();
+    let raw_config = raw_config::read_config(Path::new(&raw_config_path))
+        .await
+        .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
+
+    let config = Config::from_raw_config(raw_config)
+        .await
+        .wrap_err("failed to create Config from RawConfig")?;
+
+    Ok(Arc::new(config))
 }

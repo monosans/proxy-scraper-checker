@@ -40,6 +40,7 @@ mod config;
 #[cfg(feature = "tui")]
 mod event;
 mod fs;
+mod http;
 mod ipdb;
 mod output;
 mod parsers;

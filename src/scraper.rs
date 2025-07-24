@@ -1,8 +1,4 @@
-use std::{
-    collections::HashSet,
-    sync::Arc,
-    time::{Duration, SystemTime},
-};
+use std::{collections::HashSet, sync::Arc};
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
@@ -10,140 +6,11 @@ use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 use crate::event::{AppEvent, Event};
 use crate::{
     config::Config,
+    http,
     parsers::PROXY_REGEX,
     proxy::{Proxy, ProxyType},
     utils::{is_http_url, pretty_error},
 };
-
-const DEFAULT_MAX_RETRIES: usize = 2;
-const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(500);
-const MAX_RETRY_DELAY: Duration = Duration::from_secs(8);
-
-static RETRY_STATUSES: &[reqwest::StatusCode] = &[
-    reqwest::StatusCode::REQUEST_TIMEOUT,
-    reqwest::StatusCode::TOO_MANY_REQUESTS,
-    reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-    reqwest::StatusCode::BAD_GATEWAY,
-    reqwest::StatusCode::SERVICE_UNAVAILABLE,
-    reqwest::StatusCode::GATEWAY_TIMEOUT,
-];
-
-fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
-    if let Some(val) = headers.get("retry-after-ms")
-        && let Ok(s) = val.to_str()
-        && let Ok(ms) = s.parse()
-    {
-        return Some(Duration::from_millis(ms));
-    }
-
-    if let Some(val) = headers.get(reqwest::header::RETRY_AFTER)
-        && let Ok(s) = val.to_str()
-    {
-        if let Ok(sec) = s.parse() {
-            return Some(Duration::from_secs(sec));
-        }
-
-        if let Ok(parsed) = httpdate::parse_http_date(s)
-            && let Ok(dur) = parsed.duration_since(SystemTime::now())
-        {
-            return Some(dur);
-        }
-    }
-    None
-}
-
-fn calculate_retry_timeout(
-    headers: Option<&reqwest::header::HeaderMap>,
-    attempt: usize,
-) -> Option<Duration> {
-    if let Some(h) = headers
-        && let Some(after) = parse_retry_after(h)
-    {
-        if after > Duration::from_secs(60) {
-            return None;
-        }
-        return Some(after);
-    }
-
-    let base = INITIAL_RETRY_DELAY
-        .saturating_mul((2_u32).pow(u32::try_from(attempt).unwrap_or(u32::MAX)))
-        .min(MAX_RETRY_DELAY);
-    let jitter = 0.25_f64.mul_add(-rand::random::<f64>(), 1.0);
-    Some(base.mul_f64(jitter))
-}
-
-async fn fetch_text(
-    config: &Config,
-    http_client: reqwest::Client,
-    source: &str,
-) -> color_eyre::Result<String> {
-    if is_http_url(source) {
-        let mut attempt = 0;
-        loop {
-            let req = http_client
-                .get(source)
-                .timeout(config.scraping.timeout)
-                .send()
-                .await;
-
-            match req {
-                Ok(resp) => {
-                    let status = resp.status();
-                    if status.is_client_error() || status.is_server_error() {
-                        if attempt < DEFAULT_MAX_RETRIES
-                            && RETRY_STATUSES.contains(&status)
-                            && let Some(delay) = calculate_retry_timeout(
-                                Some(resp.headers()),
-                                attempt,
-                            )
-                        {
-                            tracing::info!(
-                                "Request to {} returned status {}. Retrying \
-                                 attempt {}/{} after {:?}",
-                                source,
-                                status,
-                                attempt.saturating_add(1),
-                                DEFAULT_MAX_RETRIES,
-                                delay
-                            );
-                            tokio::time::sleep(delay).await;
-                            attempt = attempt.saturating_add(1);
-                            continue;
-                        }
-                        resp.error_for_status_ref()?;
-                    }
-                    let text = resp.text().await?;
-                    return Ok(text);
-                }
-                Err(err) => {
-                    if attempt < DEFAULT_MAX_RETRIES
-                        && err.is_connect()
-                        && let Some(delay) =
-                            calculate_retry_timeout(None, attempt)
-                    {
-                        tracing::info!(
-                            "Connection error while requesting {}: {}. \
-                             Retrying attempt {}/{} after {:?}",
-                            source,
-                            err,
-                            attempt.saturating_add(1),
-                            DEFAULT_MAX_RETRIES,
-                            delay
-                        );
-                        tokio::time::sleep(delay).await;
-                        attempt = attempt.saturating_add(1);
-                        continue;
-                    }
-                    return Err(err.into());
-                }
-            }
-        }
-    }
-    Ok(tokio::fs::read_to_string(
-        source.strip_prefix("file://").unwrap_or(source),
-    )
-    .await?)
-}
 
 async fn scrape_one(
     config: Arc<Config>,
@@ -153,7 +20,15 @@ async fn scrape_one(
     source: &str,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
-    let text_result = fetch_text(&config, http_client, source).await;
+    let text_result = if is_http_url(source) {
+        http::fetch_text(http_client, source, config.scraping.timeout).await
+    } else {
+        tokio::fs::read_to_string(
+            source.strip_prefix("file://").unwrap_or(source),
+        )
+        .await
+        .map_err(Into::into)
+    };
 
     #[cfg(feature = "tui")]
     drop(tx.send(Event::App(AppEvent::SourceScraped(proto.clone()))));

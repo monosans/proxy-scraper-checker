@@ -6,8 +6,6 @@ services:
         - "GID=${GID:-1000}"
       pull: true
     init: true
-    logging:
-      driver: local
     volumes:
       - proxy_scraper_checker_cache:/home/app/.cache/proxy_scraper_checker
       - ./out:/home/app/.local/share/proxy_scraper_checker

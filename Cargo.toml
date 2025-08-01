@@ -10,7 +10,6 @@ color-eyre = "=0.6.5"
 crossterm = { version = "=0.28.1", features = [
     "event-stream",
 ], optional = true }
-derivative = "=2.2.0"
 dirs = "=6.0.0"
 fancy-regex = "=0.16.0"
 futures = { version = "=0.3.31", optional = true }

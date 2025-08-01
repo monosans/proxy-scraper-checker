@@ -1,5 +1,6 @@
 use std::{
     fmt::{self, Write as _},
+    hash::{Hash, Hasher},
     str::FromStr,
 };
 
@@ -33,7 +34,7 @@ impl FromStr for ProxyType {
 }
 
 impl fmt::Display for ProxyType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -46,19 +47,14 @@ impl fmt::Display for ProxyType {
     }
 }
 
-#[derive(derivative::Derivative, Eq)]
-#[derivative(Hash, PartialEq)]
+#[derive(Clone, Eq)]
 pub struct Proxy {
     pub protocol: ProxyType,
     pub host: String,
     pub port: u16,
     pub username: Option<String>,
     pub password: Option<String>,
-    #[derivative(Hash = "ignore")]
-    #[derivative(PartialEq = "ignore")]
     pub timeout: Option<tokio::time::Duration>,
-    #[derivative(Hash = "ignore")]
-    #[derivative(PartialEq = "ignore")]
     pub exit_ip: Option<String>,
 }
 
@@ -128,5 +124,27 @@ impl Proxy {
         }
         write!(&mut s, "{}:{}", self.host, self.port).unwrap();
         s
+    }
+}
+
+#[expect(clippy::missing_trait_methods)]
+impl PartialEq for Proxy {
+    fn eq(&self, other: &Self) -> bool {
+        self.protocol == other.protocol
+            && self.host == other.host
+            && self.port == other.port
+            && self.username == other.username
+            && self.password == other.password
+    }
+}
+
+#[expect(clippy::missing_trait_methods)]
+impl Hash for Proxy {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.protocol.hash(state);
+        self.host.hash(state);
+        self.port.hash(state);
+        self.username.hash(state);
+        self.password.hash(state);
     }
 }

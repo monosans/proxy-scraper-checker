@@ -104,7 +104,7 @@ pub async fn save_proxies(
                             "failed to parse proxy's exit ip as IpAddr",
                         )?;
                         asn_db
-                            .lookup::<maxminddb::geoip2::Asn>(exit_ip_addr)
+                            .lookup::<maxminddb::geoip2::Asn<'_>>(exit_ip_addr)
                             .wrap_err_with(move || {
                                 format!(
                                     "failed to lookup {exit_ip_addr} in ASN \
@@ -123,13 +123,13 @@ pub async fn save_proxies(
                             "failed to parse proxy's exit ip as IpAddr",
                         )?;
                         geo_db
-                            .lookup::<maxminddb::geoip2::City>(exit_ip_addr)
+                            .lookup::<maxminddb::geoip2::City<'_>>(exit_ip_addr)
                             .wrap_err_with(move || {
-                            format!(
-                                "failed to lookup {exit_ip_addr} in \
-                                 geolocation database"
-                            )
-                        })?
+                                format!(
+                                    "failed to lookup {exit_ip_addr} in \
+                                     geolocation database"
+                                )
+                            })?
                     } else {
                         None
                     }

@@ -1,4 +1,16 @@
-#![warn(
+#![deny(
+    warnings,
+    deprecated_safe,
+    future_incompatible,
+    keyword_idents,
+    let_underscore,
+    nonstandard_style,
+    refining_impl_trait,
+    rust_2018_compatibility,
+    rust_2018_idioms,
+    rust_2021_compatibility,
+    rust_2024_compatibility,
+    unused,
     clippy::all,
     clippy::pedantic,
     clippy::restriction,

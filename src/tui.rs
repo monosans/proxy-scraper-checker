@@ -140,7 +140,7 @@ async fn crossterm_event_listener(
     }
 }
 
-fn draw(f: &mut Frame, state: &AppState, logger_state: &TuiWidgetState) {
+fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
     let outer_block = Block::default()
         .title("https://github.com/monosans/proxy-scraper-checker")
         .title_alignment(Alignment::Center);

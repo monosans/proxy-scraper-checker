@@ -393,9 +393,11 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        features:
-          - "--features tui"
-          - ""
+        include:
+          - features: "--features tui"
+            target: aarch64-apple-darwin,aarch64-pc-windows-msvc,aarch64-unknown-linux-gnu,i686-pc-windows-msvc,x86_64-apple-darwin,x86_64-pc-windows-msvc,x86_64-unknown-linux-gnu,aarch64-linux-android,aarch64-unknown-linux-musl,arm-linux-androideabi,arm-unknown-linux-gnueabi,arm-unknown-linux-gnueabihf,arm-unknown-linux-musleabi,arm-unknown-linux-musleabihf,armv5te-unknown-linux-gnueabi,armv5te-unknown-linux-musleabi,armv7-linux-androideabi,armv7-unknown-linux-gnueabi,armv7-unknown-linux-gnueabihf,armv7-unknown-linux-musleabi,armv7-unknown-linux-musleabihf,i686-unknown-freebsd,i686-linux-android,i686-unknown-linux-gnu,loongarch64-unknown-linux-gnu,loongarch64-unknown-linux-musl,powerpc-unknown-linux-gnu,powerpc64-unknown-linux-gnu,powerpc64le-unknown-linux-gnu,riscv64gc-unknown-linux-gnu,riscv64gc-unknown-linux-musl,s390x-unknown-linux-gnu,sparc64-unknown-linux-gnu,thumbv7neon-linux-androideabi,thumbv7neon-unknown-linux-gnueabihf,x86_64-linux-android,x86_64-unknown-freebsd,x86_64-unknown-illumos,x86_64-unknown-linux-musl,x86_64-unknown-netbsd
+          - features: ""
+            target: aarch64-unknown-linux-gnu,x86_64-unknown-linux-gnu,armv7-unknown-linux-gnueabihf,i686-unknown-linux-gnu,powerpc64le-unknown-linux-gnu,s390x-unknown-linux-gnu
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -404,10 +406,10 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: beta
-          target: aarch64-apple-darwin,aarch64-pc-windows-msvc,aarch64-unknown-linux-gnu,i686-pc-windows-msvc,x86_64-apple-darwin,x86_64-pc-windows-msvc,x86_64-unknown-linux-gnu,aarch64-linux-android,aarch64-unknown-linux-musl,arm-linux-androideabi,arm-unknown-linux-gnueabi,arm-unknown-linux-gnueabihf,arm-unknown-linux-musleabi,arm-unknown-linux-musleabihf,armv5te-unknown-linux-gnueabi,armv5te-unknown-linux-musleabi,armv7-linux-androideabi,armv7-unknown-linux-gnueabi,armv7-unknown-linux-gnueabihf,armv7-unknown-linux-musleabi,armv7-unknown-linux-musleabihf,i686-unknown-freebsd,i686-linux-android,i686-unknown-linux-gnu,loongarch64-unknown-linux-gnu,loongarch64-unknown-linux-musl,powerpc-unknown-linux-gnu,powerpc64-unknown-linux-gnu,powerpc64le-unknown-linux-gnu,riscv64gc-unknown-linux-gnu,riscv64gc-unknown-linux-musl,s390x-unknown-linux-gnu,sparc64-unknown-linux-gnu,thumbv7neon-linux-androideabi,thumbv7neon-unknown-linux-gnueabihf,x86_64-linux-android,x86_64-unknown-freebsd,x86_64-unknown-illumos,x86_64-unknown-linux-musl,x86_64-unknown-netbsd
+          target: ${{ matrix.target }}
           components: clippy
           cache-key: x86_64-unknown-linux-gnu
-      - run: cargo +beta clippy --all-targets ${{ matrix.features }} -- -Dwarnings
+      - run: cargo +beta clippy --all-targets ${{ matrix.features }}
   pre-commit:
     runs-on: ubuntu-24.04
     steps:

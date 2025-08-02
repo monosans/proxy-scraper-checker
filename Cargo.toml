@@ -11,7 +11,7 @@ crossterm = { version = "=0.28.1", features = [
     "event-stream",
 ], optional = true }
 dirs = "=6.0.0"
-fancy-regex = "=0.16.0"
+fancy-regex = "=0.16.1"
 futures = { version = "=0.3.31", optional = true }
 httpdate = "=1.0.3"
 maxminddb = { version = "=0.26.0", features = ["mmap"] }

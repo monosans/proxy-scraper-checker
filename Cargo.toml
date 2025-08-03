@@ -21,7 +21,7 @@ rlimit = "=0.10.2"
 serde = "=1.0.219"
 serde_json = "=1.0.142"
 tokio = { version = "=1.47.1", features = ["full"] }
-tokio-util = "=0.7.15"
+tokio-util = "=0.7.16"
 toml = "=0.9.4"
 tracing = "=0.1.41"
 tracing-log = "=0.2.0"

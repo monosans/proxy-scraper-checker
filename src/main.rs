@@ -151,7 +151,7 @@ async fn main_task(
         event::Event,
     >,
 ) -> color_eyre::Result<()> {
-    let http_client = http::create_reqwest_client()
+    let http_client = http::create_reqwest_client(&config)
         .wrap_err("failed to create reqwest HTTP client")?;
 
     let ((), mut proxies) = tokio::try_join!(

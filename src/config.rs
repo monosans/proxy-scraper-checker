@@ -18,6 +18,7 @@ pub struct HttpbinResponse {
 pub struct ScrapingConfig {
     pub max_proxies_per_source: usize,
     pub timeout: tokio::time::Duration,
+    pub connect_timeout: tokio::time::Duration,
     pub sources: HashMap<ProxyType, HashSet<String>>,
 }
 
@@ -25,6 +26,7 @@ pub struct CheckingConfig {
     pub check_url: String,
     pub max_concurrent_checks: usize,
     pub timeout: tokio::time::Duration,
+    pub connect_timeout: tokio::time::Duration,
 }
 
 pub struct TxtOutputConfig {
@@ -122,6 +124,9 @@ impl Config {
                 timeout: tokio::time::Duration::from_secs_f64(
                     raw_config.scraping.timeout,
                 ),
+                connect_timeout: tokio::time::Duration::from_secs_f64(
+                    raw_config.scraping.connect_timeout,
+                ),
                 sources: [
                     (ProxyType::Http, raw_config.scraping.http),
                     (ProxyType::Socks4, raw_config.scraping.socks4),
@@ -138,6 +143,9 @@ impl Config {
                 max_concurrent_checks,
                 timeout: tokio::time::Duration::from_secs_f64(
                     raw_config.checking.timeout,
+                ),
+                connect_timeout: tokio::time::Duration::from_secs_f64(
+                    raw_config.checking.connect_timeout,
                 ),
             },
             output: OutputConfig {

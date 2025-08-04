@@ -21,7 +21,7 @@ async fn scrape_one(
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
     let text_result = if is_http_url(source) {
-        http::fetch_text(http_client, source, config.scraping.timeout).await
+        http::fetch_text(http_client, source).await
     } else {
         tokio::fs::read_to_string(
             source.strip_prefix("file://").unwrap_or(source),

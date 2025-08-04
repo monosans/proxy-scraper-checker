@@ -45,6 +45,8 @@ pub struct ScrapingConfig {
     pub max_proxies_per_source: usize,
     #[serde(deserialize_with = "validate_positive_f64")]
     pub timeout: f64,
+    #[serde(deserialize_with = "validate_positive_f64")]
+    pub connect_timeout: f64,
 
     pub http: ScrapingProtocolConfig,
     pub socks4: ScrapingProtocolConfig,
@@ -58,6 +60,8 @@ pub struct CheckingConfig {
     pub max_concurrent_checks: NonZero<usize>,
     #[serde(deserialize_with = "validate_positive_f64")]
     pub timeout: f64,
+    #[serde(deserialize_with = "validate_positive_f64")]
+    pub connect_timeout: f64,
 }
 
 #[derive(Deserialize)]

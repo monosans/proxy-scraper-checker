@@ -2,11 +2,11 @@ use std::time::{Duration, SystemTime};
 
 use color_eyre::Result;
 
+use crate::config::Config;
+
 pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
                               AppleWebKit/537.36 (KHTML, like Gecko) \
                               Chrome/138.0.0.0 Safari/537.36";
-const TIMEOUT: Duration = tokio::time::Duration::from_secs(60);
-const CONNECT_TIMEOUT: Duration = tokio::time::Duration::from_secs(5);
 
 const DEFAULT_MAX_RETRIES: u32 = 2;
 const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(500);
@@ -68,11 +68,10 @@ fn calculate_retry_timeout(
 pub async fn fetch_text(
     http_client: reqwest::Client,
     url: &str,
-    timeout: Duration,
 ) -> Result<String> {
     let mut attempt: u32 = 0;
     loop {
-        let resp = http_client.get(url).timeout(timeout).send().await;
+        let resp = http_client.get(url).send().await;
         match resp {
             Ok(resp) => {
                 let status = resp.status();
@@ -126,11 +125,13 @@ pub async fn fetch_text(
     }
 }
 
-pub fn create_reqwest_client() -> reqwest::Result<reqwest::Client> {
+pub fn create_reqwest_client(
+    config: &Config,
+) -> reqwest::Result<reqwest::Client> {
     reqwest::Client::builder()
         .user_agent(USER_AGENT)
-        .timeout(TIMEOUT)
-        .connect_timeout(CONNECT_TIMEOUT)
+        .timeout(config.scraping.timeout)
+        .connect_timeout(config.scraping.connect_timeout)
         .use_rustls_tls()
         .build()
 }

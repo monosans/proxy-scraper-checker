@@ -11,6 +11,7 @@ max_proxies_per_source = 100000
 # Request timeout for fetching proxy sources (seconds)
 # Higher values may find more sources but take longer
 timeout = 60.0
+connect_timeout = 5.0
 
 
 [checking]
@@ -26,12 +27,13 @@ check_url = "https://api.ipify.org"
 
 # Concurrent proxy checks (adjust based on RAM/network capacity)
 # Start low and increase gradually if system handles it well
-max_concurrent_checks = 4096
+max_concurrent_checks = 1024
 
 # Proxy response timeout (seconds)
 # Higher = more working proxies found, slower checking
 # Lower = faster checking, may miss slower proxies
-timeout = 5.0
+timeout = 60.0
+connect_timeout = 5.0
 
 
 [output]

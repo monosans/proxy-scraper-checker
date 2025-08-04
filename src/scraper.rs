@@ -9,7 +9,7 @@ use crate::{
     http,
     parsers::PROXY_REGEX,
     proxy::{Proxy, ProxyType},
-    utils::{is_http_url, pretty_error},
+    utils::pretty_error,
 };
 
 async fn scrape_one(
@@ -20,8 +20,20 @@ async fn scrape_one(
     source: &str,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
-    let text_result = if is_http_url(source) {
-        http::fetch_text(http_client, source).await
+    let text_result = if let Ok(u) = url::Url::parse(source) {
+        match u.scheme() {
+            "http" | "https" => http::fetch_text(http_client, source).await,
+            _ => match u.to_file_path() {
+                Ok(path) => tokio::fs::read_to_string(path).await,
+                Err(()) => {
+                    tokio::fs::read_to_string(
+                        source.strip_prefix("file://").unwrap_or(source),
+                    )
+                    .await
+                }
+            }
+            .map_err(Into::into),
+        }
     } else {
         tokio::fs::read_to_string(
             source.strip_prefix("file://").unwrap_or(source),

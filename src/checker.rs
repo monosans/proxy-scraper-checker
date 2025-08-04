@@ -78,11 +78,14 @@ pub async fn check_all(
     }
 
     while let Some(res) = join_set.join_next().await {
-        if let Err(e) = res {
-            tracing::error!(
-                "proxy checking task panicked or was cancelled: {}",
-                e
-            );
+        match res {
+            Ok(()) => {}
+            Err(e) if e.is_panic() => {
+                tracing::error!("proxy checking task panicked: {}", e);
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
         }
     }
 

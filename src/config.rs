@@ -19,6 +19,7 @@ pub struct ScrapingConfig {
     pub max_proxies_per_source: usize,
     pub timeout: tokio::time::Duration,
     pub connect_timeout: tokio::time::Duration,
+    pub user_agent: String,
     pub sources: HashMap<ProxyType, HashSet<String>>,
 }
 
@@ -27,6 +28,7 @@ pub struct CheckingConfig {
     pub max_concurrent_checks: usize,
     pub timeout: tokio::time::Duration,
     pub connect_timeout: tokio::time::Duration,
+    pub user_agent: String,
 }
 
 pub struct TxtOutputConfig {
@@ -127,6 +129,7 @@ impl Config {
                 connect_timeout: tokio::time::Duration::from_secs_f64(
                     raw_config.scraping.connect_timeout,
                 ),
+                user_agent: raw_config.scraping.user_agent,
                 sources: [
                     (ProxyType::Http, raw_config.scraping.http),
                     (ProxyType::Socks4, raw_config.scraping.socks4),
@@ -147,6 +150,7 @@ impl Config {
                 connect_timeout: tokio::time::Duration::from_secs_f64(
                     raw_config.checking.connect_timeout,
                 ),
+                user_agent: raw_config.checking.user_agent,
             },
             output: OutputConfig {
                 path: output_path,

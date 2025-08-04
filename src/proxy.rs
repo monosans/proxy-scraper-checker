@@ -8,7 +8,6 @@ use color_eyre::eyre::{WrapErr as _, eyre};
 
 use crate::{
     config::{Config, HttpbinResponse},
-    http::USER_AGENT,
     parsers::parse_ipv4,
 };
 
@@ -85,7 +84,7 @@ impl Proxy {
 
     pub async fn check(&mut self, config: &Config) -> color_eyre::Result<()> {
         let client = reqwest::Client::builder()
-            .user_agent(USER_AGENT)
+            .user_agent(&config.checking.user_agent)
             .proxy(self.try_into()?)
             .timeout(config.checking.timeout)
             .connect_timeout(config.checking.connect_timeout)

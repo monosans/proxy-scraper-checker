@@ -47,6 +47,7 @@ pub struct ScrapingConfig {
     pub timeout: f64,
     #[serde(deserialize_with = "validate_positive_f64")]
     pub connect_timeout: f64,
+    pub user_agent: String,
 
     pub http: ScrapingProtocolConfig,
     pub socks4: ScrapingProtocolConfig,
@@ -62,6 +63,7 @@ pub struct CheckingConfig {
     pub timeout: f64,
     #[serde(deserialize_with = "validate_positive_f64")]
     pub connect_timeout: f64,
+    pub user_agent: String,
 }
 
 #[derive(Deserialize)]

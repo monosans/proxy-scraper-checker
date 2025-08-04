@@ -4,10 +4,6 @@ use color_eyre::Result;
 
 use crate::config::Config;
 
-pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
-                              AppleWebKit/537.36 (KHTML, like Gecko) \
-                              Chrome/138.0.0.0 Safari/537.36";
-
 const DEFAULT_MAX_RETRIES: u32 = 2;
 const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(500);
 const MAX_RETRY_DELAY: Duration = Duration::from_secs(8);
@@ -129,7 +125,7 @@ pub fn create_reqwest_client(
     config: &Config,
 ) -> reqwest::Result<reqwest::Client> {
     reqwest::Client::builder()
-        .user_agent(USER_AGENT)
+        .user_agent(&config.scraping.user_agent)
         .timeout(config.scraping.timeout)
         .connect_timeout(config.scraping.connect_timeout)
         .use_rustls_tls()

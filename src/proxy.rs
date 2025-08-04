@@ -46,7 +46,7 @@ impl fmt::Display for ProxyType {
     }
 }
 
-#[derive(Clone, Eq)]
+#[derive(Eq)]
 pub struct Proxy {
     pub protocol: ProxyType,
     pub host: String,

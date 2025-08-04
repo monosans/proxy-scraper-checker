@@ -33,12 +33,12 @@ fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
 #[derive(serde::Serialize)]
 struct ProxyJson<'a> {
     protocol: &'a ProxyType,
-    username: Option<&'a String>,
-    password: Option<&'a String>,
+    username: Option<&'a str>,
+    password: Option<&'a str>,
     host: &'a str,
     port: u16,
     timeout: Option<f64>,
-    exit_ip: Option<&'a String>,
+    exit_ip: Option<&'a str>,
     asn: Option<maxminddb::geoip2::Asn<'a>>,
     geolocation: Option<maxminddb::geoip2::City<'a>>,
 }
@@ -90,14 +90,14 @@ pub async fn save_proxies(
         for proxy in &proxies {
             proxy_dicts.push(ProxyJson {
                 protocol: &proxy.protocol,
-                username: proxy.username.as_ref(),
-                password: proxy.password.as_ref(),
+                username: proxy.username.as_deref(),
+                password: proxy.password.as_deref(),
                 host: &proxy.host,
                 port: proxy.port,
                 timeout: proxy
                     .timeout
                     .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
-                exit_ip: proxy.exit_ip.as_ref(),
+                exit_ip: proxy.exit_ip.as_deref(),
                 asn: if let Some(asn_db) = &maybe_asn_db {
                     if let Some(exit_ip) = proxy.exit_ip.as_ref() {
                         let exit_ip_addr: IpAddr = exit_ip.parse().wrap_err(

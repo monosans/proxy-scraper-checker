@@ -88,8 +88,6 @@ impl Proxy {
             .proxy(self.try_into()?)
             .timeout(config.checking.timeout)
             .connect_timeout(config.checking.connect_timeout)
-            .pool_max_idle_per_host(0)
-            .tcp_keepalive(None)
             .use_rustls_tls()
             .build()
             .wrap_err("failed to create reqwest::Client")?;

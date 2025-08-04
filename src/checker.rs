@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::{OptionExt as _, WrapErr as _};
+use color_eyre::eyre::OptionExt as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
@@ -28,7 +28,7 @@ pub async fn check_all(
     let queue = Arc::new(tokio::sync::Mutex::new(proxies));
     let checked_proxies = Arc::new(tokio::sync::Mutex::new(Vec::new()));
 
-    let mut join_set = tokio::task::JoinSet::<color_eyre::Result<()>>::new();
+    let mut join_set = tokio::task::JoinSet::<()>::new();
     for _ in 0..workers_count {
         let queue = Arc::clone(&queue);
         let config = Arc::clone(&config);
@@ -42,7 +42,7 @@ pub async fn check_all(
                 res = async move {
                     loop {
                         let Some(mut proxy) = queue.lock().await.pop() else {
-                            break Ok(());
+                            break;
                         };
                         let check_result = proxy.check(&config).await;
                         #[cfg(feature = "tui")]
@@ -72,23 +72,17 @@ pub async fn check_all(
                         }
                     }
                 } => res,
-                () = token.cancelled() => Ok(())
+                () = token.cancelled() => ()
             }
         });
     }
 
     while let Some(res) = join_set.join_next().await {
-        match res {
-            Ok(Ok(())) => {}
-            Ok(Err(e)) => {
-                return Err(e).wrap_err("proxy checking task failed");
-            }
-            Err(e) => {
-                tracing::error!(
-                    "proxy checking task panicked or was cancelled: {}",
-                    e
-                );
-            }
+        if let Err(e) = res {
+            tracing::error!(
+                "proxy checking task panicked or was cancelled: {}",
+                e
+            );
         }
     }
 

@@ -7,21 +7,21 @@ use tokio::io::AsyncWriteExt as _;
 use crate::event::{AppEvent, Event};
 use crate::{fs::get_cache_path, utils::is_docker};
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum DbType {
     Asn,
     Geo,
 }
 
 impl DbType {
-    const fn name(&self) -> &'static str {
+    const fn name(self) -> &'static str {
         match self {
             Self::Asn => "ASN",
             Self::Geo => "geolocation",
         }
     }
 
-    const fn url(&self) -> &'static str {
+    const fn url(self) -> &'static str {
         match self {
             Self::Asn => {
                 "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-ASN.mmdb"

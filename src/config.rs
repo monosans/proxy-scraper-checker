@@ -99,8 +99,8 @@ impl Config {
         self.scraping.sources.keys()
     }
 
-    pub fn protocol_is_enabled(&self, protocol: &ProxyType) -> bool {
-        self.scraping.sources.contains_key(protocol)
+    pub fn protocol_is_enabled(&self, protocol: ProxyType) -> bool {
+        self.scraping.sources.contains_key(&protocol)
     }
 
     pub async fn from_raw_config(

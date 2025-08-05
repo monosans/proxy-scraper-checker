@@ -11,7 +11,9 @@ use crate::{
     parsers::parse_ipv4,
 };
 
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum ProxyType {
     Http,

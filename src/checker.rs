@@ -47,13 +47,13 @@ pub async fn check_all(
                         let check_result = proxy.check(&config).await;
                         #[cfg(feature = "tui")]
                         drop(tx.send(Event::App(AppEvent::ProxyChecked(
-                            proxy.protocol.clone(),
+                            proxy.protocol,
                         ))));
                         match check_result {
                             Ok(()) => {
                                 #[cfg(feature = "tui")]
                                 drop(tx.send(Event::App(AppEvent::ProxyWorking(
-                                    proxy.protocol.clone(),
+                                    proxy.protocol,
                                 ))));
                                 checked_proxies.lock().await.push(proxy);
                             }

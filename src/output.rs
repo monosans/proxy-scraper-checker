@@ -27,7 +27,7 @@ fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
         move |_| iter::repeat_n(u8::MAX, 4).chain(proxy.host.bytes()).collect(),
         |ip| ip.octets().to_vec(),
     );
-    (proxy.protocol.clone(), host_key, proxy.port)
+    (proxy.protocol, host_key, proxy.port)
 }
 
 #[derive(serde::Serialize)]
@@ -48,7 +48,7 @@ fn group_proxies<'a>(
     proxies: &'a [Proxy],
 ) -> HashMap<ProxyType, Vec<&'a Proxy>> {
     let mut groups: HashMap<_, _> =
-        config.enabled_protocols().cloned().map(|p| (p, Vec::new())).collect();
+        config.enabled_protocols().copied().map(|p| (p, Vec::new())).collect();
     for proxy in proxies {
         if let Some(proxies) = groups.get_mut(&proxy.protocol) {
             proxies.push(proxy);

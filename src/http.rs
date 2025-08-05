@@ -73,17 +73,17 @@ fn calculate_retry_timeout(
 pub async fn fetch_text(
     http_client: reqwest::Client,
     url: url::Url,
-    basic_auth: Option<BasicAuth>,
-    headers: Option<HashMap<String, String>>,
+    basic_auth: Option<&BasicAuth>,
+    headers: Option<&HashMap<String, String>>,
 ) -> Result<String> {
     let mut attempt: u32 = 0;
     loop {
         let mut request = http_client.get(url.clone());
-        if let Some(auth) = &basic_auth {
+        if let Some(auth) = basic_auth {
             request =
                 request.basic_auth(&auth.username, auth.password.as_ref());
         }
-        if let Some(headers) = &headers {
+        if let Some(headers) = headers {
             for (k, v) in headers {
                 request = request.header(k, v);
             }

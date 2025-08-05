@@ -28,7 +28,7 @@ pub struct ScrapingConfig {
     pub connect_timeout: tokio::time::Duration,
     pub proxy: Option<url::Url>,
     pub user_agent: String,
-    pub sources: HashMap<ProxyType, Vec<Source>>,
+    pub sources: HashMap<ProxyType, Vec<Arc<Source>>>,
 }
 
 pub struct CheckingConfig {
@@ -95,7 +95,7 @@ impl Config {
 
     pub fn enabled_protocols(
         &self,
-    ) -> hash_map::Keys<'_, ProxyType, Vec<Source>> {
+    ) -> hash_map::Keys<'_, ProxyType, Vec<Arc<Source>>> {
         self.scraping.sources.keys()
     }
 
@@ -149,7 +149,12 @@ impl Config {
                     section.enabled.then(move || {
                         (
                             proxy_type,
-                            section.urls.into_iter().map(Into::into).collect(),
+                            section
+                                .urls
+                                .into_iter()
+                                .map(Into::into)
+                                .map(Arc::new)
+                                .collect(),
                         )
                     })
                 })

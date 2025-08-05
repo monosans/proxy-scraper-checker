@@ -17,7 +17,7 @@ async fn scrape_one(
     http_client: reqwest::Client,
     proto: ProxyType,
     proxies: Arc<tokio::sync::Mutex<HashSet<Proxy>>>,
-    source: Source,
+    source: Arc<Source>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
     let text_result = if let Ok(u) = url::Url::parse(&source.url) {
@@ -26,8 +26,8 @@ async fn scrape_one(
                 http::fetch_text(
                     http_client,
                     u,
-                    source.basic_auth,
-                    source.headers,
+                    source.basic_auth.as_ref(),
+                    source.headers.as_ref(),
                 )
                 .await
             }
@@ -127,11 +127,12 @@ pub async fn scrape_all(
         #[cfg(feature = "tui")]
         drop(tx.send(Event::App(AppEvent::SourcesTotal(proto, sources.len()))));
 
-        for source in sources.iter().cloned() {
+        for source in sources {
             let config = Arc::clone(&config);
             let http_client = http_client.clone();
             let proxies = Arc::clone(&proxies);
             let token = token.clone();
+            let source = Arc::clone(source);
             #[cfg(feature = "tui")]
             let tx = tx.clone();
             join_set.spawn(async move {

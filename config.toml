@@ -132,9 +132,9 @@ urls = [
 
     # Advanced URL configuration examples (with basic auth or custom headers):
     # HTTP Basic Auth example:
-    { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
+    # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
     # Custom headers example:
-    { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
+    # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
     "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks5",
     "https://raw.githubusercontent.com/hookzof/socks5_list/refs/heads/master/proxy.txt",

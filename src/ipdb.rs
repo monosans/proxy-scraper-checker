@@ -32,7 +32,7 @@ impl DbType {
         }
     }
 
-    async fn db_path(&self) -> color_eyre::Result<PathBuf> {
+    async fn db_path(self) -> color_eyre::Result<PathBuf> {
         let mut cache_path =
             get_cache_path().await.wrap_err("failed to get cache path")?;
         match self {
@@ -42,7 +42,7 @@ impl DbType {
         Ok(cache_path)
     }
 
-    async fn etag_path(&self) -> color_eyre::Result<PathBuf> {
+    async fn etag_path(self) -> color_eyre::Result<PathBuf> {
         let mut db_path = self.db_path().await.wrap_err_with(move || {
             format!("failed to get {} database path", self.name())
         })?;
@@ -51,13 +51,13 @@ impl DbType {
     }
 
     async fn save_db(
-        &self,
+        self,
         mut response: reqwest::Response,
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> color_eyre::Result<()> {
         #[cfg(feature = "tui")]
         drop(tx.send(Event::App(AppEvent::IpDbTotal(
-            *self,
+            self,
             response.content_length(),
         ))));
 
@@ -73,18 +73,17 @@ impl DbType {
                 format!("failed to write to file {}", db_path.display())
             })?;
             #[cfg(feature = "tui")]
-            drop(tx.send(Event::App(AppEvent::IpDbDownloaded(
-                *self,
-                chunk.len(),
-            ))));
+            drop(
+                tx.send(Event::App(AppEvent::IpDbDownloaded(
+                    self,
+                    chunk.len(),
+                ))),
+            );
         }
         Ok(())
     }
 
-    async fn save_etag(
-        &self,
-        etag: impl AsRef<[u8]>,
-    ) -> color_eyre::Result<()> {
+    async fn save_etag(self, etag: impl AsRef<[u8]>) -> color_eyre::Result<()> {
         let path = self.etag_path().await?;
         tokio::fs::write(&path, etag).await.wrap_err_with(move || {
             format!("failed to write to file {}", path.display())
@@ -92,7 +91,7 @@ impl DbType {
     }
 
     async fn read_etag(
-        &self,
+        self,
     ) -> color_eyre::Result<Option<reqwest::header::HeaderValue>> {
         let path = self.etag_path().await?;
         match tokio::fs::read_to_string(&path).await {
@@ -104,7 +103,7 @@ impl DbType {
         }
     }
 
-    async fn remove_etag(&self) -> color_eyre::Result<()> {
+    async fn remove_etag(self) -> color_eyre::Result<()> {
         let path = self.etag_path().await?;
         match tokio::fs::remove_file(&path).await {
             Ok(()) => Ok(()),

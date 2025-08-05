@@ -123,15 +123,13 @@ pub async fn scrape_all(
     let proxies = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
 
     let mut join_set = tokio::task::JoinSet::new();
-    for (proto, sources) in &config.scraping.sources {
+    for (&proto, sources) in &config.scraping.sources {
         #[cfg(feature = "tui")]
-        drop(
-            tx.send(Event::App(AppEvent::SourcesTotal(*proto, sources.len()))),
-        );
+        drop(tx.send(Event::App(AppEvent::SourcesTotal(proto, sources.len()))));
+
         for source in sources.iter().cloned() {
             let config = Arc::clone(&config);
             let http_client = http_client.clone();
-            let proto_copy = *proto;
             let proxies = Arc::clone(&proxies);
             let token = token.clone();
             #[cfg(feature = "tui")]
@@ -142,7 +140,7 @@ pub async fn scrape_all(
                     res = scrape_one(
                         config,
                         http_client,
-                        proto_copy,
+                        proto,
                         proxies,
                         source,
                         #[cfg(feature = "tui")]

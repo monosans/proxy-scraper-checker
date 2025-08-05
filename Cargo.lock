@@ -1344,7 +1344,6 @@ dependencies = [
  "tokio-util",
  "toml",
  "tracing",
- "tracing-log",
  "tracing-subscriber",
  "tui-logger",
  "url",
@@ -2284,7 +2283,6 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
- "serde",
 ]
 
 [[package]]

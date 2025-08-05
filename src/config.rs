@@ -1,12 +1,12 @@
 use std::{
-    collections::{HashMap, HashSet, hash_map},
+    collections::{HashMap, hash_map},
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
-use crate::{proxy::ProxyType, raw_config, utils::is_docker};
+use crate::{http::BasicAuth, proxy::ProxyType, raw_config, utils::is_docker};
 
 pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
 
@@ -15,16 +15,24 @@ pub struct HttpbinResponse {
     pub origin: String,
 }
 
+#[derive(Clone)]
+pub struct Source {
+    pub url: String,
+    pub basic_auth: Option<BasicAuth>,
+    pub headers: Option<HashMap<String, String>>,
+}
+
 pub struct ScrapingConfig {
     pub max_proxies_per_source: usize,
     pub timeout: tokio::time::Duration,
     pub connect_timeout: tokio::time::Duration,
+    pub proxy: Option<url::Url>,
     pub user_agent: String,
-    pub sources: HashMap<ProxyType, HashSet<String>>,
+    pub sources: HashMap<ProxyType, Vec<Source>>,
 }
 
 pub struct CheckingConfig {
-    pub check_url: String,
+    pub check_url: Option<url::Url>,
     pub max_concurrent_checks: usize,
     pub timeout: tokio::time::Duration,
     pub connect_timeout: tokio::time::Duration,
@@ -87,7 +95,7 @@ impl Config {
 
     pub fn enabled_protocols(
         &self,
-    ) -> hash_map::Keys<'_, ProxyType, HashSet<String>> {
+    ) -> hash_map::Keys<'_, ProxyType, Vec<Source>> {
         self.scraping.sources.keys()
     }
 
@@ -129,6 +137,7 @@ impl Config {
                 connect_timeout: tokio::time::Duration::from_secs_f64(
                     raw_config.scraping.connect_timeout,
                 ),
+                proxy: raw_config.scraping.proxy,
                 user_agent: raw_config.scraping.user_agent,
                 sources: [
                     (ProxyType::Http, raw_config.scraping.http),
@@ -137,7 +146,12 @@ impl Config {
                 ]
                 .into_iter()
                 .filter_map(|(proxy_type, section)| {
-                    section.enabled.then_some((proxy_type, section.urls))
+                    section.enabled.then(move || {
+                        (
+                            proxy_type,
+                            section.urls.into_iter().map(Into::into).collect(),
+                        )
+                    })
                 })
                 .collect(),
             },
@@ -166,6 +180,19 @@ impl Config {
                 },
             },
         })
+    }
+}
+
+impl From<raw_config::SourceConfig> for Source {
+    fn from(sc: raw_config::SourceConfig) -> Self {
+        match sc {
+            raw_config::SourceConfig::Simple(url) => {
+                Self { url, basic_auth: None, headers: None }
+            }
+            raw_config::SourceConfig::Detailed { url, basic_auth, headers } => {
+                Self { url, basic_auth, headers }
+            }
+        }
     }
 }
 

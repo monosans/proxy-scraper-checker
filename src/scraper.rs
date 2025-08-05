@@ -5,7 +5,7 @@ use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
 use crate::{
-    config::Config,
+    config::{Config, Source},
     http,
     parsers::PROXY_REGEX,
     proxy::{Proxy, ProxyType},
@@ -17,20 +17,28 @@ async fn scrape_one(
     http_client: reqwest::Client,
     proto: ProxyType,
     proxies: Arc<tokio::sync::Mutex<HashSet<Proxy>>>,
-    source: &str,
+    source: Source,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
-    let text_result = if let Ok(u) = url::Url::parse(source) {
+    let text_result = if let Ok(u) = url::Url::parse(&source.url) {
         match u.scheme() {
-            "http" | "https" => http::fetch_text(http_client, source).await,
+            "http" | "https" => {
+                http::fetch_text(
+                    http_client,
+                    u,
+                    source.basic_auth,
+                    source.headers,
+                )
+                .await
+            }
             _ => match u.to_file_path() {
                 Ok(path) => tokio::fs::read_to_string(path).await,
-                Err(()) => tokio::fs::read_to_string(source).await,
+                Err(()) => tokio::fs::read_to_string(&source.url).await,
             }
             .map_err(Into::into),
         }
     } else {
-        tokio::fs::read_to_string(source).await.map_err(Into::into)
+        tokio::fs::read_to_string(&source.url).await.map_err(Into::into)
     };
 
     #[cfg(feature = "tui")]
@@ -39,7 +47,7 @@ async fn scrape_one(
     let text = match text_result {
         Ok(text) => text,
         Err(e) => {
-            tracing::warn!("{} | {}", source, pretty_error(&e));
+            tracing::warn!("{} | {}", source.url, pretty_error(&e));
             return Ok(());
         }
     };
@@ -48,7 +56,7 @@ async fn scrape_one(
         PROXY_REGEX.captures_iter(&text).collect::<Result<Vec<_>, _>>()?;
 
     if matches.is_empty() {
-        tracing::warn!("{source} | No proxies found");
+        tracing::warn!("{} | No proxies found", source.url);
         return Ok(());
     }
 
@@ -57,7 +65,7 @@ async fn scrape_one(
     {
         tracing::warn!(
             "{} | Too many proxies ({}) - skipped",
-            source,
+            source.url,
             matches.len(),
         );
         return Ok(());
@@ -115,13 +123,13 @@ pub async fn scrape_all(
     let proxies = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
 
     let mut join_set = tokio::task::JoinSet::new();
-    for (proto, sources) in config.scraping.sources.clone() {
+    for (proto, sources) in &config.scraping.sources {
         #[cfg(feature = "tui")]
         drop(tx.send(Event::App(AppEvent::SourcesTotal(
             proto.clone(),
             sources.len(),
         ))));
-        for source in sources {
+        for source in sources.iter().cloned() {
             let config = Arc::clone(&config);
             let http_client = http_client.clone();
             let proto = proto.clone();
@@ -137,7 +145,7 @@ pub async fn scrape_all(
                         http_client,
                         proto,
                         proxies,
-                        &source,
+                        source,
                         #[cfg(feature = "tui")]
                         tx,
                     ) => res,

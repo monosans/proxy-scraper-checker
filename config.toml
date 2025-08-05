@@ -13,6 +13,10 @@ max_proxies_per_source = 100000
 timeout = 60.0
 connect_timeout = 5.0
 
+# HTTP(S),SOCKS4 or SOCKS5 proxy used for fetching sources (e.g., "socks5://user:pass@host:port"). Leave empty to disable.
+proxy = ""
+
+# User-Agent header for scraping requests
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
 
 
@@ -37,6 +41,7 @@ max_concurrent_checks = 1024
 timeout = 60.0
 connect_timeout = 5.0
 
+# User-Agent header for proxy check requests
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
 
 
@@ -71,10 +76,19 @@ include_geolocation = true
 # Sources are fetched in parallel for speed
 
 [scraping.http]
-enabled = true
+enabled = false
 urls = [
-    # Local file example:
+    # Local file examples:
     # "./my_http_proxies.txt",
+    # "/home/user/my_http_proxies.txt",
+    # "C:/Users/user/Desktop/my_http_proxies.txt",
+    # "file:///home/user/my_http_proxies.txt",
+
+    # Advanced URL configuration examples (with basic auth or custom headers):
+    # HTTP Basic Auth example:
+    # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
+    # Custom headers example:
+    # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
     "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=http",
     "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=https",
@@ -86,10 +100,19 @@ urls = [
 ]
 
 [scraping.socks4]
-enabled = true
+enabled = false
 urls = [
-    # Local file example:
+    # Local file examples:
     # "./my_socks4_proxies.txt",
+    # "/home/user/my_socks4_proxies.txt",
+    # "C:/Users/user/Desktop/my_socks4_proxies.txt",
+    # "file:///home/user/my_socks4_proxies.txt",
+
+    # Advanced URL configuration examples (with basic auth or custom headers):
+    # HTTP Basic Auth example:
+    # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
+    # Custom headers example:
+    # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
     "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks4",
     "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks4/data.txt",
@@ -101,8 +124,17 @@ urls = [
 [scraping.socks5]
 enabled = true
 urls = [
-    # Local file example:
+    # Local file examples:
     # "./my_socks5_proxies.txt",
+    # "/home/user/my_socks5_proxies.txt",
+    # "C:/Users/user/Desktop/my_socks5_proxies.txt",
+    # "file:///home/user/my_socks5_proxies.txt",
+
+    # Advanced URL configuration examples (with basic auth or custom headers):
+    # HTTP Basic Auth example:
+    { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
+    # Custom headers example:
+    { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
     "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks5",
     "https://raw.githubusercontent.com/hookzof/socks5_list/refs/heads/master/proxy.txt",

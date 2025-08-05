@@ -83,7 +83,7 @@ impl Proxy {
     }
 
     pub async fn check(&mut self, config: &Config) -> color_eyre::Result<()> {
-        let client = reqwest::Client::builder()
+        let client = reqwest::ClientBuilder::new()
             .user_agent(&config.checking.user_agent)
             .proxy(self.try_into()?)
             .timeout(config.checking.timeout)
@@ -93,7 +93,7 @@ impl Proxy {
             .wrap_err("failed to create reqwest::Client")?;
         let start = tokio::time::Instant::now();
         let response = client
-            .get(&config.checking.check_url)
+            .get(config.checking.check_url.clone().unwrap())
             .send()
             .await?
             .error_for_status()?;

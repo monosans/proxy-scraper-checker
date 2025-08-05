@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::HashMap,
     env,
     num::NonZero,
     path::{Path, PathBuf},
@@ -8,7 +8,7 @@ use std::{
 use color_eyre::eyre::WrapErr as _;
 use serde::{Deserialize, Deserializer};
 
-use crate::utils::is_http_url;
+use crate::http::BasicAuth;
 
 fn validate_positive_f64<'de, D: Deserializer<'de>>(
     deserializer: D,
@@ -21,23 +21,72 @@ fn validate_positive_f64<'de, D: Deserializer<'de>>(
     }
 }
 
-fn validate_http_url<'de, D: Deserializer<'de>>(
+fn validate_url_generic<'de, D>(
     deserializer: D,
-) -> Result<String, D::Error> {
+    allowed_schemes: &[&str],
+) -> Result<Option<url::Url>, D::Error>
+where
+    D: Deserializer<'de>,
+{
     let s = String::deserialize(deserializer)?;
-    if s.is_empty() || is_http_url(&s) {
-        Ok(s)
+    if s.trim().is_empty() {
+        return Ok(None);
+    }
+    if let Ok(u) = url::Url::parse(&s)
+        && allowed_schemes.contains(&u.scheme())
+        && u.host_str().is_some()
+    {
+        Ok(Some(u))
     } else {
+        let type_label = if let Some((last, rest)) = allowed_schemes
+            .iter()
+            .map(|scheme| format!("'{scheme}'"))
+            .collect::<Vec<_>>()
+            .split_last()
+        {
+            if rest.is_empty() {
+                last.clone()
+            } else {
+                format!("{} or {}", rest.join(", "), last)
+            }
+        } else {
+            String::new()
+        };
         Err(serde::de::Error::custom(format!(
-            "'{s}' is not a valid 'http' or 'https' url"
+            "'{s}' is not a valid {type_label} url"
         )))
     }
+}
+
+fn validate_proxy_url<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<url::Url>, D::Error> {
+    validate_url_generic(deserializer, &["http", "https", "socks4", "socks5"])
+}
+
+fn validate_http_url<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<url::Url>, D::Error> {
+    validate_url_generic(deserializer, &["http", "https"])
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum SourceConfig {
+    Simple(String),
+    Detailed {
+        url: String,
+        #[serde(default)]
+        basic_auth: Option<BasicAuth>,
+        #[serde(default)]
+        headers: Option<HashMap<String, String>>,
+    },
 }
 
 #[derive(Deserialize)]
 pub struct ScrapingProtocolConfig {
     pub enabled: bool,
-    pub urls: HashSet<String>,
+    pub urls: Vec<SourceConfig>,
 }
 
 #[derive(Deserialize)]
@@ -47,6 +96,8 @@ pub struct ScrapingConfig {
     pub timeout: f64,
     #[serde(deserialize_with = "validate_positive_f64")]
     pub connect_timeout: f64,
+    #[serde(deserialize_with = "validate_proxy_url")]
+    pub proxy: Option<url::Url>,
     pub user_agent: String,
 
     pub http: ScrapingProtocolConfig,
@@ -57,7 +108,7 @@ pub struct ScrapingConfig {
 #[derive(Deserialize)]
 pub struct CheckingConfig {
     #[serde(deserialize_with = "validate_http_url")]
-    pub check_url: String,
+    pub check_url: Option<url::Url>,
     pub max_concurrent_checks: NonZero<usize>,
     #[serde(deserialize_with = "validate_positive_f64")]
     pub timeout: f64,

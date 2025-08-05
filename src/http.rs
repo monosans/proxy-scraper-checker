@@ -1,4 +1,7 @@
-use std::time::{Duration, SystemTime};
+use std::{
+    collections::HashMap,
+    time::{Duration, SystemTime},
+};
 
 use color_eyre::Result;
 
@@ -16,6 +19,12 @@ static RETRY_STATUSES: &[reqwest::StatusCode] = &[
     reqwest::StatusCode::SERVICE_UNAVAILABLE,
     reqwest::StatusCode::GATEWAY_TIMEOUT,
 ];
+
+#[derive(Clone, serde::Deserialize)]
+pub struct BasicAuth {
+    pub username: String,
+    pub password: Option<String>,
+}
 
 fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
     if let Some(val) = headers.get("retry-after-ms")
@@ -63,12 +72,23 @@ fn calculate_retry_timeout(
 
 pub async fn fetch_text(
     http_client: reqwest::Client,
-    url: &str,
+    url: url::Url,
+    basic_auth: Option<BasicAuth>,
+    headers: Option<HashMap<String, String>>,
 ) -> Result<String> {
     let mut attempt: u32 = 0;
     loop {
-        let resp = http_client.get(url).send().await;
-        match resp {
+        let mut request = http_client.get(url.clone());
+        if let Some(auth) = &basic_auth {
+            request =
+                request.basic_auth(&auth.username, auth.password.as_ref());
+        }
+        if let Some(headers) = &headers {
+            for (k, v) in headers {
+                request = request.header(k, v);
+            }
+        }
+        match request.send().await {
             Ok(resp) => {
                 let status = resp.status();
                 if status.is_client_error() || status.is_server_error() {
@@ -124,10 +144,13 @@ pub async fn fetch_text(
 pub fn create_reqwest_client(
     config: &Config,
 ) -> reqwest::Result<reqwest::Client> {
-    reqwest::Client::builder()
+    let mut builder = reqwest::ClientBuilder::new()
         .user_agent(&config.scraping.user_agent)
         .timeout(config.scraping.timeout)
         .connect_timeout(config.scraping.connect_timeout)
-        .use_rustls_tls()
-        .build()
+        .use_rustls_tls();
+    if let Some(proxy) = config.scraping.proxy.clone() {
+        builder = builder.proxy(reqwest::Proxy::all(proxy)?);
+    }
+    builder.build()
 }

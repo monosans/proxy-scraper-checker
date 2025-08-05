@@ -12,7 +12,7 @@ pub async fn check_all(
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<Vec<Proxy>> {
-    if config.checking.check_url.is_empty() {
+    if config.checking.check_url.is_none() {
         return Ok(proxies);
     }
 

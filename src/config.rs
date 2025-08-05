@@ -200,7 +200,9 @@ pub async fn load_config() -> color_eyre::Result<Arc<Config>> {
     let raw_config_path = raw_config::get_config_path();
     let raw_config = raw_config::read_config(Path::new(&raw_config_path))
         .await
-        .wrap_err_with(move || format!("failed to read {raw_config_path}"))?;
+        .wrap_err_with(move || {
+            format!("failed to load config from {raw_config_path}")
+        })?;
 
     let config = Config::from_raw_config(raw_config)
         .await

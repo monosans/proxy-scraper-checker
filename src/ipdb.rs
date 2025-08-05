@@ -57,7 +57,7 @@ impl DbType {
     ) -> color_eyre::Result<()> {
         #[cfg(feature = "tui")]
         drop(tx.send(Event::App(AppEvent::IpDbTotal(
-            self.clone(),
+            *self,
             response.content_length(),
         ))));
 
@@ -74,7 +74,7 @@ impl DbType {
             })?;
             #[cfg(feature = "tui")]
             drop(tx.send(Event::App(AppEvent::IpDbDownloaded(
-                self.clone(),
+                *self,
                 chunk.len(),
             ))));
         }

@@ -76,7 +76,7 @@ include_geolocation = true
 # Sources are fetched in parallel for speed
 
 [scraping.http]
-enabled = false
+enabled = true
 urls = [
     # Local file examples:
     # "./my_http_proxies.txt",
@@ -100,7 +100,7 @@ urls = [
 ]
 
 [scraping.socks4]
-enabled = false
+enabled = true
 urls = [
     # Local file examples:
     # "./my_socks4_proxies.txt",

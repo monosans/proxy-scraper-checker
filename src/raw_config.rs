@@ -6,11 +6,11 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize as _;
 
 use crate::http::BasicAuth;
 
-fn validate_positive_f64<'de, D: Deserializer<'de>>(
+fn validate_positive_f64<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<f64, D::Error> {
     let val = f64::deserialize(deserializer)?;
@@ -26,7 +26,7 @@ fn validate_url_generic<'de, D>(
     allowed_schemes: &[&str],
 ) -> Result<Option<url::Url>, D::Error>
 where
-    D: Deserializer<'de>,
+    D: serde::Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
     if s.trim().is_empty() {
@@ -58,19 +58,19 @@ where
     }
 }
 
-fn validate_proxy_url<'de, D: Deserializer<'de>>(
+fn validate_proxy_url<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<url::Url>, D::Error> {
     validate_url_generic(deserializer, &["http", "https", "socks4", "socks5"])
 }
 
-fn validate_http_url<'de, D: Deserializer<'de>>(
+fn validate_http_url<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<url::Url>, D::Error> {
     validate_url_generic(deserializer, &["http", "https"])
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 #[serde(untagged)]
 pub enum SourceConfig {
     Simple(String),
@@ -83,13 +83,13 @@ pub enum SourceConfig {
     },
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct ScrapingProtocolConfig {
     pub enabled: bool,
     pub urls: Vec<SourceConfig>,
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct ScrapingConfig {
     pub max_proxies_per_source: usize,
     #[serde(deserialize_with = "validate_positive_f64")]
@@ -105,7 +105,7 @@ pub struct ScrapingConfig {
     pub socks5: ScrapingProtocolConfig,
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct CheckingConfig {
     #[serde(deserialize_with = "validate_http_url")]
     pub check_url: Option<url::Url>,
@@ -117,12 +117,12 @@ pub struct CheckingConfig {
     pub user_agent: String,
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct TxtOutputConfig {
     pub enabled: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct JsonOutputConfig {
     pub enabled: bool,
     pub include_asn: bool,
@@ -136,7 +136,7 @@ pub struct OutputConfig {
     pub json: JsonOutputConfig,
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct RawConfig {
     pub debug: bool,
     pub scraping: ScrapingConfig,
@@ -145,11 +145,11 @@ pub struct RawConfig {
 }
 
 #[expect(clippy::missing_trait_methods)]
-impl<'de> Deserialize<'de> for OutputConfig {
-    fn deserialize<D: Deserializer<'de>>(
+impl<'de> serde::Deserialize<'de> for OutputConfig {
+    fn deserialize<D: serde::Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
+        #[derive(serde::Deserialize)]
         struct InnerOutputConfig {
             pub path: PathBuf,
             pub sort_by_speed: bool,

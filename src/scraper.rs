@@ -25,21 +25,12 @@ async fn scrape_one(
             "http" | "https" => http::fetch_text(http_client, source).await,
             _ => match u.to_file_path() {
                 Ok(path) => tokio::fs::read_to_string(path).await,
-                Err(()) => {
-                    tokio::fs::read_to_string(
-                        source.strip_prefix("file://").unwrap_or(source),
-                    )
-                    .await
-                }
+                Err(()) => tokio::fs::read_to_string(source).await,
             }
             .map_err(Into::into),
         }
     } else {
-        tokio::fs::read_to_string(
-            source.strip_prefix("file://").unwrap_or(source),
-        )
-        .await
-        .map_err(Into::into)
+        tokio::fs::read_to_string(source).await.map_err(Into::into)
     };
 
     #[cfg(feature = "tui")]

@@ -32,7 +32,7 @@ fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
 
 #[derive(serde::Serialize)]
 struct ProxyJson<'a> {
-    protocol: &'a ProxyType,
+    protocol: ProxyType,
     username: Option<&'a str>,
     password: Option<&'a str>,
     host: &'a str,
@@ -89,7 +89,7 @@ pub async fn save_proxies(
         let mut proxy_dicts = Vec::with_capacity(proxies.len());
         for proxy in &proxies {
             proxy_dicts.push(ProxyJson {
-                protocol: &proxy.protocol,
+                protocol: proxy.protocol,
                 username: proxy.username.as_deref(),
                 password: proxy.password.as_deref(),
                 host: &proxy.host,

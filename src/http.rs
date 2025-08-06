@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fmt::Display,
     time::{Duration, SystemTime},
 };
 
@@ -70,9 +71,9 @@ fn calculate_retry_timeout(
     Some(base.mul_f64(jitter))
 }
 
-pub async fn fetch_text(
+pub async fn fetch_text<U: reqwest::IntoUrl + Clone + Display>(
     http_client: reqwest::Client,
-    url: url::Url,
+    url: U,
     basic_auth: Option<&BasicAuth>,
     headers: Option<&HashMap<String, String>>,
 ) -> Result<String> {
@@ -114,8 +115,7 @@ pub async fn fetch_text(
                     }
                     resp.error_for_status_ref()?;
                 }
-                let text = resp.text().await?;
-                return Ok(text);
+                return Ok(resp.text().await?);
             }
             Err(err) => {
                 if attempt < DEFAULT_MAX_RETRIES

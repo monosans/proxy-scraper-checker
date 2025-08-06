@@ -127,7 +127,7 @@ async fn crossterm_event_listener(
                 match maybe {
                     Some(Ok(event)) => {
                         if tx.send(Event::Crossterm(event)).is_err() {
-                            break ;
+                            break;
                         }
                     },
                     Some(Err(_)) => {},

@@ -149,8 +149,8 @@ pub fn create_reqwest_client(
         .timeout(config.scraping.timeout)
         .connect_timeout(config.scraping.connect_timeout)
         .use_rustls_tls();
-    if let Some(proxy) = config.scraping.proxy.clone() {
-        builder = builder.proxy(reqwest::Proxy::all(proxy)?);
+    if let Some(proxy) = &config.scraping.proxy {
+        builder = builder.proxy(reqwest::Proxy::all(proxy.clone())?);
     }
     builder.build()
 }

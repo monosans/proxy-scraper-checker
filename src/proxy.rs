@@ -85,30 +85,33 @@ impl Proxy {
     }
 
     pub async fn check(&mut self, config: &Config) -> color_eyre::Result<()> {
-        let client = reqwest::ClientBuilder::new()
-            .user_agent(&config.checking.user_agent)
-            .proxy(self.try_into()?)
-            .timeout(config.checking.timeout)
-            .connect_timeout(config.checking.connect_timeout)
-            .use_rustls_tls()
-            .build()
-            .wrap_err("failed to create reqwest::Client")?;
-        let start = tokio::time::Instant::now();
-        let response = client
-            .get(config.checking.check_url.clone().unwrap())
-            .send()
-            .await?
-            .error_for_status()?;
-        drop(client);
-        self.timeout = Some(start.elapsed());
-        self.exit_ip = response.text().await.map_or(None, |text| {
-            if let Ok(httpbin) = serde_json::from_str::<HttpbinResponse>(&text)
-            {
-                parse_ipv4(&httpbin.origin)
-            } else {
-                parse_ipv4(&text)
-            }
-        });
+        if let Some(check_url) = &config.checking.check_url {
+            let client = reqwest::ClientBuilder::new()
+                .user_agent(&config.checking.user_agent)
+                .proxy(self.try_into()?)
+                .timeout(config.checking.timeout)
+                .connect_timeout(config.checking.connect_timeout)
+                .use_rustls_tls()
+                .build()
+                .wrap_err("failed to create reqwest::Client")?;
+            let start = tokio::time::Instant::now();
+            let response = client
+                .get(check_url.clone())
+                .send()
+                .await?
+                .error_for_status()?;
+            drop(client);
+            self.timeout = Some(start.elapsed());
+            self.exit_ip = response.text().await.map_or(None, |text| {
+                if let Ok(httpbin) =
+                    serde_json::from_str::<HttpbinResponse>(&text)
+                {
+                    parse_ipv4(&httpbin.origin)
+                } else {
+                    parse_ipv4(&text)
+                }
+            });
+        }
         Ok(())
     }
 

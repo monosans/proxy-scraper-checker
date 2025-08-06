@@ -66,9 +66,14 @@ impl DbType {
             tokio::fs::File::create(&db_path).await.wrap_err_with(|| {
                 format!("failed to create file {}", db_path.display())
             })?;
-        while let Some(chunk) = response.chunk().await.wrap_err_with(|| {
-            format!("failed to read {} database response chunk", self.name())
-        })? {
+        while let Some(chunk) =
+            response.chunk().await.wrap_err_with(move || {
+                format!(
+                    "failed to read {} database response chunk",
+                    self.name()
+                )
+            })?
+        {
             file.write_all(&chunk).await.wrap_err_with(|| {
                 format!("failed to write to file {}", db_path.display())
             })?;
@@ -135,14 +140,14 @@ impl DbType {
             .headers(headers)
             .send()
             .await
-            .wrap_err_with(|| {
+            .wrap_err_with(move || {
                 format!(
                     "failed to send {} database download request",
                     self.name()
                 )
             })?
             .error_for_status()
-            .wrap_err_with(|| {
+            .wrap_err_with(move || {
                 format!(
                     "got error HTTP status code when downloading {} database",
                     self.name()
@@ -174,7 +179,9 @@ impl DbType {
             tx.clone(),
         )
         .await
-        .wrap_err_with(|| format!("failed to save {} database", self.name()))?;
+        .wrap_err_with(move || {
+            format!("failed to save {} database", self.name())
+        })?;
 
         if is_docker().await {
             tracing::info!(
@@ -191,11 +198,11 @@ impl DbType {
         }
 
         if let Some(etag_value) = etag {
-            self.save_etag(etag_value).await.wrap_err_with(|| {
+            self.save_etag(etag_value).await.wrap_err_with(move || {
                 format!("failed to save {} database ETag", self.name())
             })
         } else {
-            self.remove_etag().await.wrap_err_with(|| {
+            self.remove_etag().await.wrap_err_with(move || {
                 format!("failed to remove {} database ETag", self.name())
             })
         }

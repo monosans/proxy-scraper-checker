@@ -107,7 +107,7 @@ async fn scrape_one(
     }
     #[cfg(feature = "tui")]
     for proto in seen_protocols {
-        let count = proxies.iter().filter(|p| p.protocol == proto).count();
+        let count = proxies.iter().filter(move |p| p.protocol == proto).count();
         drop(tx.send(Event::App(AppEvent::TotalProxies(proto, count))));
     }
     drop(proxies);

@@ -15,7 +15,6 @@ pub struct HttpbinResponse {
     pub origin: String,
 }
 
-#[derive(Clone)]
 pub struct Source {
     pub url: String,
     pub basic_auth: Option<BasicAuth>,

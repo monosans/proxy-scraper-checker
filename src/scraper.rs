@@ -16,7 +16,7 @@ async fn scrape_one(
     config: Arc<Config>,
     http_client: reqwest::Client,
     proto: ProxyType,
-    proxies: Arc<tokio::sync::Mutex<HashSet<Proxy>>>,
+    proxies: Arc<parking_lot::Mutex<HashSet<Proxy>>>,
     source: Arc<Source>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<()> {
@@ -73,7 +73,7 @@ async fn scrape_one(
 
     #[cfg(feature = "tui")]
     let mut seen_protocols = HashSet::new();
-    let mut proxies = proxies.lock().await;
+    let mut proxies = proxies.lock();
     for capture in matches {
         let protocol = match capture.name("protocol") {
             Some(m) => m.as_str().parse()?,
@@ -120,7 +120,7 @@ pub async fn scrape_all(
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> color_eyre::Result<Vec<Proxy>> {
-    let proxies = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
+    let proxies = Arc::new(parking_lot::Mutex::new(HashSet::new()));
 
     let mut join_set = tokio::task::JoinSet::new();
     for (&proto, sources) in &config.scraping.sources {

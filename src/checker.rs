@@ -25,8 +25,8 @@ pub async fn check_all(
     #[cfg(not(feature = "tui"))]
     tracing::info!("Started checking {} proxies", proxies.len());
 
-    let queue = Arc::new(tokio::sync::Mutex::new(proxies));
-    let checked_proxies = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let queue = Arc::new(parking_lot::Mutex::new(proxies));
+    let checked_proxies = Arc::new(parking_lot::Mutex::new(Vec::new()));
 
     let mut join_set = tokio::task::JoinSet::<()>::new();
     for _ in 0..workers_count {
@@ -41,7 +41,7 @@ pub async fn check_all(
                 biased;
                 res = async move {
                     loop {
-                        let Some(mut proxy) = queue.lock().await.pop() else {
+                        let Some(mut proxy) = queue.lock().pop() else {
                             break;
                         };
                         let check_result = proxy.check(&config).await;
@@ -55,7 +55,7 @@ pub async fn check_all(
                                 drop(tx.send(Event::App(AppEvent::ProxyWorking(
                                     proxy.protocol,
                                 ))));
-                                checked_proxies.lock().await.push(proxy);
+                                checked_proxies.lock().push(proxy);
                             }
                             Err(e)
                                 if tracing::event_enabled!(

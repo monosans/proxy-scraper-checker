@@ -104,11 +104,11 @@ async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
             () = tx.closed() => {
                 break;
             },
-            _ = tick.tick() =>{
+            _ = tick.tick() => {
                 if tx.send(Event::Tick).is_err() {
                     break;
                 }
-            }
+            },
         }
     }
 }
@@ -135,7 +135,7 @@ async fn crossterm_event_listener(
                         break;
                     }
                 }
-            }
+            },
         }
     }
 }

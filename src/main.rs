@@ -119,7 +119,7 @@ async fn download_output_dependencies(
                     #[cfg(feature = "tui")]
                     tx,
                 ) => res,
-                () = token.cancelled() => Ok(())
+                () = token.cancelled() => Ok(()),
             }
         });
     }
@@ -133,7 +133,7 @@ async fn download_output_dependencies(
                     #[cfg(feature = "tui")]
                     tx,
                 ) => res,
-                () = token.cancelled() => Ok(())
+                () = token.cancelled() => Ok(()),
             }
         });
     }
@@ -236,13 +236,13 @@ fn watch_signals(
         tokio::spawn(async move {
             tokio::select! {
                 biased;
-                () = token.cancelled() => {}
+                () = token.cancelled() => {},
                 _ = stream.recv() => {
                     tracing::info!("Received {} signal, exiting...", signal_name);
                     token.cancel();
                     #[cfg(feature = "tui")]
                     drop(tx.send(event::Event::App(event::AppEvent::Quit)));
-                }
+                },
             }
         });
     }

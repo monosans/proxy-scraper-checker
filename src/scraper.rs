@@ -147,7 +147,7 @@ pub async fn scrape_all(
                         #[cfg(feature = "tui")]
                         tx,
                     ) => res,
-                    () = token.cancelled() => Ok(())
+                    () = token.cancelled() => Ok(()),
                 }
             });
         }

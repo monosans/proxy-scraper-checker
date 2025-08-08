@@ -46,22 +46,14 @@ pub async fn check_all(
                         };
                         let check_result = proxy.check(&config).await;
                         #[cfg(feature = "tui")]
-                        drop(tx.send(Event::App(AppEvent::ProxyChecked(
-                            proxy.protocol,
-                        ))));
+                        drop(tx.send(Event::App(AppEvent::ProxyChecked(proxy.protocol))));
                         match check_result {
                             Ok(()) => {
                                 #[cfg(feature = "tui")]
-                                drop(tx.send(Event::App(AppEvent::ProxyWorking(
-                                    proxy.protocol,
-                                ))));
+                                drop(tx.send(Event::App(AppEvent::ProxyWorking(proxy.protocol))));
                                 checked_proxies.lock().push(proxy);
                             }
-                            Err(e)
-                                if tracing::event_enabled!(
-                                    tracing::Level::DEBUG
-                                ) =>
-                            {
+                            Err(e) if tracing::event_enabled!(tracing::Level::DEBUG) => {
                                 tracing::debug!(
                                     "{} | {}",
                                     proxy.as_str(true),
@@ -72,7 +64,7 @@ pub async fn check_all(
                         }
                     }
                 } => res,
-                () = token.cancelled() => ()
+                () = token.cancelled() => (),
             }
         });
     }

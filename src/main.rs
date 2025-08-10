@@ -72,12 +72,8 @@ use tracing_subscriber::{
 
 #[cfg(all(
     feature = "mimalloc",
+    any(target_arch = "aarch64", target_arch = "x86_64"),
     any(target_os = "linux", target_os = "macos", target_os = "windows"),
-    any(
-        target_arch = "x86_64",
-        target_arch = "aarch64",
-        all(target_os = "windows", target_arch = "x86")
-    )
 ))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;

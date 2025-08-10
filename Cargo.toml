@@ -31,7 +31,7 @@ tui-logger = { version = "=0.17.3", features = [
 ], optional = true }
 url = "=2.5.4"
 
-[target.'cfg(all(any(target_os = "linux", target_os = "macos", target_os = "windows"), any(target_arch = "x86_64", target_arch = "aarch64", all(target_os = "windows", target_arch = "x86"))))'.dependencies]
+[target.'cfg(all(any(target_arch = "aarch64", target_arch = "x86_64"), any(target_os = "linux", target_os = "macos", target_os = "windows")))'.dependencies]
 mimalloc = { version = "=0.1.47", optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]

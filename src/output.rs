@@ -61,7 +61,7 @@ fn group_proxies<'a>(
 pub async fn save_proxies(
     config: Arc<Config>,
     mut proxies: Vec<Proxy>,
-) -> color_eyre::Result<()> {
+) -> crate::Result<()> {
     if config.output.sort_by_speed {
         proxies.sort_by_key(sort_by_timeout);
     } else {

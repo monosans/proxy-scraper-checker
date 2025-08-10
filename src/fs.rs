@@ -4,11 +4,11 @@ use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
 use crate::config::APP_DIRECTORY_NAME;
 
-pub async fn get_cache_path() -> color_eyre::Result<PathBuf> {
+pub async fn get_cache_path() -> crate::Result<PathBuf> {
     static CACHE: tokio::sync::OnceCell<PathBuf> =
         tokio::sync::OnceCell::const_new();
     Ok(CACHE
-        .get_or_try_init(async || -> color_eyre::Result<PathBuf> {
+        .get_or_try_init(async || -> crate::Result<PathBuf> {
             let mut path = tokio::task::spawn_blocking(dirs::cache_dir)
                 .await
                 .wrap_err("failed to spawn task to get user's cache directory")?

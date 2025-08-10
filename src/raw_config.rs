@@ -180,7 +180,7 @@ pub fn get_config_path() -> String {
     env::var(CONFIG_ENV).unwrap_or_else(|_| "config.toml".to_owned())
 }
 
-pub async fn read_config(path: &Path) -> color_eyre::Result<RawConfig> {
+pub async fn read_config(path: &Path) -> crate::Result<RawConfig> {
     let raw_config =
         tokio::fs::read_to_string(path).await.wrap_err_with(move || {
             format!("failed to read {} to string", path.display())

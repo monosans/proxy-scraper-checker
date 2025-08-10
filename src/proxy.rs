@@ -22,7 +22,7 @@ pub enum ProxyType {
 }
 
 impl FromStr for ProxyType {
-    type Err = color_eyre::Report;
+    type Err = crate::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_ascii_lowercase().as_str() {
@@ -60,7 +60,7 @@ pub struct Proxy {
 }
 
 impl TryFrom<&mut Proxy> for reqwest::Proxy {
-    type Error = color_eyre::Report;
+    type Error = crate::Error;
 
     fn try_from(value: &mut Proxy) -> Result<Self, Self::Error> {
         let proxy = Self::all(format!(
@@ -84,7 +84,7 @@ impl Proxy {
         self.timeout.is_some()
     }
 
-    pub async fn check(&mut self, config: &Config) -> color_eyre::Result<()> {
+    pub async fn check(&mut self, config: &Config) -> crate::Result<()> {
         if let Some(check_url) = &config.checking.check_url {
             let client = reqwest::ClientBuilder::new()
                 .user_agent(&config.checking.user_agent)

@@ -16,6 +16,6 @@ pub async fn is_docker() -> bool {
     }
 }
 
-pub fn pretty_error(e: &color_eyre::Report) -> String {
+pub fn pretty_error(e: &crate::Error) -> String {
     e.chain().map(ToString::to_string).collect::<Vec<_>>().join(" \u{2192} ")
 }

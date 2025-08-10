@@ -62,7 +62,6 @@ mod scraper;
 #[cfg(feature = "tui")]
 mod tui;
 mod utils;
-
 use std::sync::Arc;
 
 use color_eyre::eyre::WrapErr as _;
@@ -77,6 +76,9 @@ use tracing_subscriber::{
 ))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+type Error = color_eyre::Report;
+type Result<T> = color_eyre::Result<T>;
 
 fn create_logging_filter(
     config: &config::Config,
@@ -110,7 +112,7 @@ async fn download_output_dependencies(
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> color_eyre::Result<()> {
+) -> crate::Result<()> {
     let mut output_dependencies_tasks = tokio::task::JoinSet::new();
 
     if config.asn_enabled() {
@@ -158,7 +160,7 @@ async fn main_task(
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> color_eyre::Result<()> {
+) -> crate::Result<()> {
     let http_client = http::create_reqwest_client(&config)
         .wrap_err("failed to create reqwest HTTP client")?;
 
@@ -260,7 +262,7 @@ fn watch_signals(
 async fn run_with_tui(
     config: Arc<config::Config>,
     logging_filter: tracing_subscriber::filter::Targets,
-) -> color_eyre::Result<()> {
+) -> crate::Result<()> {
     tui_logger::init_logger(tui_logger::LevelFilter::Debug)
         .wrap_err("failed to initialize tui_logger")?;
     tracing_subscriber::registry()
@@ -294,7 +296,7 @@ async fn run_with_tui(
 async fn run_without_tui(
     config: Arc<config::Config>,
     logging_filter: tracing_subscriber::filter::Targets,
-) -> color_eyre::Result<()> {
+) -> crate::Result<()> {
     tracing_subscriber::registry()
         .with(logging_filter)
         .with(tracing_subscriber::fmt::layer())
@@ -309,7 +311,7 @@ async fn run_without_tui(
 }
 
 #[tokio::main]
-async fn main() -> color_eyre::Result<()> {
+async fn main() -> crate::Result<()> {
     color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
 
     let config = config::load_config().await?;

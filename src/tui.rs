@@ -40,7 +40,7 @@ pub async fn run(
     token: tokio_util::sync::CancellationToken,
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
     mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
-) -> color_eyre::Result<()> {
+) -> crate::Result<()> {
     tokio::spawn(tick_event_listener(tx.clone()));
     tokio::spawn(crossterm_event_listener(tx));
 

@@ -23,12 +23,16 @@ impl DbType {
 
     const fn url(self) -> &'static str {
         match self {
-            Self::Asn => "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-ASN.mmdb",
-            Self::Geo => "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-City.mmdb",
+            Self::Asn => {
+                "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-ASN.mmdb"
+            }
+            Self::Geo => {
+                "https://raw.githubusercontent.com/P3TERX/GeoLite.mmdb/download/GeoLite2-City.mmdb"
+            }
         }
     }
 
-    async fn db_path(self) -> color_eyre::Result<PathBuf> {
+    async fn db_path(self) -> crate::Result<PathBuf> {
         let mut cache_path =
             get_cache_path().await.wrap_err("failed to get cache path")?;
         match self {
@@ -38,7 +42,7 @@ impl DbType {
         Ok(cache_path)
     }
 
-    async fn etag_path(self) -> color_eyre::Result<PathBuf> {
+    async fn etag_path(self) -> crate::Result<PathBuf> {
         let mut db_path = self.db_path().await.wrap_err_with(move || {
             format!("failed to get {} database path", self.name())
         })?;
@@ -50,7 +54,7 @@ impl DbType {
         self,
         mut response: reqwest::Response,
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-    ) -> color_eyre::Result<()> {
+    ) -> crate::Result<()> {
         #[cfg(feature = "tui")]
         drop(tx.send(Event::App(AppEvent::IpDbTotal(
             self,
@@ -84,7 +88,7 @@ impl DbType {
         Ok(())
     }
 
-    async fn save_etag(self, etag: impl AsRef<[u8]>) -> color_eyre::Result<()> {
+    async fn save_etag(self, etag: impl AsRef<[u8]>) -> crate::Result<()> {
         let path = self.etag_path().await?;
         tokio::fs::write(&path, etag).await.wrap_err_with(move || {
             format!("failed to write to file {}", path.display())
@@ -93,7 +97,7 @@ impl DbType {
 
     async fn read_etag(
         self,
-    ) -> color_eyre::Result<Option<reqwest::header::HeaderValue>> {
+    ) -> crate::Result<Option<reqwest::header::HeaderValue>> {
         let path = self.etag_path().await?;
         match tokio::fs::read_to_string(&path).await {
             Ok(text) => Ok(text.parse().ok()),
@@ -104,7 +108,7 @@ impl DbType {
         }
     }
 
-    async fn remove_etag(self) -> color_eyre::Result<()> {
+    async fn remove_etag(self) -> crate::Result<()> {
         let path = self.etag_path().await?;
         match tokio::fs::remove_file(&path).await {
             Ok(()) => Ok(()),
@@ -119,7 +123,7 @@ impl DbType {
         self,
         http_client: reqwest::Client,
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-    ) -> color_eyre::Result<()> {
+    ) -> crate::Result<()> {
         let db_path = self.db_path().await?;
         let mut headers = reqwest::header::HeaderMap::new();
         #[expect(clippy::collapsible_if)]
@@ -206,7 +210,7 @@ impl DbType {
 
     pub async fn open_mmap(
         self,
-    ) -> color_eyre::Result<maxminddb::Reader<maxminddb::Mmap>> {
+    ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
         let path = self.db_path().await?;
         tokio::task::spawn_blocking(move || maxminddb::Reader::open_mmap(path))
             .await

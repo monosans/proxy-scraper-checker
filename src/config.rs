@@ -64,7 +64,7 @@ pub struct Config {
 
 async fn get_output_path(
     raw_config: &raw_config::RawConfig,
-) -> color_eyre::Result<PathBuf> {
+) -> crate::Result<PathBuf> {
     let output_path = if is_docker().await {
         let mut path = tokio::task::spawn_blocking(dirs::data_local_dir)
             .await
@@ -104,7 +104,7 @@ impl Config {
 
     pub async fn from_raw_config(
         raw_config: raw_config::RawConfig,
-    ) -> color_eyre::Result<Self> {
+    ) -> crate::Result<Self> {
         let output_path = get_output_path(&raw_config).await?;
 
         let max_concurrent_checks =
@@ -200,7 +200,7 @@ impl From<raw_config::SourceConfig> for Source {
     }
 }
 
-pub async fn load_config() -> color_eyre::Result<Arc<Config>> {
+pub async fn load_config() -> crate::Result<Arc<Config>> {
     let raw_config_path = raw_config::get_config_path();
     let raw_config = raw_config::read_config(Path::new(&raw_config_path))
         .await

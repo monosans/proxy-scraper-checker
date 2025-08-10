@@ -4,8 +4,6 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use color_eyre::Result;
-
 use crate::config::Config;
 
 const DEFAULT_MAX_RETRIES: u32 = 2;
@@ -76,7 +74,7 @@ pub async fn fetch_text<U: reqwest::IntoUrl + Clone + Display>(
     url: U,
     basic_auth: Option<&BasicAuth>,
     headers: Option<&HashMap<String, String>>,
-) -> Result<String> {
+) -> crate::Result<String> {
     let mut attempt: u32 = 0;
     loop {
         let mut request = http_client.get(url.clone());

@@ -19,7 +19,7 @@ async fn scrape_one(
     proxies: Arc<parking_lot::Mutex<HashSet<Proxy>>>,
     source: Arc<Source>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> color_eyre::Result<()> {
+) -> crate::Result<()> {
     let text_result = if let Ok(u) = url::Url::parse(&source.url) {
         match u.scheme() {
             "http" | "https" => {
@@ -119,7 +119,7 @@ pub async fn scrape_all(
     http_client: reqwest::Client,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> color_eyre::Result<Vec<Proxy>> {
+) -> crate::Result<Vec<Proxy>> {
     let proxies = Arc::new(parking_lot::Mutex::new(HashSet::new()));
 
     let mut join_set = tokio::task::JoinSet::new();

@@ -70,6 +70,14 @@ use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
 
+#[cfg(all(
+    feature = "mimalloc",
+    any(target_arch = "aarch64", target_arch = "x86_64"),
+    any(target_os = "linux", target_os = "macos", target_os = "windows"),
+))]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn create_logging_filter(
     config: &config::Config,
 ) -> tracing_subscriber::filter::Targets {

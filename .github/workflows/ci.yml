@@ -232,7 +232,7 @@ jobs:
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -280,7 +280,7 @@ jobs:
             tag: "arm64-v8"
             runner: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - id: meta
@@ -337,7 +337,7 @@ jobs:
           - "arm-v7"
           - "arm64-v8"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - run: mkdir -p dist
@@ -377,7 +377,7 @@ jobs:
           - "s390x"
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - run: mkdir -p dist
@@ -400,7 +400,7 @@ jobs:
             target: aarch64-unknown-linux-gnu,x86_64-unknown-linux-gnu,armv7-unknown-linux-gnueabihf,i686-unknown-linux-gnu,powerpc64le-unknown-linux-gnu,s390x-unknown-linux-gnu
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -413,7 +413,7 @@ jobs:
   pre-commit:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v6
@@ -425,7 +425,7 @@ jobs:
   rustfmt:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@v1

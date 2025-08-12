@@ -1,10 +1,11 @@
 use std::{
-    collections::HashMap,
     fmt::Display,
     net::SocketAddr,
     sync::Arc,
     time::{Duration, SystemTime},
 };
+
+use foldhash::HashMap;
 
 use crate::config::Config;
 

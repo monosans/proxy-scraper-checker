@@ -4,12 +4,13 @@
     clippy::wildcard_enum_match_arm
 )]
 
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use color_eyre::eyre::WrapErr as _;
 use crossterm::event::{
     Event as CrosstermEvent, KeyCode, KeyModifiers, MouseEventKind,
 };
+use foldhash::HashMap;
 use futures::StreamExt as _;
 use ratatui::{
     Frame,

@@ -1431,6 +1431,7 @@ dependencies = [
  "crossterm",
  "dirs",
  "fancy-regex",
+ "foldhash",
  "futures",
  "hickory-resolver",
  "httpdate",

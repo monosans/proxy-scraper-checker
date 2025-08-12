@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     io, iter,
     net::{IpAddr, Ipv4Addr},
     sync::Arc,
@@ -7,6 +6,7 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
+use foldhash::HashMap;
 
 use crate::{
     config::Config,

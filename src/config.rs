@@ -1,11 +1,12 @@
 use std::{
-    collections::{HashMap, hash_map},
+    collections::hash_map,
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
+use foldhash::HashMap;
 
 use crate::{http::BasicAuth, proxy::ProxyType, raw_config, utils::is_docker};
 

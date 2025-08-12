@@ -1,11 +1,11 @@
 use std::{
-    collections::HashMap,
     env,
     num::NonZero,
     path::{Path, PathBuf},
 };
 
 use color_eyre::eyre::WrapErr as _;
+use foldhash::HashMap;
 use serde::Deserialize as _;
 
 use crate::http::BasicAuth;

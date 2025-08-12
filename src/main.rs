@@ -88,7 +88,7 @@ fn create_logging_filter(
 
     if config.debug {
         base.with_target(
-            "proxy_scraper_checker::checker",
+            "proxy_scraper_checker",
             tracing::level_filters::LevelFilter::DEBUG,
         )
     } else {

@@ -2,6 +2,7 @@ use std::{
     fmt::{self, Write as _},
     hash::{Hash, Hasher},
     str::FromStr,
+    sync::Arc,
 };
 
 use color_eyre::eyre::{WrapErr as _, eyre};
@@ -84,7 +85,11 @@ impl Proxy {
         self.timeout.is_some()
     }
 
-    pub async fn check(&mut self, config: &Config) -> crate::Result<()> {
+    pub async fn check<R: reqwest::dns::Resolve + 'static>(
+        &mut self,
+        config: &Config,
+        dns_resolver: Arc<R>,
+    ) -> crate::Result<()> {
         if let Some(check_url) = &config.checking.check_url {
             let client = reqwest::ClientBuilder::new()
                 .user_agent(&config.checking.user_agent)
@@ -92,6 +97,7 @@ impl Proxy {
                 .timeout(config.checking.timeout)
                 .connect_timeout(config.checking.connect_timeout)
                 .use_rustls_tls()
+                .dns_resolver(dns_resolver)
                 .build()
                 .wrap_err("failed to create reqwest::Client")?;
             let start = tokio::time::Instant::now();

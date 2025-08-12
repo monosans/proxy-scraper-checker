@@ -161,8 +161,10 @@ async fn main_task(
         event::Event,
     >,
 ) -> crate::Result<()> {
-    let http_client = http::create_reqwest_client(&config)
-        .wrap_err("failed to create reqwest HTTP client")?;
+    let dns_resolver = Arc::new(http::HickoryDnsResolver::new());
+    let http_client =
+        http::create_reqwest_client(&config, Arc::clone(&dns_resolver))
+            .wrap_err("failed to create reqwest HTTP client")?;
 
     let ((), mut proxies) = tokio::try_join!(
         download_output_dependencies(
@@ -183,6 +185,7 @@ async fn main_task(
 
     proxies = checker::check_all(
         Arc::clone(&config),
+        dns_resolver,
         proxies,
         token,
         #[cfg(feature = "tui")]

@@ -4,7 +4,7 @@
     clippy::wildcard_enum_match_arm
 )]
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use color_eyre::eyre::WrapErr as _;
 use crossterm::event::{
@@ -96,8 +96,7 @@ pub struct AppState {
 }
 
 async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
-    let mut tick =
-        tokio::time::interval(tokio::time::Duration::from_secs_f64(1.0 / FPS));
+    let mut tick = tokio::time::interval(Duration::from_secs_f64(1.0 / FPS));
     loop {
         tokio::select! {
             biased;

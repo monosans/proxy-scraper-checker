@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, hash_map},
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
@@ -23,8 +24,8 @@ pub struct Source {
 
 pub struct ScrapingConfig {
     pub max_proxies_per_source: usize,
-    pub timeout: tokio::time::Duration,
-    pub connect_timeout: tokio::time::Duration,
+    pub timeout: Duration,
+    pub connect_timeout: Duration,
     pub proxy: Option<url::Url>,
     pub user_agent: String,
     pub sources: HashMap<ProxyType, Vec<Arc<Source>>>,
@@ -33,8 +34,8 @@ pub struct ScrapingConfig {
 pub struct CheckingConfig {
     pub check_url: Option<url::Url>,
     pub max_concurrent_checks: usize,
-    pub timeout: tokio::time::Duration,
-    pub connect_timeout: tokio::time::Duration,
+    pub timeout: Duration,
+    pub connect_timeout: Duration,
     pub user_agent: String,
 }
 
@@ -130,10 +131,8 @@ impl Config {
                 max_proxies_per_source: raw_config
                     .scraping
                     .max_proxies_per_source,
-                timeout: tokio::time::Duration::from_secs_f64(
-                    raw_config.scraping.timeout,
-                ),
-                connect_timeout: tokio::time::Duration::from_secs_f64(
+                timeout: Duration::from_secs_f64(raw_config.scraping.timeout),
+                connect_timeout: Duration::from_secs_f64(
                     raw_config.scraping.connect_timeout,
                 ),
                 proxy: raw_config.scraping.proxy,
@@ -162,10 +161,8 @@ impl Config {
             checking: CheckingConfig {
                 check_url: raw_config.checking.check_url,
                 max_concurrent_checks,
-                timeout: tokio::time::Duration::from_secs_f64(
-                    raw_config.checking.timeout,
-                ),
-                connect_timeout: tokio::time::Duration::from_secs_f64(
+                timeout: Duration::from_secs_f64(raw_config.checking.timeout),
+                connect_timeout: Duration::from_secs_f64(
                     raw_config.checking.connect_timeout,
                 ),
                 user_agent: raw_config.checking.user_agent,

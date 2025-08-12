@@ -3,6 +3,7 @@ use std::{
     io, iter,
     net::{IpAddr, Ipv4Addr},
     sync::Arc,
+    time::Duration,
 };
 
 use color_eyre::eyre::WrapErr as _;
@@ -14,12 +15,8 @@ use crate::{
     utils::is_docker,
 };
 
-const fn sort_by_timeout(proxy: &Proxy) -> tokio::time::Duration {
-    if let Some(timeout) = proxy.timeout {
-        timeout
-    } else {
-        tokio::time::Duration::MAX
-    }
+const fn sort_by_timeout(proxy: &Proxy) -> Duration {
+    if let Some(timeout) = proxy.timeout { timeout } else { Duration::MAX }
 }
 
 fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {

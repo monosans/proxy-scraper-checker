@@ -174,14 +174,26 @@ pub fn create_reqwest_client<R: reqwest::dns::Resolve + 'static>(
     config: &Config,
     dns_resolver: Arc<R>,
 ) -> reqwest::Result<reqwest::Client> {
+    // TODO: remove tcp_keepalive related options for reqwest >=0.12.23
     let mut builder = reqwest::ClientBuilder::new()
         .user_agent(&config.scraping.user_agent)
         .timeout(config.scraping.timeout)
         .connect_timeout(config.scraping.connect_timeout)
-        .use_rustls_tls()
+        .tcp_keepalive(Some(Duration::from_secs(15)))
+        .tcp_keepalive_interval(Some(Duration::from_secs(15)))
+        .tcp_keepalive_retries(Some(3))
         .dns_resolver(dns_resolver);
+
     if let Some(proxy) = &config.scraping.proxy {
         builder = builder.proxy(reqwest::Proxy::all(proxy.clone())?);
     }
+
+    #[cfg(any(
+        target_os = "android",
+        target_os = "fuchsia",
+        target_os = "linux"
+    ))]
+    let builder = builder.tcp_user_timeout(Some(Duration::from_secs(30)));
+
     builder.build()
 }

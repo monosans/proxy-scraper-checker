@@ -3,6 +3,7 @@ use std::{
     hash::{Hash, Hasher},
     str::FromStr,
     sync::Arc,
+    time::{Duration, Instant},
 };
 
 use color_eyre::eyre::{WrapErr as _, eyre};
@@ -56,7 +57,7 @@ pub struct Proxy {
     pub port: u16,
     pub username: Option<String>,
     pub password: Option<String>,
-    pub timeout: Option<tokio::time::Duration>,
+    pub timeout: Option<Duration>,
     pub exit_ip: Option<String>,
 }
 
@@ -91,16 +92,25 @@ impl Proxy {
         dns_resolver: Arc<R>,
     ) -> crate::Result<()> {
         if let Some(check_url) = &config.checking.check_url {
-            let client = reqwest::ClientBuilder::new()
+            let builder = reqwest::ClientBuilder::new()
                 .user_agent(&config.checking.user_agent)
                 .proxy(self.try_into()?)
                 .timeout(config.checking.timeout)
                 .connect_timeout(config.checking.connect_timeout)
-                .use_rustls_tls()
-                .dns_resolver(dns_resolver)
-                .build()
-                .wrap_err("failed to create reqwest::Client")?;
-            let start = tokio::time::Instant::now();
+                .pool_max_idle_per_host(0)
+                .http1_only()
+                .tcp_keepalive(None)
+                .tcp_keepalive_interval(Duration::ZERO)
+                .tcp_keepalive_retries(0)
+                .dns_resolver(dns_resolver);
+            #[cfg(any(
+                target_os = "android",
+                target_os = "fuchsia",
+                target_os = "linux"
+            ))]
+            let builder = builder.tcp_user_timeout(None);
+            let client = builder.build()?;
+            let start = Instant::now();
             let response = client
                 .get(check_url.clone())
                 .send()

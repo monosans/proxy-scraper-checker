@@ -210,7 +210,7 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
         .split(outer_layout[2]);
 
     let mut proxy_types: Vec<_> = state.sources_total.keys().collect();
-    proxy_types.sort();
+    proxy_types.sort_unstable();
 
     for (i, proxy_type) in proxy_types.into_iter().enumerate() {
         let block =

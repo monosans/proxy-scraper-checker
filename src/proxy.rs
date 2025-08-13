@@ -1,5 +1,5 @@
 use std::{
-    fmt::{self, Write as _},
+    fmt,
     hash::{Hash, Hasher},
     str::FromStr,
     sync::Arc,
@@ -38,15 +38,11 @@ impl FromStr for ProxyType {
 
 impl fmt::Display for ProxyType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Http => "http",
-                Self::Socks4 => "socks4",
-                Self::Socks5 => "socks5",
-            }
-        )
+        f.write_str(match self {
+            Self::Http => "http",
+            Self::Socks4 => "socks4",
+            Self::Socks5 => "socks5",
+        })
     }
 }
 
@@ -134,14 +130,20 @@ impl Proxy {
     pub fn as_str(&self, include_protocol: bool) -> String {
         let mut s = String::new();
         if include_protocol {
-            write!(&mut s, "{}://", self.protocol).unwrap();
+            s.push_str(&self.protocol.to_string());
+            s.push_str("://");
         }
         if let (Some(username), Some(password)) =
-            (self.username.as_ref(), self.password.as_ref())
+            (&self.username, &self.password)
         {
-            write!(&mut s, "{username}:{password}@").unwrap();
+            s.push_str(username);
+            s.push(':');
+            s.push_str(password);
+            s.push('@');
         }
-        write!(&mut s, "{}:{}", self.host, self.port).unwrap();
+        s.push_str(&self.host);
+        s.push(':');
+        s.push_str(&self.port.to_string());
         s
     }
 }

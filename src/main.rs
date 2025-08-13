@@ -84,7 +84,11 @@ fn create_logging_filter(
     config: &config::Config,
 ) -> tracing_subscriber::filter::Targets {
     let base = tracing_subscriber::filter::Targets::new()
-        .with_default(tracing::level_filters::LevelFilter::INFO);
+        .with_default(tracing::level_filters::LevelFilter::INFO)
+        .with_target(
+            "hyper_util::client::legacy::connect::http",
+            tracing::level_filters::LevelFilter::ERROR,
+        );
 
     if config.debug {
         base.with_target(

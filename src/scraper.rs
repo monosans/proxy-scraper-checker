@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 use foldhash::HashSetExt as _;
-use itertools::Itertools as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
@@ -55,21 +54,24 @@ async fn scrape_one(
         }
     };
 
-    let matches: Vec<_> = PROXY_REGEX.captures_iter(&text).try_collect()?;
+    let limit = config.scraping.max_proxies_per_source;
+    let matches_iter = PROXY_REGEX.captures_iter(&text);
+    let mut matches = Vec::with_capacity(matches_iter.size_hint().0);
+
+    for (i, maybe_capture) in matches_iter.enumerate() {
+        if limit != 0 && i >= limit {
+            tracing::warn!(
+                "{} | Too many proxies (> {}) - skipped",
+                source.url,
+                limit
+            );
+            return Ok(());
+        }
+        matches.push(maybe_capture?);
+    }
 
     if matches.is_empty() {
         tracing::warn!("{} | No proxies found", source.url);
-        return Ok(());
-    }
-
-    if config.scraping.max_proxies_per_source != 0
-        && matches.len() > config.scraping.max_proxies_per_source
-    {
-        tracing::warn!(
-            "{} | Too many proxies ({}) - skipped",
-            source.url,
-            matches.len(),
-        );
         return Ok(());
     }
 

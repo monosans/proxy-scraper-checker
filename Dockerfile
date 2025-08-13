@@ -1,6 +1,6 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM docker.io/rust:slim-bookworm AS builder
+FROM docker.io/rust:slim-trixie AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ RUN --mount=source=src,target=src \
   && cp target/release/proxy-scraper-checker .
 
 
-FROM docker.io/debian:bookworm-slim AS final
+FROM docker.io/debian:trixie-slim AS final
 
 WORKDIR /app
 

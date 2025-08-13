@@ -54,16 +54,15 @@ async fn scrape_one(
         }
     };
 
-    let limit = config.scraping.max_proxies_per_source;
-    let matches_iter = PROXY_REGEX.captures_iter(&text);
-    let mut matches = Vec::with_capacity(matches_iter.size_hint().0);
-
-    for (i, maybe_capture) in matches_iter.enumerate() {
-        if limit != 0 && i >= limit {
+    let mut matches = Vec::new();
+    for (i, maybe_capture) in PROXY_REGEX.captures_iter(&text).enumerate() {
+        if config.scraping.max_proxies_per_source != 0
+            && i >= config.scraping.max_proxies_per_source
+        {
             tracing::warn!(
                 "{} | Too many proxies (> {}) - skipped",
                 source.url,
-                limit
+                config.scraping.max_proxies_per_source
             );
             return Ok(());
         }

@@ -1,5 +1,6 @@
 use std::{
-    io, iter,
+    cmp::Ordering,
+    io,
     net::{IpAddr, Ipv4Addr},
     sync::Arc,
     time::Duration,
@@ -15,16 +16,22 @@ use crate::{
     utils::is_docker,
 };
 
-const fn sort_by_timeout(proxy: &Proxy) -> Duration {
-    if let Some(timeout) = proxy.timeout { timeout } else { Duration::MAX }
+fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
+    a.timeout.unwrap_or(Duration::MAX).cmp(&b.timeout.unwrap_or(Duration::MAX))
 }
 
-fn sort_naturally(proxy: &Proxy) -> (ProxyType, Vec<u8>, u16) {
-    let host_key = proxy.host.parse::<Ipv4Addr>().map_or_else(
-        move |_| iter::repeat_n(u8::MAX, 4).chain(proxy.host.bytes()).collect(),
-        |ip| ip.octets().to_vec(),
-    );
-    (proxy.protocol, host_key, proxy.port)
+fn compare_natural(a: &Proxy, b: &Proxy) -> Ordering {
+    a.protocol
+        .cmp(&b.protocol)
+        .then_with(move || {
+            match (a.host.parse::<Ipv4Addr>(), b.host.parse::<Ipv4Addr>()) {
+                (Ok(ai), Ok(bi)) => ai.octets().cmp(&bi.octets()),
+                (Ok(_), Err(_)) => Ordering::Less,
+                (Err(_), Ok(_)) => Ordering::Greater,
+                (Err(_), Err(_)) => a.host.cmp(&b.host),
+            }
+        })
+        .then_with(move || a.port.cmp(&b.port))
 }
 
 #[derive(serde::Serialize)]
@@ -60,9 +67,9 @@ pub async fn save_proxies(
     mut proxies: Vec<Proxy>,
 ) -> crate::Result<()> {
     if config.output.sort_by_speed {
-        proxies.sort_by_key(sort_by_timeout);
+        proxies.sort_unstable_by(compare_timeout);
     } else {
-        proxies.sort_by_key(sort_naturally);
+        proxies.sort_unstable_by(compare_natural);
     }
 
     if config.output.json.enabled {

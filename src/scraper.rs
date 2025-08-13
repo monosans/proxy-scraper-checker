@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 use foldhash::HashSetExt as _;
+use itertools::Itertools as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
@@ -54,8 +55,7 @@ async fn scrape_one(
         }
     };
 
-    let matches =
-        PROXY_REGEX.captures_iter(&text).collect::<Result<Vec<_>, _>>()?;
+    let matches: Vec<_> = PROXY_REGEX.captures_iter(&text).try_collect()?;
 
     if matches.is_empty() {
         tracing::warn!("{} | No proxies found", source.url);

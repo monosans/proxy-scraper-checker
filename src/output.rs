@@ -7,6 +7,7 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
+use itertools::Itertools as _;
 
 use crate::{
     HashMap,
@@ -191,8 +192,7 @@ pub async fn save_proxies(
             },
         )?;
 
-        let text =
-            create_proxy_list_str(&proxies.iter().collect::<Vec<_>>(), true);
+        let text = create_proxy_list_str(proxies.iter(), true);
         tokio::fs::write(directory_path.join("all.txt"), text)
             .await
             .wrap_err_with(|| {
@@ -202,7 +202,7 @@ pub async fn save_proxies(
                 )
             })?;
 
-        for (proto, proxies) in &grouped_proxies {
+        for (proto, proxies) in grouped_proxies {
             let text = create_proxy_list_str(proxies, false);
             tokio::fs::write(directory_path.join(format!("{proto}.txt")), text)
                 .await
@@ -232,10 +232,12 @@ pub async fn save_proxies(
     Ok(())
 }
 
-fn create_proxy_list_str(proxies: &[&Proxy], include_protocol: bool) -> String {
+fn create_proxy_list_str<'a, I>(proxies: I, include_protocol: bool) -> String
+where
+    I: IntoIterator<Item = &'a Proxy>,
+{
     proxies
-        .iter()
+        .into_iter()
         .map(move |proxy| proxy.as_str(include_protocol))
-        .collect::<Vec<_>>()
         .join("\n")
 }

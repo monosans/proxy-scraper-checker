@@ -1,3 +1,5 @@
+use itertools::Itertools as _;
+
 pub async fn is_docker() -> bool {
     #[cfg(target_os = "linux")]
     {
@@ -17,5 +19,5 @@ pub async fn is_docker() -> bool {
 }
 
 pub fn pretty_error(e: &crate::Error) -> String {
-    e.chain().map(ToString::to_string).collect::<Vec<_>>().join(" \u{2192} ")
+    e.chain().join(" \u{2192} ")
 }

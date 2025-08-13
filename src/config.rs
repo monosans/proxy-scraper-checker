@@ -6,9 +6,10 @@ use std::{
 };
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
-use foldhash::HashMap;
 
-use crate::{http::BasicAuth, proxy::ProxyType, raw_config, utils::is_docker};
+use crate::{
+    HashMap, http::BasicAuth, proxy::ProxyType, raw_config, utils::is_docker,
+};
 
 pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
 

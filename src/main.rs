@@ -80,6 +80,9 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 type Error = color_eyre::Report;
 type Result<T> = color_eyre::Result<T>;
 
+type HashMap<K, V> = foldhash::HashMap<K, V>;
+type HashSet<T> = foldhash::HashSet<T>;
+
 fn create_logging_filter(
     config: &config::Config,
 ) -> tracing_subscriber::filter::Targets {

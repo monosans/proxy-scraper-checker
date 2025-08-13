@@ -5,10 +5,9 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
-use foldhash::HashMap;
 use serde::Deserialize as _;
 
-use crate::http::BasicAuth;
+use crate::{HashMap, http::BasicAuth};
 
 fn validate_positive_f64<'de, D: serde::Deserializer<'de>>(
     deserializer: D,

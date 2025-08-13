@@ -6,9 +6,9 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
-use foldhash::HashMap;
 
 use crate::{
+    HashMap,
     config::Config,
     ipdb,
     proxy::{Proxy, ProxyType},

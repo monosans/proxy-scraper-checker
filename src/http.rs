@@ -5,9 +5,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use foldhash::HashMap;
-
-use crate::config::Config;
+use crate::{HashMap, config::Config};
 
 const DEFAULT_MAX_RETRIES: u32 = 2;
 const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(500);

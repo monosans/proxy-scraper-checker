@@ -10,7 +10,6 @@ use color_eyre::eyre::WrapErr as _;
 use crossterm::event::{
     Event as CrosstermEvent, KeyCode, KeyModifiers, MouseEventKind,
 };
-use foldhash::HashMap;
 use futures::StreamExt as _;
 use ratatui::{
     Frame,
@@ -22,6 +21,7 @@ use ratatui::{
 use tui_logger::{TuiLoggerWidget, TuiWidgetEvent, TuiWidgetState};
 
 use crate::{
+    HashMap,
     event::{AppEvent, Event},
     ipdb,
     proxy::ProxyType,

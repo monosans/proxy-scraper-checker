@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
-use foldhash::{HashSet, HashSetExt as _};
+use foldhash::HashSetExt as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
 use crate::{
+    HashSet,
     config::{Config, Source},
     http,
     parsers::PROXY_REGEX,

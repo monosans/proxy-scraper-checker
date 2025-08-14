@@ -30,7 +30,7 @@ pub struct HickoryDnsResolver(Arc<hickory_resolver::TokioResolver>);
 
 impl HickoryDnsResolver {
     pub fn new() -> Self {
-        let builder = hickory_resolver::TokioResolver::builder_tokio()
+        let mut builder = hickory_resolver::TokioResolver::builder_tokio()
             .unwrap_or_else(|_| {
                 hickory_resolver::TokioResolver::builder_with_config(
                 hickory_resolver::config::ResolverConfig::cloudflare(),
@@ -38,6 +38,8 @@ impl HickoryDnsResolver {
                 ),
             )
             });
+        builder.options_mut().ip_strategy =
+            hickory_resolver::config::LookupIpStrategy::Ipv4AndIpv6;
         Self(Arc::new(builder.build()))
     }
 }

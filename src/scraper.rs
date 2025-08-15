@@ -33,13 +33,17 @@ async fn scrape_one(
                 )
                 .await
             }
-            _ => match u.to_file_path() {
-                Ok(path) => tokio::fs::read_to_string(path).await,
-                Err(()) => tokio::fs::read_to_string(&source.url).await,
+            _ => {
+                drop(http_client);
+                match u.to_file_path() {
+                    Ok(path) => tokio::fs::read_to_string(path).await,
+                    Err(()) => tokio::fs::read_to_string(&source.url).await,
+                }
+                .map_err(Into::into)
             }
-            .map_err(Into::into),
         }
     } else {
+        drop(http_client);
         tokio::fs::read_to_string(&source.url).await.map_err(Into::into)
     };
 
@@ -73,6 +77,8 @@ async fn scrape_one(
         tracing::warn!("{} | No proxies found", source.url);
         return Ok(());
     }
+
+    drop(source);
 
     #[cfg(feature = "tui")]
     let mut seen_protocols = HashSet::new();
@@ -108,6 +114,10 @@ async fn scrape_one(
             });
         }
     }
+
+    drop(config);
+    drop(text);
+
     #[cfg(feature = "tui")]
     for proto in seen_protocols {
         let count = proxies.iter().filter(move |p| p.protocol == proto).count();

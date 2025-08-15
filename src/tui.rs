@@ -158,6 +158,7 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
             Constraint::Length(4),
         ])
         .split(outer_block.inner(f.area()));
+    drop(outer_block);
 
     f.render_widget(
         TuiLoggerWidget::default()
@@ -203,6 +204,7 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
             }),
         ipdb_layout[1],
     );
+    drop(ipdb_layout);
 
     let proxies_layout = Layout::default()
         .direction(Direction::Horizontal)
@@ -220,6 +222,7 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
             .direction(Direction::Vertical)
             .constraints([Constraint::Fill(1); 3])
             .split(block.inner(proxies_layout[i]));
+        drop(block);
 
         let sources_scraped =
             state.sources_scraped.get(proxy_type).copied().unwrap_or_default();
@@ -276,6 +279,8 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
             working_proxies_block.inner(layout[2]),
         );
     }
+
+    drop(proxies_layout);
 
     let running = matches!(state.mode, AppMode::Running);
     let mut lines = Vec::with_capacity(if running { 4 } else { 3 });

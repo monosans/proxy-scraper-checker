@@ -159,6 +159,7 @@ pub async fn scrape_all(
     drop(config);
     drop(http_client);
     drop(token);
+    #[cfg(feature = "tui")]
     drop(tx);
 
     while let Some(res) = join_set.join_next().await {

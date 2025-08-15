@@ -85,6 +85,8 @@ pub async fn check_all<R: reqwest::dns::Resolve + 'static>(
         }
     }
 
+    drop(join_set);
+
     Ok(Arc::into_inner(checked_proxies)
         .ok_or_eyre("failed to unwrap Arc")?
         .into_inner())

@@ -156,10 +156,17 @@ pub async fn scrape_all(
         }
     }
 
+    drop(config);
+    drop(http_client);
+    drop(token);
+    drop(tx);
+
     while let Some(res) = join_set.join_next().await {
         res.wrap_err("proxy scraping task panicked or was cancelled")?
             .wrap_err("proxy scraping task failed")?;
     }
+
+    drop(join_set);
 
     Ok(Arc::into_inner(proxies)
         .ok_or_eyre("failed to unwrap Arc")?

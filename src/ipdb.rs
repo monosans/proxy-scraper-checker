@@ -196,6 +196,7 @@ impl DbType {
                 db_path.display()
             );
         }
+        drop(db_path);
 
         if let Some(etag_value) = etag {
             self.save_etag(etag_value).await.wrap_err_with(move || {

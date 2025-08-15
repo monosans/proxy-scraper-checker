@@ -49,6 +49,7 @@ impl reqwest::dns::Resolve for HickoryDnsResolver {
         let resolver = Arc::clone(&self.0);
         Box::pin(async move {
             let lookup = resolver.lookup_ip(name.as_str()).await?;
+            drop(resolver);
             let addrs: reqwest::dns::Addrs = Box::new(
                 lookup.into_iter().map(|ip_addr| SocketAddr::new(ip_addr, 0)),
             );

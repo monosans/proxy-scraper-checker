@@ -72,6 +72,10 @@ pub async fn check_all<R: reqwest::dns::Resolve + 'static>(
     }
 
     drop(queue);
+    drop(config);
+    drop(dns_resolver);
+    drop(token);
+    drop(tx);
 
     while let Some(res) = join_set.join_next().await {
         match res {

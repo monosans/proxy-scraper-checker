@@ -240,6 +240,6 @@ where
 {
     proxies
         .into_iter()
-        .map(move |proxy| proxy.as_str(include_protocol))
+        .map(move |proxy| proxy.to_string(include_protocol))
         .join("\n")
 }

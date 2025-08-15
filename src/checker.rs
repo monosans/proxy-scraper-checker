@@ -58,7 +58,7 @@ pub async fn check_all<R: reqwest::dns::Resolve + 'static>(
                             Err(e) if tracing::event_enabled!(tracing::Level::DEBUG) => {
                                 tracing::debug!(
                                     "{} | {}",
-                                    proxy.as_str(true),
+                                    proxy.to_string(true),
                                     pretty_error(&e)
                                 );
                             }

@@ -1,5 +1,4 @@
 use std::{
-    fmt,
     hash::{Hash, Hasher},
     str::FromStr,
     sync::Arc,
@@ -36,13 +35,13 @@ impl FromStr for ProxyType {
     }
 }
 
-impl fmt::Display for ProxyType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
+impl ProxyType {
+    pub const fn as_str(self) -> &'static str {
+        match self {
             Self::Http => "http",
             Self::Socks4 => "socks4",
             Self::Socks5 => "socks5",
-        })
+        }
     }
 }
 
@@ -63,7 +62,9 @@ impl TryFrom<&mut Proxy> for reqwest::Proxy {
     fn try_from(value: &mut Proxy) -> Result<Self, Self::Error> {
         let proxy = Self::all(format!(
             "{}://{}:{}",
-            value.protocol, value.host, value.port
+            value.protocol.as_str(),
+            value.host,
+            value.port
         ))
         .wrap_err("failed to create reqwest::Proxy")?;
 
@@ -130,7 +131,7 @@ impl Proxy {
     pub fn as_str(&self, include_protocol: bool) -> String {
         let mut s = String::new();
         if include_protocol {
-            s.push_str(&self.protocol.to_string());
+            s.push_str(self.protocol.as_str());
             s.push_str("://");
         }
         if let (Some(username), Some(password)) =

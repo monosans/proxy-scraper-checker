@@ -213,8 +213,7 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
     proxy_types.sort_unstable();
 
     for (i, proxy_type) in proxy_types.into_iter().enumerate() {
-        let block =
-            Block::bordered().title(proxy_type.to_string().to_uppercase());
+        let block = Block::bordered().title(proxy_type.as_str().to_uppercase());
         f.render_widget(block.clone(), proxies_layout[i]);
 
         let layout = Layout::default()

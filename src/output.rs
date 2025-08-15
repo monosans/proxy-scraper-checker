@@ -204,14 +204,16 @@ pub async fn save_proxies(
 
         for (proto, proxies) in grouped_proxies {
             let text = create_proxy_list_str(proxies, false);
-            tokio::fs::write(directory_path.join(format!("{proto}.txt")), text)
-                .await
-                .wrap_err_with(|| {
+            let mut file_path = directory_path.join(proto.as_str());
+            file_path.set_extension("txt");
+            tokio::fs::write(&file_path, text).await.wrap_err_with(
+                move || {
                     format!(
                         "failed to write proxies to {}",
-                        directory_path.join(format!("{proto}.txt")).display()
+                        file_path.display()
                     )
-                })?;
+                },
+            )?;
         }
     }
 

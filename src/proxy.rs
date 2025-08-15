@@ -26,11 +26,14 @@ impl FromStr for ProxyType {
     type Err = crate::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "http" | "https" => Ok(Self::Http),
-            "socks4" => Ok(Self::Socks4),
-            "socks5" => Ok(Self::Socks5),
-            _ => Err(eyre!("failed to convert {s} to ProxyType")),
+        if s.eq_ignore_ascii_case("http") || s.eq_ignore_ascii_case("https") {
+            Ok(Self::Http)
+        } else if s.eq_ignore_ascii_case("socks4") {
+            Ok(Self::Socks4)
+        } else if s.eq_ignore_ascii_case("socks5") {
+            Ok(Self::Socks5)
+        } else {
+            Err(eyre!("failed to convert {s} to ProxyType"))
         }
     }
 }

@@ -42,7 +42,7 @@ tracing-subscriber = { version = "=0.3.19", features = ["parking_lot"] }
 tui-logger = { version = "=0.17.3", features = [
     "tracing-support",
 ], optional = true }
-url = "=2.5.4"
+url = "=2.5.6"
 
 [target.'cfg(all(any(target_arch = "aarch64", target_arch = "x86_64"), any(target_os = "linux", target_os = "macos", target_os = "windows")))'.dependencies]
 mimalloc = { version = "=0.1.47", optional = true }

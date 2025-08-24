@@ -12,7 +12,7 @@ crossterm = { version = "=0.28.1", features = [
 ], optional = true }
 dirs = "=6.0.0"
 fancy-regex = "=0.16.1"
-foldhash = "=0.1.5"
+foldhash = "=0.2.0"
 futures = { version = "=0.3.31", optional = true }
 hickory-resolver = "=0.25.2"
 httpdate = "=1.0.3"

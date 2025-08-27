@@ -1474,6 +1474,7 @@ dependencies = [
  "futures",
  "hickory-resolver",
  "httpdate",
+ "ipnetwork",
  "itertools 0.14.0",
  "maxminddb",
  "mimalloc",

@@ -9,7 +9,7 @@ use crate::{
     HashSet,
     config::{Config, Source},
     http,
-    parsers::PROXY_REGEX,
+    parsers::{PROXY_REGEX, expand_cidr_ranges},
     proxy::{Proxy, ProxyType},
     utils::pretty_error,
 };
@@ -58,8 +58,11 @@ async fn scrape_one(
         }
     };
 
+    // Expand CIDR ranges to individual IP:port entries
+    let expanded_text = expand_cidr_ranges(&text);
+
     let mut matches = Vec::new();
-    for (i, maybe_capture) in PROXY_REGEX.captures_iter(&text).enumerate() {
+    for (i, maybe_capture) in PROXY_REGEX.captures_iter(&expanded_text).enumerate() {
         if config.scraping.max_proxies_per_source != 0
             && i >= config.scraping.max_proxies_per_source
         {
@@ -116,7 +119,7 @@ async fn scrape_one(
     }
 
     drop(config);
-    drop(text);
+    drop(expanded_text);
 
     #[cfg(feature = "tui")]
     for proto in seen_protocols {

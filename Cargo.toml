@@ -16,6 +16,7 @@ foldhash = "=0.2.0"
 futures = { version = "=0.3.31", optional = true }
 hickory-resolver = "=0.25.2"
 httpdate = "=1.0.3"
+ipnetwork = "=0.21.1"
 itertools = "=0.14"
 maxminddb = { version = "=0.26.0", features = ["mmap"] }
 parking_lot = "=0.12.4"

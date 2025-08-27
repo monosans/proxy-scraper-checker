@@ -74,15 +74,31 @@ include_geolocation = true
 # Proxy sources configuration
 # Add local files: ["./my_proxies.txt"] or URLs
 # Sources are fetched in parallel for speed
+#
+# CIDR Range Support:
+# You can now use CIDR notation to scan entire network ranges!
+# Format: IP/prefix:port (e.g., "192.168.1.0/24:8080")
+# This expands to all IPs in the range with the specified port.
+# Examples:
+#   192.168.1.0/30:8080  → 4 IPs (.0, .1, .2, .3)
+#   10.0.0.0/24:3128     → 256 IPs (.0 through .255) 
+#   203.0.113.0/29:1080  → 8 IPs (.0 through .7)
+# Mix CIDR ranges with individual IP:port entries in the same file.
 
 [scraping.http]
 enabled = true
 urls = [
     # Local file examples:
     # "./my_http_proxies.txt",
-    # "/home/user/my_http_proxies.txt",
+    # "/home/user/my_http_proxies.txt", 
     # "C:/Users/user/Desktop/my_http_proxies.txt",
     # "file:///home/user/my_http_proxies.txt",
+    
+    # CIDR range file example:
+    # File containing: 192.168.1.0/24:8080
+    #                 10.0.0.0/29:3128
+    #                 203.0.113.1:1080
+    # "./my_cidr_ranges.txt",
 
     # Advanced URL configuration examples (with basic auth or custom headers):
     # HTTP Basic Auth example:

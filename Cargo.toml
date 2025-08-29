@@ -38,7 +38,7 @@ tokio = { version = "=1.47.1", features = ["full"] }
 tokio-util = "=0.7.16"
 toml = "=0.9.5"
 tracing = "=0.1.41"
-tracing-subscriber = { version = "=0.3.19", features = ["parking_lot"] }
+tracing-subscriber = { version = "=0.3.20", features = ["parking_lot"] }
 tui-logger = { version = "=0.17.3", features = [
     "tracing-support",
 ], optional = true }

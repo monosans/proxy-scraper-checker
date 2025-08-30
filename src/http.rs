@@ -114,13 +114,13 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
     ) -> reqwest_middleware::Result<reqwest::Response> {
         let mut attempt: u32 = 0;
         loop {
-            let duplicate_request = req.try_clone().ok_or_else(|| {
+            let req = req.try_clone().ok_or_else(|| {
                 reqwest_middleware::Error::middleware(io::Error::other(
                     "Request object is not cloneable",
                 ))
             })?;
 
-            match next.clone().run(duplicate_request, extensions).await {
+            match next.clone().run(req, extensions).await {
                 Ok(resp) => {
                     let status = resp.status();
                     if status.is_client_error() || status.is_server_error() {

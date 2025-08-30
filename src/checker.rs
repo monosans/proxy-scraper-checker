@@ -57,7 +57,7 @@ pub async fn check_all<R: reqwest::dns::Resolve + 'static>(
                             }
                             Err(e) if tracing::event_enabled!(tracing::Level::DEBUG) => {
                                 tracing::debug!(
-                                    "{} | {}",
+                                    "{}: {}",
                                     proxy.to_string(true),
                                     pretty_error(&e)
                                 );
@@ -82,7 +82,10 @@ pub async fn check_all<R: reqwest::dns::Resolve + 'static>(
         match res {
             Ok(()) => {}
             Err(e) if e.is_panic() => {
-                tracing::error!("proxy checking task panicked: {}", e);
+                tracing::error!(
+                    "Proxy checking task panicked: {}",
+                    pretty_error(&e.into())
+                );
             }
             Err(e) => {
                 return Err(e.into());

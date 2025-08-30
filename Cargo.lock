@@ -63,6 +63,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.99"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
+
+[[package]]
 name = "async-compression"
 version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1459,6 +1465,7 @@ dependencies = [
 name = "proxy-scraper-checker"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "color-eyre",
  "crossterm",
  "dirs",
@@ -1466,6 +1473,7 @@ dependencies = [
  "foldhash 0.2.0",
  "futures",
  "hickory-resolver",
+ "http",
  "httpdate",
  "itertools 0.14.0",
  "maxminddb",
@@ -1474,6 +1482,7 @@ dependencies = [
  "rand",
  "ratatui",
  "reqwest",
+ "reqwest-middleware",
  "rlimit",
  "serde",
  "serde_json",
@@ -1697,6 +1706,21 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "webpki-roots",
+]
+
+[[package]]
+name = "reqwest-middleware"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57f17d28a6e6acfe1733fe24bcd30774d13bffa4b8a22535b4c8c98423088d4e"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "http",
+ "reqwest",
+ "serde",
+ "thiserror 1.0.69",
+ "tower-service",
 ]
 
 [[package]]

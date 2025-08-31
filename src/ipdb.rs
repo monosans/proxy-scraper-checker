@@ -121,7 +121,7 @@ impl DbType {
 
     pub async fn download(
         self,
-        http_client: reqwest::Client,
+        http_client: reqwest_middleware::ClientWithMiddleware,
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> crate::Result<()> {
         let db_path = self.db_path().await?;

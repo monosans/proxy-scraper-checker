@@ -16,7 +16,7 @@ use crate::{
 
 async fn scrape_one(
     config: Arc<Config>,
-    http_client: reqwest::Client,
+    http_client: reqwest_middleware::ClientWithMiddleware,
     proto: ProxyType,
     proxies: Arc<parking_lot::Mutex<HashSet<Proxy>>>,
     source: Arc<Source>,
@@ -25,13 +25,24 @@ async fn scrape_one(
     let text_result = if let Ok(u) = url::Url::parse(&source.url) {
         match u.scheme() {
             "http" | "https" => {
-                http::fetch_text(
-                    http_client,
-                    u,
-                    source.basic_auth.as_ref(),
-                    source.headers.as_ref(),
-                )
-                .await
+                let mut request = http_client.get(u);
+                drop(http_client);
+
+                if let Some(auth) = &source.basic_auth {
+                    request = request
+                        .basic_auth(&auth.username, auth.password.as_ref());
+                }
+
+                if let Some(headers) = &source.headers {
+                    for (k, v) in headers {
+                        request = request.header(k, v);
+                    }
+                }
+
+                match request.send().await {
+                    Ok(resp) => resp.text().await.map_err(Into::into),
+                    Err(e) => Err(e.into()),
+                }
             }
             _ => {
                 drop(http_client);
@@ -53,7 +64,7 @@ async fn scrape_one(
     let text = match text_result {
         Ok(text) => text,
         Err(e) => {
-            tracing::warn!("{} | {}", source.url, pretty_error(&e));
+            tracing::warn!("{}: {}", source.url, pretty_error(&e));
             return Ok(());
         }
     };
@@ -67,7 +78,7 @@ async fn scrape_one(
             && i >= config.scraping.max_proxies_per_source
         {
             tracing::warn!(
-                "{} | Too many proxies (> {}) - skipped",
+                "{}: too many proxies (> {}) - skipped",
                 source.url,
                 config.scraping.max_proxies_per_source
             );
@@ -77,7 +88,7 @@ async fn scrape_one(
     }
 
     if matches.is_empty() {
-        tracing::warn!("{} | No proxies found", source.url);
+        tracing::warn!("{}: no proxies found", source.url);
         return Ok(());
     }
 
@@ -132,7 +143,7 @@ async fn scrape_one(
 
 pub async fn scrape_all(
     config: Arc<Config>,
-    http_client: reqwest::Client,
+    http_client: reqwest_middleware::ClientWithMiddleware,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> crate::Result<Vec<Proxy>> {

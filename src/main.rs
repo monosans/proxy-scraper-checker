@@ -105,7 +105,7 @@ fn create_logging_filter(
 
 async fn download_output_dependencies(
     config: &config::Config,
-    http_client: reqwest::Client,
+    http_client: reqwest_middleware::ClientWithMiddleware,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
@@ -236,7 +236,7 @@ fn watch_signals(
                 tracing::warn!(
                     "Failed to listen for {} signal: {}",
                     signal_name,
-                    e
+                    utils::pretty_error(&e.into())
                 );
                 continue;
             }

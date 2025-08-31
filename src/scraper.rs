@@ -8,7 +8,6 @@ use crate::event::{AppEvent, Event};
 use crate::{
     HashSet,
     config::{Config, Source},
-    http,
     parsers::{PROXY_REGEX, expand_cidr_ranges},
     proxy::{Proxy, ProxyType},
     utils::pretty_error,

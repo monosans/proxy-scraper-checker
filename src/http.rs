@@ -1,11 +1,11 @@
 use std::{
-    fmt::Display,
+    io,
     net::SocketAddr,
     sync::Arc,
     time::{Duration, SystemTime},
 };
 
-use crate::{HashMap, config::Config};
+use crate::config::Config;
 
 const DEFAULT_MAX_RETRIES: u32 = 2;
 const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(500);
@@ -102,71 +102,55 @@ fn calculate_retry_timeout(
     Some(base.mul_f64(jitter))
 }
 
-pub async fn fetch_text<U: reqwest::IntoUrl + Clone + Display>(
-    http_client: reqwest::Client,
-    url: U,
-    basic_auth: Option<&BasicAuth>,
-    headers: Option<&HashMap<String, String>>,
-) -> crate::Result<String> {
-    let mut attempt: u32 = 0;
-    loop {
-        let mut request = http_client.get(url.clone());
-        if let Some(auth) = basic_auth {
-            request =
-                request.basic_auth(&auth.username, auth.password.as_ref());
-        }
-        if let Some(headers) = headers {
-            for (k, v) in headers {
-                request = request.header(k, v);
-            }
-        }
-        match request.send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                if status.is_client_error() || status.is_server_error() {
+pub struct RetryMiddleware;
+
+#[async_trait::async_trait]
+impl reqwest_middleware::Middleware for RetryMiddleware {
+    async fn handle(
+        &self,
+        req: reqwest::Request,
+        extensions: &mut http::Extensions,
+        next: reqwest_middleware::Next<'_>,
+    ) -> reqwest_middleware::Result<reqwest::Response> {
+        let mut attempt: u32 = 0;
+        loop {
+            let req = req.try_clone().ok_or_else(|| {
+                reqwest_middleware::Error::middleware(io::Error::other(
+                    "Request object is not cloneable",
+                ))
+            })?;
+
+            match next.clone().run(req, extensions).await {
+                Ok(resp) => {
+                    let status = resp.status();
+                    if status.is_client_error() || status.is_server_error() {
+                        if attempt < DEFAULT_MAX_RETRIES
+                            && RETRY_STATUSES.contains(&status)
+                            && let Some(delay) = calculate_retry_timeout(
+                                Some(resp.headers()),
+                                attempt,
+                            )
+                        {
+                            tokio::time::sleep(delay).await;
+                            attempt = attempt.saturating_add(1);
+                            continue;
+                        }
+                        resp.error_for_status_ref()?;
+                    }
+                    return Ok(resp);
+                }
+                Err(err) => {
                     if attempt < DEFAULT_MAX_RETRIES
-                        && RETRY_STATUSES.contains(&status)
-                        && let Some(delay) = calculate_retry_timeout(
-                            Some(resp.headers()),
-                            attempt,
-                        )
+                        && err.is_connect()
+                        && let Some(delay) =
+                            calculate_retry_timeout(None, attempt)
                     {
-                        tracing::info!(
-                            "Request to {} returned status {}. Retrying \
-                             attempt {}/{} after {:?}",
-                            url,
-                            status,
-                            attempt.saturating_add(1),
-                            DEFAULT_MAX_RETRIES,
-                            delay
-                        );
                         tokio::time::sleep(delay).await;
                         attempt = attempt.saturating_add(1);
                         continue;
                     }
-                    resp.error_for_status_ref()?;
+                    return Err(err);
                 }
-                return Ok(resp.text().await?);
-            }
-            Err(err) => {
-                if attempt < DEFAULT_MAX_RETRIES
-                    && err.is_connect()
-                    && let Some(delay) = calculate_retry_timeout(None, attempt)
-                {
-                    tracing::info!(
-                        "Connection error while requesting {}: {}. Retrying \
-                         attempt {}/{} after {:?}",
-                        url,
-                        err,
-                        attempt.saturating_add(1),
-                        DEFAULT_MAX_RETRIES,
-                        delay
-                    );
-                    tokio::time::sleep(delay).await;
-                    attempt = attempt.saturating_add(1);
-                    continue;
-                }
-                return Err(err.into());
             }
         }
     }
@@ -175,7 +159,7 @@ pub async fn fetch_text<U: reqwest::IntoUrl + Clone + Display>(
 pub fn create_reqwest_client<R: reqwest::dns::Resolve + 'static>(
     config: &Config,
     dns_resolver: Arc<R>,
-) -> reqwest::Result<reqwest::Client> {
+) -> reqwest::Result<reqwest_middleware::ClientWithMiddleware> {
     let mut builder = reqwest::ClientBuilder::new()
         .user_agent(&config.scraping.user_agent)
         .timeout(config.scraping.timeout)
@@ -186,5 +170,10 @@ pub fn create_reqwest_client<R: reqwest::dns::Resolve + 'static>(
         builder = builder.proxy(reqwest::Proxy::all(proxy.clone())?);
     }
 
-    builder.build()
+    let client = builder.build()?;
+    let client_with_middleware = reqwest_middleware::ClientBuilder::new(client)
+        .with(RetryMiddleware)
+        .build();
+
+    Ok(client_with_middleware)
 }

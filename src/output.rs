@@ -73,6 +73,24 @@ pub async fn save_proxies(
         proxies.sort_unstable_by(compare_natural);
     }
 
+    // Deduplicate proxies by exit_ip when available. Different proxies can exit via the same IP.
+    // We do this after sorting so that if sorted by speed, the fastest one is kept.
+    {
+        // Track seen exit_ip per protocol to avoid cross-protocol removal
+        let mut seen: std::collections::HashSet<(ProxyType, String)> = std::collections::HashSet::new();
+        let mut deduped = Vec::with_capacity(proxies.len());
+        for p in proxies.into_iter() {
+            if let Some(ref ip) = p.exit_ip {
+                let key = (p.protocol, ip.clone());
+                if !seen.insert(key) {
+                    continue;
+                }
+            }
+            deduped.push(p);
+        }
+        proxies = deduped;
+    }
+
     if config.output.json.enabled {
         let (maybe_asn_db, maybe_geo_db) = tokio::try_join!(
             async {

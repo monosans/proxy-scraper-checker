@@ -10,11 +10,11 @@ use color_eyre::eyre::WrapErr as _;
 use itertools::Itertools as _;
 
 use crate::{
-    HashMap,
     config::Config,
     ipdb,
     proxy::{Proxy, ProxyType},
     utils::is_docker,
+    HashMap,
 };
 
 fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
@@ -75,21 +75,20 @@ pub async fn save_proxies(
 
     // Deduplicate proxies by exit_ip when available. Different proxies can exit via the same IP.
     // We do this after sorting so that if sorted by speed, the fastest one is kept.
-    {
-        // Track seen exit_ip per protocol to avoid cross-protocol removal
-        let mut seen: std::collections::HashSet<(ProxyType, String)> = std::collections::HashSet::new();
-        let mut deduped = Vec::with_capacity(proxies.len());
-        for p in proxies.into_iter() {
-            if let Some(ref ip) = p.exit_ip {
-                let key = (p.protocol, ip.clone());
-                if !seen.insert(key) {
-                    continue;
-                }
+    // Track seen exit_ip per protocol to avoid cross-protocol removal
+    let mut seen: std::collections::HashSet<(ProxyType, String)> =
+        std::collections::HashSet::new();
+    let mut deduped = Vec::with_capacity(proxies.len());
+    for p in proxies {
+        if let Some(ip) = &p.exit_ip {
+            let key = (p.protocol, ip.clone());
+            if !seen.insert(key) {
+                continue;
             }
-            deduped.push(p);
         }
-        proxies = deduped;
+        deduped.push(p);
     }
+    proxies = deduped;
 
     if config.output.json.enabled {
         let (maybe_asn_db, maybe_geo_db) = tokio::try_join!(

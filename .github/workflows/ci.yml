@@ -420,7 +420,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: false
-      - run: uv tool run --from pre-commit@latest --with pre-commit-uv --no-cache --python 3.13 pre-commit run --all-files --show-diff-on-failure
+      - run: uv tool run --no-cache --python 3.13 prek run --all-files --show-diff-on-failure
         env:
           RUFF_OUTPUT_FORMAT: github
   rustfmt:

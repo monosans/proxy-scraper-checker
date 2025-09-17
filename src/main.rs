@@ -312,6 +312,7 @@ async fn run_without_tui(
 }
 
 #[tokio::main]
+#[expect(clippy::unwrap_in_result)]
 async fn main() -> crate::Result<()> {
     color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
 

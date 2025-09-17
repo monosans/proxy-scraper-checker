@@ -39,7 +39,7 @@ serde = "=1.0.221"
 serde_json = "=1.0.143"
 tokio = { version = "=1.47.1", features = ["full"] }
 tokio-util = "=0.7.16"
-toml = "=0.9.5"
+toml = "=0.9.6"
 tracing = "=0.1.41"
 tracing-subscriber = { version = "=0.3.20", features = ["parking_lot"] }
 tui-logger = { version = "=0.17.3", features = [

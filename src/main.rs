@@ -47,6 +47,12 @@
     clippy::unwrap_used
 )]
 
+#[cfg(all(feature = "dhat", feature = "mimalloc"))]
+compile_error!(
+    "Features 'dhat-heap' and 'mimalloc' are mutually exclusive. Enable only \
+     one."
+);
+
 mod checker;
 mod config;
 #[cfg(feature = "tui")]
@@ -68,6 +74,10 @@ use color_eyre::eyre::WrapErr as _;
 use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
+
+#[cfg(feature = "dhat")]
+#[global_allocator]
+static GLOBAL: dhat::Alloc = dhat::Alloc;
 
 #[cfg(all(
     feature = "mimalloc",
@@ -314,6 +324,9 @@ async fn run_without_tui(
 #[tokio::main]
 #[expect(clippy::unwrap_in_result)]
 async fn main() -> crate::Result<()> {
+    #[cfg(feature = "dhat")]
+    let _profiler = dhat::Profiler::new_heap();
+
     color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
 
     let config = config::load_config().await?;

@@ -11,6 +11,7 @@ color-eyre = "=0.6.5"
 crossterm = { version = "=0.28.1", features = [
     "event-stream",
 ], optional = true }
+dhat = { version = "=0.3.3", optional = true }
 dirs = "=6.0.0"
 fancy-regex = "=0.16.1"
 foldhash = "=0.2.0"
@@ -51,6 +52,7 @@ url = "=2.5.7"
 mimalloc = { version = "=0.1.48", optional = true, features = ["v3"] }
 
 [features]
+dhat = ["dep:dhat"]
 mimalloc = ["dep:mimalloc"]
 tui = ["dep:crossterm", "dep:futures", "dep:ratatui", "dep:tui-logger"]
 
@@ -58,3 +60,8 @@ tui = ["dep:crossterm", "dep:futures", "dep:ratatui", "dep:tui-logger"]
 strip = true
 lto = "fat"
 codegen-units = 1
+
+[profile.dhat]
+inherits = "release"
+debug = true
+strip = "none"

@@ -1494,6 +1494,7 @@ dependencies = [
  "http",
  "httpdate",
  "itertools 0.14.0",
+ "log",
  "maxminddb",
  "mimalloc",
  "parking_lot",

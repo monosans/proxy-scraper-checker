@@ -68,6 +68,7 @@ mod scraper;
 #[cfg(feature = "tui")]
 mod tui;
 mod utils;
+
 use std::sync::Arc;
 
 use color_eyre::eyre::WrapErr as _;

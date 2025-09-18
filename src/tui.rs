@@ -47,6 +47,7 @@ pub async fn run(
 
     let mut app_state = AppState::default();
     let logger_state = TuiWidgetState::default();
+
     while !matches!(app_state.mode, AppMode::Quit) {
         if let Some(event) = rx.recv().await {
             if handle_event(event, &mut app_state, &token, &logger_state) {

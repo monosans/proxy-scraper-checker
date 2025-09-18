@@ -68,10 +68,14 @@ async fn scrape_one(
         }
     };
 
-    let mut matches = Vec::new();
-    for (i, maybe_capture) in PROXY_REGEX.captures_iter(&text).enumerate() {
+    #[cfg(feature = "tui")]
+    let mut seen_protocols = HashSet::new();
+
+    let mut new_proxies = HashSet::new();
+
+    for maybe_capture in PROXY_REGEX.captures_iter(&text) {
         if config.scraping.max_proxies_per_source != 0
-            && i >= config.scraping.max_proxies_per_source
+            && new_proxies.len() >= config.scraping.max_proxies_per_source
         {
             tracing::warn!(
                 "{}: too many proxies (> {}) - skipped",
@@ -80,28 +84,19 @@ async fn scrape_one(
             );
             return Ok(());
         }
-        matches.push(maybe_capture?);
-    }
 
-    if matches.is_empty() {
-        tracing::warn!("{}: no proxies found", source.url);
-        return Ok(());
-    }
+        let capture = maybe_capture?;
 
-    drop(source);
-
-    #[cfg(feature = "tui")]
-    let mut seen_protocols = HashSet::new();
-    let mut proxies = proxies.lock();
-    for capture in matches {
         let protocol = match capture.name("protocol") {
             Some(m) => m.as_str().parse()?,
             None => proto,
         };
+
         if config.protocol_is_enabled(protocol) {
             #[cfg(feature = "tui")]
             seen_protocols.insert(protocol);
-            proxies.insert(Proxy {
+
+            new_proxies.insert(Proxy {
                 protocol,
                 host: capture
                     .name("host")
@@ -128,12 +123,24 @@ async fn scrape_one(
     drop(config);
     drop(text);
 
+    if new_proxies.is_empty() {
+        tracing::warn!("{}: no proxies found", source.url);
+        return Ok(());
+    }
+
+    drop(source);
+
+    let mut proxies = proxies.lock();
+    proxies.extend(new_proxies);
+
     #[cfg(feature = "tui")]
     for proto in seen_protocols {
         let count = proxies.iter().filter(move |p| p.protocol == proto).count();
         drop(tx.send(Event::App(AppEvent::TotalProxies(proto, count))));
     }
+
     drop(proxies);
+
     Ok(())
 }
 

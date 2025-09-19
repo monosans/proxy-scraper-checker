@@ -13,7 +13,7 @@ crossterm = { version = "=0.28.1", features = [
 ], optional = true }
 dhat = { version = "=0.3.3", optional = true }
 dirs = "=6.0.0"
-fancy-regex = "=0.16.1"
+fancy-regex = "=0.16.2"
 foldhash = "=0.2.0"
 futures = { version = "=0.3.31", optional = true }
 hickory-resolver = "=0.25.2"

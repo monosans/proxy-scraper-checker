@@ -52,8 +52,7 @@ pub async fn run(
         if let Some(event) = rx.recv().await {
             if handle_event(event, &mut app_state, &token, &logger_state) {
                 terminal
-                    .draw(|frame| draw(frame, &app_state, &logger_state))
-                    .wrap_err("failed to draw tui")?;
+                    .draw(|frame| draw(frame, &app_state, &logger_state))?;
             }
         } else {
             break;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::{OptionExt as _, WrapErr as _};
+use color_eyre::eyre::OptionExt as _;
 use foldhash::HashSetExt as _;
 
 #[cfg(feature = "tui")]
@@ -190,8 +190,7 @@ pub async fn scrape_all(
     drop(tx);
 
     while let Some(res) = join_set.join_next().await {
-        res.wrap_err("proxy scraping task panicked or was cancelled")?
-            .wrap_err("proxy scraping task failed")?;
+        res??;
     }
 
     drop(join_set);

@@ -71,7 +71,6 @@ mod utils;
 
 use std::sync::Arc;
 
-use color_eyre::eyre::WrapErr as _;
 use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
@@ -158,7 +157,7 @@ async fn download_output_dependencies(
     }
 
     while let Some(task) = output_dependencies_tasks.join_next().await {
-        task.wrap_err("output dependencies task panicked or was cancelled")??;
+        task??;
     }
     Ok(())
 }
@@ -272,15 +271,13 @@ async fn run_with_tui(
     config: Arc<config::Config>,
     logging_filter: tracing_subscriber::filter::Targets,
 ) -> crate::Result<()> {
-    tui_logger::init_logger(tui_logger::LevelFilter::Debug)
-        .wrap_err("failed to initialize tui_logger")?;
+    tui_logger::init_logger(tui_logger::LevelFilter::Debug)?;
     tracing_subscriber::registry()
         .with(logging_filter)
         .with(tui_logger::TuiTracingSubscriberLayer)
         .init();
 
-    let terminal =
-        ratatui::try_init().wrap_err("failed to initialize ratatui")?;
+    let terminal = ratatui::try_init()?;
     let terminal_guard = tui::RatatuiRestoreGuard;
 
     let token = tokio_util::sync::CancellationToken::new();
@@ -325,7 +322,7 @@ async fn main() -> crate::Result<()> {
     #[cfg(feature = "dhat")]
     let _profiler = dhat::Profiler::new_heap();
 
-    color_eyre::install().wrap_err("failed to install color_eyre hooks")?;
+    color_eyre::install()?;
 
     let config = config::load_config().await?;
     let logging_filter = create_logging_filter(&config);

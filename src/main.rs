@@ -172,8 +172,7 @@ async fn main_task(
 ) -> crate::Result<()> {
     let dns_resolver = Arc::new(http::HickoryDnsResolver::new());
     let http_client =
-        http::create_reqwest_client(&config, Arc::clone(&dns_resolver))
-            .wrap_err("failed to create reqwest HTTP client")?;
+        http::create_reqwest_client(&config, Arc::clone(&dns_resolver))?;
 
     let ((), mut proxies) = tokio::try_join!(
         download_output_dependencies(
@@ -202,9 +201,7 @@ async fn main_task(
     )
     .await?;
 
-    output::save_proxies(config, proxies)
-        .await
-        .wrap_err("failed to save proxies")?;
+    output::save_proxies(config, proxies).await?;
 
     tracing::info!("Thank you for using proxy-scraper-checker!");
 

@@ -33,8 +33,7 @@ impl DbType {
     }
 
     async fn db_path(self) -> crate::Result<PathBuf> {
-        let mut cache_path =
-            get_cache_path().await.wrap_err("failed to get cache path")?;
+        let mut cache_path = get_cache_path().await?;
         match self {
             Self::Asn => cache_path.push("asn_database.mmdb"),
             Self::Geo => cache_path.push("geolocation_database.mmdb"),
@@ -43,9 +42,7 @@ impl DbType {
     }
 
     async fn etag_path(self) -> crate::Result<PathBuf> {
-        let mut db_path = self.db_path().await.wrap_err_with(move || {
-            format!("failed to get {} database path", self.name())
-        })?;
+        let mut db_path = self.db_path().await?;
         db_path.set_extension("mmdb.etag");
         Ok(db_path)
     }
@@ -66,14 +63,7 @@ impl DbType {
             tokio::fs::File::create(&db_path).await.wrap_err_with(|| {
                 format!("failed to create file {}", db_path.display())
             })?;
-        while let Some(chunk) =
-            response.chunk().await.wrap_err_with(move || {
-                format!(
-                    "failed to read {} database response chunk",
-                    self.name()
-                )
-            })?
-        {
+        while let Some(chunk) = response.chunk().await? {
             file.write_all(&chunk).await.wrap_err_with(|| {
                 format!("failed to write to file {}", db_path.display())
             })?;
@@ -128,9 +118,7 @@ impl DbType {
         let mut headers = reqwest::header::HeaderMap::new();
         #[expect(clippy::collapsible_if)]
         if tokio::fs::metadata(&db_path).await.is_ok_and(|m| m.is_file()) {
-            if let Some(etag) =
-                self.read_etag().await.wrap_err("failed to read ETag")?
-            {
+            if let Some(etag) = self.read_etag().await? {
                 headers.insert(reqwest::header::IF_NONE_MATCH, etag);
             }
         }
@@ -139,20 +127,8 @@ impl DbType {
             .get(self.url())
             .headers(headers)
             .send()
-            .await
-            .wrap_err_with(move || {
-                format!(
-                    "failed to send {} database download request",
-                    self.name()
-                )
-            })?
-            .error_for_status()
-            .wrap_err_with(move || {
-                format!(
-                    "got error HTTP status code when downloading {} database",
-                    self.name()
-                )
-            })?;
+            .await?
+            .error_for_status()?;
 
         if response.status() == reqwest::StatusCode::NOT_MODIFIED {
             tracing::info!(
@@ -178,10 +154,7 @@ impl DbType {
             #[cfg(feature = "tui")]
             tx.clone(),
         )
-        .await
-        .wrap_err_with(move || {
-            format!("failed to save {} database", self.name())
-        })?;
+        .await?;
 
         if is_docker().await {
             tracing::info!(
@@ -199,13 +172,9 @@ impl DbType {
         drop(db_path);
 
         if let Some(etag_value) = etag {
-            self.save_etag(etag_value).await.wrap_err_with(move || {
-                format!("failed to save {} database ETag", self.name())
-            })
+            self.save_etag(etag_value).await
         } else {
-            self.remove_etag().await.wrap_err_with(move || {
-                format!("failed to remove {} database ETag", self.name())
-            })
+            self.remove_etag().await
         }
     }
 
@@ -214,8 +183,7 @@ impl DbType {
     ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
         let path = self.db_path().await?;
         tokio::task::spawn_blocking(move || maxminddb::Reader::open_mmap(path))
-            .await
-            .wrap_err("failed to spawn tokio blocking task")?
+            .await?
             .wrap_err_with(move || {
                 format!("failed to open {} database", self.name())
             })

@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use color_eyre::eyre::{WrapErr as _, eyre};
+use color_eyre::eyre::eyre;
 
 use crate::{
     config::{Config, HttpbinResponse},
@@ -69,8 +69,7 @@ impl TryFrom<&mut Proxy> for reqwest::Proxy {
             value.protocol.as_str(),
             value.host,
             value.port
-        ))
-        .wrap_err("failed to create reqwest::Proxy")?;
+        ))?;
 
         if let (Some(username), Some(password)) =
             (value.username.as_ref(), value.password.as_ref())

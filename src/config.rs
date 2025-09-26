@@ -70,10 +70,7 @@ async fn get_output_path(
 ) -> crate::Result<PathBuf> {
     let output_path = if is_docker().await {
         let mut path = tokio::task::spawn_blocking(dirs::data_local_dir)
-            .await
-            .wrap_err(
-                "failed to spawn task for getting user's local data directory",
-            )?
+            .await?
             .ok_or_eyre("failed to get user's local data directory")?;
         path.push(APP_DIRECTORY_NAME);
         path
@@ -200,16 +197,12 @@ impl From<raw_config::SourceConfig> for Source {
 }
 
 pub async fn load_config() -> crate::Result<Arc<Config>> {
-    let raw_config_path = raw_config::get_config_path();
-    let raw_config = raw_config::read_config(Path::new(&raw_config_path))
-        .await
-        .wrap_err_with(move || {
-            format!("failed to load config from {raw_config_path}")
-        })?;
+    let raw_config = {
+        let raw_config_path = raw_config::get_config_path();
+        raw_config::read_config(Path::new(&raw_config_path)).await
+    }?;
 
-    let config = Config::from_raw_config(raw_config)
-        .await
-        .wrap_err("failed to create Config from RawConfig")?;
+    let config = Config::from_raw_config(raw_config).await?;
 
     Ok(Arc::new(config))
 }

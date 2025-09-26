@@ -6,7 +6,6 @@
 
 use std::time::Duration;
 
-use color_eyre::eyre::WrapErr as _;
 use crossterm::event::{
     Event as CrosstermEvent, KeyCode, KeyModifiers, MouseEventKind,
 };

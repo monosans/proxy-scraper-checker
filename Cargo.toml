@@ -49,7 +49,7 @@ tracing = { version = "=0.1.41", features = [
     "release_max_level_debug",
 ] }
 tracing-subscriber = { version = "=0.3.20", features = ["parking_lot"] }
-tui-logger = { version = "=0.17.3", features = [
+tui-logger = { version = "=0.17.4", features = [
     "tracing-support",
 ], optional = true }
 url = "=2.5.7"

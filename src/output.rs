@@ -196,10 +196,8 @@ pub async fn save_proxies(
         }
     }
 
-    let path = config
-        .output
-        .path
-        .canonicalize()
+    let path = tokio::fs::canonicalize(&config.output.path)
+        .await
         .unwrap_or_else(move |_| config.output.path.clone());
     if is_docker().await {
         tracing::info!(

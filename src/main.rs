@@ -318,7 +318,11 @@ async fn run_without_tui(
     main_task(config, token).await
 }
 
-#[tokio::main]
+#[cfg_attr(
+    feature = "tokio-current-thread",
+    tokio::main(flavor = "current_thread")
+)]
+#[cfg_attr(not(feature = "tokio-current-thread"), tokio::main)]
 #[expect(clippy::unwrap_in_result)]
 async fn main() -> crate::Result<()> {
     #[cfg(feature = "dhat")]

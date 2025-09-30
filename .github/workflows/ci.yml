@@ -246,9 +246,9 @@ jobs:
         env:
           RUSTFLAGS: ""
       - if: ${{ matrix.cross  }}
-        run: cross +beta build --features mimalloc_v3,tui --release --target '${{ matrix.target }}' --locked
+        run: cross +beta build --features tokio-current-thread,tui --release --target '${{ matrix.target }}' --locked
       - if: ${{ !matrix.cross }}
-        run: cargo +beta build --features mimalloc_v3,tui --release --target '${{ matrix.target }}' --locked
+        run: cargo +beta build --features tokio-current-thread,tui --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
         shell: bash

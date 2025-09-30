@@ -66,6 +66,7 @@ dhat = ["dep:dhat"]
 jemalloc = ["dep:tikv-jemallocator"]
 mimalloc_v2 = ["dep:mimalloc_v2"]
 mimalloc_v3 = ["dep:mimalloc_v3"]
+tokio-current-thread = []
 tui = ["dep:crossterm", "dep:futures", "dep:ratatui", "dep:tui-logger"]
 
 [profile.release]

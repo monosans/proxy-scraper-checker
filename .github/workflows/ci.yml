@@ -246,9 +246,9 @@ jobs:
         env:
           RUSTFLAGS: ""
       - if: ${{ matrix.cross  }}
-        run: cross +beta build --features mimalloc,tui --release --target '${{ matrix.target }}' --locked
+        run: cross +beta build --features mimalloc_v3,tui --release --target '${{ matrix.target }}' --locked
       - if: ${{ !matrix.cross }}
-        run: cargo +beta build --features mimalloc,tui --release --target '${{ matrix.target }}' --locked
+        run: cargo +beta build --features mimalloc_v3,tui --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
         shell: bash
@@ -410,7 +410,7 @@ jobs:
           target: ${{ matrix.target }}
           components: clippy
           cache-key: x86_64-unknown-linux-gnu
-      - run: cargo +beta clippy --all-targets ${{ matrix.features }}
+      - run: cargo +beta clippy ${{ matrix.features }}
   pre-commit:
     runs-on: ubuntu-24.04
     steps:
@@ -437,6 +437,11 @@ jobs:
       - run: cargo +nightly fmt --check
   udeps:
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        features:
+          - ""
+          - "--features tui"
     steps:
       - uses: actions/checkout@v5
         with:
@@ -446,5 +451,4 @@ jobs:
           toolchain: nightly
           cache-key: x86_64-unknown-linux-gnu
       - run: cargo +nightly install --locked cargo-udeps
-      - run: cargo +nightly udeps
-      - run: cargo +nightly udeps --features mimalloc,tui
+      - run: cargo +nightly udeps ${{ matrix.features }}

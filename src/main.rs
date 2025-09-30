@@ -47,12 +47,6 @@
     clippy::unwrap_used
 )]
 
-#[cfg(all(feature = "dhat", feature = "mimalloc"))]
-compile_error!(
-    "Features 'dhat-heap' and 'mimalloc' are mutually exclusive. Enable only \
-     one."
-);
-
 mod checker;
 mod config;
 #[cfg(feature = "tui")]
@@ -80,7 +74,15 @@ use tracing_subscriber::{
 static GLOBAL: dhat::Alloc = dhat::Alloc;
 
 #[cfg(all(
-    feature = "mimalloc",
+    feature = "jemalloc",
+    any(target_arch = "aarch64", target_arch = "x86_64"),
+    any(target_os = "linux", target_os = "macos", target_os = "windows"),
+))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
+#[cfg(all(
+    any(feature = "mimalloc_v2", feature = "mimalloc_v3"),
     any(target_arch = "aarch64", target_arch = "x86_64"),
     any(target_os = "linux", target_os = "macos", target_os = "windows"),
 ))]

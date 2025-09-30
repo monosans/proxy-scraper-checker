@@ -9,7 +9,7 @@ RUN --mount=source=src,target=src \
   --mount=source=Cargo.lock,target=Cargo.lock \
   --mount=type=cache,target=/app/target,sharing=locked \
   --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
-  cargo build --features mimalloc --release --locked \
+  cargo build --features mimalloc_v3 --release --locked \
   && cp target/release/proxy-scraper-checker .
 
 

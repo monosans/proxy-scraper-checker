@@ -78,7 +78,7 @@ async fn get_output_path(
         raw_config.output.path.clone()
     };
     tokio::fs::create_dir_all(&output_path).await.wrap_err_with(|| {
-        format!("failed to create output directory: {}", output_path.display())
+        format!("failed to create directory: {}", output_path.display())
     })?;
     Ok(output_path)
 }

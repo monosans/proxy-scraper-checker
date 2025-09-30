@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::OptionExt as _;
+use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 use foldhash::HashSetExt as _;
 
 #[cfg(feature = "tui")]
@@ -46,15 +46,24 @@ async fn scrape_one(
             _ => {
                 drop(http_client);
                 match u.to_file_path() {
-                    Ok(path) => tokio::fs::read_to_string(path).await,
-                    Err(()) => tokio::fs::read_to_string(&source.url).await,
+                    Ok(path) => tokio::fs::read_to_string(path)
+                        .await
+                        .wrap_err_with(move || {
+                            format!("failed to read file to string: {u}")
+                        }),
+                    Err(()) => tokio::fs::read_to_string(&source.url)
+                        .await
+                        .wrap_err_with(move || {
+                            format!("failed to read file to string: {u}")
+                        }),
                 }
-                .map_err(Into::into)
             }
         }
     } else {
         drop(http_client);
-        tokio::fs::read_to_string(&source.url).await.map_err(Into::into)
+        tokio::fs::read_to_string(&source.url).await.wrap_err_with(|| {
+            format!("failed to read file to string: {}", source.url)
+        })
     };
 
     #[cfg(feature = "tui")]

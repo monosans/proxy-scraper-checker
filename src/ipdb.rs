@@ -61,11 +61,11 @@ impl DbType {
         let db_path = self.db_path().await?;
         let mut file =
             tokio::fs::File::create(&db_path).await.wrap_err_with(|| {
-                format!("failed to create file {}", db_path.display())
+                format!("failed to create file: {}", db_path.display())
             })?;
         while let Some(chunk) = response.chunk().await? {
             file.write_all(&chunk).await.wrap_err_with(|| {
-                format!("failed to write to file {}", db_path.display())
+                format!("failed to write to file: {}", db_path.display())
             })?;
             #[cfg(feature = "tui")]
             drop(
@@ -81,7 +81,7 @@ impl DbType {
     async fn save_etag(self, etag: impl AsRef<[u8]>) -> crate::Result<()> {
         let path = self.etag_path().await?;
         tokio::fs::write(&path, etag).await.wrap_err_with(move || {
-            format!("failed to write to file {}", path.display())
+            format!("failed to write to file: {}", path.display())
         })
     }
 
@@ -93,7 +93,7 @@ impl DbType {
             Ok(text) => Ok(text.parse().ok()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(e).wrap_err_with(move || {
-                format!("failed to read file {} to string", path.display())
+                format!("failed to read file to string: {}", path.display())
             }),
         }
     }
@@ -104,7 +104,7 @@ impl DbType {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e).wrap_err_with(move || {
-                format!("failed to remove {}", path.display())
+                format!("failed to remove file: {}", path.display())
             }),
         }
     }
@@ -185,7 +185,7 @@ impl DbType {
         tokio::task::spawn_blocking(move || maxminddb::Reader::open_mmap(path))
             .await?
             .wrap_err_with(move || {
-                format!("failed to open {} database", self.name())
+                format!("failed to open IP database: {}", self.name())
             })
     }
 }

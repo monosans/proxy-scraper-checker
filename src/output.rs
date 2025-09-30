@@ -138,7 +138,7 @@ pub async fn save_proxies(
                 Ok(()) => Ok(()),
                 Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
                 Err(e) => Err(e).wrap_err_with(|| {
-                    format!("failed to remove file {}", path.display())
+                    format!("failed to remove file: {}", path.display())
                 }),
             }?;
             let json_data = if pretty {
@@ -147,9 +147,7 @@ pub async fn save_proxies(
                 serde_json::to_vec(&proxy_dicts)?
             };
             tokio::fs::write(&path, json_data).await.wrap_err_with(
-                move || {
-                    format!("failed to write proxies to {}", path.display())
-                },
+                move || format!("failed to write to file: {}", path.display()),
             )?;
         }
     }
@@ -162,7 +160,7 @@ pub async fn save_proxies(
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e).wrap_err_with(|| {
                 format!(
-                    "failed to remove directory {}",
+                    "failed to remove directory: {}",
                     directory_path.display()
                 )
             }),
@@ -181,7 +179,7 @@ pub async fn save_proxies(
             .await
             .wrap_err_with(|| {
                 format!(
-                    "failed to write proxies to {}",
+                    "failed to write to file: {}",
                     directory_path.join("all.txt").display()
                 )
             })?;
@@ -192,10 +190,7 @@ pub async fn save_proxies(
             file_path.set_extension("txt");
             tokio::fs::write(&file_path, text).await.wrap_err_with(
                 move || {
-                    format!(
-                        "failed to write proxies to {}",
-                        file_path.display()
-                    )
+                    format!("failed to write to file: {}", file_path.display())
                 },
             )?;
         }

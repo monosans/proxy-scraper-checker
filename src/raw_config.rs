@@ -182,9 +182,9 @@ pub fn get_config_path() -> String {
 pub async fn read_config(path: &Path) -> crate::Result<RawConfig> {
     let raw_config =
         tokio::fs::read_to_string(path).await.wrap_err_with(move || {
-            format!("failed to read {} to string", path.display())
+            format!("failed to read file to string: {}", path.display())
         })?;
     toml::from_str(&raw_config).wrap_err_with(move || {
-        format!("failed to parse {} as TOML config file", path.display())
+        format!("failed to parse TOML config file: {}", path.display())
     })
 }

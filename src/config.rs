@@ -69,9 +69,9 @@ async fn get_output_path(
     raw_config: &raw_config::RawConfig,
 ) -> crate::Result<PathBuf> {
     let output_path = if is_docker().await {
-        let mut path = tokio::task::spawn_blocking(dirs::data_local_dir)
-            .await?
+        let mut path = dirs::data_local_dir()
             .ok_or_eyre("failed to get user's local data directory")?;
+        #[expect(clippy::pathbuf_init_then_push)]
         path.push(APP_DIRECTORY_NAME);
         path
     } else {

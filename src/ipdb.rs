@@ -182,10 +182,8 @@ impl DbType {
         self,
     ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
         let path = self.db_path().await?;
-        tokio::task::spawn_blocking(move || maxminddb::Reader::open_mmap(path))
-            .await?
-            .wrap_err_with(move || {
-                format!("failed to open IP database: {}", self.name())
-            })
+        maxminddb::Reader::open_mmap(path).wrap_err_with(move || {
+            format!("failed to open IP database: {}", self.name())
+        })
     }
 }

@@ -1,6 +1,6 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM docker.io/rust:slim-trixie AS builder
+FROM docker.io/rust:1-slim-trixie AS builder
 
 WORKDIR /app
 

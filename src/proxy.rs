@@ -97,6 +97,7 @@ impl Proxy {
                 .proxy(self.try_into()?)
                 .timeout(config.checking.timeout)
                 .connect_timeout(config.checking.connect_timeout)
+                .pool_idle_timeout(Duration::ZERO)
                 .pool_max_idle_per_host(0)
                 .http1_only()
                 .tcp_keepalive(None)

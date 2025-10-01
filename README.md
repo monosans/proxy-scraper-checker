@@ -37,9 +37,10 @@ This tool makes many network requests and can impact your IP-address reputation.
 
 > **Note:** For Termux users, see the dedicated section below.
 
-1. **Download** the appropriate binary from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
+1. **Download** the archive for your platform from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
 
-   - Not sure which one? Check the [platform support table](https://doc.rust-lang.org/beta/rustc/platform-support.html)
+   - Look for artifacts starting with `proxy-scraper-checker-binary-` followed by your platform
+   - Not sure which platform? Check the [platform support table](https://doc.rust-lang.org/beta/rustc/platform-support.html)
 
 2. **Extract** the archive to a dedicated folder
 
@@ -56,10 +57,9 @@ This tool makes many network requests and can impact your IP-address reputation.
 
 1. **Install** [Docker Compose](https://docs.docker.com/compose/install/)
 
-2. **Download** the docker archive from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
+2. **Download** the archive from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
 
-   - Look for artifacts named `proxy-scraper-checker-<target>-docker`
-     - Not sure which one? Check the [platform support table](https://doc.rust-lang.org/beta/rustc/platform-support.html)
+   - Look for artifacts starting with `proxy-scraper-checker-docker-` followed by your CPU architecture
 
 3. **Extract** to a folder and configure `config.toml`
 

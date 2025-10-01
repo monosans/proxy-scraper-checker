@@ -257,7 +257,7 @@ jobs:
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
       - uses: actions/upload-artifact@v4
         with:
-          name: proxy-scraper-checker-${{ matrix.target }}
+          name: proxy-scraper-checker-binary-${{ matrix.target }}
           path: dist/
           if-no-files-found: error
   build-docker:
@@ -364,7 +364,7 @@ jobs:
           EOF
       - uses: actions/upload-artifact@v4
         with:
-          name: proxy-scraper-checker-${{ matrix.platform }}-docker
+          name: proxy-scraper-checker-docker-${{ matrix.platform }}
           path: dist/
           if-no-files-found: error
           include-hidden-files: true
@@ -386,7 +386,7 @@ jobs:
       - run: mv {out,src,Cargo.lock,Cargo.toml,compose.yaml,config.toml,Dockerfile,LICENSE} dist/
       - uses: actions/upload-artifact@v4
         with:
-          name: proxy-scraper-checker-${{ matrix.platform }}-docker
+          name: proxy-scraper-checker-docker-${{ matrix.platform }}
           path: dist/
           if-no-files-found: error
           include-hidden-files: true

@@ -32,7 +32,7 @@ case $(getprop ro.product.cpu.abi) in
     ;;
 esac
 
-curl -fLo "${download_path}" "https://nightly.link/monosans/${project_name}/workflows/ci/main/${project_name}-${target}.zip"
+curl -fLo "${download_path}" "https://nightly.link/monosans/${project_name}/workflows/ci/main/${project_name}-binary-${target}.zip"
 mkdir -p "${install_path}"
 unzip -qod "${install_path}" "${download_path}"
 rm -f "${download_path}"

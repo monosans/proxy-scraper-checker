@@ -29,18 +29,22 @@ pub struct BasicAuth {
 pub struct HickoryDnsResolver(Arc<hickory_resolver::TokioResolver>);
 
 impl HickoryDnsResolver {
-    pub fn new() -> Self {
-        let mut builder = hickory_resolver::TokioResolver::builder_tokio()
-            .unwrap_or_else(|_| {
-                hickory_resolver::TokioResolver::builder_with_config(
+    pub async fn new() -> Result<Self, tokio::task::JoinError> {
+        let mut builder = tokio::task::spawn_blocking(
+            hickory_resolver::TokioResolver::builder_tokio,
+        )
+        .await?
+        .unwrap_or_else(|_| {
+            hickory_resolver::TokioResolver::builder_with_config(
                 hickory_resolver::config::ResolverConfig::cloudflare(),
                 hickory_resolver::name_server::TokioConnectionProvider::default(
                 ),
             )
-            });
+        });
+
         builder.options_mut().ip_strategy =
             hickory_resolver::config::LookupIpStrategy::Ipv4AndIpv6;
-        Self(Arc::new(builder.build()))
+        Ok(Self(Arc::new(builder.build())))
     }
 }
 

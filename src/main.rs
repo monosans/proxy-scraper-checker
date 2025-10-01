@@ -171,7 +171,7 @@ async fn main_task(
         event::Event,
     >,
 ) -> crate::Result<()> {
-    let dns_resolver = Arc::new(http::HickoryDnsResolver::new());
+    let dns_resolver = Arc::new(http::HickoryDnsResolver::new().await?);
     let http_client =
         http::create_reqwest_client(&config, Arc::clone(&dns_resolver))?;
 

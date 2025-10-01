@@ -337,6 +337,9 @@ jobs:
           - "amd64"
           - "arm-v7"
           - "arm64-v8"
+          - "ppc64le"
+          - "riscv64"
+          - "s390x"
     steps:
       - uses: actions/checkout@v5
         with:
@@ -373,9 +376,7 @@ jobs:
       - build-docker
     strategy:
       matrix:
-        platform:
-          - "ppc64le"
-          - "s390x"
+        platform: []
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5

@@ -52,10 +52,11 @@ impl reqwest::dns::Resolve for HickoryDnsResolver {
     fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
         let resolver = Arc::clone(&self.0);
         Box::pin(async move {
-            let lookup = resolver.lookup_ip(name.as_str()).await?;
+            let lookup = resolver.lookup_ip(name.as_str()).await;
+            drop(name);
             drop(resolver);
             let addrs: reqwest::dns::Addrs = Box::new(
-                lookup.into_iter().map(|ip_addr| SocketAddr::new(ip_addr, 0)),
+                lookup?.into_iter().map(|ip_addr| SocketAddr::new(ip_addr, 0)),
             );
             Ok(addrs)
         })
@@ -170,8 +171,8 @@ pub fn create_reqwest_client<R: reqwest::dns::Resolve + 'static>(
         .connect_timeout(config.scraping.connect_timeout)
         .dns_resolver(dns_resolver);
 
-    if let Some(proxy) = &config.scraping.proxy {
-        builder = builder.proxy(reqwest::Proxy::all(proxy.clone())?);
+    if let Some(proxy) = config.scraping.proxy.clone() {
+        builder = builder.proxy(reqwest::Proxy::all(proxy)?);
     }
 
     let client = builder.build()?;

@@ -91,7 +91,7 @@ impl Proxy {
         config: &Config,
         dns_resolver: Arc<R>,
     ) -> crate::Result<()> {
-        if let Some(check_url) = &config.checking.check_url {
+        if let Some(check_url) = config.checking.check_url.clone() {
             let builder = reqwest::ClientBuilder::new()
                 .user_agent(&config.checking.user_agent)
                 .proxy(self.try_into()?)
@@ -110,14 +110,12 @@ impl Proxy {
                 target_os = "linux"
             ))]
             let builder = builder.tcp_user_timeout(None);
-            let client = builder.build()?;
+            let request = {
+                let client = builder.build()?;
+                client.get(check_url)
+            };
             let start = Instant::now();
-            let response = client
-                .get(check_url.clone())
-                .send()
-                .await?
-                .error_for_status()?;
-            drop(client);
+            let response = request.send().await?.error_for_status()?;
             self.timeout = Some(start.elapsed());
             self.exit_ip = response.text().await.map_or(None, |text| {
                 if let Ok(httpbin) =

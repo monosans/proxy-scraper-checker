@@ -196,6 +196,8 @@ pub async fn save_proxies(
         }
     }
 
+    drop(proxies);
+
     let path = tokio::fs::canonicalize(&config.output.path)
         .await
         .unwrap_or_else(move |_| config.output.path.clone());

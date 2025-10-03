@@ -152,7 +152,7 @@ impl DbType {
         self.save_db(
             response,
             #[cfg(feature = "tui")]
-            tx.clone(),
+            tx,
         )
         .await?;
 

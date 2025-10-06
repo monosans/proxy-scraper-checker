@@ -5,6 +5,7 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
+use itertools::Itertools as _;
 use serde::Deserialize as _;
 
 use crate::{HashMap, http::BasicAuth};
@@ -37,19 +38,15 @@ where
     {
         Ok(Some(u))
     } else {
-        let type_label = if let Some((last, rest)) = allowed_schemes
-            .iter()
-            .map(|scheme| format!("'{scheme}'"))
-            .collect::<Vec<_>>()
-            .split_last()
-        {
-            if rest.is_empty() {
-                last.clone()
-            } else {
-                format!("{} or {}", rest.join(", "), last)
+        let type_label = match allowed_schemes {
+            [] => String::new(),
+            [single] => format!("'{single}'"),
+            [rest @ .., last] => {
+                format!(
+                    "{} or '{last}'",
+                    rest.iter().map(|s| format!("'{s}'")).join(", ")
+                )
             }
-        } else {
-            String::new()
         };
         Err(serde::de::Error::custom(format!(
             "'{s}' is not a valid {type_label} url"

@@ -205,13 +205,13 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
     );
     drop(ipdb_layout);
 
-    let proxies_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(state.sources_total.keys().map(|_| Constraint::Fill(1)))
-        .split(outer_layout[2]);
-
     let mut proxy_types: Vec<_> = state.sources_total.keys().collect();
     proxy_types.sort_unstable();
+
+    let proxies_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(proxy_types.iter().map(|_| Constraint::Fill(1)))
+        .split(outer_layout[2]);
 
     for (i, proxy_type) in proxy_types.into_iter().enumerate() {
         let block = Block::bordered().title(proxy_type.as_str().to_uppercase());

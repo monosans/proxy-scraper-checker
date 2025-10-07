@@ -67,16 +67,19 @@ fn validate_http_url<'de, D: serde::Deserializer<'de>>(
 }
 
 #[derive(serde::Deserialize)]
+pub struct DetailedSourceConfig {
+    pub url: String,
+    #[serde(default)]
+    pub basic_auth: Option<BasicAuth>,
+    #[serde(default)]
+    pub headers: Option<HashMap<String, String>>,
+}
+
+#[derive(serde::Deserialize)]
 #[serde(untagged)]
 pub enum SourceConfig {
     Simple(String),
-    Detailed {
-        url: String,
-        #[serde(default)]
-        basic_auth: Option<BasicAuth>,
-        #[serde(default)]
-        headers: Option<HashMap<String, String>>,
-    },
+    Detailed(Box<DetailedSourceConfig>),
 }
 
 #[derive(serde::Deserialize)]

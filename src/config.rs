@@ -189,9 +189,11 @@ impl From<raw_config::SourceConfig> for Source {
             raw_config::SourceConfig::Simple(url) => {
                 Self { url, basic_auth: None, headers: None }
             }
-            raw_config::SourceConfig::Detailed { url, basic_auth, headers } => {
-                Self { url, basic_auth, headers }
-            }
+            raw_config::SourceConfig::Detailed(config) => Self {
+                url: config.url,
+                basic_auth: config.basic_auth,
+                headers: config.headers,
+            },
         }
     }
 }

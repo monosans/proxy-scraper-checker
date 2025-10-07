@@ -17,6 +17,7 @@ use ratatui::{
     text::{Line, Text},
     widgets::{Block, Gauge},
 };
+use strum::EnumCount as _;
 use tui_logger::{TuiLoggerWidget, TuiWidgetEvent, TuiWidgetState};
 
 use crate::{
@@ -205,7 +206,8 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
     );
     drop(ipdb_layout);
 
-    let mut proxy_types: Vec<_> = state.sources_total.keys().collect();
+    let mut proxy_types: smallvec::SmallVec<[_; ProxyType::COUNT]> =
+        state.sources_total.keys().collect();
     proxy_types.sort_unstable();
 
     let proxies_layout = Layout::default()

@@ -16,6 +16,7 @@ use crate::{
 #[derive(
     Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize,
 )]
+#[cfg_attr(feature = "tui", derive(strum::EnumCount))]
 #[serde(rename_all = "lowercase")]
 pub enum ProxyType {
     Http,

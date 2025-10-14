@@ -323,7 +323,6 @@ async fn run_without_tui(
     tokio::main(flavor = "current_thread")
 )]
 #[cfg_attr(not(feature = "tokio-current-thread"), tokio::main)]
-#[expect(clippy::unwrap_in_result)]
 async fn main() -> crate::Result<()> {
     #[cfg(feature = "dhat")]
     let _profiler = dhat::Profiler::new_heap();

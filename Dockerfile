@@ -24,7 +24,7 @@ ARG \
 RUN (getent group "${GID}" || groupadd --gid "${GID}" app) \
   && useradd --gid "${GID}" --no-log-init --create-home --uid "${UID}" app \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \
-  && chown ${UID}:${GID} /home/app/.cache/proxy_scraper_checker
+  && chown "${UID}:${GID}" /home/app/.cache/proxy_scraper_checker
 
 COPY --from=builder --chown=${UID}:${GID} --link /app/proxy-scraper-checker .
 

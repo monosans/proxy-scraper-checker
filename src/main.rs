@@ -76,7 +76,7 @@ static GLOBAL: dhat::Alloc = dhat::Alloc;
 #[cfg(all(
     feature = "jemalloc",
     any(target_arch = "aarch64", target_arch = "x86_64"),
-    any(target_os = "linux", target_os = "macos", target_os = "windows"),
+    any(target_os = "linux", target_os = "macos"),
 ))]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;

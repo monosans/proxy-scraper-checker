@@ -61,6 +61,8 @@ url = "=2.5.7"
 
 [target.'cfg(all(any(target_arch = "aarch64", target_arch = "x86_64"), any(target_os = "linux", target_os = "macos", target_os = "windows")))'.dependencies]
 mimalloc = { version = "=0.1.48", optional = true }
+
+[target.'cfg(all(any(target_arch = "aarch64", target_arch = "x86_64"), any(target_os = "linux", target_os = "macos")))'.dependencies]
 tikv-jemallocator = { version = "=0.6.1", optional = true }
 
 [features]

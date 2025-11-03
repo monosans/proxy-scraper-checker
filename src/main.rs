@@ -319,10 +319,13 @@ async fn run_without_tui(
 }
 
 #[cfg_attr(
-    feature = "tokio-current-thread",
+    feature = "tokio-multi-thread",
+    tokio::main(flavor = "multi_thread")
+)]
+#[cfg_attr(
+    not(feature = "tokio-multi-thread"),
     tokio::main(flavor = "current_thread")
 )]
-#[cfg_attr(not(feature = "tokio-current-thread"), tokio::main)]
 async fn main() -> crate::Result<()> {
     #[cfg(feature = "dhat")]
     let _profiler = dhat::Profiler::new_heap();

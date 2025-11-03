@@ -55,12 +55,13 @@ smallvec = { version = "=1.15.1", features = [
     "union",
 ], optional = true }
 strum = { version = "=0.27.2", features = ["derive"], optional = true }
-tokio = { version = "=1.48.0", features = ["full"] }
+tokio = { version = "=1.48.0", features = ["fs", "parking_lot", "signal"] }
 tokio-util = "=0.7.17"
 toml = "=0.9.8"
-tracing = { version = "=0.1.41", features = [
+tracing = { version = "=0.1.41", default-features = false, features = [
     "max_level_debug",
     "release_max_level_debug",
+    "std",
 ] }
 tracing-subscriber = { version = "=0.3.20", features = ["parking_lot"] }
 tui-logger = { version = "=0.17.4", features = [
@@ -79,7 +80,7 @@ dhat = ["dep:dhat"]
 jemalloc = ["dep:tikv-jemallocator"]
 mimalloc_v2 = ["dep:mimalloc"]
 mimalloc_v3 = ["dep:mimalloc", "mimalloc/v3"]
-tokio-current-thread = []
+tokio-multi-thread = []
 tui = [
     "dep:crossterm",
     "dep:futures",

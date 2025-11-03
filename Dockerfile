@@ -9,7 +9,7 @@ RUN --mount=source=src,target=src \
   --mount=source=Cargo.lock,target=Cargo.lock \
   --mount=type=cache,target=/app/target,sharing=locked \
   --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
-  cargo build --features tokio-current-thread --release --locked \
+  cargo build --release --locked \
   && cp target/release/proxy-scraper-checker .
 
 

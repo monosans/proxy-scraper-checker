@@ -1,19 +1,19 @@
-# Enable debug logging (shows detailed checking process)
-# Warning: Produces very verbose output
+# Enable debug logging to see detailed checking process for each proxy
+# Warning: Extremely verbose - logs every connection attempt and failure
 debug = false
 
 
 [scraping]
 # Maximum proxies to collect per source (0 = unlimited)
-# Helps skip unreliable sources with too many proxies
+# When this limit is reached, the source is skipped with a warning to prevent memory issues
 max_proxies_per_source = 100000
 
 # Request timeout for fetching proxy sources (seconds)
-# Higher values may find more sources but take longer
+# Higher values allow slower sources to complete but increase total scraping time
 timeout = 60.0
 connect_timeout = 5.0
 
-# HTTP(S),SOCKS4 or SOCKS5 proxy used for fetching sources (e.g., "socks5://user:pass@host:port"). Leave empty to disable.
+# HTTP(S), SOCKS4, or SOCKS5 proxy used for fetching sources (e.g., "socks5://user:pass@host:port"). Leave empty to disable.
 proxy = ""
 
 # User-Agent header for scraping requests
@@ -25,19 +25,19 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 # httpbin-compatible: Returns JSON with IP info for ASN/geo data
 # plain-text: Returns just IP address for basic connectivity
 # Examples:
-#   "https://httpbin.org/ip" - JSON with "origin" key. Full featured checking.
-#   "https://api.ipify.org"  - Simple IP return. Full featured checking.
-#   "https://google.com"     - Basic connect/read check
-#   ""                       - Skip checking (scrape only)
+#   "https://httpbin.org/ip" - JSON with "origin" key. Full-featured checking.
+#   "https://api.ipify.org"  - Simple IP return. Full-featured checking.
+#   "https://google.com"     - Basic connect/read check only
+#   ""                       - Skip checking entirely (scrape only)
 check_url = "https://api.ipify.org"
 
-# Concurrent proxy checks (adjust based on RAM/network capacity)
-# Start low and increase gradually if system handles it well
+# Number of proxies to check simultaneously
+# Higher values = faster checking but more RAM/network usage. Lower if you experience crashes or timeouts.
 max_concurrent_checks = 1024
 
 # Proxy response timeout (seconds)
-# Higher = more working proxies found, slower checking
-# Lower = faster checking, may miss slower proxies
+# Higher = finds more slow proxies but takes longer
+# Lower = faster checking but discards slow proxies
 timeout = 60.0
 connect_timeout = 5.0
 
@@ -46,10 +46,11 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 
 [output]
-# Output directory (Docker ignores this setting)
+# Output directory (Docker overrides this to /home/app/.local/share/proxy_scraper_checker via volume mount)
 path = "./out"
 
-# Sort by response time (true) or IP address (false)
+# Sort proxies by response time (true) or by IP address (false)
+# Speed sorting: fastest proxies first. IP sorting: natural order by protocol, then IP, then port.
 sort_by_speed = true
 
 
@@ -66,8 +67,8 @@ enabled = true
 # Uses offline MaxMind database
 include_asn = true
 
-# Add geolocation (country/city) info to JSON output
-# Uses offline MaxMind database
+# Add geolocation (country/city) data to JSON output
+# Uses offline MaxMind GeoLite2 City database
 include_geolocation = true
 
 

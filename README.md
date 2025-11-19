@@ -11,7 +11,7 @@ Collect, test, and organize HTTP/SOCKS4/SOCKS5 proxies from multiple sources wit
 ## ✨ Key Features
 
 - **🔥 Blazing Performance** - Rust-powered async engine with configurable concurrency
-- **🌍 Rich Metadata** - ASN, geolocation, and response time data via offline MaxMind databases
+- **🌍 Rich Metadata** - ASN, country/city geolocation, and response time data via offline MaxMind databases
 - **🎯 Smart Parsing** - Advanced regex engine extracts proxies from any format (`protocol://user:pass@host:port`)
 - **🔐 Auth Support** - Handles username/password authentication seamlessly
 - **📊 Interactive TUI** - Real-time progress monitoring with beautiful terminal interface
@@ -26,11 +26,11 @@ Get pre-checked proxies from [monosans/proxy-list](https://github.com/monosans/p
 
 ## ⚠️ SAFETY WARNING ⚠️
 
-This tool makes many network requests and can impact your IP-address reputation. Consider using a VPN for safer operation.
+This tool makes thousands of concurrent network requests to test proxies, which may trigger rate limiting or security flags from your ISP or network provider. Consider using a VPN to protect your IP reputation.
 
 ## 🚀 Quick Start
 
-> All configuration options are documented in `config.toml` - edit it to customize sources, timeouts, and output preferences.
+> All configuration options are documented in `config.toml` with detailed comments explaining each setting.
 
 <details>
 <summary>💻 Binary Installation</summary>
@@ -52,7 +52,7 @@ This tool makes many network requests and can impact your IP-address reputation.
 <details>
 <summary>🐳 Docker Installation</summary>
 
-> **Note:** Docker version uses a simplified log-based interface (no TUI).
+> **Note:** Docker version outputs logs to stdout instead of the interactive TUI (terminal user interface).
 
 1. **Install** [Docker Compose](https://docs.docker.com/compose/install/)
 
@@ -80,7 +80,7 @@ This tool makes many network requests and can impact your IP-address reputation.
 
 > **Important:** Download Termux from [F-Droid](https://f-droid.org/en/packages/com.termux/), not Google Play ([why?](https://github.com/termux/termux-app#google-play-store-experimental-branch)).
 
-1. **Auto-install** with one command:
+1. **Install** with one command:
 
    ```bash
    bash <(curl -fsSL 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/termux.sh')

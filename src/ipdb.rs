@@ -1,4 +1,4 @@
-use std::{io, path::PathBuf};
+use std::{io, path::PathBuf, time::Duration};
 
 use color_eyre::eyre::{WrapErr as _, eyre};
 use tokio::io::AsyncWriteExt as _;
@@ -126,6 +126,7 @@ impl DbType {
         let response = http_client
             .get(self.url())
             .headers(headers)
+            .timeout(Duration::MAX)
             .send()
             .await?
             .error_for_status()?;

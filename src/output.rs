@@ -106,9 +106,7 @@ pub async fn save_proxies(
                 asn: if let Some(asn_db) = &maybe_asn_db {
                     if let Some(exit_ip) = proxy.exit_ip.as_ref() {
                         let exit_ip_addr: IpAddr = exit_ip.parse()?;
-                        asn_db.lookup::<maxminddb::geoip2::Asn<'_>>(
-                            exit_ip_addr,
-                        )?
+                        asn_db.lookup(exit_ip_addr)?.decode()?
                     } else {
                         None
                     }
@@ -118,9 +116,7 @@ pub async fn save_proxies(
                 geolocation: if let Some(geo_db) = &maybe_geo_db {
                     if let Some(exit_ip) = proxy.exit_ip.as_ref() {
                         let exit_ip_addr: IpAddr = exit_ip.parse()?;
-                        geo_db.lookup::<maxminddb::geoip2::City<'_>>(
-                            exit_ip_addr,
-                        )?
+                        geo_db.lookup(exit_ip_addr)?.decode()?
                     } else {
                         None
                     }

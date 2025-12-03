@@ -23,7 +23,7 @@ hickory-resolver = "=0.25.2"
 http = "=1.4.0"
 httpdate = "=1.0.3"
 itertools = "=0.14"
-log = { version = "=0.4.28", features = [
+log = { version = "=0.4.29", features = [
     "max_level_debug",
     "release_max_level_debug",
     "std",

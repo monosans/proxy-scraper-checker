@@ -29,7 +29,7 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 #   "https://api.ipify.org"  - Simple IP return. Full-featured checking.
 #   "https://google.com"     - Basic connect/read check only
 #   ""                       - Skip checking entirely (scrape only)
-check_url = ""
+check_url = "https://api.ipify.org"
 
 # Number of proxies to check simultaneously
 # Higher values = faster checking but more RAM/network usage. Lower if you experience crashes or timeouts.

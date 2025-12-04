@@ -17,7 +17,7 @@ connect_timeout = 5.0
 proxy = ""
 
 # User-Agent header for scraping requests
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
 
 
 [checking]
@@ -29,7 +29,7 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 #   "https://api.ipify.org"  - Simple IP return. Full-featured checking.
 #   "https://google.com"     - Basic connect/read check only
 #   ""                       - Skip checking entirely (scrape only)
-check_url = "https://api.ipify.org"
+check_url = ""
 
 # Number of proxies to check simultaneously
 # Higher values = faster checking but more RAM/network usage. Lower if you experience crashes or timeouts.
@@ -42,7 +42,7 @@ timeout = 60.0
 connect_timeout = 5.0
 
 # User-Agent header for proxy check requests
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
 
 
 [output]

@@ -64,6 +64,7 @@ pub struct Proxy {
 impl TryFrom<&mut Proxy> for reqwest::Proxy {
     type Error = crate::Error;
 
+    #[inline]
     fn try_from(value: &mut Proxy) -> Result<Self, Self::Error> {
         let proxy = Self::all(format!(
             "{}://{}:{}",

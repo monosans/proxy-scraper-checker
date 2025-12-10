@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 async-trait = "=0.1.89"
 color-eyre = "=0.6.5"
-crossterm = { version = "=0.28.1", default-features = false, features = [
+crossterm = { version = "=0.29.0", default-features = false, features = [
     "event-stream",
     "windows",
 ], optional = true }

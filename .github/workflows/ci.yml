@@ -62,6 +62,9 @@ jobs:
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true
+          - target: aarch64_be-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
           - target: arm-linux-androideabi
             runner: ubuntu-24.04
             cross: true

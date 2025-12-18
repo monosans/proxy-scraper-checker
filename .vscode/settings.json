@@ -1,1 +1,6 @@
-{ "rust-analyzer.cargo.features": ["tui"] }
+{
+    "rust-analyzer.cargo.features": [
+        "tui"
+    ],
+    "gitlens.ai.generateCommits.customInstructions": "5c4798aa-04e9-4bc4-874a-8db27ebf12a1"
+}

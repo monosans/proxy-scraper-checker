@@ -62,6 +62,9 @@ jobs:
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true
+          # - target: aarch64_be-unknown-linux-gnu
+          #   runner: ubuntu-24.04
+          #   cross: true
           - target: arm-linux-androideabi
             runner: ubuntu-24.04
             cross: true
@@ -255,7 +258,7 @@ jobs:
       - run: mv config.toml dist/
       - run: mv LICENSE dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: proxy-scraper-checker-binary-${{ matrix.target }}
           path: dist/
@@ -362,7 +365,7 @@ jobs:
 
           USER app
           EOF
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
           path: dist/
@@ -385,7 +388,7 @@ jobs:
       - run: mkdir -p dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
       - run: mv {out,src,Cargo.lock,Cargo.toml,compose.yaml,config.toml,Dockerfile,LICENSE} dist/
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
           path: dist/

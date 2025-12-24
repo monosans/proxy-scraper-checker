@@ -103,7 +103,7 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 
 ## 💎 Sponsors
 
-[![Thordata.com](https://github.com/user-attachments/assets/436a97b8-b2cc-4051-9c2a-2543ad3bf83d)](https://www.thordata.com/?ls=github&lk=proxy-scraper-checker)
+[![Thordata.com](https://github.com/user-attachments/assets/fbabdaeb-6147-4009-9da7-d4cc9a0b3f2d)](https://www.thordata.com/?ls=github&lk=proxy-scraper-checker)
 
 **[🐦 BirdProxies.com](https://www.birdproxies.com/@MONOSANS)** — Premium proxy service with exclusive benefits: Get **10% off** + **15% bonus data** using this link!
 

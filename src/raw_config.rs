@@ -7,7 +7,7 @@ use std::{
 use color_eyre::eyre::WrapErr as _;
 use serde::Deserialize as _;
 
-use crate::{HashMap, http::BasicAuth, utils::CompactStrJoin as _};
+use crate::{HashMap, http::BasicAuth};
 
 fn validate_positive_f64<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
@@ -40,12 +40,24 @@ where
         let type_label = match allowed_schemes {
             [] => "".into(),
             [single] => compact_str::format_compact!("'{single}'"),
-            [rest @ .., last] => compact_str::format_compact!(
-                "{} or '{last}'",
-                rest.iter()
-                    .map(|s| compact_str::format_compact!("'{s}'"))
-                    .join(", ")
-            ),
+            [rest @ .., last] => {
+                let mut t = compact_str::CompactString::const_new("");
+                let mut first = true;
+                for s in rest {
+                    if first {
+                        first = false;
+                    } else {
+                        t.push_str(", ");
+                    }
+                    t.push('\'');
+                    t.push_str(s);
+                    t.push('\'');
+                }
+                t.push_str(" or '");
+                t.push_str(last);
+                t.push('\'');
+                t
+            }
         };
         Err(serde::de::Error::custom(compact_str::format_compact!(
             "'{s}' is not a valid {type_label} url"

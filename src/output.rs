@@ -13,7 +13,7 @@ use crate::{
     config::Config,
     ipdb,
     proxy::{Proxy, ProxyType},
-    utils::{CompactStrJoin as _, is_docker},
+    utils::is_docker,
 };
 
 fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
@@ -226,8 +226,15 @@ fn create_proxy_list_str<'a, I>(
 where
     I: IntoIterator<Item = &'a Proxy>,
 {
-    proxies
-        .into_iter()
-        .map(move |proxy| proxy.to_string(include_protocol))
-        .join("\n")
+    let mut out = compact_str::CompactString::const_new("");
+    let mut first = true;
+    for proxy in proxies {
+        if first {
+            first = false;
+        } else {
+            out.push('\n');
+        }
+        proxy.write_string(&mut out, include_protocol);
+    }
+    out
 }

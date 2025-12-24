@@ -131,12 +131,11 @@ impl Proxy {
         Ok(())
     }
 
-    pub fn to_string(
+    pub fn write_string(
         &self,
+        s: &mut compact_str::CompactString,
         include_protocol: bool,
-    ) -> compact_str::CompactString {
-        let mut s = compact_str::CompactString::const_new("");
-
+    ) {
         if include_protocol {
             s.push_str(self.protocol.as_str());
             s.push_str("://");
@@ -154,7 +153,14 @@ impl Proxy {
         s.push_str(&self.host);
         s.push(':');
         s.push_str(itoa::Buffer::new().format(self.port));
+    }
 
+    pub fn to_string(
+        &self,
+        include_protocol: bool,
+    ) -> compact_str::CompactString {
+        let mut s = compact_str::CompactString::const_new("");
+        self.write_string(&mut s, include_protocol);
         s
     }
 }

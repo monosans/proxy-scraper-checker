@@ -38,7 +38,7 @@ where
         Ok(Some(u))
     } else {
         let type_label = match allowed_schemes {
-            [] => "".into(),
+            [] => compact_str::CompactString::const_new(""),
             [single] => compact_str::format_compact!("'{single}'"),
             [rest @ .., last] => {
                 let mut t = compact_str::CompactString::const_new("");
@@ -187,7 +187,10 @@ impl<'de> serde::Deserialize<'de> for OutputConfig {
 const CONFIG_ENV: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
 
 pub fn get_config_path() -> compact_str::CompactString {
-    env::var(CONFIG_ENV).map_or_else(move |_| "config.toml".into(), Into::into)
+    env::var(CONFIG_ENV).map_or_else(
+        move |_| compact_str::CompactString::const_new("config.toml"),
+        Into::into,
+    )
 }
 
 pub async fn read_config(path: &Path) -> crate::Result<RawConfig> {

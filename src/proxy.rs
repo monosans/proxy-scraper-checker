@@ -1,5 +1,4 @@
 use std::{
-    fmt::Write as _,
     hash::{Hash, Hasher},
     str::FromStr,
     sync::Arc,
@@ -139,16 +138,22 @@ impl Proxy {
         let mut s = compact_str::CompactString::const_new("");
 
         if include_protocol {
-            write!(s, "{}://", self.protocol.as_str()).unwrap();
+            s.push_str(self.protocol.as_str());
+            s.push_str("://");
         }
 
         if let (Some(username), Some(password)) =
             (&self.username, &self.password)
         {
-            write!(s, "{username}:{password}@").unwrap();
+            s.push_str(username);
+            s.push(':');
+            s.push_str(password);
+            s.push('@');
         }
 
-        write!(s, "{}:{}", self.host, self.port).unwrap();
+        s.push_str(&self.host);
+        s.push(':');
+        s.push_str(itoa::Buffer::new().format(self.port));
 
         s
     }

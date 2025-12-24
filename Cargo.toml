@@ -9,6 +9,7 @@ publish = false
 async-trait = "=0.1.89"
 color-eyre = "=0.6.5"
 compact_str = { version = "=0.9.0", features = ["serde"] }
+itoa = "=1.0.16"
 crossterm = { version = "=0.28.1", default-features = false, features = [
     "event-stream",
     "windows",

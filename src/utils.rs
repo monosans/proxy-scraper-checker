@@ -32,7 +32,8 @@ pub trait CompactStrJoin: Iterator {
                 );
                 write!(&mut result, "{first_elt}").unwrap();
                 for elt in self {
-                    write!(&mut result, "{sep}{elt}").unwrap();
+                    result.push_str(sep);
+                    write!(&mut result, "{elt}").unwrap();
                 }
                 result
             },

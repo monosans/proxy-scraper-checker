@@ -1415,6 +1415,7 @@ dependencies = [
  "hickory-resolver",
  "http",
  "httpdate",
+ "itoa",
  "log",
  "maxminddb",
  "mimalloc",

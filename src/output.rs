@@ -7,14 +7,13 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
-use itertools::Itertools as _;
 
 use crate::{
     HashMap,
     config::Config,
     ipdb,
     proxy::{Proxy, ProxyType},
-    utils::is_docker,
+    utils::{CompactStrJoin as _, is_docker},
 };
 
 fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
@@ -134,7 +133,10 @@ pub async fn save_proxies(
                 Ok(()) => Ok(()),
                 Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
                 Err(e) => Err(e).wrap_err_with(|| {
-                    format!("failed to remove file: {}", path.display())
+                    compact_str::format_compact!(
+                        "failed to remove file: {}",
+                        path.display()
+                    )
                 }),
             }?;
             let json_data = if pretty {
@@ -143,7 +145,12 @@ pub async fn save_proxies(
                 serde_json::to_vec(&proxy_dicts)?
             };
             tokio::fs::write(&path, json_data).await.wrap_err_with(
-                move || format!("failed to write to file: {}", path.display()),
+                move || {
+                    compact_str::format_compact!(
+                        "failed to write to file: {}",
+                        path.display()
+                    )
+                },
             )?;
         }
     }
@@ -155,7 +162,7 @@ pub async fn save_proxies(
             Ok(()) => Ok(()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e).wrap_err_with(|| {
-                format!(
+                compact_str::format_compact!(
                     "failed to remove directory: {}",
                     directory_path.display()
                 )
@@ -163,7 +170,7 @@ pub async fn save_proxies(
         }?;
         tokio::fs::create_dir_all(&directory_path).await.wrap_err_with(
             || {
-                format!(
+                compact_str::format_compact!(
                     "failed to create directory: {}",
                     directory_path.display()
                 )
@@ -174,7 +181,7 @@ pub async fn save_proxies(
         tokio::fs::write(directory_path.join("all.txt"), text)
             .await
             .wrap_err_with(|| {
-                format!(
+                compact_str::format_compact!(
                     "failed to write to file: {}",
                     directory_path.join("all.txt").display()
                 )
@@ -186,7 +193,10 @@ pub async fn save_proxies(
             file_path.set_extension("txt");
             tokio::fs::write(&file_path, text).await.wrap_err_with(
                 move || {
-                    format!("failed to write to file: {}", file_path.display())
+                    compact_str::format_compact!(
+                        "failed to write to file: {}",
+                        file_path.display()
+                    )
                 },
             )?;
         }
@@ -209,7 +219,10 @@ pub async fn save_proxies(
     Ok(())
 }
 
-fn create_proxy_list_str<'a, I>(proxies: I, include_protocol: bool) -> String
+fn create_proxy_list_str<'a, I>(
+    proxies: I,
+    include_protocol: bool,
+) -> compact_str::CompactString
 where
     I: IntoIterator<Item = &'a Proxy>,
 {

@@ -22,8 +22,8 @@ static RETRY_STATUSES: &[reqwest::StatusCode] = &[
 
 #[derive(Clone, serde::Deserialize)]
 pub struct BasicAuth {
-    pub username: String,
-    pub password: Option<String>,
+    pub username: compact_str::CompactString,
+    pub password: Option<compact_str::CompactString>,
 }
 
 pub struct HickoryDnsResolver(Arc<hickory_resolver::TokioResolver>);

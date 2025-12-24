@@ -49,12 +49,16 @@ async fn scrape_one(
                     Ok(path) => tokio::fs::read_to_string(path)
                         .await
                         .wrap_err_with(move || {
-                            format!("failed to read file to string: {u}")
+                            compact_str::format_compact!(
+                                "failed to read file to string: {u}"
+                            )
                         }),
                     Err(()) => tokio::fs::read_to_string(&source.url)
                         .await
                         .wrap_err_with(move || {
-                            format!("failed to read file to string: {u}")
+                            compact_str::format_compact!(
+                                "failed to read file to string: {u}"
+                            )
                         }),
                 }
             }
@@ -62,7 +66,10 @@ async fn scrape_one(
     } else {
         drop(http_client);
         tokio::fs::read_to_string(&source.url).await.wrap_err_with(|| {
-            format!("failed to read file to string: {}", source.url)
+            compact_str::format_compact!(
+                "failed to read file to string: {}",
+                source.url
+            )
         })
     };
 
@@ -111,18 +118,14 @@ async fn scrape_one(
                     .name("host")
                     .ok_or_eyre("failed to match \"host\" regex capture group")?
                     .as_str()
-                    .to_owned(),
+                    .into(),
                 port: capture
                     .name("port")
                     .ok_or_eyre("failed to match \"port\" regex capture group")?
                     .as_str()
                     .parse()?,
-                username: capture
-                    .name("username")
-                    .map(|m| m.as_str().to_owned()),
-                password: capture
-                    .name("password")
-                    .map(|m| m.as_str().to_owned()),
+                username: capture.name("username").map(|m| m.as_str().into()),
+                password: capture.name("password").map(|m| m.as_str().into()),
                 timeout: None,
                 exit_ip: None,
             });

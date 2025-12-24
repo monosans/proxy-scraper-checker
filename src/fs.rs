@@ -15,7 +15,10 @@ pub async fn get_cache_path() -> crate::Result<PathBuf> {
                 .ok_or_eyre("failed to get user's cache directory")?;
             path.push(APP_DIRECTORY_NAME);
             tokio::fs::create_dir_all(&path).await.wrap_err_with(|| {
-                format!("failed to create directory: {}", path.display())
+                compact_str::format_compact!(
+                    "failed to create directory: {}",
+                    path.display()
+                )
             })?;
             Ok(path)
         })

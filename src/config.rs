@@ -15,7 +15,7 @@ pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
 
 #[derive(serde::Deserialize)]
 pub struct HttpbinResponse {
-    pub origin: String,
+    pub origin: compact_str::CompactString,
 }
 
 pub struct Source {
@@ -78,7 +78,10 @@ async fn get_output_path(
         raw_config.output.path.clone()
     };
     tokio::fs::create_dir_all(&output_path).await.wrap_err_with(|| {
-        format!("failed to create directory: {}", output_path.display())
+        compact_str::format_compact!(
+            "failed to create directory: {}",
+            output_path.display()
+        )
     })?;
     Ok(output_path)
 }

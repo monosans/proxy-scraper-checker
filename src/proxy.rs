@@ -53,12 +53,12 @@ impl ProxyType {
 #[derive(Eq)]
 pub struct Proxy {
     pub protocol: ProxyType,
-    pub host: String,
+    pub host: compact_str::CompactString,
     pub port: u16,
-    pub username: Option<String>,
-    pub password: Option<String>,
+    pub username: Option<compact_str::CompactString>,
+    pub password: Option<compact_str::CompactString>,
     pub timeout: Option<Duration>,
-    pub exit_ip: Option<String>,
+    pub exit_ip: Option<compact_str::CompactString>,
 }
 
 impl TryFrom<&mut Proxy> for reqwest::Proxy {
@@ -132,26 +132,23 @@ impl Proxy {
         Ok(())
     }
 
-    pub fn to_string(&self, include_protocol: bool) -> String {
-        let mut s = String::new();
+    pub fn to_string(
+        &self,
+        include_protocol: bool,
+    ) -> compact_str::CompactString {
+        let mut s = compact_str::CompactString::const_new("");
 
         if include_protocol {
-            s.push_str(self.protocol.as_str());
-            s.push_str("://");
+            write!(s, "{}://", self.protocol.as_str()).unwrap();
         }
 
         if let (Some(username), Some(password)) =
             (&self.username, &self.password)
         {
-            s.push_str(username);
-            s.push(':');
-            s.push_str(password);
-            s.push('@');
+            write!(s, "{username}:{password}@").unwrap();
         }
 
-        s.push_str(&self.host);
-        s.push(':');
-        write!(s, "{}", self.port).unwrap();
+        write!(s, "{}:{}", self.host, self.port).unwrap();
 
         s
     }

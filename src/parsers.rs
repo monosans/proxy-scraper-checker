@@ -13,9 +13,9 @@ static IPV4_REGEX: LazyLock<fancy_regex::Regex> = LazyLock::new(|| {
     fancy_regex::Regex::new(pattern).unwrap()
 });
 
-pub fn parse_ipv4(s: &str) -> Option<String> {
+pub fn parse_ipv4(s: &str) -> Option<compact_str::CompactString> {
     if let Ok(Some(captures)) = IPV4_REGEX.captures(s) {
-        captures.name("host").map(|capture| capture.as_str().to_owned())
+        captures.name("host").map(|capture| capture.as_str().into())
     } else {
         None
     }

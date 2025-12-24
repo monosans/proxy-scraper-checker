@@ -240,7 +240,9 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
                     }
                 })
                 .block(Block::bordered().title("Scraping sources"))
-                .label(format!("{sources_scraped}/{sources_total}")),
+                .label(compact_str::format_compact!(
+                    "{sources_scraped}/{sources_total}"
+                )),
             layout[0],
         );
 
@@ -258,7 +260,9 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
                     }
                 })
                 .block(Block::bordered().title("Checking proxies"))
-                .label(format!("{proxies_checked}/{proxies_total}")),
+                .label(compact_str::format_compact!(
+                    "{proxies_checked}/{proxies_total}"
+                )),
             layout[1],
         );
 

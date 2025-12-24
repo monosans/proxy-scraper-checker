@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 async-trait = "=0.1.89"
 color-eyre = "=0.6.5"
+compact_str = { version = "=0.9.0", features = ["serde"] }
 crossterm = { version = "=0.28.1", default-features = false, features = [
     "event-stream",
     "windows",
@@ -22,7 +23,6 @@ futures = { version = "=0.3.31", default-features = false, features = [
 hickory-resolver = "=0.25.2"
 http = "=1.4.0"
 httpdate = "=1.0.3"
-itertools = "=0.14"
 log = { version = "=0.4.29", features = [
     "max_level_debug",
     "release_max_level_debug",

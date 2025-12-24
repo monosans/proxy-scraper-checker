@@ -5,10 +5,9 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
-use itertools::Itertools as _;
 use serde::Deserialize as _;
 
-use crate::{HashMap, http::BasicAuth};
+use crate::{HashMap, http::BasicAuth, utils::CompactStrJoin as _};
 
 fn validate_positive_f64<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
@@ -28,7 +27,7 @@ fn validate_url_generic<'de, D>(
 where
     D: serde::Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
+    let s = compact_str::CompactString::deserialize(deserializer)?;
     if s.trim().is_empty() {
         return Ok(None);
     }
@@ -39,16 +38,16 @@ where
         Ok(Some(u))
     } else {
         let type_label = match allowed_schemes {
-            [] => String::new(),
-            [single] => format!("'{single}'"),
-            [rest @ .., last] => {
-                format!(
-                    "{} or '{last}'",
-                    rest.iter().map(|s| format!("'{s}'")).join(", ")
-                )
-            }
+            [] => "".into(),
+            [single] => compact_str::format_compact!("'{single}'"),
+            [rest @ .., last] => compact_str::format_compact!(
+                "{} or '{last}'",
+                rest.iter()
+                    .map(|s| compact_str::format_compact!("'{s}'"))
+                    .join(", ")
+            ),
         };
-        Err(serde::de::Error::custom(format!(
+        Err(serde::de::Error::custom(compact_str::format_compact!(
             "'{s}' is not a valid {type_label} url"
         )))
     }
@@ -175,16 +174,22 @@ impl<'de> serde::Deserialize<'de> for OutputConfig {
 
 const CONFIG_ENV: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
 
-pub fn get_config_path() -> String {
-    env::var(CONFIG_ENV).unwrap_or_else(|_| "config.toml".to_owned())
+pub fn get_config_path() -> compact_str::CompactString {
+    env::var(CONFIG_ENV).map_or_else(move |_| "config.toml".into(), Into::into)
 }
 
 pub async fn read_config(path: &Path) -> crate::Result<RawConfig> {
     let raw_config =
         tokio::fs::read_to_string(path).await.wrap_err_with(move || {
-            format!("failed to read file to string: {}", path.display())
+            compact_str::format_compact!(
+                "failed to read file to string: {}",
+                path.display()
+            )
         })?;
     toml::from_str(&raw_config).wrap_err_with(move || {
-        format!("failed to parse TOML config file: {}", path.display())
+        compact_str::format_compact!(
+            "failed to parse TOML config file: {}",
+            path.display()
+        )
     })
 }

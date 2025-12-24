@@ -38,6 +38,7 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 > **Note:** For Termux users, see the dedicated section below.
 
 1. **Download** the archive for your platform from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
+
    - Look for artifacts starting with `proxy-scraper-checker-binary-` followed by your platform
    - Not sure which platform? Check the [platform support table](https://doc.rust-lang.org/beta/rustc/platform-support.html)
 
@@ -57,6 +58,7 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 1. **Install** [Docker Compose](https://docs.docker.com/compose/install/)
 
 2. **Download** the archive from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
+
    - Look for artifacts starting with `proxy-scraper-checker-docker-` followed by your CPU architecture
 
 3. **Extract** to a folder and configure `config.toml`
@@ -100,6 +102,8 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 </details>
 
 ## 💎 Sponsors
+
+[![Thordata.com](https://github.com/user-attachments/assets/436a97b8-b2cc-4051-9c2a-2543ad3bf83d)](https://www.thordata.com/?ls=github&lk=proxy-scraper-checker)
 
 **[🐦 BirdProxies.com](https://www.birdproxies.com/@MONOSANS)** — Premium proxy service with exclusive benefits: Get **10% off** + **15% bonus data** using this link!
 

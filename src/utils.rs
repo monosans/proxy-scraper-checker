@@ -1,4 +1,4 @@
-use std::fmt::Write as _;
+use std::fmt::{Display, Write as _};
 
 pub async fn is_docker() -> bool {
     #[cfg(target_os = "linux")]
@@ -21,7 +21,7 @@ pub async fn is_docker() -> bool {
 pub trait CompactStrJoin: Iterator {
     fn join(&mut self, sep: &str) -> compact_str::CompactString
     where
-        Self::Item: std::fmt::Display,
+        Self::Item: Display,
     {
         self.next().map_or_else(
             || compact_str::CompactString::const_new(""),

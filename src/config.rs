@@ -147,7 +147,7 @@ impl Config {
                 ]
                 .into_iter()
                 .filter_map(|(proxy_type, section)| {
-                    section.enabled.then(move || {
+                    section.enabled.then(|| {
                         (
                             proxy_type,
                             section

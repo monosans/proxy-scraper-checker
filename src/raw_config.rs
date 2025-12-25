@@ -189,7 +189,7 @@ const CONFIG_ENV: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
 
 pub fn get_config_path() -> compact_str::CompactString {
     env::var(CONFIG_ENV).map_or_else(
-        move |_| compact_str::CompactString::const_new("config.toml"),
+        |_| compact_str::CompactString::const_new("config.toml"),
         Into::into,
     )
 }

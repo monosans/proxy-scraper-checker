@@ -1,12 +1,14 @@
 use std::{
     cmp::Ordering,
-    io,
+    io::{self},
     net::{IpAddr, Ipv4Addr},
+    path::Path,
     sync::Arc,
     time::Duration,
 };
 
 use color_eyre::eyre::WrapErr as _;
+use tokio::io::AsyncWriteExt as _;
 
 use crate::{
     HashMap,
@@ -129,16 +131,6 @@ pub async fn save_proxies(
             (config.output.path.join("proxies.json"), false),
             (config.output.path.join("proxies_pretty.json"), true),
         ] {
-            match tokio::fs::remove_file(&path).await {
-                Ok(()) => Ok(()),
-                Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-                Err(e) => Err(e).wrap_err_with(|| {
-                    compact_str::format_compact!(
-                        "failed to remove file: {}",
-                        path.display()
-                    )
-                }),
-            }?;
             let json_data = if pretty {
                 serde_json::to_vec_pretty(&proxy_dicts)?
             } else {
@@ -177,28 +169,17 @@ pub async fn save_proxies(
             },
         )?;
 
-        let text = create_proxy_list_str(proxies.iter(), true);
-        tokio::fs::write(directory_path.join("all.txt"), text)
-            .await
-            .wrap_err_with(|| {
-                compact_str::format_compact!(
-                    "failed to write to file: {}",
-                    directory_path.join("all.txt").display()
-                )
-            })?;
+        write_proxy_list_to_file(
+            &directory_path.join("all.txt"),
+            proxies.iter(),
+            true,
+        )
+        .await?;
 
         for (proto, proxies) in grouped_proxies {
-            let text = create_proxy_list_str(proxies, false);
             let mut file_path = directory_path.join(proto.as_str());
             file_path.set_extension("txt");
-            tokio::fs::write(&file_path, text).await.wrap_err_with(
-                move || {
-                    compact_str::format_compact!(
-                        "failed to write to file: {}",
-                        file_path.display()
-                    )
-                },
-            )?;
+            write_proxy_list_to_file(&file_path, proxies, false).await?;
         }
     }
 
@@ -219,22 +200,54 @@ pub async fn save_proxies(
     Ok(())
 }
 
-fn create_proxy_list_str<'a, I>(
+async fn write_proxy_list_to_file<'a, I>(
+    path: &Path,
     proxies: I,
     include_protocol: bool,
-) -> compact_str::CompactString
+) -> crate::Result<()>
 where
     I: IntoIterator<Item = &'a Proxy>,
 {
-    let mut out = compact_str::CompactString::const_new("");
+    let file =
+        tokio::fs::File::create(path).await.wrap_err_with(move || {
+            compact_str::format_compact!(
+                "failed to create file: {}",
+                path.display()
+            )
+        })?;
+    let mut writer = tokio::io::BufWriter::new(file);
+
     let mut first = true;
+    let mut tmp = Vec::new();
     for proxy in proxies {
         if first {
             first = false;
         } else {
-            out.push('\n');
+            writer.write_all(b"\n").await.wrap_err_with(move || {
+                compact_str::format_compact!(
+                    "failed to write to file: {}",
+                    path.display()
+                )
+            })?;
         }
-        proxy.write_string(&mut out, include_protocol);
+
+        proxy.write_to_sink(&mut tmp, include_protocol);
+        writer.write_all(&tmp).await.wrap_err_with(move || {
+            compact_str::format_compact!(
+                "failed to write to file: {}",
+                path.display()
+            )
+        })?;
+        tmp.clear();
     }
-    out
+    drop(tmp);
+
+    writer.flush().await.wrap_err_with(move || {
+        compact_str::format_compact!(
+            "failed to write to file: {}",
+            path.display()
+        )
+    })?;
+
+    Ok(())
 }

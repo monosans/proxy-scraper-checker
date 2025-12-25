@@ -82,6 +82,31 @@ impl TryFrom<&mut Proxy> for reqwest::Proxy {
     }
 }
 
+pub trait ProxySink {
+    fn push_str(&mut self, s: &str);
+    fn push_byte(&mut self, b: u8);
+}
+
+impl ProxySink for compact_str::CompactString {
+    fn push_str(&mut self, s: &str) {
+        self.push_str(s);
+    }
+
+    fn push_byte(&mut self, b: u8) {
+        self.push(b as char);
+    }
+}
+
+impl ProxySink for Vec<u8> {
+    fn push_str(&mut self, s: &str) {
+        self.extend_from_slice(s.as_bytes());
+    }
+
+    fn push_byte(&mut self, b: u8) {
+        self.push(b);
+    }
+}
+
 impl Proxy {
     pub const fn is_checked(&self) -> bool {
         self.timeout.is_some()
@@ -131,28 +156,28 @@ impl Proxy {
         Ok(())
     }
 
-    pub fn write_string(
+    pub fn write_to_sink<S: ProxySink>(
         &self,
-        s: &mut compact_str::CompactString,
+        sink: &mut S,
         include_protocol: bool,
     ) {
         if include_protocol {
-            s.push_str(self.protocol.as_str());
-            s.push_str("://");
+            sink.push_str(self.protocol.as_str());
+            sink.push_str("://");
         }
 
         if let (Some(username), Some(password)) =
             (&self.username, &self.password)
         {
-            s.push_str(username);
-            s.push(':');
-            s.push_str(password);
-            s.push('@');
+            sink.push_str(username);
+            sink.push_byte(b':');
+            sink.push_str(password);
+            sink.push_byte(b'@');
         }
 
-        s.push_str(&self.host);
-        s.push(':');
-        s.push_str(itoa::Buffer::new().format(self.port));
+        sink.push_str(&self.host);
+        sink.push_byte(b':');
+        sink.push_str(itoa::Buffer::new().format(self.port));
     }
 
     pub fn to_string(
@@ -160,7 +185,7 @@ impl Proxy {
         include_protocol: bool,
     ) -> compact_str::CompactString {
         let mut s = compact_str::CompactString::const_new("");
-        self.write_string(&mut s, include_protocol);
+        self.write_to_sink(&mut s, include_protocol);
         s
     }
 }

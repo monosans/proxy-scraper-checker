@@ -272,14 +272,17 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
         let proxies_working =
             state.proxies_working.get(proxy_type).copied().unwrap_or_default();
         f.render_widget(
-            Line::from(format!("{} ({:.1}%)", proxies_working, {
-                if proxies_checked == 0 {
-                    0.0_f64
-                } else {
-                    (proxies_working as f64) / (proxies_checked as f64)
-                        * 100.0_f64
-                }
-            }))
+            Line::from(
+                compact_str::format_compact!("{} ({:.1}%)", proxies_working, {
+                    if proxies_checked == 0 {
+                        0.0_f64
+                    } else {
+                        (proxies_working as f64) / (proxies_checked as f64)
+                            * 100.0_f64
+                    }
+                })
+                .as_str(),
+            )
             .alignment(Alignment::Center),
             working_proxies_block.inner(layout[2]),
         );

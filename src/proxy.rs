@@ -65,12 +65,15 @@ impl TryFrom<&mut Proxy> for reqwest::Proxy {
 
     #[inline]
     fn try_from(value: &mut Proxy) -> Result<Self, Self::Error> {
-        let proxy = Self::all(format!(
-            "{}://{}:{}",
-            value.protocol.as_str(),
-            value.host,
-            value.port
-        ))?;
+        let proxy = Self::all(
+            compact_str::format_compact!(
+                "{}://{}:{}",
+                value.protocol.as_str(),
+                value.host,
+                value.port
+            )
+            .as_str(),
+        )?;
 
         if let (Some(username), Some(password)) =
             (value.username.as_ref(), value.password.as_ref())

@@ -59,15 +59,16 @@ impl DbType {
         ))));
 
         let db_path = self.db_path().await?;
-        let mut file =
+        let file =
             tokio::fs::File::create(&db_path).await.wrap_err_with(|| {
                 compact_str::format_compact!(
                     "failed to create file: {}",
                     db_path.display()
                 )
             })?;
+        let mut writer = tokio::io::BufWriter::new(file);
         while let Some(chunk) = response.chunk().await? {
-            file.write_all(&chunk).await.wrap_err_with(|| {
+            writer.write_all(&chunk).await.wrap_err_with(|| {
                 compact_str::format_compact!(
                     "failed to write to file: {}",
                     db_path.display()
@@ -81,6 +82,14 @@ impl DbType {
                 ))),
             );
         }
+
+        writer.flush().await.wrap_err_with(move || {
+            compact_str::format_compact!(
+                "failed to write to file: {}",
+                db_path.display()
+            )
+        })?;
+
         Ok(())
     }
 

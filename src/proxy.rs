@@ -119,7 +119,7 @@ impl Proxy {
     ) -> crate::Result<()> {
         if let Some(check_url) = config.checking.check_url.clone() {
             let builder = reqwest::ClientBuilder::new()
-                .user_agent(&config.checking.user_agent)
+                .user_agent(config.checking.user_agent.as_bytes())
                 .proxy(self.try_into()?)
                 .timeout(config.checking.timeout)
                 .connect_timeout(config.checking.connect_timeout)

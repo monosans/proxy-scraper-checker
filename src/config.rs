@@ -19,9 +19,10 @@ pub struct HttpbinResponse {
 }
 
 pub struct Source {
-    pub url: String,
+    pub url: compact_str::CompactString,
     pub basic_auth: Option<BasicAuth>,
-    pub headers: Option<HashMap<String, String>>,
+    pub headers:
+        Option<HashMap<compact_str::CompactString, compact_str::CompactString>>,
 }
 
 pub struct ScrapingConfig {
@@ -29,7 +30,7 @@ pub struct ScrapingConfig {
     pub timeout: Duration,
     pub connect_timeout: Duration,
     pub proxy: Option<url::Url>,
-    pub user_agent: String,
+    pub user_agent: compact_str::CompactString,
     pub sources: HashMap<ProxyType, Vec<Arc<Source>>>,
 }
 
@@ -38,7 +39,7 @@ pub struct CheckingConfig {
     pub max_concurrent_checks: usize,
     pub timeout: Duration,
     pub connect_timeout: Duration,
-    pub user_agent: String,
+    pub user_agent: compact_str::CompactString,
 }
 
 pub struct TxtOutputConfig {

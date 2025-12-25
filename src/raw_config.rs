@@ -79,17 +79,18 @@ fn validate_http_url<'de, D: serde::Deserializer<'de>>(
 
 #[derive(serde::Deserialize)]
 pub struct DetailedSourceConfig {
-    pub url: String,
+    pub url: compact_str::CompactString,
     #[serde(default)]
     pub basic_auth: Option<BasicAuth>,
     #[serde(default)]
-    pub headers: Option<HashMap<String, String>>,
+    pub headers:
+        Option<HashMap<compact_str::CompactString, compact_str::CompactString>>,
 }
 
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 pub enum SourceConfig {
-    Simple(String),
+    Simple(compact_str::CompactString),
     Detailed(Box<DetailedSourceConfig>),
 }
 
@@ -108,7 +109,7 @@ pub struct ScrapingConfig {
     pub connect_timeout: f64,
     #[serde(deserialize_with = "validate_proxy_url")]
     pub proxy: Option<url::Url>,
-    pub user_agent: String,
+    pub user_agent: compact_str::CompactString,
 
     pub http: ScrapingProtocolConfig,
     pub socks4: ScrapingProtocolConfig,
@@ -124,7 +125,7 @@ pub struct CheckingConfig {
     pub timeout: f64,
     #[serde(deserialize_with = "validate_positive_f64")]
     pub connect_timeout: f64,
-    pub user_agent: String,
+    pub user_agent: compact_str::CompactString,
 }
 
 #[derive(serde::Deserialize)]

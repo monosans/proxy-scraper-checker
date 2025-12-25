@@ -34,7 +34,7 @@ async fn scrape_one(
 
                 if let Some(headers) = &source.headers {
                     for (k, v) in headers {
-                        request = request.header(k, v);
+                        request = request.header(k.as_bytes(), v.as_bytes());
                     }
                 }
 

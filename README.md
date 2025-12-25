@@ -103,10 +103,10 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 
 ## 💎 Sponsors
 
-|                                                                                     |                                                                                                                                    |                                                                                                                                                                  |
-| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[🔨 Thordata.com](https://www.thordata.com/?ls=github&lk=proxy-scraper-checker)** | Residential proxy offer: First purchase of residential proxies receives a full rebate credited to your wallet balance, up to $900! | [![Thordata.com](https://github.com/user-attachments/assets/fbabdaeb-6147-4009-9da7-d4cc9a0b3f2d)](https://www.thordata.com/?ls=github&lk=proxy-scraper-checker) |
-| **[🐦 BirdProxies.com](https://www.birdproxies.com/@MONOSANS)**                     | Premium proxy service with exclusive benefits: Get **10% off** + **15% bonus data** using this link!                               |                                                                                                                                                                  |
+|                                                                                     |                                                                              |                                                                                                                                                      |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[🔨 Thordata.com](https://www.thordata.com/?ls=github&lk=proxy-scraper-checker)** | Residential proxies — get a full rebate on your first purchase (up to $900). | [![](https://github.com/user-attachments/assets/fbabdaeb-6147-4009-9da7-d4cc9a0b3f2d)](https://www.thordata.com/?ls=github&lk=proxy-scraper-checker) |
+| **[🐦 BirdProxies.com](https://www.birdproxies.com/@MONOSANS)**                     | Premium proxies — use the link for 10% off + 15% bonus data.                 |                                                                                                                                                      |
 
 ### 💖 Support This Project
 

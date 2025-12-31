@@ -39,15 +39,7 @@ ratatui = { version = "=0.30.0", default-features = false, features = [
     "crossterm",
     "layout-cache",
 ], optional = true }
-reqwest = { version = "=0.13.1", default-features = false, features = [
-    "brotli",
-    "charset",
-    "gzip",
-    "http2",
-    "rustls-tls",
-    "socks",
-    "system-proxy",
-] }
+reqwest = { version = "=0.13.1", features = ["brotli", "gzip", "socks"] }
 reqwest-middleware = "=0.4.2"
 rlimit = "=0.10.2"
 serde = "=1.0.228"

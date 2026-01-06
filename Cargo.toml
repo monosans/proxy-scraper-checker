@@ -51,7 +51,7 @@ reqwest = { version = "=0.12.28", default-features = false, features = [
 reqwest-middleware = "=0.4.2"
 rlimit = "=0.10.2"
 serde = "=1.0.228"
-serde_json = "=1.0.148"
+serde_json = "=1.0.149"
 smallvec = { version = "=1.15.1", features = [
     "const_generics",
     "union",

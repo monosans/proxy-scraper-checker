@@ -27,9 +27,6 @@ use crate::{
     proxy::ProxyType,
 };
 
-const FPS: f64 = 30.0;
-const TICK_RATE: f64 = 1.0 / FPS;
-
 pub struct RatatuiRestoreGuard;
 impl Drop for RatatuiRestoreGuard {
     fn drop(&mut self) {
@@ -98,7 +95,7 @@ pub struct AppState {
 }
 
 async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
-    let mut tick = tokio::time::interval(Duration::from_secs_f64(TICK_RATE));
+    let mut tick = tokio::time::interval(Duration::from_millis(100));
     loop {
         tokio::select! {
             biased;

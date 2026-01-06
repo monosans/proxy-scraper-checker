@@ -177,7 +177,7 @@ pub async fn save_proxies(
         .await?;
 
         for (proto, proxies) in grouped_proxies {
-            let mut file_path = directory_path.join(proto.as_str());
+            let mut file_path = directory_path.join(proto.as_str_lowercase());
             file_path.set_extension("txt");
             write_proxy_list_to_file(&file_path, proxies, false).await?;
         }

@@ -170,11 +170,14 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
                 spans: vec!["Logs".into()],
                 ..Default::default()
             }))
-            .style_error(Style::new().fg(Color::Red))
-            .style_warn(Style::new().fg(Color::Yellow))
-            .style_info(Style::new().fg(Color::Cyan))
-            .style_trace(Style::new().fg(Color::Magenta))
-            .style_debug(Style::new().fg(Color::Green))
+            .style_error(Style { fg: Some(Color::Red), ..Default::default() })
+            .style_warn(Style { fg: Some(Color::Yellow), ..Default::default() })
+            .style_info(Style { fg: Some(Color::Cyan), ..Default::default() })
+            .style_trace(Style {
+                fg: Some(Color::Magenta),
+                ..Default::default()
+            })
+            .style_debug(Style { fg: Some(Color::Green), ..Default::default() })
             .output_file(false)
             .output_line(false)
             .state(logger_state),
@@ -320,13 +323,13 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
     });
     if running {
         lines.push(Line {
-            style: Style::new().fg(Color::Yellow),
+            style: Style { fg: Some(Color::Yellow), ..Default::default() },
             spans: vec!["ESC / q - stop".into()],
             ..Default::default()
         });
     }
     lines.push(Line {
-        style: Style::new().fg(Color::Red),
+        style: Style { fg: Some(Color::Red), ..Default::default() },
         spans: vec![
             if running { "Ctrl-C - quit" } else { "ESC / q / Ctrl-C - quit" }
                 .into(),

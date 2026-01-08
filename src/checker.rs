@@ -6,9 +6,9 @@ use color_eyre::eyre::OptionExt as _;
 use crate::event::{AppEvent, Event};
 use crate::{config::Config, proxy::Proxy, utils::pretty_error};
 
-pub async fn check_all<R: reqwest::dns::Resolve + 'static>(
+pub async fn check_all<R: reqwest::dns::Resolve + Clone + 'static>(
     config: Arc<Config>,
-    dns_resolver: Arc<R>,
+    dns_resolver: R,
     proxies: Vec<Proxy>,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
@@ -33,7 +33,7 @@ pub async fn check_all<R: reqwest::dns::Resolve + 'static>(
     for _ in 0..workers_count {
         let queue = Arc::clone(&queue);
         let config = Arc::clone(&config);
-        let dns_resolver = Arc::clone(&dns_resolver);
+        let dns_resolver = dns_resolver.clone();
         let checked_proxies = Arc::clone(&checked_proxies);
         let token = token.clone();
         #[cfg(feature = "tui")]
@@ -46,7 +46,7 @@ pub async fn check_all<R: reqwest::dns::Resolve + 'static>(
                         let Some(mut proxy) = queue.lock().pop() else {
                             break;
                         };
-                        let check_result = proxy.check(&config, Arc::clone(&dns_resolver)).await;
+                        let check_result = proxy.check(&config, dns_resolver.clone()).await;
                         #[cfg(feature = "tui")]
                         drop(tx.send(Event::App(AppEvent::ProxyChecked(proxy.protocol))));
                         match check_result {

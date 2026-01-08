@@ -1,7 +1,6 @@
 use std::{
     hash::{Hash, Hasher},
     str::FromStr,
-    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -126,7 +125,7 @@ impl Proxy {
     pub async fn check<R: reqwest::dns::Resolve + 'static>(
         &mut self,
         config: &Config,
-        dns_resolver: Arc<R>,
+        dns_resolver: R,
     ) -> crate::Result<()> {
         if let Some(check_url) = config.checking.check_url.clone() {
             let builder = reqwest::ClientBuilder::new()

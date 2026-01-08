@@ -1,6 +1,7 @@
 use std::{
     hash::{Hash, Hasher},
     str::FromStr,
+    sync::Arc,
     time::{Duration, Instant},
 };
 

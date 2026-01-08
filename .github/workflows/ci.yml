@@ -264,7 +264,7 @@ jobs:
           path: dist/
           if-no-files-found: error
   build-docker:
-    if: ${{ github.event_name != 'pull_request' }}
+    # if: ${{ github.event_name != 'pull_request' }}
     permissions:
       packages: write
     runs-on: ${{ matrix.runner }}
@@ -312,6 +312,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
   upload-docker-manifest:
+    if: ${{ github.event_name != 'pull_request' }}
     needs:
       - build-docker
     runs-on: ubuntu-24.04

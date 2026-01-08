@@ -9,10 +9,8 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean \
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   --mount=type=cache,target=/var/lib/apt,sharing=locked \
-  if ! command -v cmake >/dev/null 2>&1; then \
   apt-get update \
-  && apt-get install -y --no-install-recommends cmake; \
-  fi
+  && apt-get install -y --no-install-recommends build-essential
 
 RUN --mount=source=src,target=src \
   --mount=source=Cargo.toml,target=Cargo.toml \

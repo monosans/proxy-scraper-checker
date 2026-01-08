@@ -26,6 +26,7 @@ pub struct BasicAuth {
     pub password: Option<compact_str::CompactString>,
 }
 
+#[derive(Clone)]
 pub struct HickoryDnsResolver(Arc<hickory_resolver::TokioResolver>);
 
 impl HickoryDnsResolver {
@@ -163,7 +164,7 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
 
 pub fn create_reqwest_client<R: reqwest::dns::Resolve + 'static>(
     config: &Config,
-    dns_resolver: Arc<R>,
+    dns_resolver: R,
 ) -> reqwest::Result<reqwest_middleware::ClientWithMiddleware> {
     let mut builder = reqwest::ClientBuilder::new()
         .user_agent(config.scraping.user_agent.as_bytes())

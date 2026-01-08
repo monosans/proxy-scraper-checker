@@ -417,7 +417,7 @@ jobs:
           target: ${{ matrix.target }}
           components: clippy
           cache-key: x86_64-unknown-linux-gnu
-      - run: cargo +beta clippy ${{ matrix.features }}
+      - run: cargo +beta clippy ${{ matrix.features }} -- -Dwarnings
   pre-commit:
     runs-on: ubuntu-24.04
     steps:

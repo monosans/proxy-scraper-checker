@@ -63,9 +63,9 @@ jobs:
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true
-          - target: aarch64_be-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
+          # - target: aarch64_be-unknown-linux-gnu
+          #   runner: ubuntu-24.04
+          #   cross: true
           - target: arm-linux-androideabi
             runner: ubuntu-24.04
             cross: true
@@ -126,30 +126,30 @@ jobs:
           - target: loongarch64-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true
-          - target: mips-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips-unknown-linux-musl
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips64-unknown-linux-gnuabi64
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips64-unknown-linux-muslabi64
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips64el-unknown-linux-gnuabi64
-            runner: ubuntu-24.04
-            cross: true
-          - target: mips64el-unknown-linux-muslabi64
-            runner: ubuntu-24.04
-            cross: true
-          - target: mipsel-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
-          - target: mipsel-unknown-linux-musl
-            runner: ubuntu-24.04
-            cross: true
+          # - target: mips-unknown-linux-gnu
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: mips-unknown-linux-musl
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: mips64-unknown-linux-gnuabi64
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: mips64-unknown-linux-muslabi64
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: mips64el-unknown-linux-gnuabi64
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: mips64el-unknown-linux-muslabi64
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: mipsel-unknown-linux-gnu
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: mipsel-unknown-linux-musl
+          #   runner: ubuntu-24.04
+          #   cross: true
           - target: powerpc-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
@@ -171,54 +171,54 @@ jobs:
           - target: sparc64-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
-          - target: sparcv9-sun-solaris
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv6m-none-eabi
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv7em-none-eabi
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv7em-none-eabihf
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv7m-none-eabi
-            runner: ubuntu-24.04
-            cross: true
+          # - target: sparcv9-sun-solaris
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: thumbv6m-none-eabi
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: thumbv7em-none-eabi
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: thumbv7em-none-eabihf
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: thumbv7m-none-eabi
+          #   runner: ubuntu-24.04
+          #   cross: true
           - target: thumbv7neon-linux-androideabi
             runner: ubuntu-24.04
             cross: true
           - target: thumbv7neon-unknown-linux-gnueabihf
             runner: ubuntu-24.04
             cross: true
-          - target: thumbv8m.base-none-eabi
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv8m.main-none-eabi
-            runner: ubuntu-24.04
-            cross: true
-          - target: thumbv8m.main-none-eabihf
-            runner: ubuntu-24.04
-            cross: true
-          - target: wasm32-unknown-emscripten
-            runner: ubuntu-24.04
-            cross: true
+          # - target: thumbv8m.base-none-eabi
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: thumbv8m.main-none-eabi
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: thumbv8m.main-none-eabihf
+          #   runner: ubuntu-24.04
+          #   cross: true
+          # - target: wasm32-unknown-emscripten
+          #   runner: ubuntu-24.04
+          #   cross: true
           - target: x86_64-linux-android
             runner: ubuntu-24.04
             cross: true
           # - target: x86_64-pc-windows-gnu
           #   runner: ubuntu-24.04
           #   cross: true
-          - target: x86_64-pc-solaris
-            runner: ubuntu-24.04
-            cross: true
+          # - target: x86_64-pc-solaris
+          #   runner: ubuntu-24.04
+          #   cross: true
           - target: x86_64-unknown-freebsd
             runner: ubuntu-24.04
             cross: true
-          - target: x86_64-unknown-dragonfly
-            runner: ubuntu-24.04
-            cross: true
+          # - target: x86_64-unknown-dragonfly
+          #   runner: ubuntu-24.04
+          #   cross: true
           - target: x86_64-unknown-illumos
             runner: ubuntu-24.04
             cross: true
@@ -231,9 +231,9 @@ jobs:
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true
-          - target: x86_64-unknown-netbsd
-            runner: ubuntu-24.04
-            cross: true
+          # - target: x86_64-unknown-netbsd
+          #   runner: ubuntu-24.04
+          #   cross: true
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     steps:

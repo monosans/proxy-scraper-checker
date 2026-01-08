@@ -1,7 +1,6 @@
 use std::{
     hash::{Hash, Hasher},
     str::FromStr,
-    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -123,7 +122,7 @@ impl Proxy {
         self.timeout.is_some()
     }
 
-    pub async fn check<R: reqwest::dns::IntoResolve>(
+    pub async fn check<R: reqwest::dns::resolve::IntoResolve>(
         &mut self,
         config: &Config,
         dns_resolver: R,

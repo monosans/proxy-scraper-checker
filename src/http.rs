@@ -161,7 +161,7 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
     }
 }
 
-pub fn create_reqwest_client<R: reqwest::dns::IntoResolve>(
+pub fn create_reqwest_client<R: reqwest::dns::resolve::IntoResolve>(
     config: &Config,
     dns_resolver: R,
 ) -> reqwest::Result<reqwest_middleware::ClientWithMiddleware> {

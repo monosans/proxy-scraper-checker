@@ -6,7 +6,7 @@ use color_eyre::eyre::OptionExt as _;
 use crate::event::{AppEvent, Event};
 use crate::{config::Config, proxy::Proxy, utils::pretty_error};
 
-pub async fn check_all<R: reqwest::dns::IntoResolve>(
+pub async fn check_all<R: reqwest::dns::resolve::IntoResolve>(
     config: Arc<Config>,
     dns_resolver: Arc<R>,
     proxies: Vec<Proxy>,

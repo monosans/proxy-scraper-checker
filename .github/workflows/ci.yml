@@ -283,6 +283,7 @@ jobs:
           - platform: "linux/arm64/v8"
             tag: "arm64-v8"
             runner: ubuntu-24.04-arm
+      fail-fast: false
     steps:
       - uses: actions/checkout@v6
         with:
@@ -340,6 +341,7 @@ jobs:
           - "amd64"
           - "arm-v7"
           - "arm64-v8"
+      fail-fast: false
     steps:
       - uses: actions/checkout@v6
         with:
@@ -380,6 +382,7 @@ jobs:
           - "ppc64le"
           - "riscv64"
           - "s390x"
+      fail-fast: false
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -446,6 +449,7 @@ jobs:
         features:
           - ""
           - "--features tui"
+      fail-fast: false
     steps:
       - uses: actions/checkout@v6
         with:

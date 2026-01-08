@@ -34,10 +34,10 @@ impl DbType {
 
     async fn db_path(self) -> crate::Result<PathBuf> {
         let mut cache_path = get_cache_path().await?;
-        match self {
-            Self::Asn => cache_path.push("asn_database.mmdb"),
-            Self::Geo => cache_path.push("geolocation_database.mmdb"),
-        }
+        cache_path.push(match self {
+            Self::Asn => "asn_database.mmdb",
+            Self::Geo => "geolocation_database.mmdb",
+        });
         Ok(cache_path)
     }
 

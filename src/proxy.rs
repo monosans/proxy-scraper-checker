@@ -40,11 +40,19 @@ impl FromStr for ProxyType {
 }
 
 impl ProxyType {
-    pub const fn as_str(self) -> &'static str {
+    pub const fn as_str_lowercase(self) -> &'static str {
         match self {
             Self::Http => "http",
             Self::Socks4 => "socks4",
             Self::Socks5 => "socks5",
+        }
+    }
+
+    pub const fn as_str_uppercase(self) -> &'static str {
+        match self {
+            Self::Http => "HTTP",
+            Self::Socks4 => "SOCKS4",
+            Self::Socks5 => "SOCKS5",
         }
     }
 }
@@ -68,7 +76,7 @@ impl TryFrom<&mut Proxy> for reqwest::Proxy {
         let proxy = Self::all(
             compact_str::format_compact!(
                 "{}://{}:{}",
-                value.protocol.as_str(),
+                value.protocol.as_str_lowercase(),
                 value.host,
                 value.port
             )
@@ -165,7 +173,7 @@ impl Proxy {
         include_protocol: bool,
     ) {
         if include_protocol {
-            sink.push_str(self.protocol.as_str());
+            sink.push_str(self.protocol.as_str_lowercase());
             sink.push_str("://");
         }
 

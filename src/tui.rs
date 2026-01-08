@@ -27,8 +27,6 @@ use crate::{
     proxy::ProxyType,
 };
 
-const FPS: f64 = 30.0;
-
 pub struct RatatuiRestoreGuard;
 impl Drop for RatatuiRestoreGuard {
     fn drop(&mut self) {
@@ -97,7 +95,7 @@ pub struct AppState {
 }
 
 async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
-    let mut tick = tokio::time::interval(Duration::from_secs_f64(1.0 / FPS));
+    let mut tick = tokio::time::interval(Duration::from_millis(100));
     loop {
         tokio::select! {
             biased;
@@ -141,13 +139,18 @@ async fn crossterm_event_listener(
 }
 
 fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
-    let outer_block = Block::default()
-        .title("https://github.com/monosans/proxy-scraper-checker")
+    let outer_block = Block::new()
+        .title(Line {
+            spans: vec![
+                "https://github.com/monosans/proxy-scraper-checker".into(),
+            ],
+            ..Default::default()
+        })
         .title_alignment(Alignment::Center);
     f.render_widget(outer_block.clone(), f.area());
-    let outer_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
+    let outer_layout = Layout::new(
+        Direction::Vertical,
+        [
             // Logs
             Constraint::Fill(1),
             // IP database download
@@ -156,51 +159,57 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
             Constraint::Length(1 + (3 * 3) + 1),
             // Hotkeys
             Constraint::Length(4),
-        ])
-        .split(outer_block.inner(f.area()));
+        ],
+    )
+    .split(outer_block.inner(f.area()));
     drop(outer_block);
 
     f.render_widget(
         TuiLoggerWidget::default()
-            .state(logger_state)
-            .block(Block::bordered().title("Logs"))
+            .block(Block::bordered().title(Line {
+                spans: vec!["Logs".into()],
+                ..Default::default()
+            }))
+            .style_error(Style { fg: Some(Color::Red), ..Default::default() })
+            .style_warn(Style { fg: Some(Color::Yellow), ..Default::default() })
+            .style_info(Style { fg: Some(Color::Cyan), ..Default::default() })
+            .style_trace(Style {
+                fg: Some(Color::Magenta),
+                ..Default::default()
+            })
+            .style_debug(Style { fg: Some(Color::Green), ..Default::default() })
             .output_file(false)
             .output_line(false)
-            .style_trace(Style::default().fg(Color::Magenta))
-            .style_debug(Style::default().fg(Color::Green))
-            .style_info(Style::default().fg(Color::Cyan))
-            .style_warn(Style::default().fg(Color::Yellow))
-            .style_error(Style::default().fg(Color::Red)),
+            .state(logger_state),
         outer_layout[0],
     );
 
-    let ipdb_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Fill(1); 2])
-        .split(outer_layout[1]);
+    let ipdb_layout =
+        Layout::new(Direction::Horizontal, [Constraint::Fill(1); 2])
+            .split(outer_layout[1]);
     f.render_widget(
         Gauge::default()
-            .block(Block::bordered().title("ASN database download"))
-            .ratio({
-                if state.asn_db_total == 0 {
-                    1.0
-                } else {
-                    (state.asn_db_downloaded as f64)
-                        / (state.asn_db_total as f64)
-                }
+            .block(Block::bordered().title(Line {
+                spans: vec!["ASN database download".into()],
+                ..Default::default()
+            }))
+            .ratio(if state.asn_db_total == 0 {
+                1.0
+            } else {
+                (state.asn_db_downloaded as f64) / (state.asn_db_total as f64)
             }),
         ipdb_layout[0],
     );
     f.render_widget(
         Gauge::default()
-            .block(Block::bordered().title("Geolocation database download"))
-            .ratio({
-                if state.geo_db_total == 0 {
-                    1.0
-                } else {
-                    (state.geo_db_downloaded as f64)
-                        / (state.geo_db_total as f64)
-                }
+            .block(Block::bordered().title(Line {
+                spans: vec!["Geolocation database download".into()],
+                ..Default::default()
+            }))
+            .ratio(if state.geo_db_total == 0 {
+                1.0
+            } else {
+                (state.geo_db_downloaded as f64) / (state.geo_db_total as f64)
             }),
         ipdb_layout[1],
     );
@@ -210,18 +219,20 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
         state.sources_total.keys().collect();
     proxy_types.sort_unstable();
 
-    let proxies_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(proxy_types.iter().map(|_| Constraint::Fill(1)))
-        .split(outer_layout[2]);
+    let proxies_layout = Layout::new(
+        Direction::Horizontal,
+        std::iter::repeat_n(Constraint::Fill(1), proxy_types.len()),
+    )
+    .split(outer_layout[2]);
 
     for (i, proxy_type) in proxy_types.into_iter().enumerate() {
-        let block = Block::bordered().title(proxy_type.as_str().to_uppercase());
+        let block = Block::bordered().title(Line {
+            spans: vec![proxy_type.as_str_uppercase().into()],
+            ..Default::default()
+        });
         f.render_widget(block.clone(), proxies_layout[i]);
 
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Fill(1); 3])
+        let layout = Layout::new(Direction::Vertical, [Constraint::Fill(1); 3])
             .split(block.inner(proxies_layout[i]));
         drop(block);
 
@@ -232,14 +243,15 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
 
         f.render_widget(
             Gauge::default()
-                .ratio({
-                    if sources_total == 0 {
-                        1.0
-                    } else {
-                        (sources_scraped as f64) / (sources_total as f64)
-                    }
+                .block(Block::bordered().title(Line {
+                    spans: vec!["Scraping sources".into()],
+                    ..Default::default()
+                }))
+                .ratio(if sources_total == 0 {
+                    1.0
+                } else {
+                    (sources_scraped as f64) / (sources_total as f64)
                 })
-                .block(Block::bordered().title("Scraping sources"))
                 .label(compact_str::format_compact!(
                     "{sources_scraped}/{sources_total}"
                 )),
@@ -252,38 +264,47 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
             state.proxies_checked.get(proxy_type).copied().unwrap_or_default();
         f.render_widget(
             Gauge::default()
-                .ratio({
-                    if proxies_total == 0 {
-                        1.0
-                    } else {
-                        (proxies_checked as f64) / (proxies_total as f64)
-                    }
+                .block(Block::bordered().title(Line {
+                    spans: vec!["Checking proxies".into()],
+                    ..Default::default()
+                }))
+                .ratio(if proxies_total == 0 {
+                    1.0
+                } else {
+                    (proxies_checked as f64) / (proxies_total as f64)
                 })
-                .block(Block::bordered().title("Checking proxies"))
                 .label(compact_str::format_compact!(
                     "{proxies_checked}/{proxies_total}"
                 )),
             layout[1],
         );
 
-        let working_proxies_block = Block::bordered().title("Working proxies");
+        let working_proxies_block = Block::bordered().title(Line {
+            spans: vec!["Working proxies".into()],
+            ..Default::default()
+        });
         f.render_widget(working_proxies_block.clone(), layout[2]);
 
         let proxies_working =
             state.proxies_working.get(proxy_type).copied().unwrap_or_default();
         f.render_widget(
-            Line::from(
-                compact_str::format_compact!("{} ({:.1}%)", proxies_working, {
-                    if proxies_checked == 0 {
-                        0.0_f64
-                    } else {
-                        (proxies_working as f64) / (proxies_checked as f64)
-                            * 100.0_f64
-                    }
-                })
-                .as_str(),
-            )
-            .alignment(Alignment::Center),
+            Line {
+                alignment: Some(Alignment::Center),
+                spans: vec![
+                    compact_str::format_compact!(
+                        "{} ({:.1}%)",
+                        proxies_working,
+                        if proxies_checked == 0 {
+                            0.0_f64
+                        } else {
+                            (proxies_working as f64) / (proxies_checked as f64)
+                                * 100.0_f64
+                        }
+                    )
+                    .into(),
+                ],
+                ..Default::default()
+            },
             working_proxies_block.inner(layout[2]),
         );
     }
@@ -292,24 +313,38 @@ fn draw(f: &mut Frame<'_>, state: &AppState, logger_state: &TuiWidgetState) {
 
     let running = matches!(state.mode, AppMode::Running);
     let mut lines = Vec::with_capacity(if running { 4 } else { 3 });
-    lines.push(Line::from("Up / PageUp / k - scroll logs up"));
-    lines.push(Line::from("Down / PageDown / j - scroll logs down"));
+    lines.push(Line {
+        spans: vec!["Up / PageUp / k - scroll logs up".into()],
+        ..Default::default()
+    });
+    lines.push(Line {
+        spans: vec!["Down / PageDown / j - scroll logs down".into()],
+        ..Default::default()
+    });
     if running {
-        lines.push(
-            Line::from("ESC / q - stop")
-                .style(Style::default().fg(Color::Yellow)),
-        );
+        lines.push(Line {
+            style: Style { fg: Some(Color::Yellow), ..Default::default() },
+            spans: vec!["ESC / q - stop".into()],
+            ..Default::default()
+        });
     }
-    lines.push(
-        Line::from(if running {
-            "Ctrl-C - quit"
-        } else {
-            "ESC / q / Ctrl-C - quit"
-        })
-        .style(Style::default().fg(Color::Red)),
-    );
+    lines.push(Line {
+        style: Style { fg: Some(Color::Red), ..Default::default() },
+        spans: vec![
+            if running { "Ctrl-C - quit" } else { "ESC / q / Ctrl-C - quit" }
+                .into(),
+        ],
+        ..Default::default()
+    });
 
-    f.render_widget(Text::from(lines).centered(), outer_layout[3]);
+    f.render_widget(
+        Text {
+            alignment: Some(Alignment::Center),
+            lines,
+            ..Default::default()
+        },
+        outer_layout[3],
+    );
 }
 
 fn handle_event(
@@ -322,25 +357,31 @@ fn handle_event(
         Event::Tick => true,
         Event::Crossterm(crossterm_event) => {
             match crossterm_event {
-                CrosstermEvent::Key(key_event) => match key_event.code {
-                    KeyCode::Esc | KeyCode::Char('q' | 'Q') => {
-                        state.mode = state.mode.next();
-                        token.cancel();
+                CrosstermEvent::Key(key_event) if key_event.is_press() => {
+                    match key_event.code {
+                        KeyCode::Esc | KeyCode::Char('q' | 'Q') => {
+                            state.mode = state.mode.next();
+                            token.cancel();
+                        }
+                        KeyCode::Char('c' | 'C')
+                            if key_event.modifiers == KeyModifiers::CONTROL =>
+                        {
+                            state.mode = AppMode::Quit;
+                            token.cancel();
+                        }
+                        KeyCode::Up | KeyCode::PageUp | KeyCode::Char('k') => {
+                            logger_state
+                                .transition(TuiWidgetEvent::PrevPageKey);
+                        }
+                        KeyCode::Down
+                        | KeyCode::PageDown
+                        | KeyCode::Char('j') => {
+                            logger_state
+                                .transition(TuiWidgetEvent::NextPageKey);
+                        }
+                        _ => {}
                     }
-                    KeyCode::Char('c' | 'C')
-                        if key_event.modifiers == KeyModifiers::CONTROL =>
-                    {
-                        state.mode = AppMode::Quit;
-                        token.cancel();
-                    }
-                    KeyCode::Up | KeyCode::PageUp | KeyCode::Char('k') => {
-                        logger_state.transition(TuiWidgetEvent::PrevPageKey);
-                    }
-                    KeyCode::Down | KeyCode::PageDown | KeyCode::Char('j') => {
-                        logger_state.transition(TuiWidgetEvent::NextPageKey);
-                    }
-                    _ => {}
-                },
+                }
                 CrosstermEvent::Mouse(mouse_event) => match mouse_event.kind {
                     MouseEventKind::ScrollUp => {
                         logger_state.transition(TuiWidgetEvent::PrevPageKey);

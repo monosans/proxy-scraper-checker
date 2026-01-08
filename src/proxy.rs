@@ -123,10 +123,10 @@ impl Proxy {
         self.timeout.is_some()
     }
 
-    pub async fn check<R: reqwest::dns::Resolve + 'static>(
+    pub async fn check<R: reqwest::dns::IntoResolve>(
         &mut self,
         config: &Config,
-        dns_resolver: Arc<R>,
+        dns_resolver: R,
     ) -> crate::Result<()> {
         if let Some(check_url) = config.checking.check_url.clone() {
             let builder = reqwest::ClientBuilder::new()
@@ -140,6 +140,7 @@ impl Proxy {
                 .tcp_keepalive(None)
                 .tcp_keepalive_interval(Duration::ZERO)
                 .tcp_keepalive_retries(0)
+                .tls_backend_rustls()
                 .dns_resolver(dns_resolver);
             #[cfg(any(
                 target_os = "android",

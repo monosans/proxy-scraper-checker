@@ -161,14 +161,15 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
     }
 }
 
-pub fn create_reqwest_client<R: reqwest::dns::Resolve + 'static>(
+pub fn create_reqwest_client<R: reqwest::dns::IntoResolve>(
     config: &Config,
-    dns_resolver: Arc<R>,
+    dns_resolver: R,
 ) -> reqwest::Result<reqwest_middleware::ClientWithMiddleware> {
     let mut builder = reqwest::ClientBuilder::new()
         .user_agent(config.scraping.user_agent.as_bytes())
         .timeout(config.scraping.timeout)
         .connect_timeout(config.scraping.connect_timeout)
+        .tls_backend_rustls()
         .dns_resolver(dns_resolver);
 
     if let Some(proxy) = config.scraping.proxy.clone() {

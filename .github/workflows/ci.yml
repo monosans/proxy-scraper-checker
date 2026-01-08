@@ -13,6 +13,7 @@ jobs:
     if: ${{ always() && github.event_name == 'pull_request' }}
     needs:
       - build
+      - build-docker
       - clippy
       - pre-commit
       - rustfmt
@@ -264,7 +265,7 @@ jobs:
           path: dist/
           if-no-files-found: error
   build-docker:
-    if: ${{ github.event_name != 'pull_request' }}
+    # if: ${{ github.event_name != 'pull_request' }}
     permissions:
       packages: write
     runs-on: ${{ matrix.runner }}
@@ -322,6 +323,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
   upload-docker-manifest:
+    if: ${{ github.event_name != 'pull_request' }}
     needs:
       - build-docker
     runs-on: ubuntu-24.04
@@ -344,6 +346,7 @@ jobs:
           --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-s390x
       - run: docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }}
   upload-docker-prebuilt:
+    if: ${{ github.event_name != 'pull_request' }}
     needs:
       - upload-docker-manifest
     runs-on: ubuntu-24.04

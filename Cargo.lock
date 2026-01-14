@@ -1600,6 +1600,8 @@ dependencies = [
  "reqwest",
  "reqwest-middleware",
  "rlimit",
+ "rustls",
+ "rustls-platform-verifier",
  "serde",
  "serde_json",
  "smallvec",

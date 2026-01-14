@@ -172,8 +172,13 @@ async fn main_task(
     >,
 ) -> crate::Result<()> {
     let dns_resolver = http::HickoryDnsResolver::new().await?;
-    let http_client =
-        http::create_reqwest_client(&config, dns_resolver.clone())?;
+    let tls_backend = http::build_rustls_config()?;
+
+    let http_client = http::create_reqwest_client(
+        &config,
+        dns_resolver.clone(),
+        tls_backend.clone(),
+    )?;
 
     let ((), mut proxies) = tokio::try_join!(
         download_output_dependencies(
@@ -196,6 +201,7 @@ async fn main_task(
         Arc::clone(&config),
         dns_resolver,
         proxies,
+        tls_backend,
         token,
         #[cfg(feature = "tui")]
         tx.clone(),

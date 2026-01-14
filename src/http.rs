@@ -64,6 +64,18 @@ impl reqwest::dns::Resolve for HickoryDnsResolver {
     }
 }
 
+pub fn build_rustls_config() -> crate::Result<rustls::ClientConfig> {
+    let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
+
+    Ok(rustls::ClientConfig::builder_with_provider(Arc::clone(&provider))
+        .with_protocol_versions(rustls::ALL_VERSIONS)?
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(
+            rustls_platform_verifier::Verifier::new(provider)?,
+        ))
+        .with_no_client_auth())
+}
+
 fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
     if let Some(val) = headers.get("retry-after-ms")
         && let Ok(s) = val.to_str()
@@ -165,11 +177,14 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
 pub fn create_reqwest_client<R: reqwest::dns::Resolve + 'static>(
     config: &Config,
     dns_resolver: R,
-) -> reqwest::Result<reqwest_middleware::ClientWithMiddleware> {
+    mut tls_backend: rustls::ClientConfig,
+) -> crate::Result<reqwest_middleware::ClientWithMiddleware> {
+    tls_backend.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
     let mut builder = reqwest::ClientBuilder::new()
         .user_agent(config.scraping.user_agent.as_bytes())
         .timeout(config.scraping.timeout)
         .connect_timeout(config.scraping.connect_timeout)
+        .tls_backend_preconfigured(tls_backend)
         .dns_resolver(dns_resolver);
 
     if let Some(proxy) = config.scraping.proxy.clone() {

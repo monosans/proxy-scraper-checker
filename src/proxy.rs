@@ -126,6 +126,7 @@ impl Proxy {
         &mut self,
         config: &Config,
         dns_resolver: R,
+        tls_backend: rustls::ClientConfig,
     ) -> crate::Result<()> {
         if let Some(check_url) = config.checking.check_url.clone() {
             let builder = reqwest::ClientBuilder::new()
@@ -139,6 +140,7 @@ impl Proxy {
                 .tcp_keepalive(None)
                 .tcp_keepalive_interval(Duration::ZERO)
                 .tcp_keepalive_retries(0)
+                .tls_backend_preconfigured(tls_backend)
                 .dns_resolver(dns_resolver);
             #[cfg(any(
                 target_os = "android",

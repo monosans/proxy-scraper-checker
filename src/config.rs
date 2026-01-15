@@ -66,6 +66,21 @@ pub struct Config {
     pub output: OutputConfig,
 }
 
+impl From<raw_config::SourceConfig> for Source {
+    fn from(sc: raw_config::SourceConfig) -> Self {
+        match sc {
+            raw_config::SourceConfig::Simple(url) => {
+                Self { url, basic_auth: None, headers: None }
+            }
+            raw_config::SourceConfig::Detailed(config) => Self {
+                url: config.url,
+                basic_auth: config.basic_auth,
+                headers: config.headers,
+            },
+        }
+    }
+}
+
 async fn get_output_path(
     raw_config: &raw_config::RawConfig,
 ) -> crate::Result<PathBuf> {
@@ -180,21 +195,6 @@ impl Config {
                 },
             },
         })
-    }
-}
-
-impl From<raw_config::SourceConfig> for Source {
-    fn from(sc: raw_config::SourceConfig) -> Self {
-        match sc {
-            raw_config::SourceConfig::Simple(url) => {
-                Self { url, basic_auth: None, headers: None }
-            }
-            raw_config::SourceConfig::Detailed(config) => Self {
-                url: config.url,
-                basic_auth: config.basic_auth,
-                headers: config.headers,
-            },
-        }
     }
 }
 

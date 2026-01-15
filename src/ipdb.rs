@@ -14,6 +14,94 @@ pub enum DbType {
 }
 
 impl DbType {
+    pub async fn download(
+        self,
+        http_client: reqwest_middleware::ClientWithMiddleware,
+        #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    ) -> crate::Result<()> {
+        let db_path = self.db_path().await?;
+        let mut headers = reqwest::header::HeaderMap::new();
+        #[expect(clippy::collapsible_if)]
+        if tokio::fs::metadata(&db_path).await.is_ok_and(|m| m.is_file()) {
+            if let Some(etag) = self.read_etag().await? {
+                headers.insert(reqwest::header::IF_NONE_MATCH, etag);
+            }
+        }
+
+        let response = http_client
+            .get(self.url())
+            .headers(headers)
+            .timeout(Duration::MAX)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+            tracing::info!(
+                "Latest {} database is already cached at {}",
+                self.name(),
+                db_path.display()
+            );
+            return Ok(());
+        }
+
+        if response.status() != reqwest::StatusCode::OK {
+            return Err(eyre!(
+                "HTTP status error ({}) for url ({})",
+                response.status(),
+                response.url()
+            ));
+        }
+
+        let etag = response.headers().get(reqwest::header::ETAG).cloned();
+
+        self.save_db(
+            response,
+            #[cfg(feature = "tui")]
+            tx,
+        )
+        .await?;
+
+        if is_docker().await {
+            tracing::info!(
+                "Downloaded {} database to Docker volume ({} in container)",
+                self.name(),
+                db_path.display()
+            );
+        } else {
+            tracing::info!(
+                "Downloaded {} database to {}",
+                self.name(),
+                db_path.display()
+            );
+        }
+        drop(db_path);
+
+        if let Some(etag_value) = etag {
+            self.save_etag(etag_value).await
+        } else {
+            self.remove_etag().await
+        }
+    }
+
+    pub async fn open_mmap(
+        self,
+    ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
+        let path = self.db_path().await?;
+        tokio::task::spawn_blocking(move || {
+            #[expect(clippy::undocumented_unsafe_blocks)]
+            unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(
+                move || {
+                    compact_str::format_compact!(
+                        "failed to open IP database: {}",
+                        path.display()
+                    )
+                },
+            )
+        })
+        .await?
+    }
+
     const fn name(self) -> &'static str {
         match self {
             Self::Asn => "ASN",
@@ -131,93 +219,5 @@ impl DbType {
                 )
             }),
         }
-    }
-
-    pub async fn download(
-        self,
-        http_client: reqwest_middleware::ClientWithMiddleware,
-        #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-    ) -> crate::Result<()> {
-        let db_path = self.db_path().await?;
-        let mut headers = reqwest::header::HeaderMap::new();
-        #[expect(clippy::collapsible_if)]
-        if tokio::fs::metadata(&db_path).await.is_ok_and(|m| m.is_file()) {
-            if let Some(etag) = self.read_etag().await? {
-                headers.insert(reqwest::header::IF_NONE_MATCH, etag);
-            }
-        }
-
-        let response = http_client
-            .get(self.url())
-            .headers(headers)
-            .timeout(Duration::MAX)
-            .send()
-            .await?
-            .error_for_status()?;
-
-        if response.status() == reqwest::StatusCode::NOT_MODIFIED {
-            tracing::info!(
-                "Latest {} database is already cached at {}",
-                self.name(),
-                db_path.display()
-            );
-            return Ok(());
-        }
-
-        if response.status() != reqwest::StatusCode::OK {
-            return Err(eyre!(
-                "HTTP status error ({}) for url ({})",
-                response.status(),
-                response.url()
-            ));
-        }
-
-        let etag = response.headers().get(reqwest::header::ETAG).cloned();
-
-        self.save_db(
-            response,
-            #[cfg(feature = "tui")]
-            tx,
-        )
-        .await?;
-
-        if is_docker().await {
-            tracing::info!(
-                "Downloaded {} database to Docker volume ({} in container)",
-                self.name(),
-                db_path.display()
-            );
-        } else {
-            tracing::info!(
-                "Downloaded {} database to {}",
-                self.name(),
-                db_path.display()
-            );
-        }
-        drop(db_path);
-
-        if let Some(etag_value) = etag {
-            self.save_etag(etag_value).await
-        } else {
-            self.remove_etag().await
-        }
-    }
-
-    pub async fn open_mmap(
-        self,
-    ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
-        let path = self.db_path().await?;
-        tokio::task::spawn_blocking(move || {
-            #[expect(clippy::undocumented_unsafe_blocks)]
-            unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(
-                move || {
-                    compact_str::format_compact!(
-                        "failed to open IP database: {}",
-                        path.display()
-                    )
-                },
-            )
-        })
-        .await?
     }
 }

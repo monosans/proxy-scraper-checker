@@ -34,31 +34,6 @@ impl Drop for RatatuiRestoreGuard {
     }
 }
 
-pub async fn run(
-    mut terminal: ratatui::DefaultTerminal,
-    token: tokio_util::sync::CancellationToken,
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
-    mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
-) -> crate::Result<()> {
-    tokio::spawn(tick_event_listener(tx.clone()));
-    tokio::spawn(crossterm_event_listener(tx));
-
-    let mut app_state = AppState::default();
-    let logger_state = TuiWidgetState::default();
-
-    while !matches!(app_state.mode, AppMode::Quit) {
-        if let Some(event) = rx.recv().await {
-            if handle_event(event, &mut app_state, &token, &logger_state) {
-                terminal
-                    .draw(|frame| draw(frame, &app_state, &logger_state))?;
-            }
-        } else {
-            break;
-        }
-    }
-    Ok(())
-}
-
 #[derive(Default)]
 pub enum AppMode {
     #[default]
@@ -92,6 +67,31 @@ pub struct AppState {
     pub proxies_total: HashMap<ProxyType, usize>,
     pub proxies_checked: HashMap<ProxyType, usize>,
     pub proxies_working: HashMap<ProxyType, usize>,
+}
+
+pub async fn run(
+    mut terminal: ratatui::DefaultTerminal,
+    token: tokio_util::sync::CancellationToken,
+    tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
+) -> crate::Result<()> {
+    tokio::spawn(tick_event_listener(tx.clone()));
+    tokio::spawn(crossterm_event_listener(tx));
+
+    let mut app_state = AppState::default();
+    let logger_state = TuiWidgetState::default();
+
+    while !matches!(app_state.mode, AppMode::Quit) {
+        if let Some(event) = rx.recv().await {
+            if handle_event(event, &mut app_state, &token, &logger_state) {
+                terminal
+                    .draw(|frame| draw(frame, &app_state, &logger_state))?;
+            }
+        } else {
+            break;
+        }
+    }
+    Ok(())
 }
 
 async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {

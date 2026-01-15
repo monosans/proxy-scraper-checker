@@ -63,6 +63,58 @@ fn group_proxies<'a>(
     groups
 }
 
+async fn write_proxy_list_to_file<'a, I>(
+    path: &Path,
+    proxies: I,
+    include_protocol: bool,
+) -> crate::Result<()>
+where
+    I: IntoIterator<Item = &'a Proxy>,
+{
+    let file =
+        tokio::fs::File::create(path).await.wrap_err_with(move || {
+            compact_str::format_compact!(
+                "failed to create file: {}",
+                path.display()
+            )
+        })?;
+    let mut writer = tokio::io::BufWriter::new(file);
+
+    let mut first = true;
+    let mut tmp = Vec::new();
+    for proxy in proxies {
+        if first {
+            first = false;
+        } else {
+            writer.write_all(b"\n").await.wrap_err_with(move || {
+                compact_str::format_compact!(
+                    "failed to write to file: {}",
+                    path.display()
+                )
+            })?;
+        }
+
+        proxy.write_to_sink(&mut tmp, include_protocol);
+        writer.write_all(&tmp).await.wrap_err_with(move || {
+            compact_str::format_compact!(
+                "failed to write to file: {}",
+                path.display()
+            )
+        })?;
+        tmp.clear();
+    }
+    drop(tmp);
+
+    writer.flush().await.wrap_err_with(move || {
+        compact_str::format_compact!(
+            "failed to write to file: {}",
+            path.display()
+        )
+    })?;
+
+    Ok(())
+}
+
 #[expect(clippy::too_many_lines)]
 pub async fn save_proxies(
     config: Arc<Config>,
@@ -196,58 +248,6 @@ pub async fn save_proxies(
     } else {
         tracing::info!("Proxies have been saved to {}", path.display());
     }
-
-    Ok(())
-}
-
-async fn write_proxy_list_to_file<'a, I>(
-    path: &Path,
-    proxies: I,
-    include_protocol: bool,
-) -> crate::Result<()>
-where
-    I: IntoIterator<Item = &'a Proxy>,
-{
-    let file =
-        tokio::fs::File::create(path).await.wrap_err_with(move || {
-            compact_str::format_compact!(
-                "failed to create file: {}",
-                path.display()
-            )
-        })?;
-    let mut writer = tokio::io::BufWriter::new(file);
-
-    let mut first = true;
-    let mut tmp = Vec::new();
-    for proxy in proxies {
-        if first {
-            first = false;
-        } else {
-            writer.write_all(b"\n").await.wrap_err_with(move || {
-                compact_str::format_compact!(
-                    "failed to write to file: {}",
-                    path.display()
-                )
-            })?;
-        }
-
-        proxy.write_to_sink(&mut tmp, include_protocol);
-        writer.write_all(&tmp).await.wrap_err_with(move || {
-            compact_str::format_compact!(
-                "failed to write to file: {}",
-                path.display()
-            )
-        })?;
-        tmp.clear();
-    }
-    drop(tmp);
-
-    writer.flush().await.wrap_err_with(move || {
-        compact_str::format_compact!(
-            "failed to write to file: {}",
-            path.display()
-        )
-    })?;
 
     Ok(())
 }

@@ -4,10 +4,10 @@ use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 
 use crate::config::APP_DIRECTORY_NAME;
 
-pub async fn get_cache_path() -> crate::Result<PathBuf> {
-    static CACHE: tokio::sync::OnceCell<PathBuf> =
-        tokio::sync::OnceCell::const_new();
+static CACHE: tokio::sync::OnceCell<PathBuf> =
+    tokio::sync::OnceCell::const_new();
 
+pub async fn get_cache_path() -> crate::Result<PathBuf> {
     Ok(CACHE
         .get_or_try_init(async || -> crate::Result<PathBuf> {
             let mut path = tokio::task::spawn_blocking(dirs::cache_dir)

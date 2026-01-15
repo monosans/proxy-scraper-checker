@@ -1,0 +1,13 @@
+services:
+  samply:
+    build:
+      dockerfile: bench/samply/Dockerfile
+      args:
+        - "UID=${UID:-1000}"
+        - "GID=${GID:-1000}"
+      pull: true
+    init: true
+    privileged: true
+    volumes:
+      - ./out:/app/out
+      - ./config.toml:/app/config.toml

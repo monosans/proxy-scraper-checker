@@ -79,6 +79,8 @@ pub async fn build_rustls_config() -> crate::Result<rustls::ClientConfig> {
         .with_no_client_auth())
 }
 
+pub struct RetryMiddleware;
+
 fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
     if let Some(val) = headers.get("retry-after-ms")
         && let Ok(s) = val.to_str()
@@ -122,8 +124,6 @@ fn calculate_retry_timeout(
     let jitter = 0.25_f64.mul_add(-rand::random::<f64>(), 1.0);
     Some(base.mul_f64(jitter))
 }
-
-pub struct RetryMiddleware;
 
 #[async_trait::async_trait]
 impl reqwest_middleware::Middleware for RetryMiddleware {

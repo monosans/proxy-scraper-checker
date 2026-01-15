@@ -47,6 +47,7 @@ impl ProxyType {
         }
     }
 
+    #[cfg(feature = "tui")]
     pub const fn as_str_uppercase(self) -> &'static str {
         match self {
             Self::Http => "HTTP",
@@ -67,29 +68,36 @@ pub struct Proxy {
     pub exit_ip: Option<compact_str::CompactString>,
 }
 
-impl TryFrom<&mut Proxy> for reqwest::Proxy {
-    type Error = crate::Error;
+tokio::task_local! {
+    static CHECK_PROXY_URL: reqwest::Url;
+}
 
-    #[inline]
-    fn try_from(value: &mut Proxy) -> Result<Self, Self::Error> {
-        let proxy = Self::all(
-            compact_str::format_compact!(
-                "{}://{}:{}",
-                value.protocol.as_str_lowercase(),
-                value.host,
-                value.port
-            )
-            .as_str(),
-        )?;
+pub fn build_check_client<R: reqwest::dns::Resolve + 'static>(
+    config: &Config,
+    dns_resolver: R,
+    mut tls_backend: rustls::ClientConfig,
+) -> reqwest::Result<reqwest::Client> {
+    tls_backend.alpn_protocols = vec![b"http/1.1".to_vec()];
+    let builder = reqwest::ClientBuilder::new()
+        .user_agent(config.checking.user_agent.as_bytes())
+        .proxy(reqwest::Proxy::custom(|_| Some(CHECK_PROXY_URL.get())))
+        .timeout(config.checking.timeout)
+        .connect_timeout(config.checking.connect_timeout)
+        .pool_idle_timeout(Duration::ZERO)
+        .pool_max_idle_per_host(0)
+        .http1_only()
+        .tcp_keepalive(None)
+        .tls_backend_preconfigured(tls_backend)
+        .dns_resolver(dns_resolver);
 
-        if let (Some(username), Some(password)) =
-            (value.username.as_ref(), value.password.as_ref())
-        {
-            Ok(proxy.basic_auth(username, password))
-        } else {
-            Ok(proxy)
-        }
-    }
+    #[cfg(any(
+        target_os = "android",
+        target_os = "fuchsia",
+        target_os = "linux"
+    ))]
+    let builder = builder.tcp_user_timeout(None);
+
+    builder.build()
 }
 
 pub trait ProxySink {
@@ -117,52 +125,62 @@ impl ProxySink for Vec<u8> {
     }
 }
 
-impl Proxy {
-    pub const fn is_checked(&self) -> bool {
-        self.timeout.is_some()
-    }
+impl TryFrom<&mut Proxy> for url::Url {
+    type Error = crate::Error;
 
-    pub async fn check<R: reqwest::dns::Resolve + 'static>(
-        &mut self,
-        config: &Config,
-        dns_resolver: R,
-        tls_backend: rustls::ClientConfig,
-    ) -> crate::Result<()> {
-        if let Some(check_url) = config.checking.check_url.clone() {
-            let builder = reqwest::ClientBuilder::new()
-                .user_agent(config.checking.user_agent.as_bytes())
-                .proxy(self.try_into()?)
-                .timeout(config.checking.timeout)
-                .connect_timeout(config.checking.connect_timeout)
-                .pool_idle_timeout(Duration::ZERO)
-                .pool_max_idle_per_host(0)
-                .http1_only()
-                .tcp_keepalive(None)
-                .tls_backend_preconfigured(tls_backend)
-                .dns_resolver(dns_resolver);
-            #[cfg(any(
-                target_os = "android",
-                target_os = "fuchsia",
-                target_os = "linux"
-            ))]
-            let builder = builder.tcp_user_timeout(None);
-            let request = {
-                let client = builder.build()?;
-                client.get(check_url)
-            };
-            let start = Instant::now();
-            let response = request.send().await?.error_for_status()?;
-            self.timeout = Some(start.elapsed());
-            self.exit_ip = response.text().await.map_or(None, |text| {
-                if let Ok(httpbin) =
-                    serde_json::from_str::<HttpbinResponse>(&text)
-                {
-                    parse_ipv4(&httpbin.origin)
-                } else {
-                    parse_ipv4(&text)
-                }
-            });
+    #[inline]
+    fn try_from(proxy: &mut Proxy) -> Result<Self, Self::Error> {
+        let mut url = Self::parse("http://0.0.0.0")?;
+
+        url.set_scheme(proxy.protocol.as_str_lowercase())
+            .map_err(|()| eyre!("invalid proxy url scheme"))?;
+
+        if let (Some(username), Some(password)) =
+            (proxy.username.as_deref(), proxy.password.as_deref())
+        {
+            url.set_username(username)
+                .map_err(|()| eyre!("invalid proxy url username"))?;
+            url.set_password(Some(password))
+                .map_err(|()| eyre!("invalid proxy url password"))?;
         }
+
+        url.set_host(Some(proxy.host.as_str()))?;
+        url.set_port(Some(proxy.port))
+            .map_err(|()| eyre!("invalid proxy url port"))?;
+
+        Ok(url)
+    }
+}
+
+impl Proxy {
+    pub async fn check(
+        &mut self,
+        client: &reqwest::Client,
+        config: &Config,
+    ) -> crate::Result<()> {
+        let Some(check_url) = config.checking.check_url.clone() else {
+            return Ok(());
+        };
+
+        let proxy_url = self.try_into()?;
+
+        let start = Instant::now();
+
+        let response = CHECK_PROXY_URL
+            .scope(proxy_url, async move { client.get(check_url).send().await })
+            .await?
+            .error_for_status()?;
+
+        self.timeout = Some(start.elapsed());
+        self.exit_ip = response.text().await.map_or(None, |text| {
+            if let Ok(httpbin) = serde_json::from_str::<HttpbinResponse>(&text)
+            {
+                parse_ipv4(&httpbin.origin)
+            } else {
+                parse_ipv4(&text)
+            }
+        });
+
         Ok(())
     }
 

@@ -9,6 +9,8 @@ use serde::Deserialize as _;
 
 use crate::{HashMap, http::BasicAuth};
 
+const CONFIG_ENV: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
+
 fn validate_positive_f64<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<f64, D::Error> {
@@ -184,8 +186,6 @@ impl<'de> serde::Deserialize<'de> for OutputConfig {
         })
     }
 }
-
-const CONFIG_ENV: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
 
 pub fn get_config_path() -> compact_str::CompactString {
     env::var(CONFIG_ENV).map_or_else(

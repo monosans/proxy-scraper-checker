@@ -21,11 +21,10 @@ impl DbType {
     ) -> crate::Result<()> {
         let db_path = self.db_path().await?;
         let mut headers = reqwest::header::HeaderMap::new();
-        #[expect(clippy::collapsible_if)]
-        if tokio::fs::metadata(&db_path).await.is_ok_and(|m| m.is_file()) {
-            if let Some(etag) = self.read_etag().await? {
-                headers.insert(reqwest::header::IF_NONE_MATCH, etag);
-            }
+        if tokio::fs::metadata(&db_path).await.is_ok_and(|m| m.is_file())
+            && let Some(etag) = self.read_etag().await?
+        {
+            headers.insert(reqwest::header::IF_NONE_MATCH, etag);
         }
 
         let response = http_client

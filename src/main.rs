@@ -171,8 +171,10 @@ async fn main_task(
         event::Event,
     >,
 ) -> crate::Result<()> {
-    let dns_resolver = http::HickoryDnsResolver::new().await?;
-    let tls_backend = http::build_rustls_config()?;
+    let (dns_resolver, tls_backend) = tokio::try_join!(
+        async { http::HickoryDnsResolver::new().await.map_err(Into::into) },
+        http::build_rustls_config(),
+    )?;
 
     let http_client = http::create_reqwest_client(
         &config,

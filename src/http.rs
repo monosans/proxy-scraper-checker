@@ -64,14 +64,17 @@ impl reqwest::dns::Resolve for HickoryDnsResolver {
     }
 }
 
-pub fn build_rustls_config() -> crate::Result<rustls::ClientConfig> {
+pub async fn build_rustls_config() -> crate::Result<rustls::ClientConfig> {
     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
 
     Ok(rustls::ClientConfig::builder_with_provider(Arc::clone(&provider))
         .with_protocol_versions(rustls::ALL_VERSIONS)?
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(
-            rustls_platform_verifier::Verifier::new(provider)?,
+            tokio::task::spawn_blocking(move || {
+                rustls_platform_verifier::Verifier::new(provider)
+            })
+            .await??,
         ))
         .with_no_client_auth())
 }

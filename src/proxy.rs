@@ -78,7 +78,7 @@ pub fn build_check_client<R: reqwest::dns::Resolve + 'static>(
     mut tls_backend: rustls::ClientConfig,
 ) -> reqwest::Result<reqwest::Client> {
     tls_backend.alpn_protocols = vec![b"http/1.1".to_vec()];
-    let builder = reqwest::ClientBuilder::new()
+    reqwest::ClientBuilder::new()
         .user_agent(config.checking.user_agent.as_bytes())
         .proxy(reqwest::Proxy::custom(|_| Some(CHECK_PROXY_URL.get())))
         .timeout(config.checking.timeout)
@@ -88,16 +88,8 @@ pub fn build_check_client<R: reqwest::dns::Resolve + 'static>(
         .http1_only()
         .tcp_keepalive(None)
         .tls_backend_preconfigured(tls_backend)
-        .dns_resolver(dns_resolver);
-
-    #[cfg(any(
-        target_os = "android",
-        target_os = "fuchsia",
-        target_os = "linux"
-    ))]
-    let builder = builder.tcp_user_timeout(None);
-
-    builder.build()
+        .dns_resolver(dns_resolver)
+        .build()
 }
 
 pub trait ProxySink {

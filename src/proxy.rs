@@ -138,8 +138,6 @@ impl Proxy {
                 .pool_max_idle_per_host(0)
                 .http1_only()
                 .tcp_keepalive(None)
-                .tcp_keepalive_interval(Duration::ZERO)
-                .tcp_keepalive_retries(0)
                 .tls_backend_preconfigured(tls_backend)
                 .dns_resolver(dns_resolver);
             #[cfg(any(

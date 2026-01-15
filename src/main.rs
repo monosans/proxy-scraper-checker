@@ -101,8 +101,8 @@ fn create_logging_filter(
     let base = tracing_subscriber::filter::Targets::new()
         .with_default(tracing::level_filters::LevelFilter::INFO)
         .with_target(
-            "hyper_util::client::legacy::connect::http",
-            tracing::level_filters::LevelFilter::ERROR,
+            "rustls_platform_verifier::verification",
+            tracing::level_filters::LevelFilter::OFF,
         );
 
     if config.debug {

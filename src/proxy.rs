@@ -87,6 +87,8 @@ pub fn build_check_client<R: reqwest::dns::Resolve + 'static>(
         .pool_max_idle_per_host(0)
         .http1_only()
         .tcp_keepalive(None)
+        .tcp_keepalive_interval(None)
+        .tcp_keepalive_retries(None)
         .tls_backend_preconfigured(tls_backend)
         .dns_resolver(dns_resolver)
         .build()

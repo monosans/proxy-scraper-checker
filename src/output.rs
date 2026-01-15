@@ -157,7 +157,7 @@ pub async fn save_proxies(
                     .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
                 exit_ip: proxy.exit_ip.as_deref(),
                 asn: if let Some(asn_db) = &maybe_asn_db {
-                    if let Some(exit_ip) = proxy.exit_ip.as_ref() {
+                    if let Some(exit_ip) = &proxy.exit_ip {
                         let exit_ip_addr: IpAddr = exit_ip.parse()?;
                         asn_db.lookup(exit_ip_addr)?.decode()?
                     } else {
@@ -167,7 +167,7 @@ pub async fn save_proxies(
                     None
                 },
                 geolocation: if let Some(geo_db) = &maybe_geo_db {
-                    if let Some(exit_ip) = proxy.exit_ip.as_ref() {
+                    if let Some(exit_ip) = &proxy.exit_ip {
                         let exit_ip_addr: IpAddr = exit_ip.parse()?;
                         geo_db.lookup(exit_ip_addr)?.decode()?
                     } else {

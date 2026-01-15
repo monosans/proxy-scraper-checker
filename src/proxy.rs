@@ -111,7 +111,7 @@ impl ProxySink for compact_str::CompactString {
     }
 
     fn push_byte(&mut self, b: u8) {
-        self.push(b as char);
+        self.push(b.into());
     }
 }
 
@@ -136,7 +136,7 @@ impl TryFrom<&mut Proxy> for url::Url {
             .map_err(|()| eyre!("invalid proxy url scheme"))?;
 
         if let (Some(username), Some(password)) =
-            (proxy.username.as_deref(), proxy.password.as_deref())
+            (&proxy.username, &proxy.password)
         {
             url.set_username(username)
                 .map_err(|()| eyre!("invalid proxy url username"))?;
@@ -144,7 +144,7 @@ impl TryFrom<&mut Proxy> for url::Url {
                 .map_err(|()| eyre!("invalid proxy url password"))?;
         }
 
-        url.set_host(Some(proxy.host.as_str()))?;
+        url.set_host(Some(&proxy.host))?;
         url.set_port(Some(proxy.port))
             .map_err(|()| eyre!("invalid proxy url port"))?;
 

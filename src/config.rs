@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use color_eyre::eyre::{OptionExt as _, WrapErr as _};
+use color_eyre::eyre::WrapErr as _;
 
 use crate::{
     HashMap, http::BasicAuth, proxy::ProxyType, raw_config, utils::is_docker,
@@ -70,11 +70,7 @@ async fn get_output_path(
     raw_config: &raw_config::RawConfig,
 ) -> crate::Result<PathBuf> {
     let output_path = if is_docker().await {
-        let mut path = tokio::task::spawn_blocking(dirs::data_local_dir)
-            .await?
-            .ok_or_eyre("failed to get user's local data directory")?;
-        path.push(APP_DIRECTORY_NAME);
-        path
+        "./out".into()
     } else {
         raw_config.output.path.clone()
     };

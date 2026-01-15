@@ -46,7 +46,7 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 
 [output]
-# Output directory (Docker overrides this to /home/app/.local/share/proxy_scraper_checker via volume mount)
+# Output directory (Docker overrides this to /app/out via volume mount)
 path = "./out"
 
 # Sort proxies by response time (true) or by IP address (false)

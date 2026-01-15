@@ -79,68 +79,68 @@ include_geolocation = true
 [scraping.http]
 enabled = true
 urls = [
-    # Local file examples:
-    # "./my_http_proxies.txt",
-    # "/home/user/my_http_proxies.txt",
-    # "C:/Users/user/Desktop/my_http_proxies.txt",
-    # "file:///home/user/my_http_proxies.txt",
+  # Local file examples:
+  # "./my_http_proxies.txt",
+  # "/home/user/my_http_proxies.txt",
+  # "C:/Users/user/Desktop/my_http_proxies.txt",
+  # "file:///home/user/my_http_proxies.txt",
 
-    # Advanced URL configuration examples (with basic auth or custom headers):
-    # HTTP Basic Auth example:
-    # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
-    # Custom headers example:
-    # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
+  # Advanced URL configuration examples (with basic auth or custom headers):
+  # HTTP Basic Auth example:
+  # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
+  # Custom headers example:
+  # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
-    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=http",
-    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=https",
-    "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/http/data.txt",
-    "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/https/data.txt",
-    "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/HTTPS_RAW.txt",
-    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/http_proxies.txt",
-    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/http.txt",
+  "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=http",
+  "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=https",
+  "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/http/data.txt",
+  "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/https/data.txt",
+  "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/HTTPS_RAW.txt",
+  "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/http_proxies.txt",
+  "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/http.txt",
 ]
 
 [scraping.socks4]
 enabled = true
 urls = [
-    # Local file examples:
-    # "./my_socks4_proxies.txt",
-    # "/home/user/my_socks4_proxies.txt",
-    # "C:/Users/user/Desktop/my_socks4_proxies.txt",
-    # "file:///home/user/my_socks4_proxies.txt",
+  # Local file examples:
+  # "./my_socks4_proxies.txt",
+  # "/home/user/my_socks4_proxies.txt",
+  # "C:/Users/user/Desktop/my_socks4_proxies.txt",
+  # "file:///home/user/my_socks4_proxies.txt",
 
-    # Advanced URL configuration examples (with basic auth or custom headers):
-    # HTTP Basic Auth example:
-    # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
-    # Custom headers example:
-    # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
+  # Advanced URL configuration examples (with basic auth or custom headers):
+  # HTTP Basic Auth example:
+  # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
+  # Custom headers example:
+  # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
-    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks4",
-    "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks4/data.txt",
-    "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/SOCKS4_RAW.txt",
-    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks4_proxies.txt",
-    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks4.txt",
+  "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks4",
+  "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks4/data.txt",
+  "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/SOCKS4_RAW.txt",
+  "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks4_proxies.txt",
+  "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks4.txt",
 ]
 
 [scraping.socks5]
 enabled = true
 urls = [
-    # Local file examples:
-    # "./my_socks5_proxies.txt",
-    # "/home/user/my_socks5_proxies.txt",
-    # "C:/Users/user/Desktop/my_socks5_proxies.txt",
-    # "file:///home/user/my_socks5_proxies.txt",
+  # Local file examples:
+  # "./my_socks5_proxies.txt",
+  # "/home/user/my_socks5_proxies.txt",
+  # "C:/Users/user/Desktop/my_socks5_proxies.txt",
+  # "file:///home/user/my_socks5_proxies.txt",
 
-    # Advanced URL configuration examples (with basic auth or custom headers):
-    # HTTP Basic Auth example:
-    # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
-    # Custom headers example:
-    # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
+  # Advanced URL configuration examples (with basic auth or custom headers):
+  # HTTP Basic Auth example:
+  # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
+  # Custom headers example:
+  # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
-    "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks5",
-    "https://raw.githubusercontent.com/hookzof/socks5_list/refs/heads/master/proxy.txt",
-    "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt",
-    "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/SOCKS5_RAW.txt",
-    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks5_proxies.txt",
-    "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks5.txt",
+  "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks5",
+  "https://raw.githubusercontent.com/hookzof/socks5_list/refs/heads/master/proxy.txt",
+  "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt",
+  "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/SOCKS5_RAW.txt",
+  "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks5_proxies.txt",
+  "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks5.txt",
 ]

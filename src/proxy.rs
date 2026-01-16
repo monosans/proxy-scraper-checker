@@ -68,30 +68,29 @@ pub struct Proxy {
     pub exit_ip: Option<compact_str::CompactString>,
 }
 
-tokio::task_local! {
-    static CHECK_PROXY_URL: reqwest::Url;
-}
+impl TryFrom<&mut Proxy> for reqwest::Proxy {
+    type Error = crate::Error;
 
-pub fn build_check_client<R: reqwest::dns::Resolve + 'static>(
-    config: &Config,
-    dns_resolver: R,
-    mut tls_backend: rustls::ClientConfig,
-) -> reqwest::Result<reqwest::Client> {
-    tls_backend.alpn_protocols = vec![b"http/1.1".to_vec()];
-    reqwest::ClientBuilder::new()
-        .user_agent(config.checking.user_agent.as_bytes())
-        .proxy(reqwest::Proxy::custom(|_| Some(CHECK_PROXY_URL.get())))
-        .timeout(config.checking.timeout)
-        .connect_timeout(config.checking.connect_timeout)
-        .pool_idle_timeout(Duration::ZERO)
-        .pool_max_idle_per_host(0)
-        .http1_only()
-        .tcp_keepalive(None)
-        .tcp_keepalive_interval(None)
-        .tcp_keepalive_retries(None)
-        .tls_backend_preconfigured(tls_backend)
-        .dns_resolver(dns_resolver)
-        .build()
+    #[inline]
+    fn try_from(value: &mut Proxy) -> Result<Self, Self::Error> {
+        let proxy = Self::all(
+            compact_str::format_compact!(
+                "{}://{}:{}",
+                value.protocol.as_str_lowercase(),
+                value.host,
+                value.port
+            )
+            .as_str(),
+        )?;
+
+        if let (Some(username), Some(password)) =
+            (value.username.as_ref(), value.password.as_ref())
+        {
+            Ok(proxy.basic_auth(username, password))
+        } else {
+            Ok(proxy)
+        }
+    }
 }
 
 pub trait ProxySink {
@@ -119,51 +118,35 @@ impl ProxySink for Vec<u8> {
     }
 }
 
-impl TryFrom<&mut Proxy> for url::Url {
-    type Error = crate::Error;
-
-    #[inline]
-    fn try_from(proxy: &mut Proxy) -> Result<Self, Self::Error> {
-        let mut url = Self::parse("http://0.0.0.0")?;
-
-        url.set_scheme(proxy.protocol.as_str_lowercase())
-            .map_err(|()| eyre!("invalid proxy url scheme"))?;
-
-        if let (Some(username), Some(password)) =
-            (&proxy.username, &proxy.password)
-        {
-            url.set_username(username)
-                .map_err(|()| eyre!("invalid proxy url username"))?;
-            url.set_password(Some(password))
-                .map_err(|()| eyre!("invalid proxy url password"))?;
-        }
-
-        url.set_host(Some(&proxy.host))?;
-        url.set_port(Some(proxy.port))
-            .map_err(|()| eyre!("invalid proxy url port"))?;
-
-        Ok(url)
-    }
-}
-
 impl Proxy {
-    pub async fn check(
+    pub async fn check<R: reqwest::dns::Resolve + 'static>(
         &mut self,
-        client: &reqwest::Client,
         config: &Config,
+        dns_resolver: R,
+        tls_backend: rustls::ClientConfig,
     ) -> crate::Result<()> {
         let Some(check_url) = config.checking.check_url.clone() else {
             return Ok(());
         };
 
-        let proxy_url = self.try_into()?;
+        let request = reqwest::ClientBuilder::new()
+            .user_agent(config.checking.user_agent.as_bytes())
+            .proxy(self.try_into()?)
+            .timeout(config.checking.timeout)
+            .connect_timeout(config.checking.connect_timeout)
+            .pool_idle_timeout(Duration::ZERO)
+            .pool_max_idle_per_host(0)
+            .http1_only()
+            .tcp_keepalive(None)
+            .tcp_keepalive_interval(None)
+            .tcp_keepalive_retries(None)
+            .tls_backend_preconfigured(tls_backend)
+            .dns_resolver(dns_resolver)
+            .build()?
+            .get(check_url);
 
         let start = Instant::now();
-
-        let response = CHECK_PROXY_URL
-            .scope(proxy_url, async move { client.get(check_url).send().await })
-            .await?
-            .error_for_status()?;
+        let response = request.send().await?.error_for_status()?;
 
         self.timeout = Some(start.elapsed());
         self.exit_ip = response.text().await.map_or(None, |text| {

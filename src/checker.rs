@@ -10,7 +10,7 @@ pub async fn check_all<R: reqwest::dns::Resolve + Clone + 'static>(
     config: Arc<Config>,
     dns_resolver: R,
     proxies: Vec<Proxy>,
-    tls_backend: rustls::ClientConfig,
+    mut tls_backend: rustls::ClientConfig,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> crate::Result<Vec<Proxy>> {
@@ -24,20 +24,20 @@ pub async fn check_all<R: reqwest::dns::Resolve + Clone + 'static>(
         return Ok(Vec::new());
     }
 
-    let client =
-        crate::proxy::build_check_client(&config, dns_resolver, tls_backend)?;
-
     #[cfg(not(feature = "tui"))]
     tracing::info!("Started checking {} proxies", proxies.len());
 
     let queue = Arc::new(parking_lot::Mutex::new(proxies));
     let checked_proxies = Arc::new(parking_lot::Mutex::new(Vec::new()));
 
+    tls_backend.alpn_protocols = vec![b"http/1.1".to_vec()];
+
     let mut join_set = tokio::task::JoinSet::<()>::new();
     for _ in 0..workers_count {
         let queue = Arc::clone(&queue);
-        let client = client.clone();
         let config = Arc::clone(&config);
+        let dns_resolver = dns_resolver.clone();
+        let tls_backend = tls_backend.clone();
         let checked_proxies = Arc::clone(&checked_proxies);
         let token = token.clone();
         #[cfg(feature = "tui")]
@@ -50,7 +50,7 @@ pub async fn check_all<R: reqwest::dns::Resolve + Clone + 'static>(
                         let Some(mut proxy) = queue.lock().pop() else {
                             break;
                         };
-                        let check_result = proxy.check(&client, &config).await;
+                        let check_result = proxy.check(&config, dns_resolver.clone(), tls_backend.clone()).await;
                         #[cfg(feature = "tui")]
                         drop(tx.send(Event::App(AppEvent::ProxyChecked(proxy.protocol))));
                         match check_result {
@@ -75,9 +75,10 @@ pub async fn check_all<R: reqwest::dns::Resolve + Clone + 'static>(
         });
     }
 
-    drop(client);
     drop(config);
+    drop(dns_resolver);
     drop(queue);
+    drop(tls_backend);
     drop(token);
     #[cfg(feature = "tui")]
     drop(tx);

@@ -33,7 +33,7 @@ check_url = "https://api.ipify.org"
 
 # Number of proxies to check simultaneously
 # Higher values = faster checking but more RAM/network usage. Lower if you experience crashes or timeouts.
-max_concurrent_checks = 1024
+max_concurrent_checks = 512
 
 # Proxy response timeout (seconds)
 # Higher = finds more slow proxies but takes longer

@@ -10,7 +10,7 @@ max_proxies_per_source = 100000
 
 # Request timeout for fetching proxy sources (seconds)
 # Higher values allow slower sources to complete but increase total scraping time
-timeout = 60.0
+timeout = 10.0
 connect_timeout = 5.0
 
 # HTTP(S), SOCKS4, or SOCKS5 proxy used for fetching sources (e.g., "socks5://user:pass@host:port"). Leave empty to disable.
@@ -38,7 +38,7 @@ max_concurrent_checks = 1024
 # Proxy response timeout (seconds)
 # Higher = finds more slow proxies but takes longer
 # Lower = faster checking but discards slow proxies
-timeout = 60.0
+timeout = 10.0
 connect_timeout = 5.0
 
 # User-Agent header for proxy check requests

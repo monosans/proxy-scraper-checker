@@ -46,8 +46,15 @@ run_one() {
     feature_args=(--features "$features")
   fi
 
+  cargo build --release --locked "${feature_args[@]}"
+
+  local exe="target/release/proxy-scraper-checker"
+  if [[ "$RUNNER_OS" == "Windows" ]]; then
+    exe="target/release/proxy-scraper-checker.exe"
+  fi
+
   local output
-  output="$(${time_cmd[@]} cargo run --release --locked "${feature_args[@]}" 2>&1 >/dev/null)"
+  output="$(${time_cmd[@]} "$exe" 2>&1 >/dev/null)"
 
   local peak
   peak="$(echo "$output" | parse_peak)"

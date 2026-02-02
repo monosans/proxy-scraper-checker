@@ -30,9 +30,14 @@ build_features() {
 for allocator in system jemalloc mimalloc_v2 mimalloc_v3; do
   features="$(build_features "$allocator")"
   if [ -n "$features" ]; then
-    output="$(/usr/bin/time -v cargo run --release --locked --features "$features" 2>&1 >/dev/null)"
+    cargo build --release --locked --features "$features"
   else
-    output="$(/usr/bin/time -v cargo run --release --locked 2>&1 >/dev/null)"
+    cargo build --release --locked
+  fi
+  if [ -n "$features" ]; then
+    output="$(/usr/bin/time -v /work/target/release/proxy-scraper-checker 2>&1 >/dev/null)"
+  else
+    output="$(/usr/bin/time -v /work/target/release/proxy-scraper-checker 2>&1 >/dev/null)"
   fi
   peak="$(echo "$output" | awk -F': ' '/Maximum resident set size/ {print $2; exit}')"
   if [ -z "$peak" ]; then

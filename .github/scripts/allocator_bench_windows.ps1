@@ -11,11 +11,23 @@ function Build-Features([string]$allocator, [string]$tokio) {
 }
 
 function Run-One([string]$allocator, [string]$features) {
-  $args = @("run", "--release", "--locked")
+  $args = @("build", "--release", "--locked")
   if ($features) { $args += "--features"; $args += $features }
 
   $peak = 0
   $proc = Start-Process -FilePath "cargo" -ArgumentList $args -PassThru -NoNewWindow
+  while (-not $proc.HasExited) {
+    Start-Sleep -Milliseconds 200
+    try {
+      $p = Get-Process -Id $proc.Id -ErrorAction Stop
+      $current = [math]::Max($p.WorkingSet64, $p.PeakWorkingSet64)
+      if ($current -gt $peak) { $peak = $current }
+    } catch { }
+  }
+
+  $exe = "target\\release\\proxy-scraper-checker.exe"
+  $peak = 0
+  $proc = Start-Process -FilePath $exe -PassThru -NoNewWindow
   while (-not $proc.HasExited) {
     Start-Sleep -Milliseconds 200
     try {

@@ -101,6 +101,10 @@ fn create_logging_filter(
     let base = tracing_subscriber::filter::Targets::new()
         .with_default(tracing::level_filters::LevelFilter::INFO)
         .with_target(
+            "hickory_proto::udp::udp_client_stream",
+            tracing::level_filters::LevelFilter::ERROR,
+        )
+        .with_target(
             "rustls_platform_verifier::verification",
             tracing::level_filters::LevelFilter::OFF,
         );

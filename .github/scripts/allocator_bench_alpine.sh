@@ -39,12 +39,20 @@ for allocator in system jemalloc mimalloc_v2 mimalloc_v3; do
   else
     output="$(/usr/bin/time -v /work/target/release/proxy-scraper-checker 2>&1 >/dev/null)"
   fi
-  peak="$(echo "$output" | awk -F': ' '/Maximum resident set size/ {print $2; exit}')"
+    peak="$(echo "$output" | awk -F': ' '/Maximum resident set size/ {print $2; exit}')"
+    major="$(echo "$output" | awk -F': ' '/Major \(requiring I\/O\) page faults/ {print $2; exit}')"
+    minor="$(echo "$output" | awk -F': ' '/Minor \(reclaiming a frame\) page faults/ {print $2; exit}')"
   if [ -z "$peak" ]; then
     echo "Failed to parse peak memory for $allocator" >&2
     exit 1
   fi
-  printf "%s\t%s\n" "$allocator" "$peak" >> /work/alpine-results.tsv
+    if [ -z "$major" ]; then
+      major=0
+    fi
+    if [ -z "$minor" ]; then
+      minor=0
+    fi
+    printf "%s\t%s\t%s\t%s\n" "$allocator" "$peak" "$major" "$minor" >> /work/alpine-results.tsv
 done
 EOF
 )
@@ -59,14 +67,18 @@ docker run --rm \
 {
   echo "### ${PLATFORM_LABEL:-unknown} (tokio-multi-thread=${TOKIO_MULTI_THREAD:-false})"
   echo ""
-  echo "| Allocator | Peak KB |"
-  echo "| --- | ---: |"
-  sort -n -k2,2 alpine-results.tsv | while IFS=$'\t' read -r allocator peak; do
-    echo "| $allocator | $peak |"
+  echo "| Allocator | Peak KB | Major PF | Minor PF |"
+  echo "| --- | ---: | ---: | ---: |"
+  sort -n -k2,2 -k3,3 -k4,4 alpine-results.tsv | while IFS=$'\t' read -r allocator peak major minor; do
+    echo "| $allocator | $peak | $major | $minor |"
   done
-  best="$(sort -n -k2,2 alpine-results.tsv | head -n1)"
+  best="$(sort -n -k2,2 -k3,3 -k4,4 alpine-results.tsv | head -n1)"
   best_allocator="${best%%$'\t'*}"
-  best_peak="${best#*$'\t'}"
+  best_rest="${best#*$'\t'}"
+  best_peak="${best_rest%%$'\t'*}"
+  best_rest="${best_rest#*$'\t'}"
+  best_major="${best_rest%%$'\t'*}"
+  best_minor="${best_rest#*$'\t'}"
   echo ""
-  echo "**Best:** $best_allocator ($best_peak KB)"
+  echo "**Best:** $best_allocator ($best_peak KB, $best_major major PF, $best_minor minor PF)"
 } >> "$GITHUB_STEP_SUMMARY"

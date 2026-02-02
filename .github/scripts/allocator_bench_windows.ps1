@@ -37,7 +37,7 @@ function Run-One([string]$allocator, [string]$features) {
     } catch { }
   }
   $peakKb = [math]::Floor($peak / 1kb)
-  Add-Content -Path results.tsv -Value "$allocator`t$peakKb"
+  Add-Content -Path results.tsv -Value "$allocator`t$peakKb`t0`t0"
 }
 
 if (Test-Path results.tsv) { Remove-Item results.tsv -Force }
@@ -51,19 +51,21 @@ $rows = Get-Content results.tsv | ForEach-Object {
   [pscustomobject]@{
     Allocator = $parts[0]
     PeakKB = [int]$parts[1]
+    MajorPF = [int]$parts[2]
+    MinorPF = [int]$parts[3]
   }
 }
-$sorted = $rows | Sort-Object PeakKB
+$sorted = $rows | Sort-Object PeakKB, MajorPF, MinorPF
 $best = $sorted | Select-Object -First 1
 
 $summary = @()
 $summary += "### $($env:PLATFORM_LABEL) (tokio-multi-thread=$tokioOn)"
 $summary += ""
-$summary += "| Allocator | Peak KB |"
-$summary += "| --- | ---: |"
+$summary += "| Allocator | Peak KB | Major PF | Minor PF |"
+$summary += "| --- | ---: | ---: | ---: |"
 foreach ($row in $sorted) {
-  $summary += "| $($row.Allocator) | $($row.PeakKB) |"
+  $summary += "| $($row.Allocator) | $($row.PeakKB) | $($row.MajorPF) | $($row.MinorPF) |"
 }
 $summary += ""
-$summary += "**Best:** $($best.Allocator) ($($best.PeakKB) KB)"
+$summary += "**Best:** $($best.Allocator) ($($best.PeakKB) KB, $($best.MajorPF) major PF, $($best.MinorPF) minor PF)"
 $summary -join "`n" | Add-Content $env:GITHUB_STEP_SUMMARY

@@ -49,7 +49,7 @@ docker run --rm \
   -w /work \
   -e TOKIO_FEATURE="$TOKIO_FEATURE" \
   -e PLATFORM_LABEL="${PLATFORM_LABEL:-unknown}" \
-  rust:nightly-alpine sh -lc "$ALPINE_SCRIPT"
+  rust:alpine sh -lc "$ALPINE_SCRIPT"
 
 {
   echo "### ${PLATFORM_LABEL:-unknown} (tokio-multi-thread=${TOKIO_MULTI_THREAD:-false})"

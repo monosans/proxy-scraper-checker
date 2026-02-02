@@ -8,7 +8,7 @@ fi
 
 ALPINE_SCRIPT=$(cat <<'EOF'
 set -eu
-apk add --no-cache build-base pkgconfig time
+apk add --no-cache build-base pkgconfig time rust cargo
 
 build_features() {
   allocator="$1"

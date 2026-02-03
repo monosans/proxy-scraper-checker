@@ -14,6 +14,14 @@ jobs:
       fail-fast: false
       matrix:
         tokio_multi_thread: [true, false]
+        platform:
+          - ubuntu-24.04-arm
+          - ubuntu-24.04
+          - windows-2025
+          - windows-11-arm
+          - macos-15
+          - alpine
+          - alpine-arm
         include:
           - platform: ubuntu-24.04-arm
             runner: ubuntu-24.04-arm
@@ -32,6 +40,9 @@ jobs:
             alpine: false
           - platform: alpine
             runner: ubuntu-24.04
+            alpine: true
+          - platform: alpine-arm
+            runner: ubuntu-24.04-arm
             alpine: true
     steps:
       - uses: actions/checkout@v6

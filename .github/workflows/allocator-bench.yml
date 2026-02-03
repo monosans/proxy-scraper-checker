@@ -8,42 +8,29 @@ permissions:
   contents: read
 jobs:
   bench:
-    name: ${{ matrix.platform_name }} (tokio-multi-thread=${{ matrix.tokio_multi_thread }})
+    name: ${{ matrix.platform }} (tokio-multi-thread=${{ matrix.tokio_multi_thread }})
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         tokio_multi_thread: [true, false]
-        platform:
-          - ubuntu-24.04-arm-1
-          - ubuntu-24.04-arm-2
-          - windows-2025
-          - windows-11-arm
-          - macos-15-arm64
-          - alpine-dockerized
         include:
-          - platform: ubuntu-24.04-arm-1
-            platform_name: ubuntu-24.04-arm
+          - platform: ubuntu-24.04-arm
             runner: ubuntu-24.04-arm
             alpine: false
-          - platform: ubuntu-24.04-arm-2
-            platform_name: ubuntu-24.04-arm
-            runner: ubuntu-24.04-arm
+          - platform: ubuntu-24.04
+            runner: ubuntu-24.04
             alpine: false
           - platform: windows-2025
-            platform_name: windows-2025
             runner: windows-2025
             alpine: false
           - platform: windows-11-arm
-            platform_name: windows-11-arm
             runner: windows-11-arm
             alpine: false
-          - platform: macos-15-arm64
-            platform_name: macos-15 arm64
+          - platform: macos-15
             runner: macos-15
             alpine: false
-          - platform: alpine-dockerized
-            platform_name: alpine (dockerized)
+          - platform: alpine
             runner: ubuntu-24.04
             alpine: true
     steps:
@@ -60,17 +47,17 @@ jobs:
         shell: bash
         env:
           TOKIO_MULTI_THREAD: ${{ matrix.tokio_multi_thread }}
-          PLATFORM_LABEL: ${{ matrix.platform_name }}
+          PLATFORM_LABEL: ${{ matrix.platform }}
         run: bash .github/scripts/allocator_bench_unix.sh
       - if: ${{ !matrix.alpine && runner.os == 'Windows' }}
         shell: pwsh
         env:
           TOKIO_MULTI_THREAD: ${{ matrix.tokio_multi_thread }}
-          PLATFORM_LABEL: ${{ matrix.platform_name }}
+          PLATFORM_LABEL: ${{ matrix.platform }}
         run: ./.github/scripts/allocator_bench_windows.ps1
       - if: ${{ matrix.alpine }}
         shell: bash
         env:
           TOKIO_MULTI_THREAD: ${{ matrix.tokio_multi_thread }}
-          PLATFORM_LABEL: ${{ matrix.platform_name }}
+          PLATFORM_LABEL: ${{ matrix.platform }}
         run: bash .github/scripts/allocator_bench_alpine.sh

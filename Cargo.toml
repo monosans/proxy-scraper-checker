@@ -17,7 +17,7 @@ dhat = { version = "=0.3.3", optional = true }
 dirs = "=6.0.0"
 fancy-regex = "=0.17.0"
 foldhash = "=0.2.0"
-futures = { version = "=0.3.31", default-features = false, features = [
+futures = { version = "=0.3.32", default-features = false, features = [
   "std",
 ], optional = true }
 hickory-resolver = "=0.25.2"

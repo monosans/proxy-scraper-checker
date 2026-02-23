@@ -56,7 +56,7 @@ smallvec = { version = "=1.15.1", features = [
   "const_generics",
   "union",
 ], optional = true }
-strum = { version = "=0.27.2", features = ["derive"], optional = true }
+strum = { version = "=0.28.0", features = ["derive"], optional = true }
 tokio = { version = "=1.49.0", features = ["fs", "parking_lot", "signal"] }
 tokio-util = "=0.7.18"
 toml = { version = "=1.0.3", default-features = false, features = [

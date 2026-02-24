@@ -127,42 +127,35 @@ async fn download_output_dependencies(
         event::Event,
     >,
 ) -> crate::Result<output::OutputDependenciesResult> {
-    let asn_task = config.asn_enabled().then(|| {
-        let http_client = http_client.clone();
-        let token = token.clone();
-        #[cfg(feature = "tui")]
-        let tx = tx.clone();
+    let spawn = move |db_type: ipdb::DbType, enabled: bool| {
+        if enabled {
+            let http_client = http_client.clone();
+            let token = token.clone();
+            #[cfg(feature = "tui")]
+            let tx = tx.clone();
 
-        tokio::spawn(async move {
-            tokio::select! {
-                biased;
-                res = ipdb::DbType::Asn.download(
-                    http_client,
-                    #[cfg(feature = "tui")]
-                    tx,
-                ) => res.map(|()| true),
-                () = token.cancelled() => Ok(false),
-            }
-        })
-    });
+            tokio::spawn(async move {
+                tokio::select! {
+                    biased;
+                    res = db_type.download(
+                        http_client,
+                        #[cfg(feature = "tui")]
+                        tx,
+                    ) => res.map(|()| true),
+                    () = token.cancelled() => Ok(false),
+                }
+            })
+        } else {
+            tokio::spawn(async { Ok(false) })
+        }
+    };
 
-    let geodb_task = config.geolocation_enabled().then(move || {
-        tokio::spawn(async move {
-            tokio::select! {
-                biased;
-                res = ipdb::DbType::Geo.download(
-                    http_client,
-                    #[cfg(feature = "tui")]
-                    tx,
-                ) => res.map(|()| true),
-                () = token.cancelled() => Ok(false),
-            }
-        })
-    });
+    let asn_task = spawn(ipdb::DbType::Asn, config.asn_enabled());
+    let geodb_task = spawn(ipdb::DbType::Geo, config.geolocation_enabled());
 
     Ok(output::OutputDependenciesResult {
-        asn_db: if let Some(task) = asn_task { task.await?? } else { false },
-        geo_db: if let Some(task) = geodb_task { task.await?? } else { false },
+        asn_db: asn_task.await??,
+        geo_db: geodb_task.await??,
     })
 }
 

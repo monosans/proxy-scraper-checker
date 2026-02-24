@@ -126,7 +126,7 @@ async fn download_output_dependencies(
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> crate::Result<()> {
+) -> crate::Result<Option<()>> {
     let mut output_dependencies_tasks = tokio::task::JoinSet::new();
 
     if config.asn_enabled() {
@@ -142,8 +142,8 @@ async fn download_output_dependencies(
                     http_client,
                     #[cfg(feature = "tui")]
                     tx,
-                ) => res,
-                () = token.cancelled() => Ok(()),
+                ) => res.map(Option::Some),
+                () = token.cancelled() => Ok(None),
             }
         });
     }
@@ -156,16 +156,18 @@ async fn download_output_dependencies(
                     http_client,
                     #[cfg(feature = "tui")]
                     tx,
-                ) => res,
-                () = token.cancelled() => Ok(()),
+                ) => res.map(Option::Some),
+                () = token.cancelled() => Ok(None),
             }
         });
     }
 
     while let Some(task) = output_dependencies_tasks.join_next().await {
-        task??;
+        if task??.is_none() {
+            return Ok(None);
+        }
     }
-    Ok(())
+    Ok(Some(()))
 }
 
 async fn main_task(
@@ -186,7 +188,7 @@ async fn main_task(
         tls_backend.clone(),
     )?;
 
-    let ((), mut proxies) = tokio::try_join!(
+    let (output_dependencies_result, mut proxies) = tokio::try_join!(
         download_output_dependencies(
             &config,
             http_client.clone(),
@@ -203,18 +205,20 @@ async fn main_task(
         ),
     )?;
 
-    proxies = checker::check_all(
-        Arc::clone(&config),
-        dns_resolver,
-        proxies,
-        tls_backend,
-        token,
-        #[cfg(feature = "tui")]
-        tx.clone(),
-    )
-    .await?;
+    if output_dependencies_result == Some(()) {
+        proxies = checker::check_all(
+            Arc::clone(&config),
+            dns_resolver,
+            proxies,
+            tls_backend,
+            token,
+            #[cfg(feature = "tui")]
+            tx.clone(),
+        )
+        .await?;
 
-    output::save_proxies(config, proxies).await?;
+        output::save_proxies(config, proxies).await?;
+    }
 
     tracing::info!("Thank you for using proxy-scraper-checker!");
 

@@ -126,48 +126,44 @@ async fn download_output_dependencies(
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> crate::Result<Option<()>> {
-    let mut output_dependencies_tasks = tokio::task::JoinSet::new();
-
-    if config.asn_enabled() {
+) -> crate::Result<output::OutputDependenciesResult> {
+    let asn_task = config.asn_enabled().then(|| {
         let http_client = http_client.clone();
         let token = token.clone();
         #[cfg(feature = "tui")]
         let tx = tx.clone();
 
-        output_dependencies_tasks.spawn(async move {
+        tokio::spawn(async move {
             tokio::select! {
                 biased;
                 res = ipdb::DbType::Asn.download(
                     http_client,
                     #[cfg(feature = "tui")]
                     tx,
-                ) => res.map(Option::Some),
-                () = token.cancelled() => Ok(None),
+                ) => res.map(|()| true),
+                () = token.cancelled() => Ok(false),
             }
-        });
-    }
+        })
+    });
 
-    if config.geolocation_enabled() {
-        output_dependencies_tasks.spawn(async move {
+    let geodb_task = config.geolocation_enabled().then(move || {
+        tokio::spawn(async move {
             tokio::select! {
                 biased;
                 res = ipdb::DbType::Geo.download(
                     http_client,
                     #[cfg(feature = "tui")]
                     tx,
-                ) => res.map(Option::Some),
-                () = token.cancelled() => Ok(None),
+                ) => res.map(|()| true),
+                () = token.cancelled() => Ok(false),
             }
-        });
-    }
+        })
+    });
 
-    while let Some(task) = output_dependencies_tasks.join_next().await {
-        if task??.is_none() {
-            return Ok(None);
-        }
-    }
-    Ok(Some(()))
+    Ok(output::OutputDependenciesResult {
+        asn_db: if let Some(task) = asn_task { task.await?? } else { false },
+        geo_db: if let Some(task) = geodb_task { task.await?? } else { false },
+    })
 }
 
 async fn main_task(
@@ -205,20 +201,18 @@ async fn main_task(
         ),
     )?;
 
-    if output_dependencies_result == Some(()) {
-        proxies = checker::check_all(
-            Arc::clone(&config),
-            dns_resolver,
-            proxies,
-            tls_backend,
-            token,
-            #[cfg(feature = "tui")]
-            tx.clone(),
-        )
-        .await?;
+    proxies = checker::check_all(
+        Arc::clone(&config),
+        dns_resolver,
+        proxies,
+        tls_backend,
+        token,
+        #[cfg(feature = "tui")]
+        tx.clone(),
+    )
+    .await?;
 
-        output::save_proxies(config, proxies).await?;
-    }
+    output::save_proxies(config, proxies, output_dependencies_result).await?;
 
     tracing::info!("Thank you for using proxy-scraper-checker!");
 

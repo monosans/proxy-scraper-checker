@@ -156,10 +156,16 @@ where
     Ok(())
 }
 
+pub struct OutputDependenciesResult {
+    pub asn_db: bool,
+    pub geo_db: bool,
+}
+
 #[expect(clippy::too_many_lines)]
 pub async fn save_proxies(
     config: Arc<Config>,
     mut proxies: Vec<Proxy>,
+    output_dependencies_result: OutputDependenciesResult,
 ) -> crate::Result<()> {
     if config.output.sort_by_speed {
         proxies.sort_unstable_by(compare_timeout);
@@ -170,14 +176,14 @@ pub async fn save_proxies(
     if config.output.json.enabled {
         let (maybe_asn_db, maybe_geo_db) = tokio::try_join!(
             async {
-                if config.output.json.include_asn {
+                if output_dependencies_result.asn_db {
                     ipdb::DbType::Asn.open_mmap().await.map(Some)
                 } else {
                     Ok(None)
                 }
             },
             async {
-                if config.output.json.include_geolocation {
+                if output_dependencies_result.geo_db {
                     ipdb::DbType::Geo.open_mmap().await.map(Some)
                 } else {
                     Ok(None)

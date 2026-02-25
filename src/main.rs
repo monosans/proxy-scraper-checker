@@ -119,14 +119,14 @@ fn create_logging_filter(
     }
 }
 
-async fn download_output_dependencies(
+async fn download_ipdb(
     config: &config::Config,
     http_client: reqwest_middleware::ClientWithMiddleware,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> crate::Result<output::OutputDependenciesResult> {
+) -> crate::Result<output::UseIpDb> {
     let spawn = move |db_type: ipdb::DbType, enabled: bool| {
         if enabled {
             let http_client = http_client.clone();
@@ -141,22 +141,28 @@ async fn download_output_dependencies(
                         http_client,
                         #[cfg(feature = "tui")]
                         tx,
-                    ) => res.map(|()| true),
-                    () = token.cancelled() => Ok(false),
+                    ) => match res {
+                        Ok(()) => true,
+                        Err(e) => {
+                            tracing::warn!(
+                                "failed to download IP database: {}",
+                                utils::pretty_error(&e),
+                            );
+                            false
+                        }
+                    },
+                    () = token.cancelled() => false,
                 }
             })
         } else {
-            tokio::spawn(async { Ok(false) })
+            tokio::spawn(async { false })
         }
     };
 
     let asn_task = spawn(ipdb::DbType::Asn, config.asn_enabled());
     let geodb_task = spawn(ipdb::DbType::Geo, config.geolocation_enabled());
 
-    Ok(output::OutputDependenciesResult {
-        asn_db: asn_task.await??,
-        geo_db: geodb_task.await??,
-    })
+    Ok(output::UseIpDb { asn: asn_task.await?, geo: geodb_task.await? })
 }
 
 async fn main_task(
@@ -177,8 +183,8 @@ async fn main_task(
         tls_backend.clone(),
     )?;
 
-    let (output_dependencies_result, mut proxies) = tokio::try_join!(
-        download_output_dependencies(
+    let (use_ipdb, mut proxies) = tokio::try_join!(
+        download_ipdb(
             &config,
             http_client.clone(),
             token.clone(),
@@ -205,7 +211,7 @@ async fn main_task(
     )
     .await?;
 
-    output::save_proxies(config, proxies, output_dependencies_result).await?;
+    output::save_proxies(config, proxies, use_ipdb).await?;
 
     tracing::info!("Thank you for using proxy-scraper-checker!");
 

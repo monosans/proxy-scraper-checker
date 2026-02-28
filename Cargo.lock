@@ -1322,11 +1322,10 @@ dependencies = [
 
 [[package]]
 name = "libredox"
-version = "0.1.12"
+version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d0b95e02c851351f877147b7deea7b1afb1df71b63aa5f8270716e0c5720616"
+checksum = "062b52cd41eb8d929e81b592a47df833c33c15684933a9329440137a6d9f134c"
 dependencies = [
- "bitflags",
  "libc",
 ]
 

@@ -293,7 +293,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: type=raw,value=${{ github.sha }}-${{ matrix.tag }}
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -318,7 +318,7 @@ jobs:
     permissions:
       packages: write
     steps:
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

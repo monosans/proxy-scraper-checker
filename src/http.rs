@@ -112,7 +112,7 @@ fn calculate_retry_timeout(
     if let Some(h) = headers
         && let Some(after) = parse_retry_after(h)
     {
-        if after > Duration::from_secs(60) {
+        if after > Duration::from_mins(1) {
             return None;
         }
         return Some(after);

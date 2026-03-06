@@ -302,7 +302,7 @@ jobs:
       - id: push
         env:
           DOCKER_BUILD_RECORD_UPLOAD: false
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           cache-from: type=gha
           cache-to: type=gha,mode=max

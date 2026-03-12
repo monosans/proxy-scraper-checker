@@ -34,10 +34,10 @@ include_geolocation = true
 # plain-text: Returns just IP address for basic connectivity
 # Examples:
 #   "https://httpbin.org/ip" - JSON with "origin" key. Full-featured checking.
-#   "https://api.ipify.org"  - Simple IP return. Full-featured checking.
+#   "https://ipv4.icanhazip.com"  - Simple IP return. Full-featured checking.
 #   "https://google.com"     - Basic connect/read check only
 #   ""                       - Skip checking entirely (scrape only)
-check_url = "https://api.ipify.org"
+check_url = "https://ipv4.icanhazip.com"
 
 # Number of proxies to check simultaneously
 # Higher values = faster checking but more RAM/network usage. Lower if you experience crashes or timeouts.

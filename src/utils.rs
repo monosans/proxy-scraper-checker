@@ -30,7 +30,7 @@ pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
     e.chain().join(" \u{2192} ")
 }
 
-pub async fn is_docker() -> bool {
+pub async fn is_container() -> bool {
     #[cfg(target_os = "linux")]
     {
         static CACHE: tokio::sync::OnceCell<bool> =
@@ -39,6 +39,9 @@ pub async fn is_docker() -> bool {
         *CACHE
             .get_or_init(async || {
                 tokio::fs::try_exists("/.dockerenv").await.unwrap_or(false)
+                    || tokio::fs::try_exists("/run/.containerenv")
+                        .await
+                        .unwrap_or(false)
             })
             .await
     }

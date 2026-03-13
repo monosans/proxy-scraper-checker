@@ -8,7 +8,7 @@ use std::{
 use color_eyre::eyre::WrapErr as _;
 
 use crate::{
-    HashMap, http::BasicAuth, proxy::ProxyType, raw_config, utils::is_docker,
+    HashMap, http::BasicAuth, proxy::ProxyType, raw_config, utils::is_container,
 };
 
 pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
@@ -84,7 +84,7 @@ impl From<raw_config::SourceConfig> for Source {
 async fn get_output_path(
     raw_config: &raw_config::RawConfig,
 ) -> crate::Result<PathBuf> {
-    let output_path = if is_docker().await {
+    let output_path = if is_container().await {
         "./out".into()
     } else {
         raw_config.output.path.clone()

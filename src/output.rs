@@ -16,7 +16,7 @@ use crate::{
     config::Config,
     ipdb,
     proxy::{Proxy, ProxyType},
-    utils::is_docker,
+    utils::is_container,
 };
 
 fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
@@ -287,7 +287,7 @@ pub async fn save_proxies(
     let path = tokio::fs::canonicalize(&config.output.path)
         .await
         .unwrap_or_else(move |_| config.output.path.clone());
-    if is_docker().await {
+    if is_container().await {
         tracing::info!(
             "Proxies have been saved to ./out ({} in container)",
             path.display()

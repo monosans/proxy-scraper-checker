@@ -5,7 +5,7 @@ use tokio::io::AsyncWriteExt as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
-use crate::{fs::get_cache_path, utils::is_docker};
+use crate::{fs::get_cache_path, utils::is_container};
 
 #[derive(Clone, Copy)]
 pub enum DbType {
@@ -61,7 +61,7 @@ impl DbType {
         )
         .await?;
 
-        if is_docker().await {
+        if is_container().await {
             tracing::info!(
                 "Downloaded {} database to Docker volume ({} in container)",
                 self.name(),

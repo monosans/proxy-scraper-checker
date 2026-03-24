@@ -76,6 +76,39 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 </details>
 
 <details>
+<summary>🛠️ Build From Source (with TUI)</summary>
+
+1. **Install Rust toolchain**
+
+   See <https://rust-lang.org/tools/install/>
+
+2. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/monosans/proxy-scraper-checker.git
+   cd proxy-scraper-checker
+   ```
+
+3. **Build release binary with TUI enabled**
+
+   ```bash
+   cargo build --release --features tui
+   ```
+
+4. **Run with TUI**
+
+   ```bash
+   cargo run --release --features tui
+   ```
+
+**Binary location**:
+
+- `target/release/proxy-scraper-checker` (Linux/macOS)
+- `target\\release\\proxy-scraper-checker.exe` (Windows)
+
+</details>
+
+<details>
 <summary>📱 Termux Installation</summary>
 
 > **Important:** Download Termux from [F-Droid](https://f-droid.org/en/packages/com.termux/), not Google Play ([why?](https://github.com/termux/termux-app#google-play-store-experimental-branch)).
@@ -101,16 +134,14 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 
 ## 💎 Sponsors
 
-|                                                                                     |                                                                              |                                                                                                                                                      |
-| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[🔨 Thordata.com](https://www.thordata.com/?ls=github&lk=proxy-scraper-checker)** | Residential proxies — get a full rebate on your first purchase (up to $900). | [![](https://github.com/user-attachments/assets/fbabdaeb-6147-4009-9da7-d4cc9a0b3f2d)](https://www.thordata.com/?ls=github&lk=proxy-scraper-checker) |
+🚀 **Want to be featured here?** Support the project and get your name in this section.
 
 ### 💖 Support This Project
 
 Help this project grow and reach more developers:
 
 - ⭐ **Star the repository** — Help others discover this tool
-- 💰 **Sponsor via crypto** — [DM me on Telegram](https://t.me/monosans)
+- 🤝 **Interested in becoming a sponsor?** [DM me on Telegram](https://t.me/monosans)
 
 ## 📄 License
 

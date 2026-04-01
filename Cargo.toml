@@ -70,7 +70,7 @@ tracing = { version = "=0.1.44", default-features = false, features = [
   "std",
 ] }
 tracing-subscriber = { version = "=0.3.23", features = ["parking_lot"] }
-tui-logger = { version = "=0.18.1", features = [
+tui-logger = { version = "=0.18.2", features = [
   "tracing-support",
 ], optional = true }
 url = "=2.5.8"

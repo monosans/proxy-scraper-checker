@@ -24,6 +24,6 @@ repos:
       - id: tombi-format
         exclude: ^.*Cargo.lock$
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.8.1
+    rev: v3.8.2
     hooks:
       - id: prettier

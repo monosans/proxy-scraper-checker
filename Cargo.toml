@@ -20,7 +20,7 @@ foldhash = "=0.2.0"
 futures = { version = "=0.3.32", default-features = false, features = [
   "std",
 ], optional = true }
-hickory-resolver = "=0.25.2"
+hickory-resolver = "=0.26.0"
 http = "=1.4.0"
 httpdate = "=1.0.3"
 ipnet = "=2.12.0"

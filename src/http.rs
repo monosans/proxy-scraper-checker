@@ -58,9 +58,9 @@ impl reqwest::dns::Resolve for HickoryDnsResolver {
             let addrs: reqwest::dns::Addrs = Box::new(
                 lookup?
                     .iter()
-                    .map(|ip_addr| SocketAddr::new(ip_addr, 0))
                     .collect::<Vec<_>>()
-                    .into_iter(),
+                    .into_iter()
+                    .map(|ip_addr| SocketAddr::new(ip_addr, 0)),
             );
             Ok(addrs)
         })

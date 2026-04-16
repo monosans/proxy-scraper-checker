@@ -31,7 +31,7 @@ pub struct HickoryDnsResolver(Arc<hickory_resolver::TokioResolver>);
 
 impl HickoryDnsResolver {
     pub async fn new() -> crate::Result<Self> {
-        let resolver = tokio::task::spawn_blocking(
+        let mut builder = tokio::task::spawn_blocking(
             hickory_resolver::TokioResolver::builder_tokio,
         )
         .await?
@@ -42,9 +42,10 @@ impl HickoryDnsResolver {
                 ),
                 hickory_resolver::net::runtime::TokioRuntimeProvider::default(),
             )
-        })
-        .build()?;
-        Ok(Self(Arc::new(resolver)))
+        });
+        builder.options_mut().ip_strategy =
+            hickory_resolver::config::LookupIpStrategy::Ipv4AndIpv6;
+        Ok(Self(Arc::new(builder.build()?)))
     }
 }
 

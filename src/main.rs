@@ -173,7 +173,7 @@ async fn main_task(
     >,
 ) -> crate::Result<()> {
     let (dns_resolver, tls_backend) = tokio::try_join!(
-        async { http::HickoryDnsResolver::new().await.map_err(Into::into) },
+        http::HickoryDnsResolver::new(),
         http::build_rustls_config(),
     )?;
 

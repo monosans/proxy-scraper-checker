@@ -30,22 +30,21 @@ pub struct BasicAuth {
 pub struct HickoryDnsResolver(Arc<hickory_resolver::TokioResolver>);
 
 impl HickoryDnsResolver {
-    pub async fn new() -> Result<Self, tokio::task::JoinError> {
-        let mut builder = tokio::task::spawn_blocking(
+    pub async fn new() -> crate::Result<Self> {
+        let resolver = tokio::task::spawn_blocking(
             hickory_resolver::TokioResolver::builder_tokio,
         )
         .await?
         .unwrap_or_else(|_| {
             hickory_resolver::TokioResolver::builder_with_config(
-                hickory_resolver::config::ResolverConfig::cloudflare(),
-                hickory_resolver::name_server::TokioConnectionProvider::default(
+                hickory_resolver::config::ResolverConfig::udp_and_tcp(
+                    &hickory_resolver::config::GOOGLE,
                 ),
+                hickory_resolver::net::runtime::TokioRuntimeProvider::default(),
             )
-        });
-
-        builder.options_mut().ip_strategy =
-            hickory_resolver::config::LookupIpStrategy::Ipv4AndIpv6;
-        Ok(Self(Arc::new(builder.build())))
+        })
+        .build()?;
+        Ok(Self(Arc::new(resolver)))
     }
 }
 
@@ -57,7 +56,11 @@ impl reqwest::dns::Resolve for HickoryDnsResolver {
             drop(name);
             drop(resolver);
             let addrs: reqwest::dns::Addrs = Box::new(
-                lookup?.into_iter().map(|ip_addr| SocketAddr::new(ip_addr, 0)),
+                lookup?
+                    .iter()
+                    .map(|ip_addr| SocketAddr::new(ip_addr, 0))
+                    .collect::<Vec<_>>()
+                    .into_iter(),
             );
             Ok(addrs)
         })

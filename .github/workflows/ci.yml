@@ -472,7 +472,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v8.0.0
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: false
       - run: uv tool run --no-cache --python 3.14 prek run --all-files --show-diff-on-failure

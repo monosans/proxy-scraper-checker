@@ -48,7 +48,7 @@ jobs:
             cross: false
             executable: proxy-scraper-checker.exe
           - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-22.04
             cross: false
           - target: aarch64-linux-android
             runner: ubuntu-24.04

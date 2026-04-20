@@ -34,8 +34,8 @@ jobs:
             cross: false
             executable: proxy-scraper-checker.exe
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-24.04-arm
-            cross: false
+            runner: ubuntu-24.04
+            cross: true
           - target: i686-pc-windows-msvc
             runner: windows-2025
             cross: false
@@ -49,7 +49,7 @@ jobs:
             executable: proxy-scraper-checker.exe
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
-            cross: false
+            cross: true
           - target: aarch64-linux-android
             runner: ubuntu-24.04
             cross: true

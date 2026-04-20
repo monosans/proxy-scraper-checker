@@ -84,8 +84,8 @@ mimalloc = { version = "=0.1.49", optional = true }
 [features]
 dhat = ["dep:dhat"]
 jemalloc = ["dep:tikv-jemallocator"]
-mimalloc_v2 = ["dep:mimalloc"]
-mimalloc_v3 = ["dep:mimalloc", "mimalloc/v3"]
+mimalloc_v2 = ["dep:mimalloc", "mimalloc/v2"]
+mimalloc_v3 = ["dep:mimalloc"]
 tokio-multi-thread = []
 tui = [
   "dep:crossterm",

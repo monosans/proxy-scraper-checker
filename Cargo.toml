@@ -15,7 +15,7 @@ crossterm = { version = "=0.29.0", default-features = false, features = [
 ], optional = true }
 dhat = { version = "=0.3.3", optional = true }
 dirs = "=6.0.0"
-fancy-regex = "=0.17.0"
+fancy-regex = "=0.18.0"
 foldhash = "=0.2.0"
 futures = { version = "=0.3.32", default-features = false, features = [
   "std",

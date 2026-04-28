@@ -27,7 +27,7 @@ jobs:
       matrix:
         include:
           - target: aarch64-apple-darwin
-            runner: macos-15
+            runner: macos-26
             cross: false
           - target: aarch64-pc-windows-msvc
             runner: windows-11-arm
@@ -41,7 +41,7 @@ jobs:
             cross: false
             executable: proxy-scraper-checker.exe
           - target: x86_64-apple-darwin
-            runner: macos-15
+            runner: macos-26
             cross: false
           - target: x86_64-pc-windows-msvc
             runner: windows-2025

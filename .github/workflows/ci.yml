@@ -44,9 +44,6 @@ jobs:
             runner: windows-2025
             cross: false
             executable: proxy-scraper-checker.exe
-          - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-24.04
-            cross: true
           - target: aarch64-linux-android
             runner: ubuntu-24.04
             cross: true
@@ -218,9 +215,9 @@ jobs:
           - target: x86_64-unknown-illumos
             runner: ubuntu-24.04
             cross: true
-          # - target: x86_64-unknown-linux-gnu
-          #   runner: ubuntu-24.04
-          #   cross: true
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
           # - target: x86_64-unknown-linux-gnu:centos
           #   runner: ubuntu-24.04
           #   cross: true

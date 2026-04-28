@@ -20,6 +20,7 @@ jobs:
           - windows-2025
           - windows-11-arm
           - macos-26
+          - macos-26-intel
           - alpine
           - alpine-arm
         include:
@@ -37,6 +38,9 @@ jobs:
             alpine: false
           - platform: macos-26
             runner: macos-26
+            alpine: false
+          - platform: macos-26-intel
+            runner: macos-26-intel
             alpine: false
           - platform: alpine
             runner: ubuntu-24.04

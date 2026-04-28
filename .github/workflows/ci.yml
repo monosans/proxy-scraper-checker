@@ -218,9 +218,9 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
             cross: true
-          - target: x86_64-unknown-linux-gnu:centos
-            runner: ubuntu-24.04
-            cross: true
+          # - target: x86_64-unknown-linux-gnu:centos
+          #   runner: ubuntu-24.04
+          #   cross: true
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-24.04
             cross: true

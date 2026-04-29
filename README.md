@@ -33,9 +33,9 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 > All configuration options are documented in `config.toml` with detailed comments explaining each setting.
 
 <details>
-<summary>💻 Binary Installation</summary>
+<summary>💻 Download & run pre-built binary (easiest)</summary>
 
-> **Note:** For Termux users, see the dedicated section below.
+> **Note:** For Android/Termux users, see the dedicated section below.
 
 1. **Download** the archive for your platform from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
    - Look for artifacts starting with `proxy-scraper-checker-binary-` followed by your platform
@@ -50,7 +50,7 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 </details>
 
 <details>
-<summary>🐳 Docker Installation</summary>
+<summary>🐳 Docker</summary>
 
 > **Note:** Docker version outputs logs to stdout instead of the interactive TUI (terminal user interface).
 
@@ -76,7 +76,31 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 </details>
 
 <details>
-<summary>🛠️ Build From Source (with TUI)</summary>
+<summary>📱 Android / Termux</summary>
+
+> **Important:** Download Termux from [F-Droid](https://f-droid.org/en/packages/com.termux/), not Google Play ([why?](https://github.com/termux/termux-app#google-play-store-experimental-branch)).
+
+1. **Install** with one command:
+
+   ```bash
+   bash <(curl -fsSL 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/termux.sh')
+   ```
+
+2. **Configure** using a text editor:
+
+   ```bash
+   nano ~/proxy-scraper-checker/config.toml
+   ```
+
+3. **Run the tool:**
+   ```bash
+   cd ~/proxy-scraper-checker && ./proxy-scraper-checker
+   ```
+
+</details>
+
+<details>
+<summary>🛠️ Build from source</summary>
 
 1. **Install Rust toolchain**
 
@@ -105,30 +129,6 @@ This tool makes thousands of concurrent network requests to test proxies, which 
 
 - `target/release/proxy-scraper-checker` (Linux/macOS)
 - `target\\release\\proxy-scraper-checker.exe` (Windows)
-
-</details>
-
-<details>
-<summary>📱 Termux Installation</summary>
-
-> **Important:** Download Termux from [F-Droid](https://f-droid.org/en/packages/com.termux/), not Google Play ([why?](https://github.com/termux/termux-app#google-play-store-experimental-branch)).
-
-1. **Install** with one command:
-
-   ```bash
-   bash <(curl -fsSL 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/termux.sh')
-   ```
-
-2. **Configure** using a text editor:
-
-   ```bash
-   nano ~/proxy-scraper-checker/config.toml
-   ```
-
-3. **Run the tool:**
-   ```bash
-   cd ~/proxy-scraper-checker && ./proxy-scraper-checker
-   ```
 
 </details>
 

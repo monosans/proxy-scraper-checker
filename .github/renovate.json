@@ -3,7 +3,12 @@
   "configMigration": true,
   "dependencyDashboard": false,
   "docker-compose": { "enabled": true },
-  "extends": ["config:recommended"],
+  "extends": [
+    "config:recommended",
+    ":disableRateLimiting",
+    ":pinDevDependencies",
+    "helpers:pinGitHubActionDigests"
+  ],
   "lockFileMaintenance": { "enabled": true, "schedule": ["at any time"] },
   "minimumReleaseAge": "3 days",
   "packageRules": [
@@ -18,9 +23,6 @@
     },
     { "matchManagers": ["github-actions", "pre-commit"], "automerge": true }
   ],
-  "pinDigests": true,
-  "prConcurrentLimit": 0,
-  "prHourlyLimit": 0,
   "pre-commit": { "enabled": true },
   "rollbackPrs": true,
   "semanticCommits": "enabled",

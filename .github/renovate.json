@@ -5,6 +5,7 @@
   "docker-compose": { "enabled": true },
   "extends": ["config:recommended"],
   "lockFileMaintenance": { "enabled": true, "schedule": ["at any time"] },
+  "minimumReleaseAge": "3 days",
   "packageRules": [
     {
       "matchCurrentVersion": "!/^0/",

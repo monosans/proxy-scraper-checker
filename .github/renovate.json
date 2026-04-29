@@ -18,6 +18,7 @@
     },
     { "matchManagers": ["github-actions", "pre-commit"], "automerge": true }
   ],
+  "pinDigests": true,
   "prConcurrentLimit": 0,
   "prHourlyLimit": 0,
   "pre-commit": { "enabled": true },

@@ -79,10 +79,17 @@ tui-logger = { version = "=0.18.2", features = [
 ], optional = true }
 url = "=2.5.8"
 
+[target.'cfg(all(any(target_arch = "aarch64", target_arch = "x86_64"), any(all(target_os = "linux", any(target_env = "musl", target_env = "gnu")), target_os = "macos", all(target_os = "windows", target_env = "msvc"))))'.dependencies]
+mimalloc-auto = { package = "mimalloc", version = "=0.1.50", features = [
+  "no_thp",
+  "override",
+  "v2"
+], optional = true }
+
 [features]
-# default = ["auto-allocator"]
+default = ["auto-allocator"]
 __mimalloc = ["dep:mimalloc"]
-auto-allocator = ["dep:mimalloc"]
+auto-allocator = ["dep:mimalloc-auto"]
 dhat = ["dep:dhat"]
 jemalloc = ["dep:tikv-jemallocator"]
 mimalloc_v2 = ["__mimalloc", "mimalloc/v2"]

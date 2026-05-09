@@ -69,6 +69,18 @@ use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
 
+#[cfg(all(
+    feature = "auto-allocator",
+    any(target_arch = "aarch64", target_arch = "x86_64"),
+    any(
+        all(target_os = "linux", any(target_env = "musl", target_env = "gnu")),
+        target_os = "macos",
+        all(target_os = "windows", target_env = "msvc")
+    ),
+))]
+#[global_allocator]
+static GLOBAL: mimalloc_auto::MiMalloc = mimalloc_auto::MiMalloc;
+
 #[cfg(feature = "dhat")]
 #[global_allocator]
 static GLOBAL: dhat::Alloc = dhat::Alloc;
@@ -77,14 +89,7 @@ static GLOBAL: dhat::Alloc = dhat::Alloc;
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-#[cfg(any(
-    all(
-        feature = "auto-allocator",
-        any(target_arch = "aarch64", target_arch = "x86_64"),
-        any(target_os = "linux", target_os = "macos", target_os = "windows"),
-    ),
-    feature = "__mimalloc"
-))]
+#[cfg(feature = "__mimalloc")]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 

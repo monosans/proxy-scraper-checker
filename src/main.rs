@@ -69,15 +69,7 @@ use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
 
-#[cfg(all(
-    feature = "auto-allocator",
-    any(target_arch = "aarch64", target_arch = "x86_64"),
-    any(
-        all(target_os = "linux", any(target_env = "musl", target_env = "gnu")),
-        target_os = "macos",
-        all(target_os = "windows", target_env = "msvc")
-    ),
-))]
+#[cfg(feature = "auto-allocator")]
 #[global_allocator]
 static GLOBAL: mimalloc_auto::MiMalloc = mimalloc_auto::MiMalloc;
 

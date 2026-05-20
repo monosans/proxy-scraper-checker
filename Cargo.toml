@@ -31,7 +31,7 @@ log = { version = "=0.4.29", features = [
   "std",
 ] }
 maxminddb = { version = "=0.28.1", features = ["mmap"] }
-mimalloc = { version = "=0.1.50", features = ["override"], optional = true }
+mimalloc = { version = "=0.1.51", features = ["override"], optional = true }
 parking_lot = "=0.12.5"
 rand = { version = "=0.10.1", default-features = false, features = [
   "std",
@@ -42,7 +42,7 @@ ratatui = { version = "=0.30.0", default-features = false, features = [
   "layout-cache",
 ], optional = true }
 reqwest = { version = "=0.13.3", features = ["brotli", "gzip", "socks"] }
-reqwest-middleware = "=0.5.1"
+reqwest-middleware = "=0.5.2"
 rlimit = "=0.11.0"
 rustls = { version = "=0.23.40", default-features = false, features = [
   "aws_lc_rs",
@@ -80,8 +80,7 @@ tui-logger = { version = "=0.18.2", features = [
 url = "=2.5.8"
 
 [target.'cfg(all(any(target_arch = "aarch64", target_arch = "x86_64"), any(all(target_os = "linux", any(target_env = "musl", target_env = "gnu")), target_os = "macos", all(target_os = "windows", target_env = "msvc"))))'.dependencies]
-mimalloc-auto = { package = "mimalloc", version = "=0.1.50", features = [
-  "no_thp",
+mimalloc-auto = { package = "mimalloc", version = "=0.1.51", features = [
   "override",
   "v2"
 ], optional = true }

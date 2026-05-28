@@ -61,10 +61,14 @@ fn strip_non_english_names(v: &mut serde_json::Value) {
 }
 
 #[expect(clippy::ref_option)]
-fn serialize_opt_strip_names<T: serde::Serialize, S: serde::Serializer>(
+fn serialize_opt_strip_names<T, S>(
     opt: &Option<T>,
     serializer: S,
-) -> Result<S::Ok, S::Error> {
+) -> Result<S::Ok, S::Error>
+where
+    T: serde::Serialize,
+    S: serde::Serializer,
+{
     if let Some(t) = opt {
         let mut v =
             serde_json::to_value(t).map_err(serde::ser::Error::custom)?;

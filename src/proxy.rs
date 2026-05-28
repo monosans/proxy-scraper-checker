@@ -119,12 +119,15 @@ impl ProxySink for Vec<u8> {
 }
 
 impl Proxy {
-    pub async fn check<R: reqwest::dns::Resolve + 'static>(
+    pub async fn check<R>(
         &mut self,
         config: &Config,
         dns_resolver: R,
         tls_backend: rustls::ClientConfig,
-    ) -> crate::Result<()> {
+    ) -> crate::Result<()>
+    where
+        R: reqwest::dns::Resolve + 'static,
+    {
         let Some(check_url) = config.checking.check_url.clone() else {
             return Ok(());
         };
@@ -161,11 +164,10 @@ impl Proxy {
         Ok(())
     }
 
-    pub fn write_to_sink<S: ProxySink>(
-        &self,
-        sink: &mut S,
-        include_protocol: bool,
-    ) {
+    pub fn write_to_sink<S>(&self, sink: &mut S, include_protocol: bool)
+    where
+        S: ProxySink,
+    {
         if include_protocol {
             sink.push_str(self.protocol.as_str_lowercase());
             sink.push_str("://");
@@ -208,7 +210,10 @@ impl PartialEq for Proxy {
 
 #[expect(clippy::missing_trait_methods)]
 impl Hash for Proxy {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
         self.protocol.hash(state);
         self.host.hash(state);
         self.port.hash(state);

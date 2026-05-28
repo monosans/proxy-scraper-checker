@@ -181,11 +181,14 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
     }
 }
 
-pub fn create_reqwest_client<R: reqwest::dns::Resolve + 'static>(
+pub fn create_reqwest_client<R>(
     config: &Config,
     dns_resolver: R,
     mut tls_backend: rustls::ClientConfig,
-) -> crate::Result<reqwest_middleware::ClientWithMiddleware> {
+) -> crate::Result<reqwest_middleware::ClientWithMiddleware>
+where
+    R: reqwest::dns::Resolve + 'static,
+{
     tls_backend.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
     let mut builder = reqwest::ClientBuilder::new()
         .user_agent(config.scraping.user_agent.as_bytes())

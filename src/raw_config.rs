@@ -11,9 +11,10 @@ use crate::{HashMap, http::BasicAuth};
 
 const CONFIG_ENV: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
 
-fn validate_positive_f64<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> Result<f64, D::Error> {
+fn validate_positive_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
     let val = f64::deserialize(deserializer)?;
     if val > 0.0 {
         Ok(val)
@@ -67,15 +68,21 @@ where
     }
 }
 
-fn validate_proxy_url<'de, D: serde::Deserializer<'de>>(
+fn validate_proxy_url<'de, D>(
     deserializer: D,
-) -> Result<Option<url::Url>, D::Error> {
+) -> Result<Option<url::Url>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
     validate_url_generic(deserializer, &["http", "https", "socks4", "socks5"])
 }
 
-fn validate_http_url<'de, D: serde::Deserializer<'de>>(
+fn validate_http_url<'de, D>(
     deserializer: D,
-) -> Result<Option<url::Url>, D::Error> {
+) -> Result<Option<url::Url>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
     validate_url_generic(deserializer, &["http", "https"])
 }
 
@@ -159,9 +166,10 @@ pub struct RawConfig {
 
 #[expect(clippy::missing_trait_methods)]
 impl<'de> serde::Deserialize<'de> for OutputConfig {
-    fn deserialize<D: serde::Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Self, D::Error> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
         #[derive(serde::Deserialize)]
         struct InnerOutputConfig {
             pub path: PathBuf,

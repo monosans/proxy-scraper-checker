@@ -6,14 +6,17 @@ use color_eyre::eyre::OptionExt as _;
 use crate::event::{AppEvent, Event};
 use crate::{config::Config, proxy::Proxy, utils::pretty_error};
 
-pub async fn check_all<R: reqwest::dns::Resolve + Clone + 'static>(
+pub async fn check_all<R>(
     config: Arc<Config>,
     dns_resolver: R,
     proxies: Vec<Proxy>,
     mut tls_backend: rustls::ClientConfig,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> crate::Result<Vec<Proxy>> {
+) -> crate::Result<Vec<Proxy>>
+where
+    R: reqwest::dns::Resolve + Clone + 'static,
+{
     if config.checking.check_url.is_none() {
         return Ok(proxies);
     }

@@ -24,7 +24,7 @@ pub trait CompactStrJoin: Iterator {
 }
 
 #[expect(clippy::missing_trait_methods)]
-impl<T: Iterator> CompactStrJoin for T {}
+impl<T> CompactStrJoin for T where T: Iterator {}
 
 pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
     e.chain().join(" \u{2192} ")

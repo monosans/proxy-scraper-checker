@@ -28,6 +28,8 @@ use crate::{
 };
 
 pub struct RatatuiRestoreGuard;
+
+#[expect(clippy::missing_trait_methods)]
 impl Drop for RatatuiRestoreGuard {
     fn drop(&mut self) {
         ratatui::restore();

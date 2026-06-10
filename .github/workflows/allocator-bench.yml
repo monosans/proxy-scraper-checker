@@ -10,6 +10,8 @@ jobs:
   bench:
     name: ${{ matrix.platform }} (tokio-multi-thread=${{ matrix.tokio_multi_thread }}, ${{ matrix.allocator }})
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:

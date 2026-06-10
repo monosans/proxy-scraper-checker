@@ -18,6 +18,7 @@ jobs:
       - rustfmt
       - udeps
     runs-on: ubuntu-24.04
+    permissions: {}
     steps:
       - uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # release/v1
         with:
@@ -229,6 +230,8 @@ jobs:
           #   cross: true
       fail-fast: false
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -259,9 +262,9 @@ jobs:
           if-no-files-found: error
   build-docker:
     if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ${{ matrix.runner }}
     permissions:
       packages: write
-    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         include:
@@ -328,6 +331,8 @@ jobs:
     needs:
       - upload-docker-manifest
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     strategy:
       matrix:
         platform:
@@ -378,6 +383,8 @@ jobs:
           - "s390x"
       fail-fast: false
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -393,6 +400,8 @@ jobs:
           include-hidden-files: true
   clippy:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -462,6 +471,8 @@ jobs:
       - run: cargo +beta clippy --all-targets ${{ matrix.features }} -- -Dwarnings
   pre-commit:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -473,6 +484,8 @@ jobs:
       - run: uv tool run --exclude-newer '3 days' --no-cache prek run --all-files --show-diff-on-failure
   rustfmt:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -485,6 +498,8 @@ jobs:
       - run: cargo +nightly fmt --check
   udeps:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     strategy:
       matrix:
         features:

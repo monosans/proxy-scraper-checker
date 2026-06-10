@@ -468,8 +468,9 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
+          python-version: "3.14"
           enable-cache: false
-      - run: uv tool run --exclude-newer '3 days' --no-cache --python 3.14 prek run --all-files --show-diff-on-failure
+      - run: uv tool run --exclude-newer '3 days' --no-cache prek run --all-files --show-diff-on-failure
   rustfmt:
     runs-on: ubuntu-24.04
     steps:

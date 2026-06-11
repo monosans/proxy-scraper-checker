@@ -27,3 +27,7 @@ repos:
     rev: v3.8.3
     hooks:
       - id: prettier
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.25.2
+    hooks:
+      - id: zizmor

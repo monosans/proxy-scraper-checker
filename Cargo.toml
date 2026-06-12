@@ -21,7 +21,7 @@ futures = { version = "=0.3.32", default-features = false, features = [
   "std",
 ], optional = true }
 hickory-resolver = "=0.26.1"
-http = "=1.4.0"
+http = "=1.4.2"
 httpdate = "=1.0.3"
 ipnet = "=2.12.0"
 itoa = "=1.0.18"

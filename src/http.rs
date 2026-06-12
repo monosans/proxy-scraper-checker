@@ -47,6 +47,25 @@ impl HickoryDnsResolver {
             hickory_resolver::config::LookupIpStrategy::Ipv4AndIpv6;
         Ok(Self(Arc::new(builder.build()?)))
     }
+
+    pub async fn lookup_ip(
+        &self,
+        query: &str,
+    ) -> crate::Result<hickory_resolver::lookup_ip::LookupIp> {
+        Ok(self.0.lookup_ip(query).await?)
+    }
+
+    /// Like `lookup_ip`, but preserves the raw `NetError` for structured
+    /// matching.
+    pub async fn lookup_ip_raw(
+        &self,
+        query: &str,
+    ) -> Result<
+        hickory_resolver::lookup_ip::LookupIp,
+        hickory_resolver::net::NetError,
+    > {
+        self.0.lookup_ip(query).await
+    }
 }
 
 impl reqwest::dns::Resolve for HickoryDnsResolver {

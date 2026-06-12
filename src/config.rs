@@ -34,12 +34,22 @@ pub struct ScrapingConfig {
     pub sources: HashMap<ProxyType, Vec<Arc<Source>>>,
 }
 
+#[expect(clippy::struct_excessive_bools)]
+pub struct DnsblConfig {
+    pub enabled: bool,
+    pub lists: Vec<compact_str::CompactString>,
+    pub check_host: bool,
+    pub check_exit_ip: bool,
+    pub strict: bool,
+}
+
 pub struct CheckingConfig {
     pub check_url: Option<url::Url>,
     pub max_concurrent_checks: usize,
     pub timeout: Duration,
     pub connect_timeout: Duration,
     pub user_agent: compact_str::CompactString,
+    pub dnsbl: DnsblConfig,
 }
 
 pub struct TxtOutputConfig {
@@ -139,6 +149,8 @@ impl Config {
                 raw_config.checking.max_concurrent_checks.get()
             };
 
+        let check_url_is_none = raw_config.checking.check_url.is_none();
+
         Ok(Self {
             debug: raw_config.debug,
             scraping: ScrapingConfig {
@@ -180,6 +192,43 @@ impl Config {
                     raw_config.checking.connect_timeout,
                 ),
                 user_agent: raw_config.checking.user_agent,
+                dnsbl: {
+                    let dnsbl = raw_config.checking.dnsbl;
+                    let cleaned_lists: Vec<compact_str::CompactString> = dnsbl
+                        .lists
+                        .into_iter()
+                        .map(|s| compact_str::CompactString::from(s.trim()))
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    if dnsbl.enabled {
+                        if !dnsbl.check_host && !dnsbl.check_exit_ip {
+                            return Err(color_eyre::eyre::eyre!(
+                                "DNSBL is enabled but both \
+                                 'checking.dnsbl.check_host' and \
+                                 'checking.dnsbl.check_exit_ip' are false"
+                            ));
+                        }
+                        if dnsbl.check_exit_ip && check_url_is_none {
+                            return Err(color_eyre::eyre::eyre!(
+                                "DNSBL exit-IP checks require \
+                                 'checking.check_url'"
+                            ));
+                        }
+                        if cleaned_lists.is_empty() {
+                            return Err(color_eyre::eyre::eyre!(
+                                "DNSBL is enabled but no valid list entries \
+                                 are configured"
+                            ));
+                        }
+                    }
+                    DnsblConfig {
+                        enabled: dnsbl.enabled,
+                        lists: cleaned_lists,
+                        check_host: dnsbl.check_host,
+                        check_exit_ip: dnsbl.check_exit_ip,
+                        strict: dnsbl.strict,
+                    }
+                },
             },
             output: OutputConfig {
                 path: output_path,

@@ -58,7 +58,7 @@ smallvec = { version = "=1.15.1", features = [
   "union",
 ], optional = true }
 strum = { version = "=0.28.0", features = ["derive"], optional = true }
-tikv-jemallocator = { version = "=0.6.1", features = [
+tikv-jemallocator = { version = "=0.7.0", features = [
   "override_allocator_on_supported_platforms",
 ], optional = true }
 tokio = { version = "=1.52.3", features = ["fs", "parking_lot", "signal"] }

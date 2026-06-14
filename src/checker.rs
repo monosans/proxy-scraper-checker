@@ -4,20 +4,21 @@ use color_eyre::eyre::OptionExt as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
-use crate::{config::Config, proxy::Proxy, utils::pretty_error};
+use crate::{
+    config::Config, http::HickoryDnsResolver, proxy::Proxy, utils::pretty_error,
+};
 
-pub async fn check_all<R>(
+pub async fn check_all(
     config: Arc<Config>,
-    dns_resolver: R,
+    dns_resolver: HickoryDnsResolver,
     proxies: Vec<Proxy>,
     mut tls_backend: rustls::ClientConfig,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> crate::Result<Vec<Proxy>>
-where
-    R: reqwest::dns::Resolve + Clone + 'static,
-{
-    if config.checking.check_url.is_none() {
+) -> crate::Result<Vec<Proxy>> {
+    if config.checking.check_url.is_none()
+        && !(config.checking.dnsbl.enabled && config.checking.dnsbl.check_host)
+    {
         return Ok(proxies);
     }
 

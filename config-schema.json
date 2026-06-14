@@ -79,7 +79,21 @@
         "max_concurrent_checks": { "type": "integer", "minimum": 1 },
         "timeout": { "type": "number", "minimum": 0 },
         "connect_timeout": { "type": "number", "minimum": 0 },
-        "user_agent": { "type": "string" }
+        "user_agent": { "type": "string" },
+        "dnsbl": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "lists": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "pattern": "\\S" }
+            },
+            "check_host": { "type": "boolean" },
+            "check_exit_ip": { "type": "boolean" },
+            "strict": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
       },
       "required": [
         "check_url",

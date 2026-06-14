@@ -52,6 +52,21 @@ connect_timeout = 5.0
 # User-Agent header for proxy check requests
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
 
+[checking.dnsbl]
+# Enable DNSBL (RBL) filtering
+enabled = false
+# List of DNSBL domains to check against
+lists = ["dnsbl.dronebl.org"]
+# Check the proxy host IP against DNSBLs
+check_host = true
+# Check the proxy exit IP against DNSBLs
+# Requires `checking.check_url` to return the caller IP.
+# Connectivity-only endpoints do not produce an exit IP, so this check is skipped for them.
+check_exit_ip = true
+# If true, drop the proxy when the DNS lookup fails or times out.
+# If false, allow the proxy to pass the DNSBL check on lookup failure (recommended to avoid false positives during rate-limiting).
+strict = false
+
 [scraping]
 # Maximum proxies to collect per source (0 = unlimited)
 # When this limit is reached, the source is skipped with a warning to prevent memory issues

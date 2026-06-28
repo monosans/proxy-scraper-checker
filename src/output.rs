@@ -12,7 +12,6 @@ use serde::Serialize as _;
 use tokio::io::AsyncWriteExt as _;
 
 use crate::{
-    HashMap,
     config::Config,
     ipdb,
     proxy::{Proxy, ProxyType},
@@ -92,20 +91,6 @@ struct ProxyJson<'a> {
     asn: Option<maxminddb::geoip2::Asn<'a>>,
     #[serde(serialize_with = "serialize_opt_strip_names")]
     geolocation: Option<maxminddb::geoip2::City<'a>>,
-}
-
-fn group_proxies<'a>(
-    config: &Config,
-    proxies: &'a [Proxy],
-) -> HashMap<ProxyType, Vec<&'a Proxy>> {
-    let mut groups: HashMap<_, _> =
-        config.enabled_protocols().copied().map(|p| (p, Vec::new())).collect();
-    for proxy in proxies {
-        if let Some(group) = groups.get_mut(&proxy.protocol) {
-            group.push(proxy);
-        }
-    }
-    groups
 }
 
 async fn write_proxy_list_to_file<'a, I>(
@@ -251,7 +236,6 @@ pub async fn save_proxies(
     }
 
     if config.output.txt.enabled {
-        let grouped_proxies = group_proxies(&config, &proxies);
         let directory_path = config.output.path.join("proxies");
         match tokio::fs::remove_dir_all(&directory_path).await {
             Ok(()) => Ok(()),
@@ -279,10 +263,15 @@ pub async fn save_proxies(
         )
         .await?;
 
-        for (proto, proxies) in grouped_proxies {
+        for proto in config.enabled_protocols().copied() {
             let mut file_path = directory_path.join(proto.as_str_lowercase());
             file_path.set_extension("txt");
-            write_proxy_list_to_file(&file_path, proxies, false).await?;
+            write_proxy_list_to_file(
+                &file_path,
+                proxies.iter().filter(move |p| p.protocol == proto),
+                false,
+            )
+            .await?;
         }
     }
 

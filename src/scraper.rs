@@ -9,7 +9,7 @@ use crate::event::{AppEvent, Event};
 use crate::{
     HashSet,
     config::{Config, Source},
-    parsers::PROXY_REGEX,
+    parsers::proxy_captures,
     proxy::{Proxy, ProxyType},
     utils::pretty_error,
 };
@@ -148,7 +148,7 @@ async fn scrape_one(
 
     let mut new_proxies = HashSet::new();
 
-    for maybe_capture in PROXY_REGEX.captures_iter(&text) {
+    for capture in proxy_captures(&text) {
         if config.scraping.max_proxies_per_source != 0
             && new_proxies.len() >= config.scraping.max_proxies_per_source
         {
@@ -159,8 +159,6 @@ async fn scrape_one(
             );
             return Ok(());
         }
-
-        let capture = maybe_capture?;
 
         let protocol = match capture.name("protocol") {
             Some(m) => m.as_str().parse()?,

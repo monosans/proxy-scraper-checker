@@ -161,6 +161,7 @@ async fn download_ipdb(
 
     let asn_task = spawn(ipdb::DbType::Asn, config.asn_enabled());
     let geodb_task = spawn(ipdb::DbType::Geo, config.geolocation_enabled());
+    drop(spawn);
 
     Ok(output::UseIpDb { asn: asn_task.await?, geo: geodb_task.await? })
 }

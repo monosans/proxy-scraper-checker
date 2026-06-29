@@ -27,15 +27,15 @@ impl DbType {
             headers.insert(reqwest::header::IF_NONE_MATCH, etag);
         }
 
-        let response = http_client
-            .get(self.url())
-            .headers(headers)
-            .timeout(Duration::MAX)
-            .send()
-            .await?
-            .error_for_status()?;
+        let request =
+            http_client.get(self.url()).headers(headers).timeout(Duration::MAX);
+        drop(http_client);
 
-        if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+        let response = request.send().await?.error_for_status()?;
+
+        let status = response.status();
+        if status == reqwest::StatusCode::NOT_MODIFIED {
+            drop(response);
             tracing::info!(
                 "Latest {} database is already cached at {}",
                 self.name(),
@@ -44,11 +44,11 @@ impl DbType {
             return Ok(());
         }
 
-        if response.status() != reqwest::StatusCode::OK {
+        if status != reqwest::StatusCode::OK {
             return Err(eyre!(
                 "HTTP status error ({}) for url ({})",
-                response.status(),
-                response.url()
+                status,
+                response.url(),
             ));
         }
 
@@ -169,6 +169,9 @@ impl DbType {
                 ))),
             );
         }
+        drop(response);
+        #[cfg(feature = "tui")]
+        drop(tx);
 
         writer.flush().await.wrap_err_with(move || {
             compact_str::format_compact!(

@@ -156,6 +156,7 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
                                 attempt,
                             )
                         {
+                            drop(resp);
                             tokio::time::sleep(delay).await;
                             attempt = attempt.saturating_add(1);
                             continue;
@@ -170,6 +171,7 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
                         && let Some(delay) =
                             calculate_retry_timeout(None, attempt)
                     {
+                        drop(err);
                         tokio::time::sleep(delay).await;
                         attempt = attempt.saturating_add(1);
                         continue;

@@ -24,7 +24,7 @@ repos:
       - id: tombi-format
         exclude: ^.*Cargo.lock$
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.8.5
+    rev: v3.9.1
     hooks:
       - id: prettier
   - repo: https://github.com/zizmorcore/zizmor-pre-commit

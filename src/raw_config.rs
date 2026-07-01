@@ -125,6 +125,21 @@ pub struct ScrapingConfig {
     pub socks5: ScrapingProtocolConfig,
 }
 
+#[derive(Default, serde::Deserialize)]
+#[expect(clippy::struct_excessive_bools)]
+pub struct DnsblConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub lists: Vec<compact_str::CompactString>,
+    #[serde(default)]
+    pub check_host: bool,
+    #[serde(default)]
+    pub check_exit_ip: bool,
+    #[serde(default)]
+    pub strict: bool,
+}
+
 #[derive(serde::Deserialize)]
 pub struct CheckingConfig {
     #[serde(deserialize_with = "validate_http_url")]
@@ -135,6 +150,8 @@ pub struct CheckingConfig {
     #[serde(deserialize_with = "validate_positive_f64")]
     pub connect_timeout: f64,
     pub user_agent: compact_str::CompactString,
+    #[serde(default)]
+    pub dnsbl: DnsblConfig,
 }
 
 #[derive(serde::Deserialize)]

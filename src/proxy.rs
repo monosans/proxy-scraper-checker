@@ -119,15 +119,22 @@ impl ProxySink for Vec<u8> {
 }
 
 impl Proxy {
-    pub async fn check<R>(
+    pub async fn check(
         &mut self,
         config: &Config,
-        dns_resolver: R,
+        dns_resolver: crate::http::HickoryDnsResolver,
         tls_backend: rustls::ClientConfig,
-    ) -> crate::Result<()>
-    where
-        R: reqwest::dns::Resolve + 'static,
-    {
+    ) -> crate::Result<()> {
+        if config.checking.dnsbl.enabled && config.checking.dnsbl.check_host {
+            Self::check_dnsbl(
+                &self.host,
+                &config.checking.dnsbl.lists,
+                &dns_resolver,
+                config.checking.dnsbl.strict,
+            )
+            .await?;
+        }
+
         let Some(check_url) = config.checking.check_url.clone() else {
             return Ok(());
         };
@@ -144,7 +151,7 @@ impl Proxy {
             .tcp_keepalive_interval(None)
             .tcp_keepalive_retries(None)
             .tls_backend_preconfigured(tls_backend)
-            .dns_resolver(dns_resolver)
+            .dns_resolver(dns_resolver.clone())
             .build()?
             .get(check_url);
 
@@ -152,7 +159,7 @@ impl Proxy {
         let response = request.send().await?.error_for_status()?;
 
         self.timeout = Some(start.elapsed());
-        self.exit_ip = response.text().await.map_or(None, |text| {
+        let exit_ip_str = response.text().await.map_or(None, |text| {
             if let Ok(httpbin) = serde_json::from_str::<HttpbinResponse>(&text)
             {
                 parse_ipv4(&httpbin.origin)
@@ -160,7 +167,94 @@ impl Proxy {
                 parse_ipv4(&text)
             }
         });
+        self.exit_ip.clone_from(&exit_ip_str);
 
+        if config.checking.dnsbl.enabled
+            && config.checking.dnsbl.check_exit_ip
+            && let Some(exit_ip) = exit_ip_str
+        {
+            Self::check_dnsbl(
+                &exit_ip,
+                &config.checking.dnsbl.lists,
+                &dns_resolver,
+                config.checking.dnsbl.strict,
+            )
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn check_dnsbl(
+        host_or_ip: &str,
+        dnsbl_lists: &[compact_str::CompactString],
+        dns_resolver: &crate::http::HickoryDnsResolver,
+        strict: bool,
+    ) -> crate::Result<()> {
+        let candidates =
+            if let Ok(ipv4) = std::net::Ipv4Addr::from_str(host_or_ip) {
+                vec![ipv4]
+            } else {
+                match dns_resolver.lookup_ip(host_or_ip).await {
+                    Ok(response) => response
+                        .iter()
+                        .filter_map(|ip| match ip {
+                            std::net::IpAddr::V4(v4) => Some(v4),
+                            std::net::IpAddr::V6(_) => None,
+                        })
+                        .collect(),
+                    Err(e) => {
+                        if strict {
+                            return Err(eyre!(
+                                "DNSBL host resolution failed for {}: {}",
+                                host_or_ip,
+                                e
+                            ));
+                        }
+                        vec![]
+                    }
+                }
+            };
+
+        for ipv4 in candidates {
+            let octets = ipv4.octets();
+            let reversed = compact_str::format_compact!(
+                "{}.{}.{}.{}",
+                octets[3],
+                octets[2],
+                octets[1],
+                octets[0]
+            );
+            for list in dnsbl_lists {
+                let list = list.trim_end_matches('.');
+                let query = compact_str::format_compact!("{reversed}.{list}.");
+                match dns_resolver.lookup_ip_raw(&query).await {
+                    Ok(response) => {
+                        if response.iter().next().is_some() {
+                            return Err(eyre!(
+                                "IP {} is blacklisted in {}",
+                                ipv4,
+                                list
+                            ));
+                        }
+                    }
+                    Err(e) => {
+                        if e.is_no_records_found() || e.is_nx_domain() {
+                            // NXDOMAIN or no records means the IP is clean
+                            continue;
+                        }
+                        if strict {
+                            return Err(eyre!(
+                                "DNSBL {} lookup failed for IP {}: {}",
+                                list,
+                                ipv4,
+                                e
+                            ));
+                        }
+                    }
+                }
+            }
+        }
         Ok(())
     }
 

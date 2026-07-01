@@ -29,7 +29,7 @@ log = { version = "=0.4.33", features = [
   "release_max_level_debug",
   "std",
 ] }
-maxminddb = { version = "=0.28.1", features = ["mmap"] }
+maxminddb = { version = "=0.29.0", features = ["mmap"] }
 mimalloc = { version = "=0.1.52", features = ["override"], optional = true }
 parking_lot = "=0.12.5"
 rand = { version = "=0.10.1", default-features = false, features = [

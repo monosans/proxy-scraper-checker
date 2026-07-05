@@ -37,7 +37,7 @@ include_geolocation = true
 #   "https://ipv4.icanhazip.com"  - Simple IP return. Full-featured checking.
 #   "https://google.com"     - Basic connect/read check only
 #   ""                       - Skip checking entirely (scrape only)
-check_url = "https://httpbin.org/ip"
+check_url = "https://ipv4.icanhazip.com"
 
 # Number of proxies to check simultaneously
 # Higher values = faster checking but more RAM/network usage. Lower if you experience crashes or timeouts.

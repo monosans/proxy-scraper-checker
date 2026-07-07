@@ -116,6 +116,7 @@ where
         if first {
             first = false;
         } else {
+            tmp.clear();
             writer.write_all(b"\n").await.wrap_err_with(move || {
                 compact_str::format_compact!(
                     "failed to write to file: {}",
@@ -131,7 +132,6 @@ where
                 path.display()
             )
         })?;
-        tmp.clear();
     }
     drop(tmp);
 

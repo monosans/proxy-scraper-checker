@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 use compact_str::ToCompactString as _;
-use foldhash::HashSetExt as _;
+use rapidhash::HashSetExt as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};

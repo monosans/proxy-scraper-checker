@@ -59,7 +59,7 @@ smallvec = { version = "=1.15.2", features = [
   "union",
 ], optional = true }
 strum = { version = "=0.28.0", features = ["derive"], optional = true }
-tikv-jemallocator = { version = "=0.7.0", features = [
+tikv-jemallocator = { version = "=0.7.0", default-features = false, features = [
   "override_allocator_on_supported_platforms",
 ], optional = true }
 tokio = { version = "=1.52.3", features = ["fs", "parking_lot", "signal"] }
@@ -80,17 +80,15 @@ tui-logger = { version = "=0.18.3", features = [
 ], optional = true }
 url = "=2.5.8"
 
-[target.'cfg(all(any(target_arch = "aarch64", target_arch = "x86_64"), any(all(target_os = "linux", any(target_env = "musl", target_env = "gnu")), target_os = "macos", all(target_os = "windows", target_env = "msvc"))))'.dependencies]
-mimalloc-auto = { package = "mimalloc", version = "=0.1.52", features = [
-  "no_thp",
-  "override",
-  "v2"
+[target.'cfg(target_os = "macos")'.dependencies]
+tikv-jemallocator-auto = { package = "tikv-jemallocator", version = "=0.7.0", default-features = false, features = [
+  "override_allocator_on_supported_platforms",
 ], optional = true }
 
 [features]
 default = ["auto-allocator"]
 __mimalloc = ["dep:mimalloc"]
-auto-allocator = ["dep:mimalloc-auto"]
+auto-allocator = ["dep:tikv-jemallocator-auto"]
 dhat = ["dep:dhat"]
 jemalloc = ["dep:tikv-jemallocator"]
 mimalloc_v2 = ["__mimalloc", "mimalloc/v2"]

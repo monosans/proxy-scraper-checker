@@ -60,6 +60,22 @@ jobs:
             allocator: jemalloc
           - platform: windows-11-arm
             allocator: jemalloc
+          - platform: windows-2025
+            allocator: mimalloc_v2_no_thp
+          - platform: windows-2025
+            allocator: mimalloc_v3_no_thp
+          - platform: windows-11-arm
+            allocator: mimalloc_v2_no_thp
+          - platform: windows-11-arm
+            allocator: mimalloc_v3_no_thp
+          - platform: macos-26
+            allocator: mimalloc_v2_no_thp
+          - platform: macos-26
+            allocator: mimalloc_v3_no_thp
+          - platform: macos-26-intel
+            allocator: mimalloc_v2_no_thp
+          - platform: macos-26-intel
+            allocator: mimalloc_v3_no_thp
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:

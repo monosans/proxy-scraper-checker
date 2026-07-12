@@ -69,17 +69,10 @@ use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
 
-#[cfg(all(
-    feature = "auto-allocator",
-    any(target_arch = "aarch64", target_arch = "x86_64"),
-    any(
-        all(target_os = "linux", any(target_env = "musl", target_env = "gnu")),
-        target_os = "macos",
-        all(target_os = "windows", target_env = "msvc")
-    ),
-))]
+#[cfg(all(feature = "auto-allocator", target_os = "macos"))]
 #[global_allocator]
-static GLOBAL: mimalloc_auto::MiMalloc = mimalloc_auto::MiMalloc;
+static GLOBAL: tikv_jemallocator_auto::Jemalloc =
+    tikv_jemallocator_auto::Jemalloc;
 
 #[cfg(feature = "dhat")]
 #[global_allocator]

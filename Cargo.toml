@@ -52,7 +52,7 @@ rustls = { version = "=0.23.42", default-features = false, features = [
   "tls12",
 ] }
 rustls-platform-verifier = "=0.7.0"
-serde = "=1.0.228"
+serde = "=1.0.229"
 serde_json = "=1.0.150"
 smallvec = { version = "=1.15.2", features = [
   "const_generics",

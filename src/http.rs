@@ -29,20 +29,33 @@ pub struct BasicAuth {
 #[derive(Clone)]
 pub struct HickoryDnsResolver(Arc<hickory_resolver::TokioResolver>);
 
+fn fallback_resolver_builder() -> hickory_resolver::ResolverBuilder<
+    hickory_resolver::net::runtime::TokioRuntimeProvider,
+> {
+    hickory_resolver::TokioResolver::builder_with_config(
+        hickory_resolver::config::ResolverConfig::udp_and_tcp(
+            &hickory_resolver::config::GOOGLE,
+        ),
+        hickory_resolver::net::runtime::TokioRuntimeProvider::default(),
+    )
+}
+
 impl HickoryDnsResolver {
+    #[cfg_attr(
+        target_os = "android",
+        expect(clippy::unused_async, clippy::unused_async_trait_impl)
+    )]
     pub async fn new() -> crate::Result<Self> {
+        #[cfg(not(target_os = "android"))]
         let mut builder = tokio::task::spawn_blocking(
             hickory_resolver::TokioResolver::builder_tokio,
         )
         .await?
-        .unwrap_or_else(|_| {
-            hickory_resolver::TokioResolver::builder_with_config(
-                hickory_resolver::config::ResolverConfig::udp_and_tcp(
-                    &hickory_resolver::config::GOOGLE,
-                ),
-                hickory_resolver::net::runtime::TokioRuntimeProvider::default(),
-            )
-        });
+        .unwrap_or_else(|_| fallback_resolver_builder());
+
+        #[cfg(target_os = "android")]
+        let mut builder = fallback_resolver_builder();
+
         builder.options_mut().ip_strategy =
             hickory_resolver::config::LookupIpStrategy::Ipv4AndIpv6;
         Ok(Self(Arc::new(builder.build()?)))
@@ -68,19 +81,27 @@ impl reqwest::dns::Resolve for HickoryDnsResolver {
     }
 }
 
+#[cfg_attr(target_os = "android", expect(clippy::unused_async))]
 pub async fn build_rustls_config() -> crate::Result<rustls::ClientConfig> {
-    let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
+    let builder = rustls::ClientConfig::builder_with_provider(Arc::new(
+        rustls::crypto::aws_lc_rs::default_provider(),
+    ))
+    .with_safe_default_protocol_versions()?;
 
-    Ok(rustls::ClientConfig::builder_with_provider(Arc::clone(&provider))
-        .with_protocol_versions(rustls::ALL_VERSIONS)?
-        .dangerous()
-        .with_custom_certificate_verifier(Arc::new(
-            tokio::task::spawn_blocking(move || {
-                rustls_platform_verifier::Verifier::new(provider)
-            })
-            .await??,
-        ))
-        .with_no_client_auth())
+    #[cfg(not(target_os = "android"))]
+    let builder = tokio::task::spawn_blocking(move || {
+        rustls_platform_verifier::BuilderVerifierExt::with_platform_verifier(
+            builder,
+        )
+    })
+    .await??;
+
+    #[cfg(target_os = "android")]
+    let builder = builder.with_root_certificates(rustls::RootCertStore {
+        roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+    });
+
+    Ok(builder.with_no_client_auth())
 }
 
 pub struct RetryMiddleware;

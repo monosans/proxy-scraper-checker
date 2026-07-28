@@ -4,9 +4,10 @@ set -euo pipefail
 
 project_name="proxy-scraper-checker"
 install_path="${HOME}/${project_name}"
-download_path="${TMPDIR}/${project_name}.zip"
 
-case $(getprop ro.product.cpu.abi) in
+abi=$(getprop ro.product.cpu.abi)
+
+case "${abi}" in
   "arm64-v8a")
     target="aarch64-linux-android"
     ;;
@@ -32,8 +33,9 @@ case $(getprop ro.product.cpu.abi) in
     ;;
 esac
 
-curl -fLo "${download_path}" "https://nightly.link/monosans/${project_name}/workflows/ci/main/${project_name}-binary-${target}.zip"
-mkdir -p "${install_path}"
+download_path="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}/${project_name}.zip"
+trap 'rm -f "${download_path}"' EXIT
+
+curl -fL --retry 3 --retry-all-errors -o "${download_path}" "https://nightly.link/monosans/${project_name}/workflows/ci/main/${project_name}-binary-${target}.zip"
 unzip -qod "${install_path}" "${download_path}"
-rm -f "${download_path}"
 printf "%s installed successfully.\nRun 'cd %s && ./%s'.\n" "${project_name}" "${install_path}" "${project_name}"

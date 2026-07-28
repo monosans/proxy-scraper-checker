@@ -34,6 +34,7 @@ where
     let checked_proxies = Arc::new(parking_lot::Mutex::new(Vec::new()));
 
     tls_backend.alpn_protocols = vec![b"http/1.1".to_vec()];
+    tls_backend.resumption = rustls::client::Resumption::disabled();
 
     let mut join_set = tokio::task::JoinSet::<()>::new();
     for _ in 0..workers_count {

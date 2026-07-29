@@ -397,7 +397,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - features: "--features tui"
+          - id: tui
+            features: "--features tui"
             target: >
               aarch64-apple-darwin,
               aarch64-pc-windows-msvc,
@@ -440,7 +441,8 @@ jobs:
               x86_64-unknown-freebsd,
               x86_64-unknown-illumos,
               x86_64-unknown-linux-musl
-          - features: ""
+          - id: default
+            features: ""
             target: >
               i686-unknown-linux-gnu,
               x86_64-unknown-linux-gnu,
@@ -459,7 +461,7 @@ jobs:
           toolchain: beta
           target: ${{ matrix.target }}
           components: clippy
-          cache-key: x86_64-unknown-linux-gnu
+          cache-key: x86_64-unknown-linux-gnu-${{ matrix.id }}
       - run: cargo +beta clippy --all-targets ${{ matrix.features }} -- -Dwarnings
   pre-commit:
     runs-on: ubuntu-24.04
@@ -488,9 +490,11 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        features:
-          - ""
-          - "--features tui"
+        include:
+          - id: default
+            features: ""
+          - id: tui
+            features: "--features tui"
       fail-fast: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -499,6 +503,6 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
         with:
           toolchain: nightly
-          cache-key: x86_64-unknown-linux-gnu
+          cache-key: x86_64-unknown-linux-gnu-${{ matrix.id }}
       - run: cargo +nightly install --locked cargo-udeps
       - run: cargo +nightly udeps ${{ matrix.features }}

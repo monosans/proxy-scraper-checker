@@ -85,7 +85,7 @@ jobs:
         with:
           toolchain: beta
           cache: true
-          cache-key: allocator-bench-${{ matrix.runner }}-${{ matrix.allocator }}
+          cache-key: allocator-bench-${{ matrix.runner }}-${{ matrix.allocator }}-tokio-multi-thread-${{ matrix.tokio_multi_thread }}
       - if: ${{ !matrix.alpine && runner.os != 'Windows' }}
         shell: bash
         env:

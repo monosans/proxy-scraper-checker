@@ -21,7 +21,8 @@
       "matchUpdateTypes": ["lockFileMaintenance", "patch", "replacement"],
       "automerge": true
     },
-    { "matchManagers": ["github-actions", "pre-commit"], "automerge": true }
+    { "matchManagers": ["github-actions", "pre-commit"], "automerge": true },
+    { "matchManagers": ["cargo"], "minimumReleaseAge": null }
   ],
   "pre-commit": { "enabled": true },
   "rollbackPrs": true,

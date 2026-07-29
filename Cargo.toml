@@ -18,7 +18,7 @@ dirs = "=6.0.0"
 futures = { version = "=0.3.33", default-features = false, features = [
   "std",
 ], optional = true }
-http = "=1.4.2"
+http = "=1.5.0"
 httpdate = "=1.0.3"
 ipnet = "=2.12.0"
 itoa = "=1.0.18"

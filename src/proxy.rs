@@ -1,5 +1,6 @@
 use std::{
     hash::{Hash, Hasher},
+    net::SocketAddr,
     str::FromStr,
     time::{Duration, Instant},
 };
@@ -28,9 +29,13 @@ impl FromStr for ProxyType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.eq_ignore_ascii_case("http") || s.eq_ignore_ascii_case("https") {
             Ok(Self::Http)
-        } else if s.eq_ignore_ascii_case("socks4") {
+        } else if s.eq_ignore_ascii_case("socks4")
+            || s.eq_ignore_ascii_case("socks4a")
+        {
             Ok(Self::Socks4)
-        } else if s.eq_ignore_ascii_case("socks5") {
+        } else if s.eq_ignore_ascii_case("socks5")
+            || s.eq_ignore_ascii_case("socks5h")
+        {
             Ok(Self::Socks5)
         } else {
             Err(eyre!("failed to convert {s} to ProxyType"))
@@ -39,6 +44,20 @@ impl FromStr for ProxyType {
 }
 
 impl ProxyType {
+    const fn as_proxy_url_scheme(self, force_remote_dns: bool) -> &'static str {
+        match self {
+            Self::Http => "http",
+            Self::Socks4 => {
+                if force_remote_dns {
+                    "socks4a"
+                } else {
+                    "socks4"
+                }
+            }
+            Self::Socks5 => "socks5h",
+        }
+    }
+
     pub const fn as_str_lowercase(self) -> &'static str {
         match self {
             Self::Http => "http",
@@ -68,31 +87,6 @@ pub struct Proxy {
     pub exit_ip: Option<compact_str::CompactString>,
 }
 
-impl TryFrom<&mut Proxy> for reqwest::Proxy {
-    type Error = crate::Error;
-
-    #[inline]
-    fn try_from(value: &mut Proxy) -> Result<Self, Self::Error> {
-        let proxy = Self::all(
-            compact_str::format_compact!(
-                "{}://{}:{}",
-                value.protocol.as_str_lowercase(),
-                value.host,
-                value.port
-            )
-            .as_str(),
-        )?;
-
-        if let (Some(username), Some(password)) =
-            (value.username.as_ref(), value.password.as_ref())
-        {
-            Ok(proxy.basic_auth(username, password))
-        } else {
-            Ok(proxy)
-        }
-    }
-}
-
 pub trait ProxySink {
     fn push_str(&mut self, s: &str);
     fn push_byte(&mut self, b: u8);
@@ -119,22 +113,44 @@ impl ProxySink for Vec<u8> {
 }
 
 impl Proxy {
-    pub async fn check<R>(
+    fn as_reqwest_proxy(
+        &self,
+        force_remote_dns: bool,
+    ) -> crate::Result<reqwest::Proxy> {
+        let proxy = reqwest::Proxy::all(
+            compact_str::format_compact!(
+                "{}://{}:{}",
+                self.protocol.as_proxy_url_scheme(force_remote_dns),
+                self.host,
+                self.port
+            )
+            .as_str(),
+        )?;
+
+        if let (Some(username), Some(password)) =
+            (self.username.as_ref(), self.password.as_ref())
+        {
+            Ok(proxy.basic_auth(username, password))
+        } else {
+            Ok(proxy)
+        }
+    }
+
+    pub async fn check(
         &mut self,
         config: &Config,
-        dns_resolver: R,
+        check_url_addrs: &[SocketAddr],
         tls_backend: rustls::ClientConfig,
-    ) -> crate::Result<()>
-    where
-        R: reqwest::dns::Resolve + 'static,
-    {
+    ) -> crate::Result<()> {
         let Some(check_url) = config.checking.check_url.clone() else {
             return Ok(());
         };
 
-        let request = reqwest::ClientBuilder::new()
+        let force_remote_dns = check_url_addrs.is_empty();
+
+        let mut builder = reqwest::ClientBuilder::new()
             .user_agent(config.checking.user_agent.as_bytes())
-            .proxy(self.try_into()?)
+            .proxy(self.as_reqwest_proxy(force_remote_dns)?)
             .timeout(config.checking.timeout)
             .connect_timeout(config.checking.connect_timeout)
             .pool_idle_timeout(Duration::ZERO)
@@ -143,10 +159,13 @@ impl Proxy {
             .tcp_keepalive(None)
             .tcp_keepalive_interval(None)
             .tcp_keepalive_retries(None)
-            .tls_backend_preconfigured(tls_backend)
-            .dns_resolver(dns_resolver)
-            .build()?
-            .get(check_url);
+            .tls_backend_preconfigured(tls_backend);
+
+        if !force_remote_dns && let Some(host) = check_url.host_str() {
+            builder = builder.resolve_to_addrs(host, check_url_addrs);
+        }
+
+        let request = builder.build()?.get(check_url);
 
         let start = Instant::now();
         let response = request.send().await?.error_for_status()?;

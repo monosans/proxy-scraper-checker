@@ -1,6 +1,5 @@
 use std::{
     io,
-    net::SocketAddr,
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -26,67 +25,27 @@ pub struct BasicAuth {
     pub password: Option<compact_str::CompactString>,
 }
 
-#[derive(Clone)]
-pub struct HickoryDnsResolver(Arc<hickory_resolver::TokioResolver>);
-
-fn fallback_resolver_builder() -> hickory_resolver::ResolverBuilder<
-    hickory_resolver::net::runtime::TokioRuntimeProvider,
-> {
-    hickory_resolver::TokioResolver::builder_with_config(
-        hickory_resolver::config::ResolverConfig::udp_and_tcp(
-            &hickory_resolver::config::GOOGLE,
-        ),
-        hickory_resolver::net::runtime::TokioRuntimeProvider::default(),
-    )
-}
-
-impl HickoryDnsResolver {
-    #[cfg_attr(
-        target_os = "android",
-        expect(clippy::unused_async, clippy::unused_async_trait_impl)
-    )]
-    pub async fn new() -> crate::Result<Self> {
-        #[cfg(not(target_os = "android"))]
-        let mut builder = tokio::task::spawn_blocking(
-            hickory_resolver::TokioResolver::builder_tokio,
-        )
-        .await?
-        .unwrap_or_else(|_| fallback_resolver_builder());
-
-        #[cfg(target_os = "android")]
-        let mut builder = fallback_resolver_builder();
-
-        builder.options_mut().ip_strategy =
-            hickory_resolver::config::LookupIpStrategy::Ipv4AndIpv6;
-        Ok(Self(Arc::new(builder.build()?)))
-    }
-}
-
-impl reqwest::dns::Resolve for HickoryDnsResolver {
-    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
-        let resolver = Arc::clone(&self.0);
-        Box::pin(async move {
-            let lookup = resolver.lookup_ip(name.as_str()).await;
-            drop(name);
-            drop(resolver);
-            let addrs: reqwest::dns::Addrs = Box::new(
-                lookup?
-                    .iter()
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .map(|ip_addr| SocketAddr::new(ip_addr, 0)),
-            );
-            Ok(addrs)
-        })
-    }
+pub enum TlsProfile {
+    Scraping,
+    Checking,
 }
 
 #[cfg_attr(target_os = "android", expect(clippy::unused_async))]
-pub async fn build_rustls_config() -> crate::Result<rustls::ClientConfig> {
-    let builder = rustls::ClientConfig::builder_with_provider(Arc::new(
-        rustls::crypto::aws_lc_rs::default_provider(),
-    ))
-    .with_safe_default_protocol_versions()?;
+pub async fn build_rustls_config(
+    profile: TlsProfile,
+) -> crate::Result<rustls::ClientConfig> {
+    let mut provider = rustls::crypto::aws_lc_rs::default_provider();
+    if matches!(profile, TlsProfile::Checking) {
+        provider.kx_groups = vec![
+            rustls::crypto::aws_lc_rs::kx_group::X25519,
+            rustls::crypto::aws_lc_rs::kx_group::SECP256R1,
+            rustls::crypto::aws_lc_rs::kx_group::SECP384R1,
+        ];
+    }
+
+    let builder =
+        rustls::ClientConfig::builder_with_provider(Arc::new(provider))
+            .with_safe_default_protocol_versions()?;
 
     #[cfg(not(target_os = "android"))]
     let builder = tokio::task::spawn_blocking(move || {
@@ -101,7 +60,19 @@ pub async fn build_rustls_config() -> crate::Result<rustls::ClientConfig> {
         roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
     });
 
-    Ok(builder.with_no_client_auth())
+    let mut config = builder.with_no_client_auth();
+
+    match profile {
+        TlsProfile::Scraping => {
+            config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+        }
+        TlsProfile::Checking => {
+            config.alpn_protocols = vec![b"http/1.1".to_vec()];
+            config.resumption = rustls::client::Resumption::disabled();
+        }
+    }
+
+    Ok(config)
 }
 
 pub struct RetryMiddleware;
@@ -204,21 +175,15 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
     }
 }
 
-pub fn create_reqwest_client<R>(
+pub async fn create_reqwest_client(
     config: &Config,
-    dns_resolver: R,
-    mut tls_backend: rustls::ClientConfig,
-) -> crate::Result<reqwest_middleware::ClientWithMiddleware>
-where
-    R: reqwest::dns::Resolve + 'static,
-{
-    tls_backend.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+) -> crate::Result<reqwest_middleware::ClientWithMiddleware> {
+    let tls_backend = build_rustls_config(TlsProfile::Scraping).await?;
     let mut builder = reqwest::ClientBuilder::new()
         .user_agent(config.scraping.user_agent.as_bytes())
         .timeout(config.scraping.timeout)
         .connect_timeout(config.scraping.connect_timeout)
-        .tls_backend_preconfigured(tls_backend)
-        .dns_resolver(dns_resolver);
+        .tls_backend_preconfigured(tls_backend);
 
     if let Some(proxy) = config.scraping.proxy.clone() {
         builder = builder.proxy(reqwest::Proxy::all(proxy)?);

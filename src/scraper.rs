@@ -36,17 +36,19 @@ pub async fn scrape_all(
             #[cfg(feature = "tui")]
             let tx = tx.clone();
             join_set.spawn(async move {
+                let scrape = scrape_one(
+                    config,
+                    http_client,
+                    proto,
+                    proxies,
+                    source,
+                    #[cfg(feature = "tui")]
+                    tx,
+                );
+
                 tokio::select! {
                     biased;
-                    res = scrape_one(
-                        config,
-                        http_client,
-                        proto,
-                        proxies,
-                        source,
-                        #[cfg(feature = "tui")]
-                        tx,
-                    ) => res,
+                    res = scrape => res,
                     () = token.cancelled() => Ok(()),
                 }
             });

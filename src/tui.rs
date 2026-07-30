@@ -117,23 +117,19 @@ async fn crossterm_event_listener(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) {
     let mut reader = crossterm::event::EventStream::new();
+    let forward = |event| match event {
+        Some(Ok(event)) => tx.send(Event::Crossterm(event)).is_ok(),
+        Some(Err(_)) => true,
+        None => false,
+    };
+
     loop {
         tokio::select! {
             biased;
-            () = tx.closed() => {
-                break;
-            },
-            maybe = reader.next() => {
-                match maybe {
-                    Some(Ok(event)) => {
-                        if tx.send(Event::Crossterm(event)).is_err() {
-                            break;
-                        }
-                    },
-                    Some(Err(_)) => {},
-                    None => {
-                        break;
-                    }
+            () = tx.closed() => break,
+            event = reader.next() => {
+                if !forward(event) {
+                    break;
                 }
             },
         }

@@ -5,21 +5,20 @@ pub trait CompactStrJoin: Iterator {
     where
         Self::Item: Display,
     {
-        self.next().map_or_else(
-            || compact_str::CompactString::const_new(""),
-            move |first_elt| {
-                let (lower, _) = self.size_hint();
-                let mut result = compact_str::CompactString::with_capacity(
-                    sep.len().saturating_mul(lower),
-                );
-                write!(&mut result, "{first_elt}").unwrap();
-                for elt in self {
-                    result.push_str(sep);
-                    write!(&mut result, "{elt}").unwrap();
-                }
-                result
-            },
-        )
+        let Some(first_elt) = self.next() else {
+            return compact_str::CompactString::const_new("");
+        };
+
+        let (lower, _) = self.size_hint();
+        let mut result = compact_str::CompactString::with_capacity(
+            sep.len().saturating_mul(lower),
+        );
+        write!(&mut result, "{first_elt}").unwrap();
+        for elt in self {
+            result.push_str(sep);
+            write!(&mut result, "{elt}").unwrap();
+        }
+        result
     }
 }
 

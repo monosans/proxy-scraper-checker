@@ -46,6 +46,7 @@ reqwest-middleware = "=0.5.2"
 rlimit = "=0.11.0"
 rustls = { version = "=0.23.43", default-features = false, features = [
   "aws_lc_rs",
+  "brotli",
   "prefer-post-quantum",
   "std",
   "tls12",
@@ -60,7 +61,12 @@ strum = { version = "=0.28.0", features = ["derive"], optional = true }
 tikv-jemallocator = { version = "=0.7.0", default-features = false, features = [
   "override_allocator_on_supported_platforms",
 ], optional = true }
-tokio = { version = "=1.53.1", features = ["fs", "parking_lot", "signal"] }
+tokio = { version = "=1.53.1", features = [
+  "fs",
+  "macros",
+  "parking_lot",
+  "signal",
+] }
 tokio-util = "=0.7.19"
 toml = { version = "=1.1.4", default-features = false, features = [
   "parse",
@@ -79,13 +85,9 @@ tui-logger = { version = "=0.18.3", features = [
 url = "=2.5.8"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-hickory-resolver = "=0.26.1"
 rustls-platform-verifier = "=0.7.0"
 
 [target.'cfg(target_os = "android")'.dependencies]
-hickory-resolver = { version = "=0.26.1", default-features = false, features = [
-  "tokio",
-] }
 webpki-roots = "=1.0.9"
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -103,7 +105,7 @@ mimalloc_v2 = ["__mimalloc", "mimalloc/v2"]
 mimalloc_v2_no_thp = ["mimalloc_v2", "mimalloc/no_thp"]
 mimalloc_v3 = ["__mimalloc"]
 mimalloc_v3_no_thp = ["mimalloc_v3", "mimalloc/no_thp"]
-tokio-multi-thread = []
+tokio-multi-thread = ["tokio/rt-multi-thread"]
 tui = [
   "dep:crossterm",
   "dep:futures",
@@ -112,6 +114,9 @@ tui = [
   "dep:strum",
   "dep:tui-logger",
 ]
+
+[patch.crates-io]
+hyper-util = { git = "https://github.com/monosans/hyper-util", branch = "patch-1" }
 
 [profile.release]
 strip = true

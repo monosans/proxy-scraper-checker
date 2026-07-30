@@ -1,22 +1,39 @@
-use std::sync::Arc;
+use std::{
+    net::{SocketAddr, ToSocketAddrs as _},
+    sync::Arc,
+};
 
 use color_eyre::eyre::OptionExt as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
-use crate::{config::Config, proxy::Proxy, utils::pretty_error};
+use crate::{config::Config, http, proxy::Proxy, utils::pretty_error};
 
-pub async fn check_all<R>(
+async fn resolve_check_url(config: &Config) -> Vec<SocketAddr> {
+    let Some((host, port)) =
+        config.checking.check_url.as_ref().and_then(|url| {
+            Some((
+                compact_str::CompactString::new(url.host_str()?),
+                url.port_or_known_default()?,
+            ))
+        })
+    else {
+        return Vec::new();
+    };
+
+    let lookup = tokio::task::spawn_blocking(move || {
+        (host.as_str(), port).to_socket_addrs().map(Iterator::collect)
+    });
+
+    if let Ok(Ok(addrs)) = lookup.await { addrs } else { Vec::new() }
+}
+
+pub async fn check_all(
     config: Arc<Config>,
-    dns_resolver: R,
     proxies: Vec<Proxy>,
-    mut tls_backend: rustls::ClientConfig,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) -> crate::Result<Vec<Proxy>>
-where
-    R: reqwest::dns::Resolve + Clone + 'static,
-{
+) -> crate::Result<Vec<Proxy>> {
     if config.checking.check_url.is_none() {
         return Ok(proxies);
     }
@@ -27,60 +44,82 @@ where
         return Ok(Vec::new());
     }
 
+    let prepare = async {
+        tokio::try_join!(
+            async { Ok(Arc::new(resolve_check_url(&config).await)) },
+            http::build_rustls_config(http::TlsProfile::Checking),
+        )
+    };
+
+    let (check_url_addrs, tls_backend) = tokio::select! {
+        biased;
+        () = token.cancelled() => return Ok(Vec::new()),
+        res = prepare => res?,
+    };
+
     #[cfg(not(feature = "tui"))]
     tracing::info!("Started checking {} proxies", proxies.len());
 
     let queue = Arc::new(parking_lot::Mutex::new(proxies));
     let checked_proxies = Arc::new(parking_lot::Mutex::new(Vec::new()));
 
-    tls_backend.alpn_protocols = vec![b"http/1.1".to_vec()];
-    tls_backend.resumption = rustls::client::Resumption::disabled();
-
     let mut join_set = tokio::task::JoinSet::<()>::new();
     for _ in 0..workers_count {
-        let queue = Arc::clone(&queue);
-        let config = Arc::clone(&config);
-        let dns_resolver = dns_resolver.clone();
-        let tls_backend = tls_backend.clone();
+        let check_url_addrs = Arc::clone(&check_url_addrs);
         let checked_proxies = Arc::clone(&checked_proxies);
+        let config = Arc::clone(&config);
+        let queue = Arc::clone(&queue);
+        let tls_backend = tls_backend.clone();
         let token = token.clone();
         #[cfg(feature = "tui")]
         let tx = tx.clone();
         join_set.spawn(async move {
+            let work = async move {
+                loop {
+                    let Some(mut proxy) = queue.lock().pop() else {
+                        break;
+                    };
+                    let check_result = proxy
+                        .check(&config, &check_url_addrs, tls_backend.clone())
+                        .await;
+                    #[cfg(feature = "tui")]
+                    drop(tx.send(Event::App(AppEvent::ProxyChecked(
+                        proxy.protocol,
+                    ))));
+                    match check_result {
+                        Ok(()) => {
+                            #[cfg(feature = "tui")]
+                            drop(tx.send(Event::App(AppEvent::ProxyWorking(
+                                proxy.protocol,
+                            ))));
+                            checked_proxies.lock().push(proxy);
+                        }
+                        Err(e)
+                            if tracing::event_enabled!(
+                                tracing::Level::DEBUG
+                            ) =>
+                        {
+                            tracing::debug!(
+                                "{}: {}",
+                                proxy.to_string(true),
+                                pretty_error(&e)
+                            );
+                        }
+                        Err(_) => {}
+                    }
+                }
+            };
+
             tokio::select! {
                 biased;
-                res = async move {
-                    loop {
-                        let Some(mut proxy) = queue.lock().pop() else {
-                            break;
-                        };
-                        let check_result = proxy.check(&config, dns_resolver.clone(), tls_backend.clone()).await;
-                        #[cfg(feature = "tui")]
-                        drop(tx.send(Event::App(AppEvent::ProxyChecked(proxy.protocol))));
-                        match check_result {
-                            Ok(()) => {
-                                #[cfg(feature = "tui")]
-                                drop(tx.send(Event::App(AppEvent::ProxyWorking(proxy.protocol))));
-                                checked_proxies.lock().push(proxy);
-                            }
-                            Err(e) if tracing::event_enabled!(tracing::Level::DEBUG) => {
-                                tracing::debug!(
-                                    "{}: {}",
-                                    proxy.to_string(true),
-                                    pretty_error(&e)
-                                );
-                            }
-                            Err(_) => {}
-                        }
-                    }
-                } => res,
+                res = work => res,
                 () = token.cancelled() => (),
             }
         });
     }
 
+    drop(check_url_addrs);
     drop(config);
-    drop(dns_resolver);
     drop(queue);
     drop(tls_backend);
     drop(token);

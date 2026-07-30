@@ -128,22 +128,26 @@ async fn download_ipdb(
             let tx = tx.clone();
 
             tokio::spawn(async move {
+                let download = db_type.download(
+                    http_client,
+                    #[cfg(feature = "tui")]
+                    tx,
+                );
+
+                let downloaded_ok = |res: crate::Result<()>| match res {
+                    Ok(()) => true,
+                    Err(e) => {
+                        tracing::warn!(
+                            "failed to download IP database: {}",
+                            utils::pretty_error(&e),
+                        );
+                        false
+                    }
+                };
+
                 tokio::select! {
                     biased;
-                    res = db_type.download(
-                        http_client,
-                        #[cfg(feature = "tui")]
-                        tx,
-                    ) => match res {
-                        Ok(()) => true,
-                        Err(e) => {
-                            tracing::warn!(
-                                "failed to download IP database: {}",
-                                utils::pretty_error(&e),
-                            );
-                            false
-                        }
-                    },
+                    res = download => downloaded_ok(res),
                     () = token.cancelled() => false,
                 }
             })
@@ -166,16 +170,7 @@ async fn main_task(
         event::Event,
     >,
 ) -> crate::Result<()> {
-    let (dns_resolver, tls_backend) = tokio::try_join!(
-        http::HickoryDnsResolver::new(),
-        http::build_rustls_config(),
-    )?;
-
-    let http_client = http::create_reqwest_client(
-        &config,
-        dns_resolver.clone(),
-        tls_backend.clone(),
-    )?;
+    let http_client = http::create_reqwest_client(&config).await?;
 
     let (use_ipdb, mut proxies) = tokio::try_join!(
         download_ipdb(
@@ -196,9 +191,7 @@ async fn main_task(
 
     proxies = checker::check_all(
         Arc::clone(&config),
-        dns_resolver,
         proxies,
-        tls_backend,
         token,
         #[cfg(feature = "tui")]
         tx.clone(),
@@ -257,15 +250,17 @@ fn watch_signals(
         #[cfg(feature = "tui")]
         let tx = tx.clone();
         tokio::spawn(async move {
+            let quit = || {
+                tracing::info!("Received {signal_name} signal, exiting...");
+                token.cancel();
+                #[cfg(feature = "tui")]
+                drop(tx.send(event::Event::App(event::AppEvent::Quit)));
+            };
+
             tokio::select! {
                 biased;
                 () = token.cancelled() => {},
-                _ = stream.recv() => {
-                    tracing::info!("Received {} signal, exiting...", signal_name);
-                    token.cancel();
-                    #[cfg(feature = "tui")]
-                    drop(tx.send(event::Event::App(event::AppEvent::Quit)));
-                },
+                _ = stream.recv() => quit(),
             }
         });
     }

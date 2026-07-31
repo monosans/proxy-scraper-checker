@@ -101,6 +101,18 @@ fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
     None
 }
 
+fn backoff(attempt: u32) -> Duration {
+    INITIAL_RETRY_DELAY
+        .saturating_mul(2_u32.saturating_pow(attempt))
+        .min(MAX_RETRY_DELAY)
+}
+
+fn total_backoff() -> Duration {
+    (0..DEFAULT_MAX_RETRIES)
+        .map(backoff)
+        .fold(Duration::ZERO, Duration::saturating_add)
+}
+
 fn calculate_retry_timeout(
     headers: Option<&reqwest::header::HeaderMap>,
     attempt: u32,
@@ -108,17 +120,14 @@ fn calculate_retry_timeout(
     if let Some(h) = headers
         && let Some(after) = parse_retry_after(h)
     {
-        if after > Duration::from_mins(1) {
+        if after > total_backoff() {
             return None;
         }
         return Some(after);
     }
 
-    let base = INITIAL_RETRY_DELAY
-        .saturating_mul(2_u32.pow(attempt))
-        .min(MAX_RETRY_DELAY);
-    let jitter = 0.25_f64.mul_add(-rand::random::<f64>(), 1.0);
-    Some(base.mul_f64(jitter))
+    let jitter = 0.25_f64.mul_add(-fastrand::f64(), 1.0);
+    Some(backoff(attempt).mul_f64(jitter))
 }
 
 #[async_trait::async_trait]

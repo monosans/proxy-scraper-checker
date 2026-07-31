@@ -192,13 +192,20 @@ async fn main_task(
     proxies = checker::check_all(
         Arc::clone(&config),
         proxies,
-        token,
+        token.clone(),
         #[cfg(feature = "tui")]
         tx.clone(),
     )
     .await?;
 
-    output::save_proxies(config, proxies, use_ipdb).await?;
+    if proxies.is_empty() && token.is_cancelled() {
+        tracing::warn!(
+            "Stopped before any proxy was checked - previous results left \
+             untouched"
+        );
+    } else {
+        output::save_proxies(config, proxies, use_ipdb).await?;
+    }
 
     tracing::info!("Thank you for using proxy-scraper-checker!");
 

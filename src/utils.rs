@@ -1,32 +1,14 @@
-use std::fmt::{Display, Write as _};
-
-pub trait CompactStrJoin: Iterator {
-    fn join(&mut self, sep: &str) -> compact_str::CompactString
-    where
-        Self::Item: Display,
-    {
-        let Some(first_elt) = self.next() else {
-            return compact_str::CompactString::const_new("");
-        };
-
-        let (lower, _) = self.size_hint();
-        let mut result = compact_str::CompactString::with_capacity(
-            sep.len().saturating_mul(lower),
-        );
-        write!(&mut result, "{first_elt}").unwrap();
-        for elt in self {
-            result.push_str(sep);
-            write!(&mut result, "{elt}").unwrap();
-        }
-        result
-    }
-}
-
-#[expect(clippy::missing_trait_methods)]
-impl<T> CompactStrJoin for T where T: Iterator {}
+use std::fmt::Write as _;
 
 pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
-    e.chain().join(" \u{2192} ")
+    let mut result = compact_str::CompactString::const_new("");
+    for (i, cause) in e.chain().enumerate() {
+        if i != 0 {
+            result.push_str(" \u{2192} ");
+        }
+        write!(&mut result, "{cause}").unwrap();
+    }
+    result
 }
 
 pub async fn is_container() -> bool {

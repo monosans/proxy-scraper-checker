@@ -1,6 +1,6 @@
 use std::{
     hash::{Hash, Hasher},
-    net::SocketAddr,
+    net::{Ipv4Addr, SocketAddr},
     str::FromStr,
     time::{Duration, Instant},
 };
@@ -43,7 +43,47 @@ impl FromStr for ProxyType {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+pub struct ProxyTypeSet(u8);
+
+impl ProxyTypeSet {
+    pub const fn contains(self, proxy_type: ProxyType) -> bool {
+        self.0 & proxy_type.bit() != 0
+    }
+
+    pub const fn insert(&mut self, proxy_type: ProxyType) {
+        self.0 |= proxy_type.bit();
+    }
+
+    pub fn iter(self) -> impl Iterator<Item = ProxyType> {
+        [ProxyType::Http, ProxyType::Socks4, ProxyType::Socks5]
+            .into_iter()
+            .filter(move |&proxy_type| self.contains(proxy_type))
+    }
+}
+
+impl FromIterator<ProxyType> for ProxyTypeSet {
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = ProxyType>,
+    {
+        let mut set = Self::default();
+        for proxy_type in iter {
+            set.insert(proxy_type);
+        }
+        set
+    }
+}
+
 impl ProxyType {
+    const fn bit(self) -> u8 {
+        match self {
+            Self::Http => 1 << 0_u8,
+            Self::Socks4 => 1 << 1_u8,
+            Self::Socks5 => 1 << 2_u8,
+        }
+    }
+
     const fn as_proxy_url_scheme(self, force_remote_dns: bool) -> &'static str {
         match self {
             Self::Http => "http",
@@ -76,40 +116,20 @@ impl ProxyType {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct ProxyAuth {
+    pub username: compact_str::CompactString,
+    pub password: compact_str::CompactString,
+}
+
 #[derive(Eq)]
 pub struct Proxy {
     pub protocol: ProxyType,
     pub host: compact_str::CompactString,
     pub port: u16,
-    pub username: Option<compact_str::CompactString>,
-    pub password: Option<compact_str::CompactString>,
+    pub auth: Option<Box<ProxyAuth>>,
     pub timeout: Option<Duration>,
-    pub exit_ip: Option<compact_str::CompactString>,
-}
-
-pub trait ProxySink {
-    fn push_str(&mut self, s: &str);
-    fn push_byte(&mut self, b: u8);
-}
-
-impl ProxySink for compact_str::CompactString {
-    fn push_str(&mut self, s: &str) {
-        self.push_str(s);
-    }
-
-    fn push_byte(&mut self, b: u8) {
-        self.push(b.into());
-    }
-}
-
-impl ProxySink for Vec<u8> {
-    fn push_str(&mut self, s: &str) {
-        self.extend_from_slice(s.as_bytes());
-    }
-
-    fn push_byte(&mut self, b: u8) {
-        self.push(b);
-    }
+    pub exit_ip: Option<Ipv4Addr>,
 }
 
 impl Proxy {
@@ -127,10 +147,8 @@ impl Proxy {
             .as_str(),
         )?;
 
-        if let (Some(username), Some(password)) =
-            (self.username.as_ref(), self.password.as_ref())
-        {
-            Ok(proxy.basic_auth(username, password))
+        if let Some(auth) = self.auth.as_ref() {
+            Ok(proxy.basic_auth(&auth.username, &auth.password))
         } else {
             Ok(proxy)
         }
@@ -168,51 +186,52 @@ impl Proxy {
         let request = builder.build()?.get(check_url);
 
         let start = Instant::now();
-        let response = request.send().await?.error_for_status()?;
+        let mut response = request.send().await?.error_for_status()?;
 
-        self.timeout = Some(start.elapsed());
-        self.exit_ip = response.text().await.map_or(None, |text| {
-            if let Ok(httpbin) = serde_json::from_str::<HttpbinResponse>(&text)
+        if config.exit_ip_enabled() {
+            let text = response.text().await?;
+            self.timeout = Some(start.elapsed());
+
+            self.exit_ip = if let Ok(httpbin) =
+                serde_json::from_str::<HttpbinResponse>(&text)
             {
                 parse_ipv4(&httpbin.origin)
             } else {
                 parse_ipv4(&text)
-            }
-        });
+            };
+        } else {
+            while response.chunk().await?.is_some() {}
+            self.timeout = Some(start.elapsed());
+        }
 
         Ok(())
     }
 
-    pub fn write_to_sink<S>(&self, sink: &mut S, include_protocol: bool)
-    where
-        S: ProxySink,
-    {
+    pub fn write_to(&self, buf: &mut Vec<u8>, include_protocol: bool) {
         if include_protocol {
-            sink.push_str(self.protocol.as_str_lowercase());
-            sink.push_str("://");
+            buf.extend_from_slice(self.protocol.as_str_lowercase().as_bytes());
+            buf.extend_from_slice(b"://");
         }
 
-        if let (Some(username), Some(password)) =
-            (&self.username, &self.password)
-        {
-            sink.push_str(username);
-            sink.push_byte(b':');
-            sink.push_str(password);
-            sink.push_byte(b'@');
+        if let Some(auth) = &self.auth {
+            buf.extend_from_slice(auth.username.as_bytes());
+            buf.push(b':');
+            buf.extend_from_slice(auth.password.as_bytes());
+            buf.push(b'@');
         }
 
-        sink.push_str(&self.host);
-        sink.push_byte(b':');
-        sink.push_str(itoa::Buffer::new().format(self.port));
+        buf.extend_from_slice(self.host.as_bytes());
+        buf.push(b':');
+        buf.extend_from_slice(itoa::Buffer::new().format(self.port).as_bytes());
     }
 
     pub fn to_string(
         &self,
         include_protocol: bool,
     ) -> compact_str::CompactString {
-        let mut s = compact_str::CompactString::const_new("");
-        self.write_to_sink(&mut s, include_protocol);
-        s
+        let mut buf = Vec::new();
+        self.write_to(&mut buf, include_protocol);
+        compact_str::CompactString::from_utf8_lossy(&buf)
     }
 }
 
@@ -222,8 +241,7 @@ impl PartialEq for Proxy {
         self.protocol == other.protocol
             && self.host == other.host
             && self.port == other.port
-            && self.username == other.username
-            && self.password == other.password
+            && self.auth == other.auth
     }
 }
 
@@ -236,7 +254,6 @@ impl Hash for Proxy {
         self.protocol.hash(state);
         self.host.hash(state);
         self.port.hash(state);
-        self.username.hash(state);
-        self.password.hash(state);
+        self.auth.hash(state);
     }
 }

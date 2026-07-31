@@ -1,15 +1,15 @@
 use std::{
     cmp::Ordering,
     io,
+    io::Write as _,
     net::{IpAddr, Ipv4Addr},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
 
 use color_eyre::eyre::WrapErr as _;
-use serde::Serialize as _;
-use tokio::io::AsyncWriteExt as _;
+use serde::ser::SerializeSeq as _;
 
 use crate::{
     config::Config,
@@ -18,63 +18,43 @@ use crate::{
     utils::is_container,
 };
 
+type IpDb = maxminddb::Reader<maxminddb::Mmap>;
+
+const WRITE_BUFFER_BYTES: usize = 128 * 1024;
+
 fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
     a.timeout.unwrap_or(Duration::MAX).cmp(&b.timeout.unwrap_or(Duration::MAX))
 }
 
-fn compare_natural(a: &Proxy, b: &Proxy) -> Ordering {
-    a.protocol
-        .cmp(&b.protocol)
-        .then_with(move || {
-            match (a.host.parse::<Ipv4Addr>(), b.host.parse::<Ipv4Addr>()) {
-                (Ok(ai), Ok(bi)) => ai.octets().cmp(&bi.octets()),
-                (Ok(_), Err(_)) => Ordering::Less,
-                (Err(_), Ok(_)) => Ordering::Greater,
-                (Err(_), Err(_)) => a.host.cmp(&b.host),
-            }
-        })
-        .then_with(move || a.port.cmp(&b.port))
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+enum HostSortKey {
+    Ipv4([u8; 4]),
+    Name(compact_str::CompactString),
 }
 
-fn strip_non_english_names(v: &mut serde_json::Value) {
-    if let serde_json::Value::Object(map) = v {
-        if let Some(names_val) = map.get_mut("names") {
-            if let serde_json::Value::Object(names_map) = names_val {
-                if let Some(en_val) = names_map.get("en").cloned() {
-                    names_map.clear();
-                    names_map.insert("en".to_owned(), en_val);
-                } else {
-                    names_map.clear();
-                }
-            }
-        } else {
-            for (_, val) in map {
-                strip_non_english_names(val);
-            }
-        }
-    } else if let serde_json::Value::Array(arr) = v {
-        for item in arr {
-            strip_non_english_names(item);
-        }
-    }
+fn natural_sort_key(proxy: &Proxy) -> (ProxyType, HostSortKey, u16) {
+    let host = proxy.host.parse::<Ipv4Addr>().map_or_else(
+        move |_| HostSortKey::Name(proxy.host.clone()),
+        |ip| HostSortKey::Ipv4(ip.octets()),
+    );
+    (proxy.protocol, host, proxy.port)
 }
 
-#[expect(clippy::ref_option)]
-fn serialize_opt_strip_names<T, S>(
-    opt: &Option<T>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    T: serde::Serialize,
-    S: serde::Serializer,
-{
-    if let Some(t) = opt {
-        let mut v =
-            serde_json::to_value(t).map_err(serde::ser::Error::custom)?;
-        strip_non_english_names(&mut v);
-        v.serialize(serializer)
-    } else {
-        serializer.serialize_none()
+fn keep_english_name(names: &mut maxminddb::geoip2::Names<'_>) {
+    *names = maxminddb::geoip2::Names {
+        english: names.english,
+        ..Default::default()
+    };
+}
+
+fn strip_non_english_names(city: &mut maxminddb::geoip2::City<'_>) {
+    keep_english_name(&mut city.city.names);
+    keep_english_name(&mut city.continent.names);
+    keep_english_name(&mut city.country.names);
+    keep_english_name(&mut city.registered_country.names);
+    keep_english_name(&mut city.represented_country.names);
+    for subdivision in &mut city.subdivisions {
+        keep_english_name(&mut subdivision.names);
     }
 }
 
@@ -86,61 +66,142 @@ struct ProxyJson<'a> {
     host: &'a str,
     port: u16,
     timeout: Option<f64>,
-    exit_ip: Option<&'a str>,
-    #[serde(serialize_with = "serialize_opt_strip_names")]
+    exit_ip: Option<Ipv4Addr>,
     asn: Option<maxminddb::geoip2::Asn<'a>>,
-    #[serde(serialize_with = "serialize_opt_strip_names")]
     geolocation: Option<maxminddb::geoip2::City<'a>>,
 }
 
-async fn write_proxy_list_to_file<'a, I>(
-    path: &Path,
-    proxies: I,
-    include_protocol: bool,
-) -> crate::Result<()>
-where
-    I: IntoIterator<Item = &'a Proxy>,
-{
-    let file =
-        tokio::fs::File::create(path).await.wrap_err_with(move || {
-            compact_str::format_compact!(
-                "failed to create file: {}",
-                path.display()
-            )
-        })?;
-    let mut writer = tokio::io::BufWriter::new(file);
+struct ProxyListJson<'a> {
+    proxies: &'a [Proxy],
+    asn_db: Option<&'a IpDb>,
+    geo_db: Option<&'a IpDb>,
+}
 
-    let mut first = true;
-    let mut tmp = Vec::new();
-    for proxy in proxies {
-        if first {
-            first = false;
-        } else {
-            tmp.clear();
-            writer.write_all(b"\n").await.wrap_err_with(move || {
-                compact_str::format_compact!(
-                    "failed to write to file: {}",
-                    path.display()
-                )
+impl serde::Serialize for ProxyListJson<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.proxies.len()))?;
+        for proxy in self.proxies {
+            let exit_ip_addr = proxy.exit_ip.map(IpAddr::V4);
+
+            let asn = match (self.asn_db, exit_ip_addr) {
+                (Some(asn_db), Some(addr)) => asn_db
+                    .lookup(addr)
+                    .and_then(|entry| entry.decode())
+                    .map_err(serde::ser::Error::custom)?,
+                _ => None,
+            };
+
+            let geolocation = match (self.geo_db, exit_ip_addr) {
+                (Some(geo_db), Some(addr)) => geo_db
+                    .lookup(addr)
+                    .and_then(|entry| {
+                        entry.decode::<maxminddb::geoip2::City<'_>>()
+                    })
+                    .map_err(serde::ser::Error::custom)?
+                    .map(|mut city| {
+                        strip_non_english_names(&mut city);
+                        city
+                    }),
+                _ => None,
+            };
+
+            seq.serialize_element(&ProxyJson {
+                protocol: proxy.protocol,
+                username: proxy.auth.as_ref().map(|a| a.username.as_str()),
+                password: proxy.auth.as_ref().map(|a| a.password.as_str()),
+                host: &proxy.host,
+                port: proxy.port,
+                timeout: proxy
+                    .timeout
+                    .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
+                exit_ip: proxy.exit_ip,
+                asn,
+                geolocation,
             })?;
         }
-
-        proxy.write_to_sink(&mut tmp, include_protocol);
-        writer.write_all(&tmp).await.wrap_err_with(move || {
-            compact_str::format_compact!(
-                "failed to write to file: {}",
-                path.display()
-            )
-        })?;
+        seq.end()
     }
-    drop(tmp);
+}
 
-    writer.flush().await.wrap_err_with(move || {
+fn write_json_file(
+    path: &Path,
+    pretty: bool,
+    list: &ProxyListJson<'_>,
+) -> crate::Result<()> {
+    let file = std::fs::File::create(path).wrap_err_with(move || {
+        compact_str::format_compact!(
+            "failed to create file: {}",
+            path.display()
+        )
+    })?;
+    let mut writer =
+        std::io::BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
+
+    let failed = move || {
         compact_str::format_compact!(
             "failed to write to file: {}",
             path.display()
         )
+    };
+
+    if pretty {
+        serde_json::to_writer_pretty(&mut writer, list)
+    } else {
+        serde_json::to_writer(&mut writer, list)
+    }
+    .wrap_err_with(failed)?;
+
+    writer.flush().wrap_err_with(failed)
+}
+
+fn write_proxy_list_to_file<'a, I>(
+    path: &Path,
+    proxies: I,
+    include_protocol: bool,
+    buf: &mut Vec<u8>,
+) -> crate::Result<()>
+where
+    I: IntoIterator<Item = &'a Proxy>,
+{
+    let mut file = std::fs::File::create(path).wrap_err_with(move || {
+        compact_str::format_compact!(
+            "failed to create file: {}",
+            path.display()
+        )
     })?;
+
+    let write = move |file: &mut std::fs::File, buf: &[u8]| {
+        file.write_all(buf).wrap_err_with(move || {
+            compact_str::format_compact!(
+                "failed to write to file: {}",
+                path.display()
+            )
+        })
+    };
+
+    buf.clear();
+    let mut first = true;
+    for proxy in proxies {
+        if first {
+            first = false;
+        } else {
+            buf.push(b'\n');
+        }
+        proxy.write_to(buf, include_protocol);
+
+        if buf.len() >= WRITE_BUFFER_BYTES {
+            write(&mut file, buf)?;
+            buf.clear();
+        }
+    }
+
+    if !buf.is_empty() {
+        write(&mut file, buf)?;
+        buf.clear();
+    }
 
     Ok(())
 }
@@ -150,7 +211,6 @@ pub struct UseIpDb {
     pub geo: bool,
 }
 
-#[expect(clippy::too_many_lines)]
 pub async fn save_proxies(
     config: Arc<Config>,
     mut proxies: Vec<Proxy>,
@@ -159,19 +219,19 @@ pub async fn save_proxies(
     if config.output.sort_by_speed {
         proxies.sort_unstable_by(compare_timeout);
     } else {
-        proxies.sort_unstable_by(compare_natural);
+        proxies.sort_by_cached_key(natural_sort_key);
     }
 
     if config.output.json.enabled {
         let (maybe_asn_db, maybe_geo_db) = tokio::try_join!(
-            async {
+            async move {
                 if use_ipdb.asn {
                     ipdb::DbType::Asn.open_mmap().await.map(Some)
                 } else {
                     Ok(None)
                 }
             },
-            async {
+            async move {
                 if use_ipdb.geo {
                     ipdb::DbType::Geo.open_mmap().await.map(Some)
                 } else {
@@ -180,59 +240,23 @@ pub async fn save_proxies(
             }
         )?;
 
-        let mut proxy_dicts = Vec::with_capacity(proxies.len());
-        for proxy in &proxies {
-            proxy_dicts.push(ProxyJson {
-                protocol: proxy.protocol,
-                username: proxy.username.as_deref(),
-                password: proxy.password.as_deref(),
-                host: &proxy.host,
-                port: proxy.port,
-                timeout: proxy
-                    .timeout
-                    .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
-                exit_ip: proxy.exit_ip.as_deref(),
-                asn: if let Some(asn_db) = &maybe_asn_db {
-                    if let Some(exit_ip) = &proxy.exit_ip {
-                        let exit_ip_addr: IpAddr = exit_ip.parse()?;
-                        asn_db.lookup(exit_ip_addr)?.decode()?
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                },
-                geolocation: if let Some(geo_db) = &maybe_geo_db {
-                    if let Some(exit_ip) = &proxy.exit_ip {
-                        let exit_ip_addr: IpAddr = exit_ip.parse()?;
-                        geo_db.lookup(exit_ip_addr)?.decode()?
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                },
-            });
-        }
-
-        for (path, pretty) in [
+        let json_paths: [(PathBuf, bool); 2] = [
             (config.output.path.join("proxies.json"), false),
             (config.output.path.join("proxies_pretty.json"), true),
-        ] {
-            let json_data = if pretty {
-                serde_json::to_vec_pretty(&proxy_dicts)?
-            } else {
-                serde_json::to_vec(&proxy_dicts)?
+        ];
+
+        proxies = tokio::task::spawn_blocking(move || {
+            let list = ProxyListJson {
+                proxies: &proxies,
+                asn_db: maybe_asn_db.as_ref(),
+                geo_db: maybe_geo_db.as_ref(),
             };
-            tokio::fs::write(&path, json_data).await.wrap_err_with(
-                move || {
-                    compact_str::format_compact!(
-                        "failed to write to file: {}",
-                        path.display()
-                    )
-                },
-            )?;
-        }
+            for (path, pretty) in &json_paths {
+                write_json_file(path, *pretty, &list)?;
+            }
+            crate::Result::Ok(proxies)
+        })
+        .await??;
     }
 
     if config.output.txt.enabled {
@@ -256,29 +280,35 @@ pub async fn save_proxies(
             },
         )?;
 
-        write_proxy_list_to_file(
-            &directory_path.join("all.txt"),
-            proxies.iter(),
-            true,
-        )
-        .await?;
+        let enabled_protocols = config.scraping.enabled_protocols;
+        tokio::task::spawn_blocking(move || {
+            let mut buf = Vec::with_capacity(WRITE_BUFFER_BYTES);
 
-        for proto in config.enabled_protocols().copied() {
-            let mut file_path = directory_path.join(proto.as_str_lowercase());
-            file_path.set_extension("txt");
             write_proxy_list_to_file(
-                &file_path,
-                proxies.iter().filter(move |p| p.protocol == proto),
-                false,
-            )
-            .await?;
-        }
+                &directory_path.join("all.txt"),
+                proxies.iter(),
+                true,
+                &mut buf,
+            )?;
+
+            for proto in enabled_protocols.iter() {
+                let mut file_path =
+                    directory_path.join(proto.as_str_lowercase());
+                file_path.set_extension("txt");
+                write_proxy_list_to_file(
+                    &file_path,
+                    proxies.iter().filter(move |p| p.protocol == proto),
+                    false,
+                    &mut buf,
+                )?;
+            }
+
+            crate::Result::Ok(())
+        })
+        .await??;
     }
 
-    drop(proxies);
-
-    let path = tokio::fs::canonicalize(&config.output.path)
-        .await
+    let path = std::path::absolute(&config.output.path)
         .unwrap_or_else(move |_| config.output.path.clone());
     if is_container().await {
         tracing::info!(

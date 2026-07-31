@@ -3,16 +3,25 @@ use std::sync::Arc;
 use color_eyre::eyre::{OptionExt as _, WrapErr as _};
 use compact_str::ToCompactString as _;
 use rapidhash::HashSetExt as _;
+#[cfg(feature = "tui")]
+use strum::EnumCount as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
 use crate::{
     HashSet,
     config::{Config, Source},
-    parsers::proxy_captures,
-    proxy::{Proxy, ProxyType},
+    parsers::proxy_matches,
+    proxy::{Proxy, ProxyAuth, ProxyType},
     utils::pretty_error,
 };
+
+#[derive(Default)]
+struct ScrapedProxies {
+    proxies: HashSet<Proxy>,
+    #[cfg(feature = "tui")]
+    counts: crate::HashMap<ProxyType, usize>,
+}
 
 pub async fn scrape_all(
     config: Arc<Config>,
@@ -20,7 +29,7 @@ pub async fn scrape_all(
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> crate::Result<Vec<Proxy>> {
-    let proxies = Arc::new(parking_lot::Mutex::new(HashSet::new()));
+    let proxies = Arc::new(parking_lot::Mutex::new(ScrapedProxies::default()));
 
     let mut join_set = tokio::task::JoinSet::new();
     for (&proto, sources) in &config.scraping.sources {
@@ -65,20 +74,28 @@ pub async fn scrape_all(
         res??;
     }
 
-    drop(join_set);
-
     Ok(Arc::into_inner(proxies)
         .ok_or_eyre("failed to unwrap Arc")?
         .into_inner()
+        .proxies
         .into_iter()
         .collect())
+}
+
+async fn read_source_file(path: std::path::PathBuf) -> crate::Result<String> {
+    tokio::fs::read_to_string(&path).await.wrap_err_with(move || {
+        compact_str::format_compact!(
+            "failed to read file to string: {}",
+            path.display()
+        )
+    })
 }
 
 async fn scrape_one(
     config: Arc<Config>,
     http_client: reqwest_middleware::ClientWithMiddleware,
     proto: ProxyType,
-    proxies: Arc<parking_lot::Mutex<HashSet<Proxy>>>,
+    proxies: Arc<parking_lot::Mutex<ScrapedProxies>>,
     source: Arc<Source>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> crate::Result<()> {
@@ -106,32 +123,15 @@ async fn scrape_one(
             }
             _ => {
                 drop(http_client);
-                match u.to_file_path() {
-                    Ok(path) => tokio::fs::read_to_string(path)
-                        .await
-                        .wrap_err_with(move || {
-                            compact_str::format_compact!(
-                                "failed to read file to string: {u}"
-                            )
-                        }),
-                    Err(()) => tokio::fs::read_to_string(&source.url)
-                        .await
-                        .wrap_err_with(move || {
-                            compact_str::format_compact!(
-                                "failed to read file to string: {u}"
-                            )
-                        }),
-                }
+                let path = u
+                    .to_file_path()
+                    .unwrap_or_else(|()| source.url.as_str().into());
+                read_source_file(path).await
             }
         }
     } else {
         drop(http_client);
-        tokio::fs::read_to_string(&source.url).await.wrap_err_with(|| {
-            compact_str::format_compact!(
-                "failed to read file to string: {}",
-                source.url
-            )
-        })
+        read_source_file(source.url.as_str().into()).await
     };
 
     #[cfg(feature = "tui")]
@@ -146,11 +146,11 @@ async fn scrape_one(
     };
 
     #[cfg(feature = "tui")]
-    let mut seen_protocols = HashSet::new();
+    let mut seen_protocols = crate::proxy::ProxyTypeSet::default();
 
     let mut new_proxies = HashSet::new();
 
-    for capture in proxy_captures(&text) {
+    for proxy_match in proxy_matches(&text) {
         if config.scraping.max_proxies_per_source != 0
             && new_proxies.len() >= config.scraping.max_proxies_per_source
         {
@@ -162,8 +162,8 @@ async fn scrape_one(
             return Ok(());
         }
 
-        let protocol = match capture.name("protocol") {
-            Some(m) => m.as_str().parse()?,
+        let protocol = match proxy_match.protocol {
+            Some(s) => s.parse()?,
             None => proto,
         };
 
@@ -171,29 +171,25 @@ async fn scrape_one(
             #[cfg(feature = "tui")]
             seen_protocols.insert(protocol);
 
-            let port = capture
-                .name("port")
-                .ok_or_eyre("failed to match \"port\" regex capture group")?
-                .as_str()
-                .parse()?;
-            let username = capture.name("username").map(|m| m.as_str().into());
-            let password = capture.name("password").map(|m| m.as_str().into());
+            let port = proxy_match.port.parse()?;
+            let auth = match (proxy_match.username, proxy_match.password) {
+                (Some(username), Some(password)) => Some(Box::new(ProxyAuth {
+                    username: username.into(),
+                    password: password.into(),
+                })),
+                _ => None,
+            };
 
-            if let Ok(ipv4_net) = capture
-                .name("host_cidr")
-                .ok_or_eyre(
-                    "failed to match \"host_cidr\" regex capture group",
-                )?
-                .as_str()
-                .parse::<ipnet::Ipv4Net>()
+            if proxy_match.host_cidr.as_bytes().contains(&b'/')
+                && let Ok(ipv4_net) =
+                    proxy_match.host_cidr.parse::<ipnet::Ipv4Net>()
             {
                 new_proxies.extend(ipv4_net.hosts().map(move |host_ip| {
                     Proxy {
                         protocol,
                         host: host_ip.to_compact_string(),
                         port,
-                        username: username.clone(),
-                        password: password.clone(),
+                        auth: auth.clone(),
                         timeout: None,
                         exit_ip: None,
                     }
@@ -201,16 +197,9 @@ async fn scrape_one(
             } else {
                 new_proxies.insert(Proxy {
                     protocol,
-                    host: capture
-                        .name("host")
-                        .ok_or_eyre(
-                            "failed to match \"host\" regex capture group",
-                        )?
-                        .as_str()
-                        .into(),
+                    host: proxy_match.host.into(),
                     port,
-                    username,
-                    password,
+                    auth,
                     timeout: None,
                     exit_ip: None,
                 });
@@ -229,15 +218,49 @@ async fn scrape_one(
     drop(source);
 
     let mut proxies = proxies.lock();
-    proxies.extend(new_proxies);
 
-    #[cfg(feature = "tui")]
-    for proto in seen_protocols {
-        let count = proxies.iter().filter(move |p| p.protocol == proto).count();
-        drop(tx.send(Event::App(AppEvent::TotalProxies(proto, count))));
+    if proxies.proxies.is_empty() {
+        #[cfg(feature = "tui")]
+        for proxy in &new_proxies {
+            proxies
+                .counts
+                .entry(proxy.protocol)
+                .and_modify(|c| *c = c.saturating_add(1))
+                .or_insert(1);
+        }
+
+        proxies.proxies = new_proxies;
+    } else {
+        #[cfg(feature = "tui")]
+        for proxy in new_proxies {
+            let protocol = proxy.protocol;
+            if proxies.proxies.insert(proxy) {
+                proxies
+                    .counts
+                    .entry(protocol)
+                    .and_modify(|c| *c = c.saturating_add(1))
+                    .or_insert(1);
+            }
+        }
+
+        #[cfg(not(feature = "tui"))]
+        proxies.proxies.extend(new_proxies);
     }
 
+    #[cfg(feature = "tui")]
+    let totals: smallvec::SmallVec<[_; ProxyType::COUNT]> = seen_protocols
+        .iter()
+        .map(|proto| {
+            (proto, proxies.counts.get(&proto).copied().unwrap_or_default())
+        })
+        .collect();
+
     drop(proxies);
+
+    #[cfg(feature = "tui")]
+    for (proto, count) in totals {
+        drop(tx.send(Event::App(AppEvent::TotalProxies(proto, count))));
+    }
 
     Ok(())
 }

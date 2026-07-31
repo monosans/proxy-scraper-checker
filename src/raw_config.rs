@@ -2,6 +2,7 @@ use std::{
     env,
     num::NonZero,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use color_eyre::eyre::WrapErr as _;
@@ -11,16 +12,15 @@ use crate::{HashMap, http::BasicAuth};
 
 const CONFIG_ENV: &str = "PROXY_SCRAPER_CHECKER_CONFIG";
 
-fn validate_positive_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
+fn validate_timeout<'de, D>(deserializer: D) -> Result<Duration, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let val = f64::deserialize(deserializer)?;
-    if val > 0.0 {
-        Ok(val)
-    } else {
-        Err(serde::de::Error::custom("value must be positive"))
+    let secs = f64::deserialize(deserializer)?;
+    if secs <= 0.0_f64 {
+        return Err(serde::de::Error::custom("value must be positive"));
     }
+    Duration::try_from_secs_f64(secs).map_err(serde::de::Error::custom)
 }
 
 fn validate_url_generic<'de, D>(
@@ -112,10 +112,10 @@ pub struct ScrapingProtocolConfig {
 #[derive(serde::Deserialize)]
 pub struct ScrapingConfig {
     pub max_proxies_per_source: usize,
-    #[serde(deserialize_with = "validate_positive_f64")]
-    pub timeout: f64,
-    #[serde(deserialize_with = "validate_positive_f64")]
-    pub connect_timeout: f64,
+    #[serde(deserialize_with = "validate_timeout")]
+    pub timeout: Duration,
+    #[serde(deserialize_with = "validate_timeout")]
+    pub connect_timeout: Duration,
     #[serde(deserialize_with = "validate_proxy_url")]
     pub proxy: Option<url::Url>,
     pub user_agent: compact_str::CompactString,
@@ -130,10 +130,10 @@ pub struct CheckingConfig {
     #[serde(deserialize_with = "validate_http_url")]
     pub check_url: Option<url::Url>,
     pub max_concurrent_checks: NonZero<usize>,
-    #[serde(deserialize_with = "validate_positive_f64")]
-    pub timeout: f64,
-    #[serde(deserialize_with = "validate_positive_f64")]
-    pub connect_timeout: f64,
+    #[serde(deserialize_with = "validate_timeout")]
+    pub timeout: Duration,
+    #[serde(deserialize_with = "validate_timeout")]
+    pub connect_timeout: Duration,
     pub user_agent: compact_str::CompactString,
 }
 

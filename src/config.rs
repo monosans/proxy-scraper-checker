@@ -1,5 +1,4 @@
 use std::{
-    collections::hash_map,
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
@@ -8,7 +7,11 @@ use std::{
 use color_eyre::eyre::WrapErr as _;
 
 use crate::{
-    HashMap, http::BasicAuth, proxy::ProxyType, raw_config, utils::is_container,
+    HashMap,
+    http::BasicAuth,
+    proxy::{ProxyType, ProxyTypeSet},
+    raw_config,
+    utils::is_container,
 };
 
 pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
@@ -32,6 +35,7 @@ pub struct ScrapingConfig {
     pub proxy: Option<url::Url>,
     pub user_agent: compact_str::CompactString,
     pub sources: HashMap<ProxyType, Vec<Arc<Source>>>,
+    pub enabled_protocols: ProxyTypeSet,
 }
 
 pub struct CheckingConfig {
@@ -99,6 +103,10 @@ async fn get_output_path(
 }
 
 impl Config {
+    pub const fn exit_ip_enabled(&self) -> bool {
+        self.output.json.enabled
+    }
+
     pub const fn asn_enabled(&self) -> bool {
         self.output.json.enabled && self.output.json.include_asn
     }
@@ -107,14 +115,8 @@ impl Config {
         self.output.json.enabled && self.output.json.include_geolocation
     }
 
-    pub fn enabled_protocols(
-        &self,
-    ) -> hash_map::Keys<'_, ProxyType, Vec<Arc<Source>>> {
-        self.scraping.sources.keys()
-    }
-
-    pub fn protocol_is_enabled(&self, protocol: ProxyType) -> bool {
-        self.scraping.sources.contains_key(&protocol)
+    pub const fn protocol_is_enabled(&self, protocol: ProxyType) -> bool {
+        self.scraping.enabled_protocols.contains(protocol)
     }
 
     pub async fn from_raw_config(
@@ -139,46 +141,45 @@ impl Config {
                 raw_config.checking.max_concurrent_checks.get()
             };
 
+        let sources: HashMap<ProxyType, Vec<Arc<Source>>> = [
+            (ProxyType::Http, raw_config.scraping.http),
+            (ProxyType::Socks4, raw_config.scraping.socks4),
+            (ProxyType::Socks5, raw_config.scraping.socks5),
+        ]
+        .into_iter()
+        .filter_map(|(proxy_type, section)| {
+            section.enabled.then(move || {
+                (
+                    proxy_type,
+                    section
+                        .urls
+                        .into_iter()
+                        .map(Into::into)
+                        .map(Arc::new)
+                        .collect(),
+                )
+            })
+        })
+        .collect();
+
         Ok(Self {
             debug: raw_config.debug,
             scraping: ScrapingConfig {
                 max_proxies_per_source: raw_config
                     .scraping
                     .max_proxies_per_source,
-                timeout: Duration::from_secs_f64(raw_config.scraping.timeout),
-                connect_timeout: Duration::from_secs_f64(
-                    raw_config.scraping.connect_timeout,
-                ),
+                timeout: raw_config.scraping.timeout,
+                connect_timeout: raw_config.scraping.connect_timeout,
                 proxy: raw_config.scraping.proxy,
                 user_agent: raw_config.scraping.user_agent,
-                sources: [
-                    (ProxyType::Http, raw_config.scraping.http),
-                    (ProxyType::Socks4, raw_config.scraping.socks4),
-                    (ProxyType::Socks5, raw_config.scraping.socks5),
-                ]
-                .into_iter()
-                .filter_map(|(proxy_type, section)| {
-                    section.enabled.then(|| {
-                        (
-                            proxy_type,
-                            section
-                                .urls
-                                .into_iter()
-                                .map(Into::into)
-                                .map(Arc::new)
-                                .collect(),
-                        )
-                    })
-                })
-                .collect(),
+                enabled_protocols: sources.keys().copied().collect(),
+                sources,
             },
             checking: CheckingConfig {
                 check_url: raw_config.checking.check_url,
                 max_concurrent_checks,
-                timeout: Duration::from_secs_f64(raw_config.checking.timeout),
-                connect_timeout: Duration::from_secs_f64(
-                    raw_config.checking.connect_timeout,
-                ),
+                timeout: raw_config.checking.timeout,
+                connect_timeout: raw_config.checking.connect_timeout,
                 user_agent: raw_config.checking.user_agent,
             },
             output: OutputConfig {

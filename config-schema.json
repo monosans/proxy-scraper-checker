@@ -77,8 +77,8 @@
       "properties": {
         "check_url": { "type": "string" },
         "max_concurrent_checks": { "type": "integer", "minimum": 1 },
-        "timeout": { "type": "number", "minimum": 0 },
-        "connect_timeout": { "type": "number", "minimum": 0 },
+        "timeout": { "type": "number", "exclusiveMinimum": 0 },
+        "connect_timeout": { "type": "number", "exclusiveMinimum": 0 },
         "user_agent": { "type": "string" }
       },
       "required": [
@@ -94,8 +94,8 @@
       "type": "object",
       "properties": {
         "max_proxies_per_source": { "type": "integer", "minimum": 0 },
-        "timeout": { "type": "number", "minimum": 0 },
-        "connect_timeout": { "type": "number", "minimum": 0 },
+        "timeout": { "type": "number", "exclusiveMinimum": 0 },
+        "connect_timeout": { "type": "number", "exclusiveMinimum": 0 },
         "proxy": { "type": "string" },
         "user_agent": { "type": "string" },
         "http": { "$ref": "#/$defs/protocol_config" },

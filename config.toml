@@ -1,88 +1,110 @@
 #:schema ./config-schema.json
 
-# Enable debug logging to see detailed checking process for each proxy
-# Warning: Extremely verbose - logs every connection attempt and failure
+# Log why each individual proxy failed. Very verbose.
 debug = false
 
 [output]
-# Output directory (Docker overrides this to /app/out via volume mount)
+# Where results are written. Ignored in Docker, which always uses the ./out volume.
 path = "./out"
 
-# Sort proxies by response time (true) or by IP address (false)
-# Speed sorting: fastest proxies first. IP sorting: natural order by protocol, IP and port.
+# true = fastest first, measured as the time to complete the whole check request.
+# false = by protocol, IP and port, which is stable between runs.
 sort_by_speed = true
 
-# Plain text output (.txt files)
+# proxies/all.txt (with protocol prefix) plus one file per protocol (without).
+# The proxies/ directory is deleted and rewritten on every run.
+# At least one of [output.txt] and [output.json] must stay enabled.
 [output.txt]
 enabled = true
 
-# JSON output with metadata (.json files)
+# proxies.json and proxies_pretty.json.
 [output.json]
 enabled = true
 
-# Add ASN (network provider) info to JSON output
-# Uses offline database
+# Network owner of the exit IP. Offline database, downloaded once (~12 MB).
+# Only works if check_url reveals the exit IP - see below.
 include_asn = true
 
-# Add geolocation data to JSON output
-# Uses offline database
+# Country, city and coordinates of the exit IP. Offline database, downloaded once
+# (~66 MB). Only works if check_url reveals the exit IP - see below.
 include_geolocation = true
 
 [checking]
-# URL for checking proxy functionality
-# httpbin-compatible: Returns JSON with IP info for ASN/geo data
-# plain-text: Returns just IP address for basic connectivity
-# Examples:
-#   "https://httpbin.org/ip" - JSON with "origin" key. Full-featured checking.
-#   "https://ipv4.icanhazip.com"  - Simple IP return. Full-featured checking.
-#   "https://google.com"     - Basic connect/read check only
-#   ""                       - Skip checking entirely (scrape only)
+# URL every proxy must successfully fetch. Prefer https: the certificate is verified,
+# so the response cannot be faked by the proxy.
+#
+# The response body must be the exit IP for exit_ip, include_asn and
+# include_geolocation to work. Two shapes are understood:
+#   "1.2.3.4"                    the whole body is the address, e.g. ipv4.icanhazip.com
+#   {"origin": "1.2.3.4"}        httpbin-style JSON, e.g. httpbin.org/ip
+# Any other page (https://google.com, say) still proves the proxy works, but leaves
+# exit_ip, asn and geolocation null no matter what is enabled above.
+#
+# Set to "" to skip checking entirely and output everything scraped.
 check_url = "https://ipv4.icanhazip.com"
 
-# Number of proxies to check simultaneously
-# Higher values = faster checking but more RAM/network usage. Lower if you experience crashes or timeouts.
+# How many proxies to check at once. A run takes roughly
+# total_proxies / max_concurrent_checks * connect_timeout.
+# Raise it to finish sooner, lower it if your network gets unstable mid-run.
+# Automatically capped by the operating system's open-file limit.
 max_concurrent_checks = 512
 
-# Proxy response timeout (seconds)
-# Higher = finds more slow proxies but takes longer
-# Lower = faster checking but discards slow proxies
+# Total seconds per check, covering the connection and the whole response. A proxy only
+# counts as working if it delivers the entire response within this, so one that connects
+# and then stalls is rejected rather than reported as working. Checks are never retried.
 timeout = 10.0
+
+# Seconds allowed to connect. Nearly every proxy in a public list is dead and costs
+# exactly this before being dropped, so it is this value, not `timeout`, that decides
+# how long a run takes. Lower it to finish sooner and keep only fast proxies.
 connect_timeout = 5.0
 
-# User-Agent header for proxy check requests
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
+# Sent to check_url. Some sites reject unknown or empty User-Agents.
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
 
 [scraping]
-# Maximum proxies to collect per source (0 = unlimited)
-# When this limit is reached, the source is skipped with a warning to prevent memory issues
+# Discard a source that yields more than this many proxies (0 = no limit). The whole
+# source is dropped, not truncated. Keep it above 65534 so a /16 CIDR still fits.
 max_proxies_per_source = 100000
 
-# Request timeout for fetching proxy sources (seconds)
-# Higher values allow slower sources to complete but increase total scraping time
+# Seconds to fetch one source, connection included. Sources are fetched in parallel and
+# retried twice. Does not limit the ASN and geolocation database downloads.
 timeout = 10.0
+
+# Seconds allowed to connect to a source.
 connect_timeout = 5.0
 
-# HTTP(S), SOCKS4, or SOCKS5 proxy used for fetching sources (e.g., "socks5://user:pass@host:port"). Leave empty to disable.
+# Fetch sources through this proxy, e.g. "socks5://user:pass@host:port".
+# Has no effect on proxy checking. Leave empty to connect directly.
 proxy = ""
 
-# User-Agent header for scraping requests
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
+# Sent when fetching sources.
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
 
-# Proxy sources configuration
+# Sources are grouped by protocol. The group decides the protocol, unless an entry
+# carries its own scheme. Setting enabled = false on a group skips its sources and
+# also discards proxies of that scheme found in the other groups.
+#
+# Duplicates are removed across all sources, so overlapping lists are fine.
+#
+# Any text format works - proxies are pattern-matched out, so HTML and JSON need no
+# cleanup. Recognized forms:
+#   1.2.3.4:8080
+#   socks5://1.2.3.4:1080
+#   user:pass@1.2.3.4:8080
+#   1.2.3.0/24:8080          CIDR, /16 to /32, expanded to every host
+
 [scraping.http]
 enabled = true
 urls = [
-  # Local file examples:
-  # "./my_http_proxies.txt",
-  # "/home/user/my_http_proxies.txt",
-  # "C:/Users/user/Desktop/my_http_proxies.txt",
-  # "file:///home/user/my_http_proxies.txt",
-
-  # Advanced configuration examples (with basic auth or custom headers):
-  # HTTP Basic Auth example:
-  # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
-  # Custom headers example:
-  # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
+  # Local files work too:
+  #   "./my_http_proxies.txt",
+  #   "C:/Users/user/Desktop/my_http_proxies.txt",
+  #   "file:///home/user/my_http_proxies.txt",
+  #
+  # Sources needing authentication or custom headers take the long form:
+  #   { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
+  #   { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
   "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=http",
   "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=https",
@@ -96,18 +118,6 @@ urls = [
 [scraping.socks4]
 enabled = true
 urls = [
-  # Local file examples:
-  # "./my_socks4_proxies.txt",
-  # "/home/user/my_socks4_proxies.txt",
-  # "C:/Users/user/Desktop/my_socks4_proxies.txt",
-  # "file:///home/user/my_socks4_proxies.txt",
-
-  # Advanced configuration examples (with basic auth or custom headers):
-  # HTTP Basic Auth example:
-  # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
-  # Custom headers example:
-  # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
-
   "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks4",
   "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks4.txt",
   "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks4/data.txt",
@@ -118,18 +128,6 @@ urls = [
 [scraping.socks5]
 enabled = true
 urls = [
-  # Local file examples:
-  # "./my_socks5_proxies.txt",
-  # "/home/user/my_socks5_proxies.txt",
-  # "C:/Users/user/Desktop/my_socks5_proxies.txt",
-  # "file:///home/user/my_socks5_proxies.txt",
-
-  # Advanced configuration examples (with basic auth or custom headers):
-  # HTTP Basic Auth example:
-  # { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
-  # Custom headers example:
-  # { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
-
   "https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&protocol=socks5",
   "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks5.txt",
   "https://raw.githubusercontent.com/hookzof/socks5_list/refs/heads/master/proxy.txt",

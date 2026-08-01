@@ -25,18 +25,53 @@ import pathlib
 import statistics
 import sys
 from collections import defaultdict
-
-# MAD -> standard-deviation-ish scale for a normal distribution, then ~2 sigma.
-# Deliberately conservative: over-reporting a win is the expensive mistake here,
-# since it ends in a C toolchain being added to 41 release targets.
-MAD_TO_SIGMA = 1.4826
-NOISE_K = 2.0
+from typing import NamedTuple
 
 METRICS = [
     ("peak_rss_kb", "peak RSS KB", "lower"),
     ("wall_ms", "wall ms", "lower"),
     ("cpu_ms", "cpu ms", "lower"),
 ]
+
+# A cell whose reps span more than this is not one measurement with noise on
+# it. 22% of the cells in the first three-workload run cleared it, almost all
+# of them jemalloc or mimalloc.
+UNSTABLE_SPREAD_PCT = 5.0
+# Drift, measured as the mean of the last two reps against the first two.
+# Above this the reps are a trend, not a sample, and the median is meaningless:
+# one macOS cell ran 36688 -> 14080 KB across five reps and its MAD still said
+# the number was solid.
+DRIFT_PCT = 10.0
+
+
+class Cell(NamedTuple):
+    median: float
+    mad: float
+    n: int
+    lo: float
+    hi: float
+    seq: list[float]
+
+    @property
+    def spread_pct(self) -> float:
+        return 100.0 * (self.hi - self.lo) / self.median if self.median else 0.0
+
+    @property
+    def drift_pct(self) -> float:
+        if self.n < 4:
+            return 0.0
+        early = statistics.mean(self.seq[:2])
+        late = statistics.mean(self.seq[-2:])
+        return 100.0 * (late - early) / early if early else 0.0
+
+    @property
+    def warning(self) -> str:
+        """Single-character marker, worst problem first."""
+        if abs(self.drift_pct) > DRIFT_PCT:
+            return "D"
+        if self.spread_pct > UNSTABLE_SPREAD_PCT:
+            return "S"
+        return ""
 
 
 def read_rows(root: pathlib.Path) -> list[dict[str, str]]:
@@ -117,16 +152,45 @@ def summarize(rows: list[dict[str, str]]) -> dict:
     stats = {}
     for key, series in cells.items():
         stats[key] = {
-            name: (
-                statistics.median(values),
-                statistics.median(
+            name: Cell(
+                median=statistics.median(values),
+                mad=statistics.median(
                     [abs(v - statistics.median(values)) for v in values]
                 ),
-                len(values),
+                n=len(values),
+                lo=min(values),
+                hi=max(values),
+                # Reps in file order. Kept so a monotonic drift can be told
+                # apart from scatter; see drift() below.
+                seq=list(values),
             )
             for name, values in series.items()
         }
     return stats
+
+
+def delta_cell(x: Cell, b: Cell) -> str:
+    """Median-vs-median delta, qualified by what the reps can actually support.
+
+    The MAD-based test this replaced called a cell precise whenever three of
+    five reps agreed - and mimalloc cells are frequently bimodal, e.g.
+    [75808, 63524, 75812, 65576, 75812], whose MAD is 4 KB against a 12 MB
+    spread. So significance is decided by the observed ranges instead: the
+    delta counts only if it keeps its sign when each side is taken at its worst
+    against the other's best. That is conservative by construction, which is
+    the right direction when a false positive ends in a C toolchain being added
+    to 41 release targets.
+    """
+    pct = 100.0 * (x.median - b.median) / b.median if b.median else 0.0
+    if x.n < 3 or b.n < 3:
+        return f"{pct:+.1f}% (n<3)"
+    if abs(x.drift_pct) > DRIFT_PCT or abs(b.drift_pct) > DRIFT_PCT:
+        return f"{pct:+.1f}% (drift)"
+    lo = 100.0 * (x.lo - b.hi) / b.hi if b.hi else 0.0
+    hi = 100.0 * (x.hi - b.lo) / b.lo if b.lo else 0.0
+    if lo > 0.0 and hi > 0.0 or lo < 0.0 and hi < 0.0:
+        return f"{pct:+.1f}%"
+    return f"{pct:+.1f}% (noise)"
 
 
 def render(stats: dict, out: list[str]) -> None:
@@ -164,33 +228,21 @@ def render(stats: dict, out: list[str]) -> None:
         header = "| allocator | env | n |"
         divider = "| --- | --- | ---: |"
         for _, label, _ in METRICS:
-            header += f" {label} | MAD | vs system |"
+            header += f" {label} | spread | vs system |"
             divider += " ---: | ---: | ---: |"
         out.append(header)
         out.append(divider)
 
         for key in sorted(keys, key=lambda k: (k[5], k[6])):
-            n = stats[key]["wall_ms"][2]
-            line = f"| `{key[5]}` | {key[6]} | {n} |"
+            cell = stats[key]["wall_ms"]
+            line = f"| `{key[5]}` | {key[6]} | {cell.n} |"
             for name, _, _ in METRICS:
-                median, mad, _ = stats[key][name]
-                line += f" {median:.0f} | {mad:.0f} |"
+                c = stats[key][name]
+                line += f" {c.median:.0f} | {c.spread_pct:.1f}%{c.warning} |"
                 if baseline is None or key == baseline:
                     line += " - |"
                 else:
-                    base_median, base_mad, base_n = stats[baseline][name]
-                    delta = median - base_median
-                    pct = 100.0 * delta / base_median if base_median else 0.0
-                    noise = NOISE_K * MAD_TO_SIGMA * max(mad, base_mad)
-                    # A zero MAD means every rep landed on the same value; that
-                    # is a real possibility for peak RSS and must not turn a
-                    # 1 KB difference into a "significant" result.
-                    noise = max(noise, 0.01 * base_median)
-                    if n < 3 or base_n < 3:
-                        mark = " (n<3)"
-                    else:
-                        mark = "" if abs(delta) > noise else " (noise)"
-                    line += f" {pct:+.1f}%{mark} |"
+                    line += f" {delta_cell(c, stats[baseline][name])} |"
             out.append(line)
         out.append("")
 
@@ -231,21 +283,13 @@ def render_mt(stats: dict, out: list[str]) -> None:
 
     for (platform, workload, allocator, alloc_env), sides in rows:
         off, on = sides["false"], sides["true"]
-        n = min(off["wall_ms"][2], on["wall_ms"][2])
+        n = min(off["wall_ms"].n, on["wall_ms"].n)
         line = f"| {platform} | {workload} | `{allocator}` | {alloc_env} | {n} |"
         for name, _, _ in METRICS:
-            base_median, base_mad, _ = off[name]
-            median, mad, _ = on[name]
-            delta = median - base_median
-            pct = 100.0 * delta / base_median if base_median else 0.0
-            noise = max(
-                NOISE_K * MAD_TO_SIGMA * max(mad, base_mad), 0.01 * base_median
+            line += (
+                f" {off[name].median:.0f} | {on[name].median:.0f} |"
+                f" {delta_cell(on[name], off[name])} |"
             )
-            if n < 3:
-                mark = " (n<3)"
-            else:
-                mark = "" if abs(delta) > noise else " (noise)"
-            line += f" {base_median:.0f} | {median:.0f} | {pct:+.1f}%{mark} |"
         out.append(line)
     out.append("")
 
@@ -266,11 +310,17 @@ def main() -> None:
     render_mt(stats, out)
     render(stats, out)
     out.append(
-        "Deltas are median-vs-median. `(noise)` marks a delta inside "
-        f"{NOISE_K:g}x the scaled MAD of the noisier of the two cells, i.e. one "
-        "this data cannot distinguish from run-to-run variation. `(n<3)` marks "
-        "a comparison where one side has too few repetitions for its MAD to "
-        "mean anything - treat it as unmeasured, not as a result.\n"
+        "Deltas are median-vs-median, qualified by the observed spread of the "
+        "repetitions rather than by their MAD: a delta counts only if it keeps "
+        "its sign with each side taken at its worst against the other's best. "
+        "`(noise)` means it does not. `(n<3)` means one side has too few "
+        "repetitions to say anything. `(drift)` means one side's reps are a "
+        "trend rather than a sample, so its median describes nothing.\n"
+        "\n"
+        "The `spread` column is (max-min)/median over a cell's own reps. "
+        f"`S` marks more than {UNSTABLE_SPREAD_PCT:g}%, which is common for "
+        "jemalloc and mimalloc and often bimodal rather than noisy; `D` marks "
+        f"a drift above {DRIFT_PCT:g}% between the first and last reps.\n"
         "\n"
         "The MAD is measured *within* one job on one runner, but every delta "
         "compares two jobs on two runner VMs, so timing deltas in particular "

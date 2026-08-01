@@ -148,9 +148,14 @@ tls_server_start() {
     >bench-tls-server.log 2>&1 &
   tls_pid=$!
 
+  # Probe the port rather than the log, matching the Windows script: a readiness
+  # signal that depends on reading a file another process is writing is one more
+  # way to lose a cell. The probe sends nothing and closes, so the server drops
+  # it before the handshake counter.
   i=0
   while [ "$i" -lt 150 ]; do
-    if grep -q READY bench-tls-server.log 2>/dev/null; then
+    if (exec 3<>"/dev/tcp/127.0.0.1/$TLS_PORT") 2>/dev/null; then
+      exec 3<&- 3>&-
       return 0
     fi
     if ! kill -0 "$tls_pid" 2>/dev/null; then
@@ -177,6 +182,15 @@ if [ "$WORKLOAD" = "tls" ] && ! tls_server_start; then
   continue
 fi
 
+# Repetitions outside, tuning variants inside. Running all six reps of one
+# variant before starting the next makes every variant comparison a
+# before-and-after across several minutes, so any drift in the machine lands
+# entirely on whichever variant ran later. That is not hypothetical: with the
+# old order a macOS cell reported jemalloc/tuned at -56% peak RSS purely
+# because its reps ran last and slid from 36688 KB to 14080 KB. Interleaving
+# spreads such a trend evenly over the variants instead.
+for i in $(seq 1 "$total"); do
+
 old_ifs="$IFS"; IFS=';'
 for ALLOC_ENV in $ALLOC_ENVS; do
 IFS="$old_ifs"
@@ -186,11 +200,12 @@ alloc_env_vars=""
 [ "$ALLOC_ENV" != "$alloc_env_name" ] && alloc_env_vars="${ALLOC_ENV#*:}"
 
 cell_id="${PLATFORM_LABEL}|${ALLOCATOR}|mt=${TOKIO_MULTI_THREAD}|${WORKLOAD}|${alloc_env_name}"
-cells="${cells}${cell_id}
+if [ "$i" -eq 1 ]; then
+  cells="${cells}${cell_id}
 "
-echo "--- $cell_id (env: ${alloc_env_vars:-none}) ---"
+  echo "--- $cell_id (env: ${alloc_env_vars:-none}) ---"
+fi
 
-for i in $(seq 1 "$total"); do
   log="bench-${WORKLOAD}-${alloc_env_name}-${i}.log"
   timing="bench-time-${WORKLOAD}-${alloc_env_name}-${i}.txt"
 
@@ -301,11 +316,12 @@ for i in $(seq 1 "$total"); do
     "$peak_rss_kb" "$peak_extra_kb" "$peak_extra_kind" "$major" "$minor" \
     "$pf_kind" "$exit_code" "$proxies_checked" "$proxies_out" "$exe_sha" \
     "$thp" "$page_kb" >> "$results"
-done
 
 old_ifs="$IFS"; IFS=';'
 done
 IFS="$old_ifs"
+
+done
 
 if [ "$WORKLOAD" = "tls" ]; then
   # Prove the tunnel actually carried TLS. "Started checking 2000 proxies" is

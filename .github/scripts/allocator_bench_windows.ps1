@@ -153,11 +153,20 @@ function Start-TlsServer {
     -RedirectStandardOutput bench-tls-server.log `
     -RedirectStandardError bench-tls-server.err
 
+  # Probe the port, not the log. Start-Process holds the redirected stdout file
+  # open, and Select-String on it can fail to read while it is being written -
+  # which loses the readiness signal, skips the workload and leaves that cell
+  # with no rows. One windows-2025 baseline cell went missing exactly that way.
+  # The probe closes immediately, so the server drops it before counting.
   for ($w = 0; $w -lt 150; $w++) {
-    if ((Test-Path 'bench-tls-server.log') -and
-        (Select-String -Path bench-tls-server.log -Pattern 'READY' -Quiet)) {
-      return $true
+    try {
+      $probe = New-Object System.Net.Sockets.TcpClient
+      $probe.Connect('127.0.0.1', $tlsPort)
+      $connected = $probe.Connected
+      $probe.Close()
+      if ($connected) { return $true }
     }
+    catch { }
     if ($script:tlsProc.HasExited) { break }
     Start-Sleep -Milliseconds 100
   }
@@ -172,6 +181,12 @@ function Start-TlsServer {
 
 # Workloads and tuning variants are loops inside the job, not matrix axes:
 # neither needs a rebuild, and the build is what costs minutes.
+#
+# allocator_bench_unix.sh interleaves the tuning variants across repetitions so
+# that drift in the machine cannot land on whichever variant ran last. This
+# script deliberately does not: allocator_bench_matrix.py only ever emits the
+# variants for Linux allocators, so every Windows cell has exactly one
+# ("default") and the interleaving would be a no-op.
 foreach ($workload in $workloads) {
   if ($workload -eq 'tls' -and -not (Start-TlsServer)) { continue }
 

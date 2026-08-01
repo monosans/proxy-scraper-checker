@@ -211,8 +211,13 @@ done
 IFS="$old_ifs"
 done
 
+# The summary is cosmetic; bench-results.tsv is the artifact that matters and
+# the aggregate job reads that, not this. A formatting bug here must never
+# discard a cell that already ran to completion - which is exactly what an awk
+# syntax error did once, throwing away every measured repetition of the job.
 echo "$cells" | while read -r cell; do
   if [ -n "$cell" ]; then
-    sh .github/scripts/allocator_bench_report.sh "$results" "$cell"
+    sh .github/scripts/allocator_bench_report.sh "$results" "$cell" \
+      || echo "::warning::summary failed for $cell (results are still in $results)" >&2
   fi
 done

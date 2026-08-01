@@ -34,4 +34,10 @@ docker run --rm \
 # actions/upload-artifact can read them.
 sudo chown -R "$(id -u):$(id -g)" . 2>/dev/null || true
 
-cat alpine-summary.md >> "$GITHUB_STEP_SUMMARY"
+# Cosmetic, like the summary itself: the measured rows live in
+# bench-results.tsv and are uploaded regardless.
+if [ -f alpine-summary.md ]; then
+  cat alpine-summary.md >> "$GITHUB_STEP_SUMMARY"
+else
+  echo "::warning::no alpine-summary.md (results are still in bench-results.tsv)"
+fi

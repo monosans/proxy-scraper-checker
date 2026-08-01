@@ -201,6 +201,10 @@ foreach ($workload in $workloads) {
 
     # Median rather than mean, MAD rather than stddev: with 5 reps a single
     # descheduled run would drag a mean far enough to invent a difference.
+    # Wrapped because the summary is cosmetic: bench-results.tsv is the
+    # artifact the aggregate job reads, and a formatting bug must not discard
+    # a cell that already ran to completion.
+    try {
     $summary = @("### $cellId", '',
       "reps: $($rows.Count) &nbsp;&nbsp; cores: $cores &nbsp;&nbsp; rustc: $toolchain &nbsp;&nbsp; exe: $exeSha", '',
       '| metric | median | MAD |', '| --- | ---: | ---: |')
@@ -213,5 +217,8 @@ foreach ($workload in $workloads) {
     }
     $summary += ''
     ($summary -join "`n") | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
+    } catch {
+      Write-Host "::warning::summary failed for $cellId ($($_.Exception.Message)); results are still in $results"
+    }
   }
 }

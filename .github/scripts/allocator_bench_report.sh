@@ -28,7 +28,11 @@ cell_id="$2"
         a[j + 1] = t
       }
     }
-    function stat(src, n, out,   i, s[1], d[1], med) {
+    # s and d are locals: awk gives a function extra parameters as fresh
+    # locals, and they become arrays on first subscripted use. They must be
+    # named plainly - "s[1]" in a parameter list is a syntax error, and mawk
+    # (the default awk on Ubuntu runners) reports it as one.
+    function stat(src, n, out,   i, s, d, med) {
       for (i = 1; i <= n; i++) s[i] = src[i]
       isort(s, n); med = median(s, n)
       for (i = 1; i <= n; i++) d[i] = (s[i] > med) ? s[i] - med : med - s[i]

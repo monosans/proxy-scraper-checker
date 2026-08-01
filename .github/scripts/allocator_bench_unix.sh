@@ -102,11 +102,80 @@ out_dir=bench-out
 
 to_ms() { awk -v v="$1" 'BEGIN { printf "%d", v * 1000 }'; }
 
+# --- tls workload support --------------------------------------------------
+# Must match check_url in bench/config.tls.toml and the port baked into
+# bench/corpus/tls_http.txt.
+TLS_PORT=18443
+tls_pid=""
+
+tls_server_stop() {
+  if [ -n "$tls_pid" ]; then
+    kill "$tls_pid" 2>/dev/null || true
+    wait "$tls_pid" 2>/dev/null || true
+    tls_pid=""
+  fi
+}
+trap tls_server_stop EXIT INT TERM
+
+# Returns non-zero to SKIP the tls workload rather than fail the job: a missing
+# python3 or openssl on one platform must not throw away that job's check and
+# scrape rows, which is the same reason the summary step is non-fatal.
+tls_server_start() {
+  tls_pid=""
+  for tool in python3 openssl; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      echo "::warning::$tool not found - skipping the tls workload" >&2
+      return 1
+    fi
+  done
+
+  if [ ! -f bench-tls-cert.pem ]; then
+    # Self-signed on purpose: the client is meant to reject it, which is what
+    # makes the outcome deterministic. No SAN and no -addext, so this works on
+    # LibreSSL (macOS) as well as OpenSSL.
+    if ! openssl req -x509 -newkey rsa:2048 -keyout bench-tls-key.pem \
+        -out bench-tls-cert.pem -days 1 -nodes -subj "/CN=127.0.0.1" \
+        >bench-tls-openssl.log 2>&1; then
+      echo "::warning::openssl could not create a cert - skipping tls" >&2
+      cat bench-tls-openssl.log >&2
+      return 1
+    fi
+  fi
+
+  python3 bench/tls_server.py --port "$TLS_PORT" \
+    --cert bench-tls-cert.pem --key bench-tls-key.pem \
+    --count-file bench-tls-handshakes.txt \
+    >bench-tls-server.log 2>&1 &
+  tls_pid=$!
+
+  i=0
+  while [ "$i" -lt 150 ]; do
+    if grep -q READY bench-tls-server.log 2>/dev/null; then
+      return 0
+    fi
+    if ! kill -0 "$tls_pid" 2>/dev/null; then
+      break
+    fi
+    sleep 0.1
+    i=$(( i + 1 ))
+  done
+
+  echo "::warning::tls server never became ready - skipping the tls workload" >&2
+  cat bench-tls-server.log >&2
+  tls_server_stop
+  return 1
+}
+
 cells=""
 total=$(( WARMUPS + REPS ))
 
 for WORKLOAD in $WORKLOADS; do
 export PROXY_SCRAPER_CHECKER_CONFIG="bench/config.${WORKLOAD}.toml"
+
+# IFS is at its default here, so skipping the whole workload is safe.
+if [ "$WORKLOAD" = "tls" ] && ! tls_server_start; then
+  continue
+fi
 
 old_ifs="$IFS"; IFS=';'
 for ALLOC_ENV in $ALLOC_ENVS; do
@@ -206,7 +275,11 @@ for i in $(seq 1 "$total"); do
       "configured 512; this platform is not running the same workload" >&2
   fi
 
-  if [ "$WORKLOAD" = "check" ] && [ "$proxies_checked" -eq 0 ]; then
+  # tls shares the check guard: every one of its 2000 proxies must reach
+  # Proxy::check, and a proxies_checked of 0 means the corpus, the config or
+  # the local server is wrong rather than that the allocator was fast.
+  if { [ "$WORKLOAD" = "check" ] || [ "$WORKLOAD" = "tls" ]; } &&
+     [ "$proxies_checked" -eq 0 ]; then
     echo "rep $i checked no proxies - corpus or config is wrong" >&2
     tail -n 40 "$log" "$timing" >&2
     exit 1
@@ -233,6 +306,23 @@ done
 old_ifs="$IFS"; IFS=';'
 done
 IFS="$old_ifs"
+
+if [ "$WORKLOAD" = "tls" ]; then
+  # Prove the tunnel actually carried TLS. "Started checking 2000 proxies" is
+  # logged before the first check runs, so proxies_checked cannot tell a run of
+  # 2000 handshakes from a run of 2000 refused connects - and the second one
+  # would quietly be a duplicate of the check workload wearing the tls label.
+  # Counted by the server, so the measured process is untouched.
+  handshakes="$(cat bench-tls-handshakes.txt 2>/dev/null || echo 0)"
+  expected=$(( (WARMUPS + REPS) * 2000 ))
+  if [ "$handshakes" -lt $(( expected / 2 )) ]; then
+    echo "::warning::tls workload completed only $handshakes handshakes," \
+      "expected about $expected - those rows measure failed connects, not TLS" >&2
+  else
+    echo "tls workload: $handshakes handshakes (expected ~$expected)"
+  fi
+  tls_server_stop
+fi
 done
 
 # The summary is cosmetic; bench-results.tsv is the artifact that matters and

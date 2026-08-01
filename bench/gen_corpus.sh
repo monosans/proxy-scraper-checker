@@ -43,6 +43,22 @@ function gen_check(file, base,   i) {
   close(file)
 }
 
+# --- tls corpus ------------------------------------------------------------
+# Every entry is the SAME local CONNECT proxy (bench/tls_server.py), so every
+# check completes a real TLS handshake against it. They must still be distinct
+# Proxy values or the dedup HashSet collapses them to one: Proxy hashes
+# (protocol, host, port, auth) in src/proxy.rs, so the username is what varies.
+# The parser accepts alphanumeric userinfo only - see the regex in
+# src/parsers.rs - hence uNNNN:pw.
+#
+# 2000, not 8000: unlike the refused connects of the check corpus these are
+# completed TCP sessions, and at 6 repetitions per cell the total has to stay
+# well under the ~16k ephemeral ports Windows offers.
+function gen_tls(file, port, n,   i) {
+  for (i = 0; i < n; i++) printf "u%04d:pw@127.0.0.1:%d\n", i, port > file
+  close(file)
+}
+
 # --- scraping corpus -------------------------------------------------------
 # Shapes chosen to cover every branch of parsers.rs and the scraper hot loop:
 # bare ipv4:port, CIDR shorthand (the bulk), scheme prefixes, userinfo (the
@@ -90,6 +106,10 @@ BEGIN {
   gen_check("corpus/check_http.txt",   20000)
   gen_check("corpus/check_socks4.txt", 28000)
   gen_check("corpus/check_socks5.txt", 36000)
+
+  # Port must match TLS_PORT in the bench scripts and check_url in
+  # bench/config.tls.toml.
+  gen_tls("corpus/tls_http.txt", 18443, 2000)
 
   gen_scrape("corpus/scrape_http.txt",   "10.16", "http")
   gen_scrape("corpus/scrape_socks4.txt", "10.80", "socks4")

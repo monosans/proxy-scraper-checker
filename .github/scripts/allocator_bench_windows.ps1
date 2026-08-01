@@ -100,9 +100,81 @@ function Get-Mad([double[]]$v) {
   return Get-Median @($v | ForEach-Object { [math]::Abs($_ - $m) })
 }
 
+# --- tls workload support --------------------------------------------------
+# Must match check_url in bench/config.tls.toml and the port baked into
+# bench/corpus/tls_http.txt.
+$tlsPort = 18443
+$script:tlsProc = $null
+
+function Stop-TlsServer {
+  if ($script:tlsProc -and -not $script:tlsProc.HasExited) {
+    try { $script:tlsProc.Kill() } catch { }
+  }
+  $script:tlsProc = $null
+}
+
+# Returns $false to SKIP the tls workload rather than fail the job: a missing
+# python or openssl must not throw away this job's check and scrape rows.
+function Start-TlsServer {
+  $script:tlsProc = $null
+  $py = $null
+  foreach ($candidate in 'python', 'python3') {
+    $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
+    # Skip the Windows Store execution-alias stubs, which exit without running.
+    if ($cmd -and $cmd.Source -notlike '*WindowsApps*') { $py = $cmd.Source; break }
+  }
+  if (-not $py) {
+    Write-Host '::warning::python not found - skipping the tls workload'
+    return $false
+  }
+  if (-not (Get-Command openssl -ErrorAction SilentlyContinue)) {
+    Write-Host '::warning::openssl not found - skipping the tls workload'
+    return $false
+  }
+
+  if (-not (Test-Path 'bench-tls-cert.pem')) {
+    # Self-signed on purpose: the client is meant to reject it, which is what
+    # makes the outcome deterministic.
+    & openssl req -x509 -newkey rsa:2048 -keyout bench-tls-key.pem `
+      -out bench-tls-cert.pem -days 1 -nodes -subj '/CN=127.0.0.1' `
+      *> bench-tls-openssl.log
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path 'bench-tls-cert.pem')) {
+      Write-Host '::warning::openssl could not create a cert - skipping tls'
+      if (Test-Path 'bench-tls-openssl.log') { Get-Content bench-tls-openssl.log | Write-Host }
+      return $false
+    }
+  }
+
+  if (Test-Path 'bench-tls-server.log') { Remove-Item bench-tls-server.log -Force }
+  $script:tlsProc = Start-Process -FilePath $py -PassThru -NoNewWindow `
+    -ArgumentList @('bench/tls_server.py', '--port', "$tlsPort",
+      '--cert', 'bench-tls-cert.pem', '--key', 'bench-tls-key.pem',
+      '--count-file', 'bench-tls-handshakes.txt') `
+    -RedirectStandardOutput bench-tls-server.log `
+    -RedirectStandardError bench-tls-server.err
+
+  for ($w = 0; $w -lt 150; $w++) {
+    if ((Test-Path 'bench-tls-server.log') -and
+        (Select-String -Path bench-tls-server.log -Pattern 'READY' -Quiet)) {
+      return $true
+    }
+    if ($script:tlsProc.HasExited) { break }
+    Start-Sleep -Milliseconds 100
+  }
+
+  Write-Host '::warning::tls server never became ready - skipping the tls workload'
+  foreach ($f in 'bench-tls-server.log', 'bench-tls-server.err') {
+    if (Test-Path $f) { Get-Content $f | Write-Host }
+  }
+  Stop-TlsServer
+  return $false
+}
+
 # Workloads and tuning variants are loops inside the job, not matrix axes:
 # neither needs a rebuild, and the build is what costs minutes.
 foreach ($workload in $workloads) {
+  if ($workload -eq 'tls' -and -not (Start-TlsServer)) { continue }
+
   foreach ($allocEnv in $allocEnvs) {
     $allocEnvName = $allocEnv.Split(':')[0]
     $cellId = "$platform|$allocator|mt=$mt|$workload|$allocEnvName"
@@ -180,7 +252,10 @@ foreach ($workload in $workloads) {
         Write-Host "::warning::$cellId rep ${i}: concurrency was clamped below the configured 512; this platform is not running the same workload"
       }
 
-      if ($workload -eq 'check' -and $checked -eq 0) {
+      # tls shares the check guard: every one of its 2000 proxies must reach
+      # Proxy::check, and 0 means the corpus, the config or the local server is
+      # wrong rather than that the allocator was fast.
+      if (($workload -eq 'check' -or $workload -eq 'tls') -and $checked -eq 0) {
         Get-Content $log -Tail 40 | Write-Host
         throw "rep $i checked no proxies - corpus or config is wrong"
       }
@@ -228,4 +303,24 @@ foreach ($workload in $workloads) {
       Write-Host "::warning::summary failed for $cellId ($($_.Exception.Message)); results are still in $results"
     }
   }
+
+  if ($workload -eq 'tls') {
+    # See the matching note in allocator_bench_unix.sh: proxies_checked is
+    # logged before the first check, so it cannot distinguish 2000 handshakes
+    # from 2000 refused connects. The server counts, not the measured process.
+    $handshakes = 0
+    if (Test-Path 'bench-tls-handshakes.txt') {
+      $handshakes = [int](Get-Content 'bench-tls-handshakes.txt' -Raw).Trim()
+    }
+    $expected = ($warmups + $reps) * 2000
+    if ($handshakes -lt ($expected / 2)) {
+      Write-Host "::warning::tls workload completed only $handshakes handshakes, expected about $expected - those rows measure failed connects, not TLS"
+    }
+    else {
+      Write-Host "tls workload: $handshakes handshakes (expected ~$expected)"
+    }
+    Stop-TlsServer
+  }
 }
+
+Stop-TlsServer

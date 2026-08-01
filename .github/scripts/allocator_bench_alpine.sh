@@ -26,7 +26,9 @@ docker run --rm \
   -e CARGO_TARGET_DIR=/work/target-alpine \
   -e GITHUB_STEP_SUMMARY=/work/alpine-summary.md \
   "$RUST_IMAGE" sh -euc '
-    apk add --no-cache bash build-base pkgconfig time
+    # python3 and openssl serve the tls workload (bench/tls_server.py); without
+    # them that workload skips itself with a warning and check/scrape still run.
+    apk add --no-cache bash build-base pkgconfig time python3 openssl
     exec bash .github/scripts/allocator_bench_unix.sh
   '
 

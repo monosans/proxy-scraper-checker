@@ -229,5 +229,10 @@ bench-results.tsv
 bench-all.tsv
 bench-*.log
 bench-time-*.txt
+# The tls workload generates a throwaway self-signed cert and key at run time.
+# Ignored so a local run cannot leave a private key sitting in the worktree.
+bench-tls-*.pem
+bench-tls-*.txt
+bench-tls-*.err
 alpine-summary.md
 target-alpine/

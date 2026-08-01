@@ -1,0 +1,80 @@
+#:schema ../config-schema.json
+
+# Allocator-benchmark workload: TLS HANDSHAKES.
+#
+# 2000 proxies, all of them the same local CONNECT proxy from
+# bench/tls_server.py, distinguished only by userinfo so the dedup HashSet
+# keeps them apart. Every check therefore completes a real TLS handshake
+# instead of dying in connect() the way config.check.toml does.
+#
+# This is the workload that exercises aws-lc-sys, the largest C allocator
+# linked into the program and the only allocation traffic that mimalloc's
+# `override` and jemalloc's `override_allocator_on_supported_platforms` can
+# redirect - Rust allocations already go through #[global_allocator] with or
+# without those features. Without this workload the override rows measure
+# nothing and cannot be told apart from a null result.
+#
+# src/http.rs pins kx_groups to X25519/P-256/P-384 for TlsProfile::Checking
+# (post-quantum is scraping-only) and disables resumption, so each of the 2000
+# checks is a full classical handshake, and a stock OpenSSL server matches it
+# exactly.
+#
+# Every check FAILS, deterministically: the server certificate is self-signed
+# and rustls-platform-verifier rejects it. The handshake still runs key
+# generation, the ECDHE agreement, the key schedule, AEAD decryption of the
+# handshake records and X.509 parsing. So proxies_checked is 2000 and
+# proxies_out is 0 on every platform and every allocator.
+#
+# Selected with PROXY_SCRAPER_CHECKER_CONFIG=bench/config.tls.toml, resolved
+# relative to the working directory, so run it from the repository root.
+# Requires bench/tls_server.py to be listening on 127.0.0.1:18443 first.
+
+debug = false
+
+[output]
+path = "./bench-out"
+sort_by_speed = false
+
+[output.txt]
+enabled = true
+
+[output.json]
+enabled = true
+# Off for the same reason as the other two workloads: 78 MB of live download
+# per run, and mmapped pages that land in peak RSS without ever passing
+# through the allocator.
+include_asn = false
+include_geolocation = false
+
+[checking]
+# Must match TLS_PORT in the bench scripts and the port baked into
+# bench/corpus/tls_http.txt. An IP literal also keeps DNS out of the
+# measurement.
+check_url = "https://127.0.0.1:18443/"
+max_concurrent_checks = 512
+# Generous enough that a loaded runner cannot turn a completed handshake into
+# a timeout, which would silently change what is being measured.
+timeout = 15.0
+connect_timeout = 10.0
+user_agent = "proxy-scraper-checker-bench"
+
+[scraping]
+max_proxies_per_source = 0
+timeout = 10.0
+connect_timeout = 5.0
+proxy = ""
+user_agent = "proxy-scraper-checker-bench"
+
+# http only: CONNECT is what tunnels TLS to the target, and a SOCKS variant
+# would need a second server for no extra allocator coverage.
+[scraping.http]
+enabled = true
+urls = ["./bench/corpus/tls_http.txt"]
+
+[scraping.socks4]
+enabled = false
+urls = []
+
+[scraping.socks5]
+enabled = false
+urls = []

@@ -77,6 +77,15 @@ JE_TUNED = (
 )
 JE_BG = "bg:MALLOC_CONF=background_thread:true _RJEM_MALLOC_CONF=background_thread:true"
 
+# The previous run split perfectly along THP: jemalloc cost +59..92% peak RSS on
+# the x86_64 runners, which report /sys/.../enabled = [always], and only +5..19%
+# on the arm64 ones, which report [madvise]. That is a plausible mechanism -
+# jemalloc maps large aligned regions that khugepaged then backs with 2 MB pages
+# - but it is confounded with the architecture. opt.thp is a Linux-only jemalloc
+# option (it needs MADVISE_HUGE), so this variant tests it directly on the
+# always machines instead of inferring it from a correlation.
+JE_THP = "thp_never:MALLOC_CONF=thp:never _RJEM_MALLOC_CONF=thp:never"
+
 
 def alloc_envs(platform: str, family: str, allocator: str) -> str:
     variants = ["default"]
@@ -84,6 +93,8 @@ def alloc_envs(platform: str, family: str, allocator: str) -> str:
         variants.append("no_thp:MIMALLOC_ALLOW_THP=0")
     if allocator.startswith("jemalloc"):
         variants.append(JE_TUNED)
+        if family == "linux":
+            variants.append(JE_THP)
         # jemalloc-sys lists musl in NO_BG_THREAD_TARGETS, and macOS compiles
         # background threads out entirely, so the knob only exists on glibc.
         if family == "linux" and not platform.startswith("alpine"):

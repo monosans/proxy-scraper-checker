@@ -911,7 +911,7 @@ dependencies = [
 [[package]]
 name = "hyper-util"
 version = "0.1.20"
-source = "git+https://github.com/monosans/hyper-util?branch=patch-1#f05a59323ab20b8225fd749bc563a6925174dd8d"
+source = "git+https://github.com/monosans/hyper-util?branch=patch-1#2a337c7bf852bb71dc9d2944497d0ff63da4b1de"
 dependencies = [
  "base64 0.23.0",
  "bytes",

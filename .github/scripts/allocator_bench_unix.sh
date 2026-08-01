@@ -139,6 +139,17 @@ for i in $(seq 1 "$total"); do
   rc=$?
   set -e
 
+  # Bail before the timing parse, not after. On the unproven Darwin path an
+  # unparseable $timing dies at an unbound-variable or arithmetic error tens of
+  # lines before the diagnostic dump below, and on Linux GNU time prepends
+  # "Command exited with non-zero status" to the file, which corrupts the
+  # tab-delimited read. Either way the log never reaches the job output.
+  if [ "$rc" != "0" ]; then
+    echo "rep $i exited with $rc" >&2
+    tail -n 40 "$log" "$timing" >&2
+    exit 1
+  fi
+
   if [ "$uname_s" = "Linux" ]; then
     IFS=$'\t' read -r wall user sys peak_rss_kb minor major exit_code \
       < "$timing"
@@ -150,12 +161,15 @@ for i in $(seq 1 "$total"); do
                "$timing")
     wall="$1"; user="$2"; sys="$3"
     # BSD time reports bytes; GNU time reports KB.
-    peak_rss_kb=$(( $(awk '/maximum resident set size/ { print $1; exit }' \
-                        "$timing") / 1024 ))
+    # The END guards keep an absent line from collapsing to $(( / 1024 )), a
+    # bash syntax error that would kill a macOS cell after its fat-LTO build.
+    # Insurance on a branch that has never run, not a known trigger.
+    peak_rss_kb=$(( $(awk '/maximum resident set size/ { print $1; f=1; exit }
+                           END { if (!f) print 0 }' "$timing") / 1024 ))
     # phys_footprint: includes compressed memory, excludes clean file-backed
     # pages. Recorded alongside max RSS, never instead of it.
-    peak_extra_kb=$(( $(awk '/peak memory footprint/ { print $1; exit }' \
-                          "$timing") / 1024 ))
+    peak_extra_kb=$(( $(awk '/peak memory footprint/ { print $1; f=1; exit }
+                             END { if (!f) print 0 }' "$timing") / 1024 ))
     minor="$(awk '/page reclaims/ { print $1; exit }' "$timing")"
     major="$(awk '/ page faults/ { print $1; exit }' "$timing")"
     exit_code=$rc
@@ -182,6 +196,16 @@ for i in $(seq 1 "$total"); do
     tail -n 40 "$log" "$timing" >&2
     exit 1
   fi
+  # config.rs raises RLIMIT_NOFILE itself and silently clamps
+  # max_concurrent_checks to whatever it got, so EMFILE can never be measured -
+  # but a platform that clamps runs a different concurrency than the rest of
+  # the matrix, and nothing in the TSV would say so. Per-platform comparisons
+  # stay valid either way; this only refuses to let it pass unnoticed.
+  if grep -q "max_concurrent_checks config value is too high" "$log"; then
+    echo "::warning::$cell_id rep $i: concurrency was clamped below the" \
+      "configured 512; this platform is not running the same workload" >&2
+  fi
+
   if [ "$WORKLOAD" = "check" ] && [ "$proxies_checked" -eq 0 ]; then
     echo "rep $i checked no proxies - corpus or config is wrong" >&2
     tail -n 40 "$log" "$timing" >&2

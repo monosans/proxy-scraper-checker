@@ -173,6 +173,13 @@ foreach ($workload in $workloads) {
       $outFile = 'bench-out\proxies\all.txt'
       $outN = if (Test-Path $outFile) { @(Get-Content $outFile).Count } else { 0 }
 
+      # See the matching note in allocator_bench_unix.sh: config.rs clamps
+      # max_concurrent_checks to the fd limit it managed to obtain, which would
+      # change the workload without changing any recorded column.
+      if ((Get-Content $log -Raw) -match 'max_concurrent_checks config value is too high') {
+        Write-Host "::warning::$cellId rep ${i}: concurrency was clamped below the configured 512; this platform is not running the same workload"
+      }
+
       if ($workload -eq 'check' -and $checked -eq 0) {
         Get-Content $log -Tail 40 | Write-Host
         throw "rep $i checked no proxies - corpus or config is wrong"

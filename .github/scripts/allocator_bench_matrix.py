@@ -38,6 +38,19 @@ PLATFORMS = [
 
 # `auto` is the shipped default feature set. Nothing in the previous benchmark
 # ever built it, so the configuration users actually get was never measured.
+#
+# It is knowingly a duplicate: `auto-allocator` wires tikv-jemallocator-auto
+# only under [target.'cfg(target_os = "macos")'.dependencies] (Cargo.toml) and
+# the matching #[global_allocator] in src/main.rs is gated on target_os macos,
+# so off macOS `auto` is the same program as `system`, and on macOS it is the
+# same package and feature set as `jemalloc_override`. It is kept anyway, and
+# this is the point: every "vs system" delta in the report compares two jobs on
+# two different runner VMs, while the MAD that sets the noise floor comes from
+# reps inside one job on one machine. The auto-vs-system spread on a non-macOS
+# platform is therefore a direct measurement of the between-job noise the
+# report otherwise has no way to see. Read it first, and distrust any delta
+# that is not comfortably larger than it.
+#
 # The `*_override` rows exist to answer the override question with data rather
 # than reasoning: mimalloc's `override` and jemalloc's
 # `override_allocator_on_supported_platforms` change what happens to the C
@@ -82,6 +95,16 @@ def main() -> None:
     cells = []
     for platform, runner, alpine, family in PLATFORMS:
         allocators = COMMON + ([] if family == "windows" else JEMALLOC)
+        if family == "windows":
+            # libmimalloc-sys/build.rs defines MI_MALLOC_OVERRIDE only when
+            # target_family != "windows", and skips -fno-builtin-malloc for
+            # MSVC ("overriding malloc is only available on windows in shared
+            # mode, but we only ever build a static lib"). The cell therefore
+            # compiles identical C to mimalloc_v3 and would only add a row
+            # labelled as an override that overrides nothing. exe_sha will not
+            # catch it either: the feature adds a #[used] static regardless of
+            # target, so the binaries differ while the behaviour does not.
+            allocators = [a for a in allocators if a != "mimalloc_v3_override"]
         for allocator in allocators:
             mts = [False]
             if platform in MT_PLATFORMS and allocator in MT_ALLOCATORS:

@@ -73,6 +73,8 @@ jobs:
           path: |
             bench-results.tsv
             bench-*.log
+            bench-time-*.txt
+          overwrite: true
           if-no-files-found: warn
   aggregate:
     needs: bench
@@ -91,4 +93,5 @@ jobs:
         with:
           name: bench-all
           path: bench-all.tsv
+          overwrite: true
           if-no-files-found: error

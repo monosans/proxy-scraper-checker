@@ -87,7 +87,28 @@ JE_BG = "bg:MALLOC_CONF=background_thread:true _RJEM_MALLOC_CONF=background_thre
 JE_THP = "thp_never:MALLOC_CONF=thp:never _RJEM_MALLOC_CONF=thp:never"
 
 
+# Between-job reproducibility is allocator-dependent, and the auto-vs-system
+# pair cannot measure it: those two build the same program and are the steadiest
+# configuration in the matrix (max 2.6% apart off macOS). Real allocators are
+# not. Comparing two full runs showed most cells landing within ~1pp of each
+# other but jemalloc_override on the THP=always x86_64 runners moving 20-26pp -
+# alpine went +47.2% -> +21.4% against system with no change but the run. Read
+# through the within-job spread alone that looked like "override saves 13%".
+#
+# These duplicates build a byte-identical binary under a second job, so the
+# report shows X against X_dup and the gap is the between-job noise for that
+# allocator, measured instead of assumed. The suffix is stripped before the
+# feature list is assembled.
+NOISE_DUPES = [
+    ("ubuntu-24.04", "jemalloc_override"),
+    ("alpine", "jemalloc_override"),
+    ("ubuntu-24.04", "mimalloc_v3"),
+]
+DUP_SUFFIX = "_dup"
+
+
 def alloc_envs(platform: str, family: str, allocator: str) -> str:
+    allocator = allocator.removesuffix(DUP_SUFFIX)
     variants = ["default"]
     if allocator.startswith("mimalloc") and family == "linux":
         variants.append("no_thp:MIMALLOC_ALLOW_THP=0")
@@ -116,6 +137,9 @@ def main() -> None:
             # catch it either: the feature adds a #[used] static regardless of
             # target, so the binaries differ while the behaviour does not.
             allocators = [a for a in allocators if a != "mimalloc_v3_override"]
+        allocators = allocators + [
+            a + DUP_SUFFIX for p, a in NOISE_DUPES if p == platform
+        ]
         for allocator in allocators:
             mts = [False]
             if platform in MT_PLATFORMS and allocator in MT_ALLOCATORS:

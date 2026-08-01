@@ -41,6 +41,7 @@ from __future__ import annotations
 import argparse
 import socket
 import ssl
+import struct
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -131,12 +132,23 @@ def handle(conn: socket.socket) -> None:
     except OSError:
         pass
     finally:
-        # Close from this side whenever we can. Whoever closes first holds the
-        # socket in TIME_WAIT; keeping it here leaves the client's ephemeral
-        # ports free, which matters because the workload opens thousands of
-        # connections in a row and Windows only has ~16k ephemeral ports.
+        # Close with an RST, not a FIN. A graceful close leaves one side in
+        # TIME_WAIT holding the 4-tuple, and the client is often that side; an
+        # RST-ed connection enters TIME_WAIT on neither.
+        #
+        # This is not a micro-optimisation. macos-26 runs ~1100 of these per
+        # second, and macOS offers ~16k ephemeral ports with a ~30 s TIME_WAIT,
+        # so the pool needs ~33k and runs dry partway through a job: two
+        # macos-26 jemalloc jobs finished only 21010 and 16440 of their 24000
+        # handshakes, and the reps that lost their ports reported ~2.5x lower
+        # peak RSS while still logging "Started checking 2000 proxies". Linux
+        # escaped it only because it reuses TIME_WAIT sockets on loopback.
         try:
-            conn.shutdown(socket.SHUT_RDWR)
+            conn.setsockopt(
+                socket.SOL_SOCKET,
+                socket.SO_LINGER,
+                struct.pack("ii", 1, 0),
+            )
         except OSError:
             pass
         try:

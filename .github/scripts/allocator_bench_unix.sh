@@ -34,7 +34,10 @@ TOKIO_MULTI_THREAD="${TOKIO_MULTI_THREAD:-false}"
 # the previous benchmark ever built even though it is what users actually get.
 features=""
 no_default="--no-default-features"
-case "$ALLOCATOR" in
+# A "_dup" cell builds the identical binary under a second job so the report can
+# show the between-job noise for that allocator rather than assume it. Only the
+# recorded label differs, so the suffix comes off before feature selection.
+case "${ALLOCATOR%_dup}" in
   system) ;;
   auto) no_default="" ;;
   mimalloc_v3_override) features="mimalloc_v3,mimalloc_override" ;;
@@ -209,6 +212,11 @@ fi
   log="bench-${WORKLOAD}-${alloc_env_name}-${i}.log"
   timing="bench-time-${WORKLOAD}-${alloc_env_name}-${i}.txt"
 
+  hs_before=0
+  if [ "$WORKLOAD" = "tls" ]; then
+    hs_before="$(cat bench-tls-handshakes.txt 2>/dev/null || echo 0)"
+  fi
+
   set +e
   # ALLOC_ENV is deliberately word-split: it carries zero or more VAR=VAL pairs.
   # shellcheck disable=SC2086
@@ -290,6 +298,20 @@ fi
       "configured 512; this platform is not running the same workload" >&2
   fi
 
+  # Per repetition, not just per job. A job-level total hid the real thing that
+  # went wrong: two macos-26 jobs lost a third of their handshakes to ephemeral
+  # port exhaustion, yet their totals still cleared a job-level threshold, and
+  # the affected rows looked like a 2.5x allocator win. The counter flushes
+  # every 10, hence the 1900 rather than 2000.
+  if [ "$WORKLOAD" = "tls" ]; then
+    hs_after="$(cat bench-tls-handshakes.txt 2>/dev/null || echo 0)"
+    hs_done=$(( hs_after - hs_before ))
+    if [ "$hs_done" -lt 1900 ]; then
+      echo "::warning::$cell_id rep $i completed only $hs_done of 2000" \
+        "handshakes - this row measures failed connects, not TLS" >&2
+    fi
+  fi
+
   # tls shares the check guard: every one of its 2000 proxies must reach
   # Proxy::check, and a proxies_checked of 0 means the corpus, the config or
   # the local server is wrong rather than that the allocator was fast.
@@ -330,8 +352,12 @@ if [ "$WORKLOAD" = "tls" ]; then
   # would quietly be a duplicate of the check workload wearing the tls label.
   # Counted by the server, so the measured process is untouched.
   handshakes="$(cat bench-tls-handshakes.txt 2>/dev/null || echo 0)"
-  expected=$(( (WARMUPS + REPS) * 2000 ))
-  if [ "$handshakes" -lt $(( expected / 2 )) ]; then
+  n_envs="$(printf '%s' "$ALLOC_ENVS" | awk -F';' '{ print NF }')"
+  expected=$(( (WARMUPS + REPS) * 2000 * n_envs ))
+  # 99%, not 50%. At 50% a job that lost 7560 of its 24000 handshakes to port
+  # exhaustion still passed silently, and its rows were indistinguishable from
+  # a large allocator win.
+  if [ "$handshakes" -lt $(( expected * 99 / 100 )) ]; then
     echo "::warning::tls workload completed only $handshakes handshakes," \
       "expected about $expected - those rows measure failed connects, not TLS" >&2
   else

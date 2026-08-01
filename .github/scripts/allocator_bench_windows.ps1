@@ -31,7 +31,9 @@ $mt = if ($env:TOKIO_MULTI_THREAD -eq 'true') { 'true' } else { 'false' }
 # the previous benchmark ever built even though it is what users actually get.
 $features = @()
 $noDefault = @('--no-default-features')
-switch ($allocator) {
+# See allocator_bench_unix.sh: a "_dup" cell is the same binary under a second
+# job, used to measure between-job noise, so the suffix comes off here.
+switch ($allocator -replace '_dup$', '') {
   'system' { }
   'auto' { $noDefault = @() }
   'mimalloc_v3_override' { $features += 'mimalloc_v3'; $features += 'mimalloc_override' }
@@ -215,6 +217,11 @@ foreach ($workload in $workloads) {
         }
       }
 
+      $hsBefore = 0
+      if ($workload -eq 'tls' -and (Test-Path 'bench-tls-handshakes.txt')) {
+        $hsBefore = [int](Get-Content 'bench-tls-handshakes.txt' -Raw).Trim()
+      }
+
       $sw = [System.Diagnostics.Stopwatch]::StartNew()
       $p = [System.Diagnostics.Process]::Start($psi)
       # Drain both pipes concurrently; reading one to completion first
@@ -265,6 +272,19 @@ foreach ($workload in $workloads) {
       # change the workload without changing any recorded column.
       if ((Get-Content $log -Raw) -match 'max_concurrent_checks config value is too high') {
         Write-Host "::warning::$cellId rep ${i}: concurrency was clamped below the configured 512; this platform is not running the same workload"
+      }
+
+      # Per repetition, not just per job: see the matching note in
+      # allocator_bench_unix.sh. The counter flushes every 10, hence 1900.
+      if ($workload -eq 'tls') {
+        $hsAfter = 0
+        if (Test-Path 'bench-tls-handshakes.txt') {
+          $hsAfter = [int](Get-Content 'bench-tls-handshakes.txt' -Raw).Trim()
+        }
+        $hsDone = $hsAfter - $hsBefore
+        if ($hsDone -lt 1900) {
+          Write-Host "::warning::$cellId rep ${i} completed only $hsDone of 2000 handshakes - this row measures failed connects, not TLS"
+        }
       }
 
       # tls shares the check guard: every one of its 2000 proxies must reach
@@ -327,8 +347,9 @@ foreach ($workload in $workloads) {
     if (Test-Path 'bench-tls-handshakes.txt') {
       $handshakes = [int](Get-Content 'bench-tls-handshakes.txt' -Raw).Trim()
     }
-    $expected = ($warmups + $reps) * 2000
-    if ($handshakes -lt ($expected / 2)) {
+    $expected = ($warmups + $reps) * 2000 * $allocEnvs.Count
+    # 99%, not 50%: see the matching note in allocator_bench_unix.sh.
+    if ($handshakes -lt ($expected * 0.99)) {
       Write-Host "::warning::tls workload completed only $handshakes handshakes, expected about $expected - those rows measure failed connects, not TLS"
     }
     else {

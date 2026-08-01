@@ -1,0 +1,56 @@
+#:schema ../config-schema.json
+
+# Allocator-benchmark workload: SCRAPE + DEDUP + OUTPUT.
+#
+# ~203k proxies, mostly from three /16 CIDR lines. check_url is empty, so
+# checking is skipped and every scraped proxy flows straight into the output
+# phase: sort, two serde_json serializations and four text files. This is the
+# large, long-lived heap - the dedup HashSet<Proxy> and the Vec behind it -
+# whereas config.check.toml is the small, short-lived, high-churn one. The two
+# stress opposite ends of an allocator and should be reported separately.
+#
+# Selected with PROXY_SCRAPER_CHECKER_CONFIG=bench/config.scrape.toml, resolved
+# relative to the working directory, so run it from the repository root.
+
+debug = false
+
+[output]
+path = "./bench-out"
+# natural_sort_key, not the timing order: deterministic, and it exercises the
+# Ipv4Addr parse plus the HostSortKey::Name host clone for every proxy.
+sort_by_speed = false
+
+[output.txt]
+enabled = true
+
+[output.json]
+enabled = true
+include_asn = false
+include_geolocation = false
+
+[checking]
+# Empty = skip checking entirely and output everything scraped.
+check_url = ""
+max_concurrent_checks = 512
+timeout = 10.0
+connect_timeout = 5.0
+user_agent = "proxy-scraper-checker-bench"
+
+[scraping]
+max_proxies_per_source = 0
+timeout = 10.0
+connect_timeout = 5.0
+proxy = ""
+user_agent = "proxy-scraper-checker-bench"
+
+[scraping.http]
+enabled = true
+urls = ["./bench/corpus/scrape_http.txt"]
+
+[scraping.socks4]
+enabled = true
+urls = ["./bench/corpus/scrape_socks4.txt"]
+
+[scraping.socks5]
+enabled = true
+urls = ["./bench/corpus/scrape_socks5.txt"]

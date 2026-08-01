@@ -221,3 +221,13 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/jetbrains+all,linux,macos,rust,vim,visualstudiocode,windows
 
 !Cargo.lock
+
+# Allocator bench artifacts. bench/corpus/ is committed on purpose - a frozen
+# corpus is what makes the measurements comparable between runs.
+bench-out/
+bench-results.tsv
+bench-all.tsv
+bench-*.log
+bench-time-*.txt
+alpine-summary.md
+target-alpine/

@@ -1,0 +1,60 @@
+#:schema ../config-schema.json
+
+# Allocator-benchmark workload: CHECKING.
+#
+# 24000 proxies (8000 per protocol), every one of them 127.0.0.1 on an unbound
+# high port, so connect() is refused in one loopback RTT. The run finishes in
+# seconds and touches no network, but every proxy still goes through
+# Proxy::check, which builds a complete reqwest::Client - connector, DNS
+# resolver, connection pool, proxy matcher - per proxy. That is the dominant
+# allocation site in the program and the one this workload measures.
+#
+# Selected with PROXY_SCRAPER_CHECKER_CONFIG=bench/config.check.toml, resolved
+# relative to the working directory, so run it from the repository root.
+
+debug = false
+
+[output]
+path = "./bench-out"
+# Speed order is not reproducible; the point here is a stable comparison.
+sort_by_speed = false
+
+[output.txt]
+enabled = true
+
+[output.json]
+enabled = true
+# Both databases are off: 78 MB of live download per run was the single largest
+# source of wall-clock and byte-volume drift, and the mmapped pages land in
+# peak RSS without passing through the allocator at all.
+include_asn = false
+include_geolocation = false
+
+[checking]
+# Port 1 is never bound. An IP literal also keeps DNS out of the measurement.
+check_url = "http://127.0.0.1:1/ip"
+max_concurrent_checks = 512
+timeout = 2.0
+connect_timeout = 1.0
+user_agent = "proxy-scraper-checker-bench"
+
+[scraping]
+# 0 = no limit. The guard in scraper.rs is evaluated before CIDR expansion, so
+# any non-zero value is not a real bound and would only add nondeterminism.
+max_proxies_per_source = 0
+timeout = 10.0
+connect_timeout = 5.0
+proxy = ""
+user_agent = "proxy-scraper-checker-bench"
+
+[scraping.http]
+enabled = true
+urls = ["./bench/corpus/check_http.txt"]
+
+[scraping.socks4]
+enabled = true
+urls = ["./bench/corpus/check_socks4.txt"]
+
+[scraping.socks5]
+enabled = true
+urls = ["./bench/corpus/check_socks5.txt"]

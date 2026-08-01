@@ -1,109 +1,94 @@
 name: Allocator Bench
 on:
   workflow_dispatch:
+    inputs:
+      reps:
+        description: Measured repetitions per cell.
+        default: "5"
+      warmups:
+        description: Discarded leading repetitions per cell.
+        default: "1"
+      workloads:
+        description: Space-separated subset of "check scrape".
+        default: check scrape
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 permissions:
   contents: read
 jobs:
-  bench:
-    name: ${{ matrix.platform }} (tokio-multi-thread=${{ matrix.tokio_multi_thread }}, ${{ matrix.allocator }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        allocator:
-          - system
-          - jemalloc
-          - mimalloc_v2
-          - mimalloc_v2_no_thp
-          - mimalloc_v3
-          - mimalloc_v3_no_thp
-        tokio_multi_thread: [true, false]
-        platform:
-          - ubuntu-24.04-arm
-          - ubuntu-24.04
-          - windows-2025
-          - windows-11-arm
-          - macos-26
-          - macos-26-intel
-          - alpine
-          - alpine-arm
-        include:
-          - platform: ubuntu-24.04-arm
-            runner: ubuntu-24.04-arm
-            alpine: false
-          - platform: ubuntu-24.04
-            runner: ubuntu-24.04
-            alpine: false
-          - platform: windows-2025
-            runner: windows-2025
-            alpine: false
-          - platform: windows-11-arm
-            runner: windows-11-arm
-            alpine: false
-          - platform: macos-26
-            runner: macos-26
-            alpine: false
-          - platform: macos-26-intel
-            runner: macos-26-intel
-            alpine: false
-          - platform: alpine
-            runner: ubuntu-24.04
-            alpine: true
-          - platform: alpine-arm
-            runner: ubuntu-24.04-arm
-            alpine: true
-        exclude:
-          - platform: windows-2025
-            allocator: jemalloc
-          - platform: windows-11-arm
-            allocator: jemalloc
-          - platform: windows-2025
-            allocator: mimalloc_v2_no_thp
-          - platform: windows-2025
-            allocator: mimalloc_v3_no_thp
-          - platform: windows-11-arm
-            allocator: mimalloc_v2_no_thp
-          - platform: windows-11-arm
-            allocator: mimalloc_v3_no_thp
-          - platform: macos-26
-            allocator: mimalloc_v2_no_thp
-          - platform: macos-26
-            allocator: mimalloc_v3_no_thp
-          - platform: macos-26-intel
-            allocator: mimalloc_v2_no_thp
-          - platform: macos-26-intel
-            allocator: mimalloc_v3_no_thp
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      cells: ${{ steps.gen.outputs.cells }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - if: ${{ !matrix.alpine }}
+      - id: gen
+        run: python3 .github/scripts/allocator_bench_matrix.py
+
+  bench:
+    needs: matrix
+    name: ${{ matrix.cell.label }}
+    runs-on: ${{ matrix.cell.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ${{ fromJSON(needs.matrix.outputs.cells) }}
+    env:
+      ALLOCATOR: ${{ matrix.cell.allocator }}
+      TOKIO_MULTI_THREAD: ${{ matrix.cell.mt }}
+      PLATFORM_LABEL: ${{ matrix.cell.platform }}
+      ALLOC_ENVS: ${{ matrix.cell.alloc_envs }}
+      WORKLOADS: ${{ inputs.workloads }}
+      REPS: ${{ inputs.reps }}
+      WARMUPS: ${{ inputs.warmups }}
+      RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - if: ${{ !matrix.cell.alpine }}
         uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
         with:
           toolchain: beta
           cache: true
-          cache-key: allocator-bench-${{ matrix.runner }}-${{ matrix.allocator }}-tokio-multi-thread-${{ matrix.tokio_multi_thread }}
-      - if: ${{ !matrix.alpine && runner.os != 'Windows' }}
+          cache-key: allocator-bench-${{ matrix.cell.runner }}-${{ matrix.cell.allocator }}-mt-${{ matrix.cell.mt }}
+      - if: ${{ !matrix.cell.alpine && runner.os != 'Windows' }}
         shell: bash
-        env:
-          ALLOCATOR: ${{ matrix.allocator }}
-          TOKIO_MULTI_THREAD: ${{ matrix.tokio_multi_thread }}
-          PLATFORM_LABEL: ${{ matrix.platform }}
         run: bash .github/scripts/allocator_bench_unix.sh
-      - if: ${{ !matrix.alpine && runner.os == 'Windows' }}
+      - if: ${{ !matrix.cell.alpine && runner.os == 'Windows' }}
         shell: pwsh
-        env:
-          ALLOCATOR: ${{ matrix.allocator }}
-          TOKIO_MULTI_THREAD: ${{ matrix.tokio_multi_thread }}
-          PLATFORM_LABEL: ${{ matrix.platform }}
         run: ./.github/scripts/allocator_bench_windows.ps1
-      - if: ${{ matrix.alpine }}
+      - if: ${{ matrix.cell.alpine }}
         shell: bash
         env:
-          ALLOCATOR: ${{ matrix.allocator }}
-          TOKIO_MULTI_THREAD: ${{ matrix.tokio_multi_thread }}
-          PLATFORM_LABEL: ${{ matrix.platform }}
+          RUST_IMAGE: rust:alpine
         run: bash .github/scripts/allocator_bench_alpine.sh
+      - if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: bench-${{ matrix.cell.platform }}-${{ matrix.cell.allocator }}-mt${{ matrix.cell.mt }}
+          path: |
+            bench-results.tsv
+            bench-*.log
+          if-no-files-found: warn
+  aggregate:
+    needs: bench
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          path: artifacts
+          pattern: bench-*
+      - run: python3 .github/scripts/allocator_bench_aggregate.py artifacts
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: bench-all
+          path: bench-all.tsv
+          if-no-files-found: error

@@ -69,11 +69,6 @@ use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
 
-#[cfg(all(feature = "auto-allocator", target_os = "macos"))]
-#[global_allocator]
-static GLOBAL: tikv_jemallocator_auto::Jemalloc =
-    tikv_jemallocator_auto::Jemalloc;
-
 #[cfg(feature = "dhat")]
 #[global_allocator]
 static GLOBAL: dhat::Alloc = dhat::Alloc;
@@ -85,6 +80,11 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 #[cfg(feature = "__mimalloc")]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+#[cfg(all(feature = "auto-allocator", target_os = "macos",))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator_auto::Jemalloc =
+    tikv_jemallocator_auto::Jemalloc;
 
 type Error = color_eyre::Report;
 type Result<T> = color_eyre::Result<T>;

@@ -5,10 +5,13 @@
 #
 # Inputs (env):
 #   ALLOCATOR          system | auto | jemalloc | jemalloc_override |
-#                      mimalloc_v2 | mimalloc_v2_no_thp | mimalloc_v3 |
-#                      mimalloc_v3_no_thp | mimalloc_v3_override
+#                      mimalloc_v2 | mimalloc_v3 | mimalloc_v3_override,
+#                      optionally with a "_dup" suffix, which builds the same
+#                      binary under a second job so the report can show the
+#                      between-job noise for that allocator. The suffix is
+#                      recorded but never reaches the feature list.
 #   TOKIO_MULTI_THREAD true | false
-#   WORKLOADS          space-separated subset of "check scrape"
+#   WORKLOADS          space-separated subset of "check scrape tls"
 #   ALLOC_ENVS         ';'-separated run-time tuning variants, each
 #                      "name:VAR=VAL[ VAR=VAL...]" or just "default"
 #   PLATFORM_LABEL     matrix label, recorded verbatim
@@ -36,12 +39,15 @@ features=""
 no_default="--no-default-features"
 # A "_dup" cell builds the identical binary under a second job so the report can
 # show the between-job noise for that allocator rather than assume it. Only the
-# recorded label differs, so the suffix comes off before feature selection.
-case "${ALLOCATOR%_dup}" in
+# recorded label carries the suffix; strip it once, here, and use the stripped
+# name for every feature decision below. Stripping it in the `case` subject
+# alone is not enough - the default branch has to use it too.
+allocator_features="${ALLOCATOR%_dup}"
+case "$allocator_features" in
   system) ;;
   auto) no_default="" ;;
   mimalloc_v3_override) features="mimalloc_v3,mimalloc_override" ;;
-  *) features="$ALLOCATOR" ;;
+  *) features="$allocator_features" ;;
 esac
 if [ "$TOKIO_MULTI_THREAD" = "true" ]; then
   features="${features:+$features,}tokio-multi-thread"

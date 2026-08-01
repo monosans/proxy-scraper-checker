@@ -32,12 +32,15 @@ $mt = if ($env:TOKIO_MULTI_THREAD -eq 'true') { 'true' } else { 'false' }
 $features = @()
 $noDefault = @('--no-default-features')
 # See allocator_bench_unix.sh: a "_dup" cell is the same binary under a second
-# job, used to measure between-job noise, so the suffix comes off here.
-switch ($allocator -replace '_dup$', '') {
+# job, used to measure between-job noise. Strip the suffix once into its own
+# variable - stripping it in the switch subject alone leaves the default branch
+# adding the unstripped name as a feature.
+$allocatorFeatures = $allocator -replace '_dup$', ''
+switch ($allocatorFeatures) {
   'system' { }
   'auto' { $noDefault = @() }
   'mimalloc_v3_override' { $features += 'mimalloc_v3'; $features += 'mimalloc_override' }
-  default { $features += $allocator }
+  default { $features += $allocatorFeatures }
 }
 if ($mt -eq 'true') { $features += 'tokio-multi-thread' }
 

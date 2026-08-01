@@ -199,7 +199,23 @@ def job_noise_floors(stats: dict) -> dict[tuple[str, str, str], float]:
             pct = abs(100.0 * (series[name].median - b) / b)
             slot = (key[0], key[3], name)
             floors[slot] = max(floors.get(slot, 0.0), pct)
+
+    # Platforms without a dup cell fall back to the worst floor measured
+    # anywhere for that metric, rather than to zero. Zero would quietly award
+    # full confidence exactly where the noise is unknown, which is the failure
+    # this whole mechanism exists to prevent.
+    for name, _, _ in METRICS:
+        worst = max(
+            (v for (_, _, m), v in floors.items() if m == name), default=0.0
+        )
+        floors[("*", "*", name)] = worst
     return floors
+
+
+def floor_for(floors: dict, platform: str, workload: str, metric: str) -> float:
+    if (platform, workload, metric) in floors:
+        return floors[(platform, workload, metric)]
+    return floors.get(("*", "*", metric), 0.0)
 
 
 def delta_cell(x: Cell, b: Cell, floor: float = 0.0) -> str:
@@ -279,7 +295,7 @@ def render(stats: dict, out: list[str], floors: dict) -> None:
                 if baseline is None or key == baseline:
                     line += " - |"
                 else:
-                    floor = floors.get((platform, workload, name), 0.0)
+                    floor = floor_for(floors, platform, workload, name)
                     line += f" {delta_cell(c, stats[baseline][name], floor)} |"
             out.append(line)
 
@@ -295,11 +311,16 @@ def render(stats: dict, out: list[str], floors: dict) -> None:
                 + ". Deltas within it are marked `(job-noise)`.\n"
             )
         else:
+            borrowed = ", ".join(
+                f"{label} {floor_for(floors, platform, workload, name):.1f}%"
+                for name, label, _ in METRICS
+            )
             out.append(
-                "\nNo `_dup` cell on this platform, so between-job noise is "
-                "unmeasured here and the deltas above are qualified only by "
-                "each cell's own repetitions - which understates the "
-                "uncertainty, badly for jemalloc and mimalloc.\n"
+                "\nNo `_dup` cell on this platform, so between-job noise was "
+                "not measured here. The deltas above are held to the worst "
+                f"floor seen anywhere instead ({borrowed}), which is a guess - "
+                "add this platform to NOISE_DUPES in allocator_bench_matrix.py "
+                "if a decision is going to rest on it.\n"
             )
         out.append("")
 

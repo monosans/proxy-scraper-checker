@@ -103,6 +103,14 @@ NOISE_DUPES = [
     ("ubuntu-24.04", "jemalloc_override"),
     ("alpine", "jemalloc_override"),
     ("ubuntu-24.04", "mimalloc_v3"),
+    # Both macOS runners: this is the only platform whose result actually
+    # decides anything - it is the one place the shipped default is not the
+    # system allocator - and it was the one platform with no between-job
+    # measurement at all. jemalloc rather than jemalloc_override because
+    # `auto` resolves to the same package and features as jemalloc_override
+    # there, so the override variant already has a second job to compare with.
+    ("macos-26", "jemalloc"),
+    ("macos-26-intel", "jemalloc"),
 ]
 DUP_SUFFIX = "_dup"
 

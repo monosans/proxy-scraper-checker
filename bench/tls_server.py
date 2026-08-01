@@ -39,9 +39,11 @@ than sleeping.
 from __future__ import annotations
 
 import argparse
+import errno
 import socket
 import ssl
 import struct
+import time
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -58,6 +60,23 @@ IO_TIMEOUT = 15.0
 # writes over a full workload cost nothing, and they happen in this process,
 # never in the one being measured.
 FLUSH_EVERY = 10
+
+# Running out of descriptors, buffers or a client hanging up mid-accept are all
+# recoverable; only a closed listener is not.
+TRANSIENT_ACCEPT_ERRORS = frozenset(
+    getattr(errno, name)
+    for name in (
+        "EMFILE",
+        "ENFILE",
+        "ECONNABORTED",
+        "EINTR",
+        "EAGAIN",
+        "EWOULDBLOCK",
+        "ENOBUFS",
+        "ENOMEM",
+    )
+    if hasattr(errno, name)
+)
 
 CONTEXT: ssl.SSLContext
 COUNT_FILE: str | None = None
@@ -93,6 +112,28 @@ def handle(conn: socket.socket) -> None:
     try:
         conn.settimeout(IO_TIMEOUT)
         conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+        # Close with an RST rather than a FIN, and set it HERE, before
+        # wrap_socket. A graceful close parks the 4-tuple in TIME_WAIT on
+        # whichever side closed, usually the client, and macOS offers ~16384
+        # ephemeral ports with no loopback TIME_WAIT reuse - so a job simply
+        # stops being able to connect partway through. Two macos-26 jobs died
+        # at 16400 and 16470 handshakes, which is that limit almost exactly.
+        #
+        # It has to precede wrap_socket because wrap_socket DETACHES this
+        # socket: conn.fileno() becomes -1 and every later setsockopt on it
+        # fails. An earlier attempt set this in the finally block, where it
+        # silently did nothing and the port exhaustion came back unchanged.
+        # The option lives on the descriptor, so it survives the detach and
+        # applies when the SSLSocket eventually closes.
+        try:
+            conn.setsockopt(
+                socket.SOL_SOCKET,
+                socket.SO_LINGER,
+                struct.pack("ii", 1, 0),
+            )
+        except OSError:
+            pass
 
         # Read the CONNECT request. The target host:port is ignored - this
         # process is the target - but it must be consumed before the tunnel
@@ -132,25 +173,8 @@ def handle(conn: socket.socket) -> None:
     except OSError:
         pass
     finally:
-        # Close with an RST, not a FIN. A graceful close leaves one side in
-        # TIME_WAIT holding the 4-tuple, and the client is often that side; an
-        # RST-ed connection enters TIME_WAIT on neither.
-        #
-        # This is not a micro-optimisation. macos-26 runs ~1100 of these per
-        # second, and macOS offers ~16k ephemeral ports with a ~30 s TIME_WAIT,
-        # so the pool needs ~33k and runs dry partway through a job: two
-        # macos-26 jemalloc jobs finished only 21010 and 16440 of their 24000
-        # handshakes, and the reps that lost their ports reported ~2.5x lower
-        # peak RSS while still logging "Started checking 2000 proxies". Linux
-        # escaped it only because it reuses TIME_WAIT sockets on loopback.
-        try:
-            conn.setsockopt(
-                socket.SOL_SOCKET,
-                socket.SO_LINGER,
-                struct.pack("ii", 1, 0),
-            )
-        except OSError:
-            pass
+        # No-op once wrap_socket has detached it; still needed for the paths
+        # that return before the handshake.
         try:
             conn.close()
         except OSError:
@@ -178,6 +202,19 @@ def main() -> None:
     except NotImplementedError:
         pass
 
+    # max_concurrent_checks is 512, so that many connections can be in flight
+    # at once and macOS ships a 256 soft limit. The checked program raises its
+    # own limit in src/config.rs; this one has to raise its own.
+    try:
+        import resource  # noqa: PLC0415  - Unix only, absent on Windows
+
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        want = min(hard, max(soft, 8192))
+        if want > soft:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (want, hard))
+    except (ImportError, ValueError, OSError):
+        pass
+
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Not SO_REUSEADDR on Windows: there it means what SO_REUSEPORT means
     # elsewhere, so a second instance binds the same port successfully and the
@@ -193,13 +230,21 @@ def main() -> None:
 
     print(f"READY {args.port}", flush=True)
 
-    stop = threading.Event()
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         try:
-            while not stop.is_set():
+            while True:
                 try:
                     conn, _ = listener.accept()
-                except OSError:
+                except OSError as exc:
+                    # A transient accept() failure must not end the server. The
+                    # previous version broke out of the loop on any OSError,
+                    # which closed the listener and made every remaining
+                    # connection refuse instantly - indistinguishable in the
+                    # results from an allocator that suddenly needed a third of
+                    # the memory.
+                    if exc.errno in TRANSIENT_ACCEPT_ERRORS:
+                        time.sleep(0.05)
+                        continue
                     break
                 pool.submit(handle, conn)
         except KeyboardInterrupt:

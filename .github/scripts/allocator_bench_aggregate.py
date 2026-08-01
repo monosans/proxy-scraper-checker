@@ -169,7 +169,40 @@ def summarize(rows: list[dict[str, str]]) -> dict:
     return stats
 
 
-def delta_cell(x: Cell, b: Cell) -> str:
+DUP_SUFFIX = "_dup"
+
+
+def job_noise_floors(stats: dict) -> dict[tuple[str, str, str], float]:
+    """Between-job noise per (platform, workload, metric), from the dup cells.
+
+    A "_dup" cell is the same features built in a second job, so the gap between
+    X and X_dup is noise by construction. It is much larger than it looks from
+    the auto-vs-system pair, which is the steadiest configuration in the matrix:
+    that pair sits within 1.4% while jemalloc_override on ubuntu-24.04 moved
+    ~14% between jobs across every tuning variant. Within-cell spread cannot see
+    this at all - each side is individually tight - so without a floor the
+    report will keep calling a 14% job-to-job wobble a result.
+    """
+    floors: dict[tuple[str, str, str], float] = {}
+    for key, series in stats.items():
+        allocator = key[5]
+        if not allocator.endswith(DUP_SUFFIX):
+            continue
+        base_key = (*key[:5], allocator[: -len(DUP_SUFFIX)], key[6])
+        base = stats.get(base_key)
+        if base is None:
+            continue
+        for name, _, _ in METRICS:
+            b = base[name].median
+            if not b:
+                continue
+            pct = abs(100.0 * (series[name].median - b) / b)
+            slot = (key[0], key[3], name)
+            floors[slot] = max(floors.get(slot, 0.0), pct)
+    return floors
+
+
+def delta_cell(x: Cell, b: Cell, floor: float = 0.0) -> str:
     """Median-vs-median delta, qualified by what the reps can actually support.
 
     The MAD-based test this replaced called a cell precise whenever three of
@@ -188,12 +221,16 @@ def delta_cell(x: Cell, b: Cell) -> str:
         return f"{pct:+.1f}% (drift)"
     lo = 100.0 * (x.lo - b.hi) / b.hi if b.hi else 0.0
     hi = 100.0 * (x.hi - b.lo) / b.lo if b.lo else 0.0
-    if lo > 0.0 and hi > 0.0 or lo < 0.0 and hi < 0.0:
-        return f"{pct:+.1f}%"
-    return f"{pct:+.1f}% (noise)"
+    if not (lo > 0.0 and hi > 0.0 or lo < 0.0 and hi < 0.0):
+        return f"{pct:+.1f}% (noise)"
+    # Both cells come from separate jobs, so clearing their within-job spread is
+    # necessary but not sufficient.
+    if abs(pct) <= floor:
+        return f"{pct:+.1f}% (job-noise)"
+    return f"{pct:+.1f}%"
 
 
-def render(stats: dict, out: list[str]) -> None:
+def render(stats: dict, out: list[str], floors: dict) -> None:
     groups: dict[tuple[str, str, str], list[tuple]] = defaultdict(list)
     # key is (platform, libc, arch, workload, mt, allocator, alloc_env); libc
     # and arch ride along for the heading and come off `sample` below.
@@ -242,8 +279,28 @@ def render(stats: dict, out: list[str]) -> None:
                 if baseline is None or key == baseline:
                     line += " - |"
                 else:
-                    line += f" {delta_cell(c, stats[baseline][name])} |"
+                    floor = floors.get((platform, workload, name), 0.0)
+                    line += f" {delta_cell(c, stats[baseline][name], floor)} |"
             out.append(line)
+
+        measured = [
+            f"{label} {floors[(platform, workload, name)]:.1f}%"
+            for name, label, _ in METRICS
+            if (platform, workload, name) in floors
+        ]
+        if measured:
+            out.append(
+                "\nBetween-job noise measured here from the `_dup` cells: "
+                + ", ".join(measured)
+                + ". Deltas within it are marked `(job-noise)`.\n"
+            )
+        else:
+            out.append(
+                "\nNo `_dup` cell on this platform, so between-job noise is "
+                "unmeasured here and the deltas above are qualified only by "
+                "each cell's own repetitions - which understates the "
+                "uncertainty, badly for jemalloc and mimalloc.\n"
+            )
         out.append("")
 
 
@@ -307,8 +364,9 @@ def main() -> None:
     out: list[str] = [f"# Allocator bench - {len(rows)} measured repetitions\n"]
     check_consistency(rows, out)
     stats = summarize(rows)
+    floors = job_noise_floors(stats)
     render_mt(stats, out)
-    render(stats, out)
+    render(stats, out, floors)
     out.append(
         "Deltas are median-vs-median, qualified by the observed spread of the "
         "repetitions rather than by their MAD: a delta counts only if it keeps "

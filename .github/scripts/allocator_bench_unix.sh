@@ -133,7 +133,7 @@ tls_server_start() {
   tls_pid=""
   for tool in python3 openssl; do
     if ! command -v "$tool" >/dev/null 2>&1; then
-      echo "::warning::$tool not found - skipping the tls workload" >&2
+      echo "::warning::$tool not found - skipping the tls workload"
       return 1
     fi
   done
@@ -145,7 +145,7 @@ tls_server_start() {
     if ! openssl req -x509 -newkey rsa:2048 -keyout bench-tls-key.pem \
         -out bench-tls-cert.pem -days 1 -nodes -subj "/CN=127.0.0.1" \
         >bench-tls-openssl.log 2>&1; then
-      echo "::warning::openssl could not create a cert - skipping tls" >&2
+      echo "::warning::openssl could not create a cert - skipping tls"
       cat bench-tls-openssl.log >&2
       return 1
     fi
@@ -174,7 +174,7 @@ tls_server_start() {
     i=$(( i + 1 ))
   done
 
-  echo "::warning::tls server never became ready - skipping the tls workload" >&2
+  echo "::warning::tls server never became ready - skipping the tls workload"
   cat bench-tls-server.log >&2
   tls_server_stop
   return 1
@@ -301,7 +301,7 @@ fi
   # stay valid either way; this only refuses to let it pass unnoticed.
   if grep -q "max_concurrent_checks config value is too high" "$log"; then
     echo "::warning::$cell_id rep $i: concurrency was clamped below the" \
-      "configured 512; this platform is not running the same workload" >&2
+      "configured 512; this platform is not running the same workload"
   fi
 
   # Per repetition, not just per job. A job-level total hid the real thing that
@@ -314,7 +314,7 @@ fi
     hs_done=$(( hs_after - hs_before ))
     if [ "$hs_done" -lt 1900 ]; then
       echo "::warning::$cell_id rep $i completed only $hs_done of 2000" \
-        "handshakes - this row measures failed connects, not TLS" >&2
+        "handshakes - this row measures failed connects, not TLS"
     fi
   fi
 
@@ -365,7 +365,7 @@ if [ "$WORKLOAD" = "tls" ]; then
   # a large allocator win.
   if [ "$handshakes" -lt $(( expected * 99 / 100 )) ]; then
     echo "::warning::tls workload completed only $handshakes handshakes," \
-      "expected about $expected - those rows measure failed connects, not TLS" >&2
+      "expected about $expected - those rows measure failed connects, not TLS"
   else
     echo "tls workload: $handshakes handshakes (expected ~$expected)"
   fi
@@ -380,6 +380,6 @@ done
 echo "$cells" | while read -r cell; do
   if [ -n "$cell" ]; then
     sh .github/scripts/allocator_bench_report.sh "$results" "$cell" \
-      || echo "::warning::summary failed for $cell (results are still in $results)" >&2
+      || echo "::warning::summary failed for $cell (results are still in $results)"
   fi
 done

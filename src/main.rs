@@ -81,7 +81,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-#[cfg(all(feature = "auto-allocator", target_os = "macos",))]
+#[cfg(all(feature = "auto-allocator", target_os = "macos"))]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator_auto::Jemalloc =
     tikv_jemallocator_auto::Jemalloc;

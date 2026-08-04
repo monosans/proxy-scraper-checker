@@ -12,15 +12,16 @@ use crate::{
     parsers::parse_ipv4,
 };
 
+#[repr(u8)]
 #[derive(
     Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize,
 )]
 #[cfg_attr(feature = "tui", derive(strum::EnumCount))]
 #[serde(rename_all = "lowercase")]
 pub enum ProxyType {
-    Http,
-    Socks4,
-    Socks5,
+    Http = 1 << 0_u8,
+    Socks4 = 1 << 1_u8,
+    Socks5 = 1 << 2_u8,
 }
 
 impl FromStr for ProxyType {
@@ -48,11 +49,11 @@ pub struct ProxyTypeSet(u8);
 
 impl ProxyTypeSet {
     pub const fn contains(self, proxy_type: ProxyType) -> bool {
-        self.0 & proxy_type.bit() != 0
+        self.0 & proxy_type as u8 != 0
     }
 
     pub const fn insert(&mut self, proxy_type: ProxyType) {
-        self.0 |= proxy_type.bit();
+        self.0 |= proxy_type as u8;
     }
 
     pub fn iter(self) -> impl Iterator<Item = ProxyType> {
@@ -76,14 +77,6 @@ impl FromIterator<ProxyType> for ProxyTypeSet {
 }
 
 impl ProxyType {
-    const fn bit(self) -> u8 {
-        match self {
-            Self::Http => 1 << 0_u8,
-            Self::Socks4 => 1 << 1_u8,
-            Self::Socks5 => 1 << 2_u8,
-        }
-    }
-
     const fn as_proxy_url_scheme(self, force_remote_dns: bool) -> &'static str {
         match self {
             Self::Http => "http",

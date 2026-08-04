@@ -126,7 +126,7 @@ fn calculate_retry_timeout(
         return Some(after);
     }
 
-    let jitter = 1.0_f64.algebraic_sub(0.25_f64.algebraic_mul(fastrand::f64()));
+    let jitter = 0.25_f64.mul_add(-fastrand::f64(), 1.0);
     Some(backoff(attempt).mul_f64(jitter))
 }
 

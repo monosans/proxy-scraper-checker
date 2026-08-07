@@ -22,11 +22,11 @@ enabled = true
 enabled = true
 
 # Network owner of the exit IP. Offline database, downloaded once (~12 MB).
-# Only works if check_url reveals the exit IP - see below.
+# Only works if check_url reveals the exit IP (see below).
 include_asn = true
 
 # Country, city and coordinates of the exit IP. Offline database, downloaded once
-# (~66 MB). Only works if check_url reveals the exit IP - see below.
+# (~66 MB). Only works if check_url reveals the exit IP (see below).
 include_geolocation = true
 
 [checking]
@@ -55,8 +55,8 @@ max_concurrent_checks = 512
 timeout = 10.0
 
 # Seconds allowed to connect. Nearly every proxy in a public list is dead and costs
-# exactly this before being dropped, so it is this value, not `timeout`, that decides
-# how long a run takes. Lower it to finish sooner and keep only fast proxies.
+# exactly this before being dropped, so this value decides how long a run takes far
+# more than `timeout` does. Lower it to finish sooner and keep only fast proxies.
 connect_timeout = 5.0
 
 # Sent to check_url. Some sites reject unknown or empty User-Agents.
@@ -87,8 +87,8 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 #
 # Duplicates are removed across all sources, so overlapping lists are fine.
 #
-# Any text format works - proxies are pattern-matched out, so HTML and JSON need no
-# cleanup. Recognized forms:
+# Any text format works, since proxies are pattern-matched out, so HTML and JSON
+# need no cleanup. Recognized forms:
 #   1.2.3.4:8080
 #   socks5://1.2.3.4:1080
 #   user:pass@1.2.3.4:8080

@@ -3,12 +3,12 @@
 #
 # The generated files are committed, so CI never runs this. It exists so the
 # corpus bytes can be audited and reproduced: the run-to-run drift of the live
-# proxy lists was the largest confound in the previous allocator benchmarks, and
-# a frozen corpus is what removes it.
+# proxy lists was the largest confound in the allocator benchmarks, so the
+# corpus is frozen instead.
 #
-# Deterministic: a fixed-seed LCG, no date, no shuffle, no network.
-# Uses only POSIX sh + awk, so it runs identically on Linux, macOS, Alpine and
-# Git Bash.
+# The output is deterministic: a fixed-seed LCG, no date, no shuffle and no
+# network. It uses only POSIX sh and awk, so it runs identically on Linux,
+# macOS, Alpine and Git Bash.
 #
 # Usage: sh bench/gen_corpus.sh
 set -eu
@@ -33,8 +33,8 @@ function letters(n,   i, s) {
 # 127.0.0.1 with unbound high ports: connect() is refused in one loopback RTT
 # on Linux, macOS and Windows alike, and an RST-ed connection never enters
 # TIME_WAIT, so ephemeral ports cannot run out. Every proxy still goes through
-# the full per-proxy reqwest::Client construction in Proxy::check, which is the
-# allocation site this workload exists to measure.
+# the full per-proxy reqwest::Client construction in Proxy::check, the
+# allocation site this workload measures.
 # Only the port varies: other 127.x.x.x addresses are not assigned on macOS and
 # Windows, and their connect behaviour differs per OS, which would make the
 # wall-clock column incomparable across platforms.
@@ -48,8 +48,8 @@ function gen_check(file, base,   i) {
 # check completes a real TLS handshake against it. They must still be distinct
 # Proxy values or the dedup HashSet collapses them to one: Proxy hashes
 # (protocol, host, port, auth) in src/proxy.rs, so the username is what varies.
-# The parser accepts alphanumeric userinfo only - see the regex in
-# src/parsers.rs - hence uNNNN:pw.
+# The parser accepts alphanumeric userinfo only (see the regex in
+# src/parsers.rs), hence uNNNN:pw.
 #
 # 2000, not 8000: unlike the refused connects of the check corpus these are
 # completed TCP sessions, and at 6 repetitions per cell the total has to stay
@@ -92,7 +92,7 @@ function gen_scrape(file, cidr_block, scheme,   i, a, b, c, d, p) {
   }
 
   # Hostnames: the regex host alternative accepts letters, dots and hyphens
-  # only - no digits - so the labels are letter-only by necessity.
+  # but no digits, so the labels have to be letters only.
   for (i = 0; i < 200; i++)
     print letters(7) ".proxy.example.com:" pick(1024, 65535) > file
 

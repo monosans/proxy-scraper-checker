@@ -1,16 +1,17 @@
 #:schema ../config-schema.json
 
-# Allocator-benchmark workload: SCRAPE + DEDUP + OUTPUT.
+# Allocator benchmark, scrape + dedup + output workload.
 #
 # ~203k proxies, mostly from three /16 CIDR lines. check_url is empty, so
 # checking is skipped and every scraped proxy flows straight into the output
 # phase: sort, two serde_json serializations and four text files. This is the
-# large, long-lived heap - the dedup HashSet<Proxy> and the Vec behind it -
-# whereas config.check.toml is the small, short-lived, high-churn one. The two
-# stress opposite ends of an allocator and should be reported separately.
+# large, long-lived heap (the dedup HashSet<Proxy> and the Vec behind it),
+# whereas config.check.toml is the small, short-lived, high-churn one. They
+# stress opposite ends of an allocator, so report them separately.
 #
-# Selected with PROXY_SCRAPER_CHECKER_CONFIG=bench/config.scrape.toml, resolved
-# relative to the working directory, so run it from the repository root.
+# Select it with PROXY_SCRAPER_CHECKER_CONFIG=bench/config.scrape.toml. The path
+# is resolved relative to the working directory, so run it from the repository
+# root.
 
 debug = false
 

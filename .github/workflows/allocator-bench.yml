@@ -10,9 +10,9 @@ on:
         default: "1"
       workloads:
         description: >-
-          Space-separated subset of "check scrape tls". tls is the only one that
-          completes a TLS handshake, so it is the only one that exercises
-          aws-lc-sys and can tell the override features apart from a no-op.
+          Space-separated subset of "check scrape tls". Only tls completes a TLS
+          handshake, so only tls exercises aws-lc-sys and can tell the override
+          features apart from a no-op.
         default: check scrape tls
 concurrency:
   group: ${{ github.workflow }}
@@ -36,11 +36,10 @@ jobs:
     name: ${{ matrix.cell.label }}
     runs-on: ${{ matrix.cell.runner }}
     # jemalloc's manual warns that enabling background_thread through the conf
-    # string can deadlock during initialization, and the `bg` cells were only
-    # dispatched for the first time recently. With concurrency.cancel-in-progress
-    # false, one hung cell would hold the next dispatch for the 6-hour default.
-    # 180 sits above a cold Alpine or Windows-arm fat-LTO build, so it cannot
-    # fire on a healthy cell.
+    # string can deadlock during initialization, and the `bg` cells are new.
+    # With concurrency.cancel-in-progress false, one hung cell would hold the
+    # next dispatch for the 6-hour default. 180 sits above a cold Alpine or
+    # Windows-arm fat-LTO build, so it cannot fire on a healthy cell.
     timeout-minutes: 180
     strategy:
       fail-fast: false

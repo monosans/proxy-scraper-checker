@@ -6,12 +6,12 @@ are conditional on both the platform and the allocator, and as `exclude:` lists
 they ran to dozens of entries that documented nothing.
 
 Two axes deliberately do NOT appear here, because neither needs a rebuild and
-the build is what costs minutes - the scripts loop over them inside one job:
+the build is what costs minutes. The scripts loop over them inside one job:
 
-* workload - `check` (24k proxies against refused loopback ports; stresses the
+* workload: `check` (24k proxies against refused loopback ports; stresses the
   per-proxy reqwest::Client construction) and `scrape` (~203k proxies from
   frozen CIDR corpora; stresses the dedup HashSet, the sort and serde_json).
-* alloc_env - run-time allocator tuning. jemalloc reads MALLOC_CONF as conf
+* alloc_env: run-time allocator tuning. jemalloc reads MALLOC_CONF as conf
   source 3, which overrides the --with-malloc-conf baked in at build time;
   mimalloc reads MIMALLOC_* at process load. This is also what replaces the old
   mimalloc_v*_no_thp build features: MIMALLOC_ALLOW_THP=0 is strictly stronger,
@@ -36,23 +36,23 @@ PLATFORMS = [
     ("windows-11-arm", "windows-11-arm", False, "windows"),
 ]
 
-# `auto` is the shipped default feature set. Nothing in the previous benchmark
-# ever built it, so the configuration users actually get was never measured.
+# `auto` is the shipped default feature set, so leaving it out would mean never
+# measuring the configuration users actually get.
 #
 # It is knowingly a duplicate: `auto-allocator` wires tikv-jemallocator-auto
 # only under [target.'cfg(target_os = "macos")'.dependencies] (Cargo.toml) and
 # the matching #[global_allocator] in src/main.rs is gated on target_os macos,
 # so off macOS `auto` is the same program as `system`, and on macOS it is the
-# same package and feature set as `jemalloc_override`. It is kept anyway, and
-# this is the point: every "vs system" delta in the report compares two jobs on
-# two different runner VMs, while the MAD that sets the noise floor comes from
-# reps inside one job on one machine. The auto-vs-system spread on a non-macOS
+# same package and feature set as `jemalloc_override`. It is kept anyway, for a
+# reason: every "vs system" delta in the report compares two jobs on two
+# different runner VMs, while the MAD that sets the noise floor comes from reps
+# inside one job on one machine. The auto-vs-system spread on a non-macOS
 # platform is therefore a direct measurement of the between-job noise the
 # report otherwise has no way to see. Read it first, and distrust any delta
 # that is not comfortably larger than it.
 #
-# The `*_override` rows exist to answer the override question with data rather
-# than reasoning: mimalloc's `override` and jemalloc's
+# The `*_override` rows answer the override question with data rather than
+# reasoning: mimalloc's `override` and jemalloc's
 # `override_allocator_on_supported_platforms` change what happens to the C
 # dependencies' allocations (here aws-lc-sys), never to Rust's.
 COMMON = ["system", "auto", "mimalloc_v2", "mimalloc_v3", "mimalloc_v3_override"]
@@ -62,9 +62,9 @@ COMMON = ["system", "auto", "mimalloc_v2", "mimalloc_v3", "mimalloc_v3_override"
 JEMALLOC = ["jemalloc", "jemalloc_override"]
 
 # The RSS side of the tokio-flavor question is already settled (multi_thread
-# regressed 35 of 38 measured cells). What was never measured is whether it
-# buys any wall clock, so it stays as a small confirmation subset now that time
-# is recorded.
+# regressed 35 of 38 measured cells), but whether it buys any wall clock is
+# still open, so it stays as a small confirmation subset now that time is
+# recorded.
 MT_PLATFORMS = {"ubuntu-24.04", "ubuntu-24.04-arm", "macos-26", "windows-2025"}
 MT_ALLOCATORS = {"system", "auto"}
 
@@ -77,21 +77,21 @@ JE_TUNED = (
 )
 JE_BG = "bg:MALLOC_CONF=background_thread:true _RJEM_MALLOC_CONF=background_thread:true"
 
-# The previous run split perfectly along THP: jemalloc cost +59..92% peak RSS on
+# An earlier run split perfectly along THP: jemalloc cost +59..92% peak RSS on
 # the x86_64 runners, which report /sys/.../enabled = [always], and only +5..19%
-# on the arm64 ones, which report [madvise]. That is a plausible mechanism -
-# jemalloc maps large aligned regions that khugepaged then backs with 2 MB pages
-# - but it is confounded with the architecture. opt.thp is a Linux-only jemalloc
-# option (it needs MADVISE_HUGE), so this variant tests it directly on the
-# always machines instead of inferring it from a correlation.
+# on the arm64 ones, which report [madvise]. The mechanism is plausible enough
+# (jemalloc maps large aligned regions that khugepaged then backs with 2 MB
+# pages), but it is confounded with the architecture. opt.thp is a Linux-only
+# jemalloc option (it needs MADVISE_HUGE), so this variant tests it directly on
+# the always machines instead of inferring it from a correlation.
 JE_THP = "thp_never:MALLOC_CONF=thp:never _RJEM_MALLOC_CONF=thp:never"
 
 
 # Between-job reproducibility is allocator-dependent, and the auto-vs-system
 # pair cannot measure it: those two build the same program and are the steadiest
-# configuration in the matrix (max 2.6% apart off macOS). Real allocators are
-# not. Comparing two full runs showed most cells landing within ~1pp of each
-# other but jemalloc_override on the THP=always x86_64 runners moving 20-26pp -
+# configuration in the matrix (max 2.6% apart off macOS), which real allocators
+# are not. Comparing two full runs showed most cells landing within ~1pp of each
+# other, but jemalloc_override on the THP=always x86_64 runners moved 20-26pp:
 # alpine went +47.2% -> +21.4% against system with no change but the run. Read
 # through the within-job spread alone that looked like "override saves 13%".
 #
@@ -104,9 +104,9 @@ NOISE_DUPES = [
     ("alpine", "jemalloc_override"),
     ("ubuntu-24.04", "mimalloc_v3"),
     # Both macOS runners: this is the only platform whose result actually
-    # decides anything - it is the one place the shipped default is not the
-    # system allocator - and it was the one platform with no between-job
-    # measurement at all. jemalloc rather than jemalloc_override because
+    # decides anything, since it is the one place the shipped default is not
+    # the system allocator, and it had no between-job measurement at all.
+    # jemalloc rather than jemalloc_override because
     # `auto` resolves to the same package and features as jemalloc_override
     # there, so the override variant already has a second job to compare with.
     ("macos-26", "jemalloc"),

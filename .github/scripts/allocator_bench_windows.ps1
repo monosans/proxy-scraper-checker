@@ -1,18 +1,19 @@
 # Allocator benchmark, Windows. Same contract and same TSV schema as
 # allocator_bench_unix.sh.
 #
-# Fixes over the previous version:
-#   - it polled WorkingSet64 every 100 ms and stopped the instant HasExited, so
-#     a peak reached in the final tick was missed - and save_proxies is the
-#     last thing the program does;
-#   - the per-tick Get-CimInstance Win32_Process perturbed what it measured;
+# Peak working set, peak commit, page faults and CPU time all come from the
+# kernel after exit, through a retained process handle, so they are exact.
+#
+# Four traps worth remembering here, all of which have bitten this script:
+#   - polling WorkingSet64 on a timer and stopping the instant HasExited misses
+#     a peak reached in the final tick, and save_proxies is the last thing the
+#     program does;
+#   - a per-tick Get-CimInstance Win32_Process perturbs what it measures;
 #   - Start-Process -PassThru without -Wait leaves .ExitCode empty, so a
-#     panicking binary produced a "successful" row, and the cargo build's exit
-#     code was discarded entirely;
-#   - $args is an automatic variable and was being shadowed;
-#   - no time was recorded at all.
-# Peak working set, peak commit, page faults and CPU time now come from the
-# kernel after exit through a retained process handle, which is exact.
+#     panicking binary yields a "successful" row and the cargo build's exit
+#     code goes unread;
+#   - $args is an automatic variable, so naming a local that shadows it breaks
+#     in ways that are hard to see.
 
 $ErrorActionPreference = 'Stop'
 
@@ -27,14 +28,14 @@ $mt = if ($env:TOKIO_MULTI_THREAD -eq 'true') { 'true' } else { 'false' }
 
 # --- feature selection -----------------------------------------------------
 # "system" and "auto" are not features. "system" is --no-default-features with
-# nothing added; "auto" is the shipped default feature set, which nothing in
-# the previous benchmark ever built even though it is what users actually get.
+# nothing added; "auto" is the shipped default feature set, which is what users
+# actually get and so has to be measured.
 $features = @()
 $noDefault = @('--no-default-features')
 # See allocator_bench_unix.sh: a "_dup" cell is the same binary under a second
 # job, used to measure between-job noise. Strip the suffix once into its own
-# variable - stripping it in the switch subject alone leaves the default branch
-# adding the unstripped name as a feature.
+# variable, because stripping it in the switch subject alone leaves the default
+# branch adding the unstripped name as a feature.
 $allocatorFeatures = $allocator -replace '_dup$', ''
 switch ($allocatorFeatures) {
   'system' { }
@@ -129,22 +130,22 @@ function Start-TlsServer {
     if ($cmd -and $cmd.Source -notlike '*WindowsApps*') { $py = $cmd.Source; break }
   }
   if (-not $py) {
-    Write-Host '::warning::python not found - skipping the tls workload'
+    Write-Host '::warning::python not found, skipping the tls workload'
     return $false
   }
   if (-not (Get-Command openssl -ErrorAction SilentlyContinue)) {
-    Write-Host '::warning::openssl not found - skipping the tls workload'
+    Write-Host '::warning::openssl not found, skipping the tls workload'
     return $false
   }
 
   if (-not (Test-Path 'bench-tls-cert.pem')) {
-    # Self-signed on purpose: the client is meant to reject it, which is what
-    # makes the outcome deterministic.
+    # Self-signed on purpose: the client is meant to reject it, and that is
+    # what makes the outcome deterministic.
     & openssl req -x509 -newkey rsa:2048 -keyout bench-tls-key.pem `
       -out bench-tls-cert.pem -days 1 -nodes -subj '/CN=127.0.0.1' `
       *> bench-tls-openssl.log
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path 'bench-tls-cert.pem')) {
-      Write-Host '::warning::openssl could not create a cert - skipping tls'
+      Write-Host '::warning::openssl could not create a cert, skipping tls'
       if (Test-Path 'bench-tls-openssl.log') { Get-Content bench-tls-openssl.log | Write-Host }
       return $false
     }
@@ -159,8 +160,8 @@ function Start-TlsServer {
     -RedirectStandardError bench-tls-server.err
 
   # Probe the port, not the log. Start-Process holds the redirected stdout file
-  # open, and Select-String on it can fail to read while it is being written -
-  # which loses the readiness signal, skips the workload and leaves that cell
+  # open, and Select-String on it can fail to read while it is being written.
+  # That loses the readiness signal, skips the workload and leaves that cell
   # with no rows. One windows-2025 baseline cell went missing exactly that way.
   # The probe closes immediately, so the server drops it before counting.
   for ($w = 0; $w -lt 150; $w++) {
@@ -176,7 +177,7 @@ function Start-TlsServer {
     Start-Sleep -Milliseconds 100
   }
 
-  Write-Host '::warning::tls server never became ready - skipping the tls workload'
+  Write-Host '::warning::tls server never became ready, skipping the tls workload'
   foreach ($f in 'bench-tls-server.log', 'bench-tls-server.err') {
     if (Test-Path $f) { Get-Content $f | Write-Host }
   }
@@ -262,8 +263,8 @@ foreach ($workload in $workloads) {
       $peakRssKb = [int64]([uint64]$mem.PeakWorkingSetSize / 1kb)
       $peakCommitKb = [int64]([uint64]$mem.PeakPagefileUsage / 1kb)
 
-      # Work-done counters. A clean exit 0 that scraped nothing is the failure
-      # mode the previous harness could not see.
+      # Work-done counters, so a clean exit 0 that scraped nothing cannot pass
+      # as a measurement.
       $checked = 0
       $m = [regex]::Match((Get-Content $log -Raw), 'Started checking (\d+) proxies')
       if ($m.Success) { $checked = [int]$m.Groups[1].Value }
@@ -286,7 +287,7 @@ foreach ($workload in $workloads) {
         }
         $hsDone = $hsAfter - $hsBefore
         if ($hsDone -lt 1900) {
-          Write-Host "::warning::$cellId rep ${i} completed only $hsDone of 2000 handshakes - this row measures failed connects, not TLS"
+          Write-Host "::warning::$cellId rep ${i} completed only $hsDone of 2000 handshakes, so this row measures failed connects, not TLS"
         }
       }
 
@@ -295,11 +296,11 @@ foreach ($workload in $workloads) {
       # wrong rather than that the allocator was fast.
       if (($workload -eq 'check' -or $workload -eq 'tls') -and $checked -eq 0) {
         Get-Content $log -Tail 40 | Write-Host
-        throw "rep $i checked no proxies - corpus or config is wrong"
+        throw "rep $i checked no proxies: corpus or config is wrong"
       }
       if ($workload -eq 'scrape' -and $outN -eq 0) {
         Get-Content $log -Tail 40 | Write-Host
-        throw "rep $i wrote no proxies - corpus or config is wrong"
+        throw "rep $i wrote no proxies: corpus or config is wrong"
       }
 
       if ($i -le $warmups) { continue }
@@ -353,7 +354,7 @@ foreach ($workload in $workloads) {
     $expected = ($warmups + $reps) * 2000 * $allocEnvs.Count
     # 99%, not 50%: see the matching note in allocator_bench_unix.sh.
     if ($handshakes -lt ($expected * 0.99)) {
-      Write-Host "::warning::tls workload completed only $handshakes handshakes, expected about $expected - those rows measure failed connects, not TLS"
+      Write-Host "::warning::tls workload completed only $handshakes handshakes, expected about $expected, so those rows measure failed connects, not TLS"
     }
     else {
       Write-Host "tls workload: $handshakes handshakes (expected ~$expected)"

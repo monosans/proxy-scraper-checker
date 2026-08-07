@@ -33,15 +33,15 @@ TOKIO_MULTI_THREAD="${TOKIO_MULTI_THREAD:-false}"
 
 # --- feature selection -----------------------------------------------------
 # "system" and "auto" are not features. "system" is --no-default-features with
-# nothing added; "auto" is the shipped default feature set, which nothing in
-# the previous benchmark ever built even though it is what users actually get.
+# nothing added; "auto" is the shipped default feature set, which is what users
+# actually get and so has to be measured.
 features=""
 no_default="--no-default-features"
 # A "_dup" cell builds the identical binary under a second job so the report can
 # show the between-job noise for that allocator rather than assume it. Only the
 # recorded label carries the suffix; strip it once, here, and use the stripped
 # name for every feature decision below. Stripping it in the `case` subject
-# alone is not enough - the default branch has to use it too.
+# alone is not enough, because the default branch has to use it too.
 allocator_features="${ALLOCATOR%_dup}"
 case "$allocator_features" in
   system) ;;
@@ -66,9 +66,9 @@ echo "::endgroup::"
 exe="${CARGO_TARGET_DIR:-target}/release/proxy-scraper-checker"
 
 # --- platform probes -------------------------------------------------------
-# Recorded per row because they are what makes a row interpretable. The THP
+# Recorded per row because a row cannot be interpreted without them. The THP
 # state in particular decides whether mimalloc's no_thp variants can do
-# anything at all, and the previous harness never captured it.
+# anything at all.
 uname_s="$(uname -s)"
 arch="$(uname -m)"
 case "$uname_s" in
@@ -133,19 +133,19 @@ tls_server_start() {
   tls_pid=""
   for tool in python3 openssl; do
     if ! command -v "$tool" >/dev/null 2>&1; then
-      echo "::warning::$tool not found - skipping the tls workload"
+      echo "::warning::$tool not found, skipping the tls workload"
       return 1
     fi
   done
 
   if [ ! -f bench-tls-cert.pem ]; then
-    # Self-signed on purpose: the client is meant to reject it, which is what
-    # makes the outcome deterministic. No SAN and no -addext, so this works on
-    # LibreSSL (macOS) as well as OpenSSL.
+    # Self-signed on purpose: the client is meant to reject it, and that is
+    # what makes the outcome deterministic. No SAN and no -addext, so this
+    # works on LibreSSL (macOS) as well as OpenSSL.
     if ! openssl req -x509 -newkey rsa:2048 -keyout bench-tls-key.pem \
         -out bench-tls-cert.pem -days 1 -nodes -subj "/CN=127.0.0.1" \
         >bench-tls-openssl.log 2>&1; then
-      echo "::warning::openssl could not create a cert - skipping tls"
+      echo "::warning::openssl could not create a cert, skipping tls"
       cat bench-tls-openssl.log >&2
       return 1
     fi
@@ -174,7 +174,7 @@ tls_server_start() {
     i=$(( i + 1 ))
   done
 
-  echo "::warning::tls server never became ready - skipping the tls workload"
+  echo "::warning::tls server never became ready, skipping the tls workload"
   cat bench-tls-server.log >&2
   tls_server_stop
   return 1
@@ -194,10 +194,10 @@ fi
 # Repetitions outside, tuning variants inside. Running all six reps of one
 # variant before starting the next makes every variant comparison a
 # before-and-after across several minutes, so any drift in the machine lands
-# entirely on whichever variant ran later. That is not hypothetical: with the
-# old order a macOS cell reported jemalloc/tuned at -56% peak RSS purely
-# because its reps ran last and slid from 36688 KB to 14080 KB. Interleaving
-# spreads such a trend evenly over the variants instead.
+# entirely on whichever variant ran later. That is not hypothetical: in that
+# order a macOS cell reported jemalloc/tuned at -56% peak RSS purely because
+# its reps ran last and slid from 36688 KB to 14080 KB. Interleaving spreads
+# such a trend evenly over the variants instead.
 for i in $(seq 1 "$total"); do
 
 old_ifs="$IFS"; IFS=';'
@@ -253,8 +253,7 @@ fi
       < "$timing"
     peak_extra_kb=0
   else
-    # BSD time has no -f. Line 1 carries the timings, which the previous
-    # harness discarded entirely.
+    # BSD time has no -f, and line 1 is where it puts the timings.
     set -- $(awk '/real/ && /user/ && /sys/ { print $1, $3, $5; exit }' \
                "$timing")
     wall="$1"; user="$2"; sys="$3"
@@ -277,9 +276,9 @@ fi
   user_ms="$(to_ms "$user")"
   sys_ms="$(to_ms "$sys")"
 
-  # Work-done counters. A clean exit 0 that scraped nothing is the failure mode
-  # the previous harness could not see; the aggregator additionally asserts
-  # these agree across every rep and every cell of a platform.
+  # Work-done counters, so a clean exit 0 that scraped nothing cannot pass as a
+  # measurement. The aggregator additionally asserts these agree across every
+  # rep and every cell of a platform.
   proxies_checked="$(sed -n \
     's/.*Started checking \([0-9][0-9]*\) proxies.*/\1/p' "$log" | head -n 1)"
   proxies_checked="${proxies_checked:-0}"
@@ -314,7 +313,7 @@ fi
     hs_done=$(( hs_after - hs_before ))
     if [ "$hs_done" -lt 1900 ]; then
       echo "::warning::$cell_id rep $i completed only $hs_done of 2000" \
-        "handshakes - this row measures failed connects, not TLS"
+        "handshakes, so this row measures failed connects, not TLS"
     fi
   fi
 
@@ -323,12 +322,12 @@ fi
   # the local server is wrong rather than that the allocator was fast.
   if { [ "$WORKLOAD" = "check" ] || [ "$WORKLOAD" = "tls" ]; } &&
      [ "$proxies_checked" -eq 0 ]; then
-    echo "rep $i checked no proxies - corpus or config is wrong" >&2
+    echo "rep $i checked no proxies: corpus or config is wrong" >&2
     tail -n 40 "$log" "$timing" >&2
     exit 1
   fi
   if [ "$WORKLOAD" = "scrape" ] && [ "$proxies_out" -eq 0 ]; then
-    echo "rep $i wrote no proxies - corpus or config is wrong" >&2
+    echo "rep $i wrote no proxies: corpus or config is wrong" >&2
     tail -n 40 "$log" "$timing" >&2
     exit 1
   fi
@@ -354,7 +353,7 @@ done
 if [ "$WORKLOAD" = "tls" ]; then
   # Prove the tunnel actually carried TLS. "Started checking 2000 proxies" is
   # logged before the first check runs, so proxies_checked cannot tell a run of
-  # 2000 handshakes from a run of 2000 refused connects - and the second one
+  # 2000 handshakes from a run of 2000 refused connects, and the second one
   # would quietly be a duplicate of the check workload wearing the tls label.
   # Counted by the server, so the measured process is untouched.
   handshakes="$(cat bench-tls-handshakes.txt 2>/dev/null || echo 0)"
@@ -365,7 +364,7 @@ if [ "$WORKLOAD" = "tls" ]; then
   # a large allocator win.
   if [ "$handshakes" -lt $(( expected * 99 / 100 )) ]; then
     echo "::warning::tls workload completed only $handshakes handshakes," \
-      "expected about $expected - those rows measure failed connects, not TLS"
+      "expected about $expected, so those rows measure failed connects, not TLS"
   else
     echo "tls workload: $handshakes handshakes (expected ~$expected)"
   fi
@@ -375,7 +374,7 @@ done
 
 # The summary is cosmetic; bench-results.tsv is the artifact that matters and
 # the aggregate job reads that, not this. A formatting bug here must never
-# discard a cell that already ran to completion - which is exactly what an awk
+# discard a cell that already ran to completion, which is exactly what an awk
 # syntax error did once, throwing away every measured repetition of the job.
 echo "$cells" | while read -r cell; do
   if [ -n "$cell" ]; then

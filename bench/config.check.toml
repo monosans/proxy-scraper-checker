@@ -1,16 +1,17 @@
 #:schema ../config-schema.json
 
-# Allocator-benchmark workload: CHECKING.
+# Allocator benchmark, checking workload.
 #
 # 24000 proxies (8000 per protocol), every one of them 127.0.0.1 on an unbound
 # high port, so connect() is refused in one loopback RTT. The run finishes in
 # seconds and touches no network, but every proxy still goes through
-# Proxy::check, which builds a complete reqwest::Client - connector, DNS
-# resolver, connection pool, proxy matcher - per proxy. That is the dominant
-# allocation site in the program and the one this workload measures.
+# Proxy::check, which builds a complete reqwest::Client (connector, DNS
+# resolver, connection pool, proxy matcher) for each one. That is the dominant
+# allocation site in the program, and what this workload measures.
 #
-# Selected with PROXY_SCRAPER_CHECKER_CONFIG=bench/config.check.toml, resolved
-# relative to the working directory, so run it from the repository root.
+# Select it with PROXY_SCRAPER_CHECKER_CONFIG=bench/config.check.toml. The path
+# is resolved relative to the working directory, so run it from the repository
+# root.
 
 debug = false
 

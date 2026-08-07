@@ -4,7 +4,7 @@
 # Median rather than mean, MAD rather than stddev: with 5 reps a single
 # descheduled run would drag a mean far enough to invent an allocator
 # difference. Cross-cell and cross-platform comparison is the aggregate job's
-# problem, not this one's - a job only ever sees its own cell.
+# problem, since a job only ever sees its own cell.
 #
 # Usage: allocator_bench_report.sh <results.tsv> <cell_id>
 set -eu
@@ -30,8 +30,8 @@ cell_id="$2"
     }
     # s and d are locals: awk gives a function extra parameters as fresh
     # locals, and they become arrays on first subscripted use. They must be
-    # named plainly - "s[1]" in a parameter list is a syntax error, and mawk
-    # (the default awk on Ubuntu runners) reports it as one.
+    # named plainly, since "s[1]" in a parameter list is a syntax error, and
+    # mawk (the default awk on Ubuntu runners) reports it as one.
     function stat(src, n, out,   i, s, d, med) {
       for (i = 1; i <= n; i++) s[i] = src[i]
       isort(s, n); med = median(s, n)

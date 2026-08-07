@@ -1,64 +1,61 @@
-# 🚀 proxy-scraper-checker
+# proxy-scraper-checker
 
 [![CI](https://github.com/monosans/proxy-scraper-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/monosans/proxy-scraper-checker/actions/workflows/ci.yml)
 
 ![TUI Demo](https://github.com/user-attachments/assets/0ac37021-d11c-4f68-b80d-bafdbaeb00bb)
 
-**A lightning-fast, feature-rich proxy scraper and checker built in Rust.**
+A proxy scraper and checker written in Rust.
 
-Collects HTTP/SOCKS4/SOCKS5 proxies from any number of sources, verifies each one really works, and writes the survivors out with response times, geolocation and network ownership attached.
+It collects HTTP/SOCKS4/SOCKS5 proxies from any number of sources, verifies each one really works, and writes the survivors out with response times, geolocation and network ownership attached.
 
-## ✨ Key Features
+## Features
 
-- **⚡ Fast** — async Rust; a single binary for Windows, Linux, macOS and Android, with nothing to install
-- **🎯 Parses anything** — proxies are pattern-matched out of raw text, HTML or JSON, so any source works untouched. Understands `scheme://user:pass@host:port` and CIDR ranges, from URLs or local files
-- **✅ Verifies, not just collects** — every proxy has to fetch a real URL _in full_ to survive, so ones that connect and then stall are dropped. Results are deduplicated across sources
-- **🌍 Rich metadata** — response time, exit IP, ASN and city-level geolocation from offline MaxMind databases, with no per-proxy API calls
-- **📊 Interactive TUI** — live per-protocol progress and logs
-- **📤 Flexible output** — JSON with metadata, plus ready-to-paste plain text lists
+- Async Rust, shipped as a single binary for Windows, Linux, macOS and Android. Nothing to install.
+- Proxies are pattern-matched out of raw text, HTML or JSON, so any source works untouched. `scheme://user:pass@host:port` and CIDR ranges are understood, from URLs or local files.
+- Every proxy has to fetch a real URL _in full_ to survive, so ones that connect and then stall get dropped. Results are deduplicated across sources.
+- Response time, exit IP, ASN and city-level geolocation come from offline MaxMind databases, so there are no per-proxy API calls.
+- The interactive TUI shows per-protocol progress and logs as the run goes.
+- Output is JSON with metadata, plus ready-to-paste plain text lists.
 
-## 🔗 Related
+## Related
 
-Want proxies without running anything? [monosans/proxy-list](https://github.com/monosans/proxy-list) is updated regularly using this tool.
+If you want proxies without running anything, [monosans/proxy-list](https://github.com/monosans/proxy-list) is updated regularly using this tool.
 
-## ⚠️ Safety warning
+## Safety warning
 
 Checking opens hundreds of simultaneous connections to untrusted hosts. Your ISP may read that as abusive traffic, and cheap routers can drop connectivity when their NAT table fills. Consider a VPN, and lower `max_concurrent_checks` if a run destabilizes your network.
 
-## 🚀 Quick start
+## Quick start
 
 Every option is documented inline in `config.toml`. The binary reads `config.toml` from the current directory; set `PROXY_SCRAPER_CHECKER_CONFIG` to point it somewhere else.
 
 <details>
-<summary>💻 Download &amp; run a pre-built binary (easiest)</summary>
+<summary>Download and run a pre-built binary (easiest)</summary>
 
-> **Note:** Android/Termux users, see the dedicated section below.
+> On Android/Termux, see the dedicated section below instead.
 
-1. **Download** the archive for your platform from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
-   - Look for artifacts starting with `proxy-scraper-checker-binary-` followed by your platform
-   - Not sure which platform? Check the [platform support table](https://doc.rust-lang.org/beta/rustc/platform-support.html)
+1. Download the archive for your platform from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview). Look for artifacts starting with `proxy-scraper-checker-binary-` followed by your platform. If you are not sure which platform you have, check the [platform support table](https://doc.rust-lang.org/beta/rustc/platform-support.html).
 
-2. **Extract** the archive to a dedicated folder
+2. Extract the archive to a dedicated folder.
 
-3. **Configure** by editing `config.toml`
+3. Edit `config.toml`.
 
-4. **Run** the executable
+4. Run the executable.
 
 </details>
 
 <details>
-<summary>🐳 Docker</summary>
+<summary>Docker</summary>
 
-> **Note:** The Docker image logs to stdout instead of showing the interactive TUI.
+> The Docker image logs to stdout instead of showing the interactive TUI.
 
-1. **Install** [Docker Compose](https://docs.docker.com/compose/install/)
+1. Install [Docker Compose](https://docs.docker.com/compose/install/).
 
-2. **Download** the archive from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview)
-   - Look for artifacts starting with `proxy-scraper-checker-docker-` followed by your CPU architecture
+2. Download the archive from [nightly builds](https://nightly.link/monosans/proxy-scraper-checker/workflows/ci/main?preview). Look for artifacts starting with `proxy-scraper-checker-docker-` followed by your CPU architecture.
 
-3. **Extract** to a folder and edit `config.toml`
+3. Extract it to a folder and edit `config.toml`.
 
-4. **Build and run:**
+4. Build and run:
 
    ```bash
    # Windows
@@ -75,23 +72,23 @@ Results land in `./out` on the host; `output.path` is ignored in Docker.
 </details>
 
 <details>
-<summary>📱 Android / Termux</summary>
+<summary>Android / Termux</summary>
 
-> **Important:** Install Termux from [F-Droid](https://f-droid.org/en/packages/com.termux/), not Google Play ([why?](https://github.com/termux/termux-app#google-play-store-experimental-branch)).
+> Install Termux from [F-Droid](https://f-droid.org/en/packages/com.termux/), not Google Play ([why?](https://github.com/termux/termux-app#google-play-store-experimental-branch)).
 
-1. **Install** with one command:
+1. Install with one command:
 
    ```bash
    bash <(curl -fsSL 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/termux.sh')
    ```
 
-2. **Configure** using a text editor:
+2. Edit the config in a text editor:
 
    ```bash
    nano ~/proxy-scraper-checker/config.toml
    ```
 
-3. **Run:**
+3. Run it:
 
    ```bash
    cd ~/proxy-scraper-checker && ./proxy-scraper-checker
@@ -100,39 +97,34 @@ Results land in `./out` on the host; `output.path` is ignored in Docker.
 </details>
 
 <details>
-<summary>🛠️ Build from source</summary>
+<summary>Build from source</summary>
 
-1. **Install the Rust toolchain**
+1. Install the Rust toolchain, see <https://rust-lang.org/tools/install/>
 
-   See <https://rust-lang.org/tools/install/>
-
-2. **Clone the repository**
+2. Clone the repository:
 
    ```bash
    git clone https://github.com/monosans/proxy-scraper-checker.git
    cd proxy-scraper-checker
    ```
 
-3. **Build a release binary with the TUI enabled**
+3. Build a release binary with the TUI enabled:
 
    ```bash
    cargo build --features tui --release --locked
    ```
 
-4. **Run with the TUI**
+4. Run with the TUI:
 
    ```bash
    cargo run --features tui --release --locked
    ```
 
-**Binary location:**
-
-- `target/release/proxy-scraper-checker` (Linux/macOS)
-- `target\release\proxy-scraper-checker.exe` (Windows)
+The binary lands in `target/release/proxy-scraper-checker` on Linux/macOS, or `target\release\proxy-scraper-checker.exe` on Windows.
 
 </details>
 
-## 📤 Output
+## Output
 
 ```
 out/
@@ -170,26 +162,25 @@ out/
 }
 ```
 
-`timeout` is how long the whole request took, in seconds — connection, request and the complete response, which is also what `sort_by_speed` orders by. `exit_ip` is the address the target site actually saw — compare it with `host` to spot proxies that forward through somewhere else.
+`timeout` is how long the whole request took, in seconds: connection, request and the complete response. That is also what `sort_by_speed` orders by. `exit_ip` is the address the target site actually saw, so comparing it with `host` spots proxies that forward through somewhere else.
 
 `exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns the exit IP, so pointing it at an ordinary web page leaves all three `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
 
-Stopping a run early — `ESC` or `q` in the TUI, `Ctrl-C` anywhere — writes out everything checked so far. If you stop before any proxy has been checked, the previous run's files are left untouched rather than emptied.
+Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes out everything checked so far. If you stop before any proxy has been checked, the previous run's files are left untouched rather than emptied.
 
-## 💎 Sponsors
+## Sponsors
 
-|                                                                 |                                                                                                                                                               |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[🌐 RapidProxy.io](https://www.rapidproxy.io/?ref=monosans)** | <a href="https://www.rapidproxy.io/?ref=monosans"><img width="400" src="https://github.com/user-attachments/assets/143ed7cc-c200-4563-9253-4ccedcd3ecd5"></a> |
+|                                                              |                                                                                                                                                               |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[RapidProxy.io](https://www.rapidproxy.io/?ref=monosans)** | <a href="https://www.rapidproxy.io/?ref=monosans"><img width="400" src="https://github.com/user-attachments/assets/143ed7cc-c200-4563-9253-4ccedcd3ecd5"></a> |
 
-🚀 **Want to be featured here?** Support the project and get your name in this section.
+Want your name in this section? Support the project and it goes here.
 
-### 💖 Support this project
+### Support this project
 
-- ⭐ **Star the repository** — help others discover this tool
-- 🤝 **Interested in sponsoring?** [DM me on Telegram](https://t.me/monosans)
+Star the repository so other people can find it. If you are interested in sponsoring, [DM me on Telegram](https://t.me/monosans).
 
-## 📄 License
+## License
 
 [MIT](LICENSE)
 

@@ -5,7 +5,7 @@ Reads every bench-results.tsv under the directory given on the command line
 (the downloaded artifacts), writes the concatenated rows to bench-all.tsv, and
 renders per-platform tables into GITHUB_STEP_SUMMARY.
 
-Two properties the previous harness lacked and that everything here depends on:
+Everything here depends on two properties:
 
 * Rows are only ever compared inside one (platform, workload) group. Linux
   ru_maxrss, macOS maxrss and the Windows peak working set are three different
@@ -13,9 +13,9 @@ Two properties the previous harness lacked and that everything here depends on:
   cross-OS ranking is meaningless no matter how tempting the table looks.
 * A delta is only called a win if it clears that cell's own measured spread.
   The noise floor is derived from the reps, not assumed: for each comparison it
-  is the larger of the two cells' MAD, scaled to a rough 95% interval. With the
-  old n=1 data, 21% of pairwise allocator comparisons flipped sign between two
-  runs of the identical cell.
+  is the larger of the two cells' MAD, scaled to a rough 95% interval. At n=1,
+  21% of pairwise allocator comparisons flipped sign between two runs of the
+  identical cell.
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ def check_consistency(rows: list[dict[str, str]], out: list[str]) -> None:
         if len(allocators) > 1:
             problems.append(
                 f"- **{platform}**: {sorted(allocators)} produced the identical "
-                f"binary {sha} - those features are not doing anything"
+                f"binary {sha}, so those features are not doing anything"
             )
 
     if problems:
@@ -202,8 +202,8 @@ def job_noise_floors(stats: dict) -> dict[tuple[str, str, str], float]:
 
     # Platforms without a dup cell fall back to the worst floor measured
     # anywhere for that metric, rather than to zero. Zero would quietly award
-    # full confidence exactly where the noise is unknown, which is the failure
-    # this whole mechanism exists to prevent.
+    # full confidence exactly where the noise is unknown, which is what this
+    # whole mechanism is meant to prevent.
     for name, _, _ in METRICS:
         worst = max(
             (v for (_, _, m), v in floors.items() if m == name), default=0.0
@@ -221,8 +221,8 @@ def floor_for(floors: dict, platform: str, workload: str, metric: str) -> float:
 def delta_cell(x: Cell, b: Cell, floor: float = 0.0) -> str:
     """Median-vs-median delta, qualified by what the reps can actually support.
 
-    The MAD-based test this replaced called a cell precise whenever three of
-    five reps agreed - and mimalloc cells are frequently bimodal, e.g.
+    A MAD-based test calls a cell precise whenever three of five reps agree,
+    and mimalloc cells are frequently bimodal, e.g.
     [75808, 63524, 75812, 65576, 75812], whose MAD is 4 KB against a 12 MB
     spread. So significance is decided by the observed ranges instead: the
     delta counts only if it keeps its sign when each side is taken at its worst
@@ -269,15 +269,15 @@ def render(stats: dict, out: list[str], floors: dict) -> None:
         )
         if baseline is None:
             out.append(
-                "> No `system`/`default` rows in this group - that cell's job "
-                "failed, so every delta below is blank for want of a "
+                "> No `system`/`default` rows in this group, so that cell's "
+                "job failed. Every delta below is blank for want of a "
                 "baseline, not because the allocators tied.\n"
             )
         # n is printed because the upload is `if: always()`: a cell that died
         # at rep 1 still ships its rows, and a single rep has MAD 0, which
         # collapses the noise floor onto the 1% fallback and prints an
-        # unqualified "win" - the exact n=1 regime this module was written
-        # to get away from.
+        # unqualified "win". That n=1 regime is exactly what this module
+        # exists to avoid.
         header = "| allocator | env | n |"
         divider = "| --- | --- | ---: |"
         for _, label, _ in METRICS:
@@ -318,8 +318,8 @@ def render(stats: dict, out: list[str], floors: dict) -> None:
             out.append(
                 "\nNo `_dup` cell on this platform, so between-job noise was "
                 "not measured here. The deltas above are held to the worst "
-                f"floor seen anywhere instead ({borrowed}), which is a guess - "
-                "add this platform to NOISE_DUPES in allocator_bench_matrix.py "
+                f"floor seen anywhere instead ({borrowed}), which is a guess. "
+                "Add this platform to NOISE_DUPES in allocator_bench_matrix.py "
                 "if a decision is going to rest on it.\n"
             )
         out.append("")
@@ -330,8 +330,8 @@ def render_mt(stats: dict, out: list[str]) -> None:
 
     render() carries `mt` in the group key, so the per-platform tables never
     place the two flavors side by side, and each table normalises its deltas to
-    its own baseline - which makes the two columns incomparable as well. The
-    mt=true jobs exist to answer this one question, so it gets its own table.
+    its own baseline, which makes the two columns incomparable as well. The
+    mt=true jobs answer this one question, so it gets its own table.
     """
     pairs: dict[tuple[str, str, str, str], dict[str, dict]] = defaultdict(dict)
     # key is (platform, libc, arch, workload, mt, allocator, alloc_env).

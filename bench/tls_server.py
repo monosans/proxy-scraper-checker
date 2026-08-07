@@ -1,33 +1,29 @@
 #!/usr/bin/env python3
 """Local HTTP CONNECT proxy that terminates TLS, for the `tls` bench workload.
 
-Why this exists
----------------
 The `check` workload points every proxy at a refused loopback port, so
 `Proxy::check` dies inside connect() and no TLS ever happens. That leaves
-aws-lc-sys - by far the largest C allocator linked into this program - idle,
-which is precisely the allocation traffic the mimalloc `override` and jemalloc
-`override_allocator_on_supported_platforms` features exist to redirect. A
-benchmark that never handshakes cannot say anything about them, and it also
-misses the dominant per-proxy CPU cost of a real run.
+aws-lc-sys, by far the largest C allocator linked into this program, idle, and
+aws-lc-sys is the allocation traffic that the mimalloc `override` and jemalloc
+`override_allocator_on_supported_platforms` features redirect. A benchmark that
+never handshakes cannot say anything about them, and it misses the dominant
+per-proxy CPU cost of a real run too.
 
 This process is both halves of the target: it speaks HTTP CONNECT, answers 200,
-then performs a TLS *server* handshake on the tunnelled socket. The client is
-the real program under test.
+then performs a TLS server handshake on the tunnelled socket. The client is the
+real program under test.
 
-What the client actually executes
----------------------------------
 src/http.rs:38-44 replaces kx_groups for TlsProfile::Checking with
-X25519/P-256/P-384 - post-quantum applies only to scraping - and disables
+X25519/P-256/P-384 (post-quantum applies only to scraping) and disables
 resumption, so every check is a full classical handshake. Stock OpenSSL
-negotiates that exactly, which is why this helper needs no Rust and no
-aws-lc-rs of its own.
+negotiates that exactly, so this helper needs no Rust and no aws-lc-rs of its
+own.
 
 The certificate is self-signed, so rustls-platform-verifier rejects it and the
-check fails. That is deliberate and deterministic: it still runs key
+check fails. That is deliberate and deterministic. The handshake still runs key
 generation, the ECDHE agreement, the HKDF key schedule, AEAD decryption of the
-handshake records and X.509 DER parsing - the bulk of per-handshake allocation.
-What it does *not* reach is the CertificateVerify signature check and the
+handshake records and X.509 DER parsing, which is the bulk of per-handshake
+allocation. It never reaches the CertificateVerify signature check or the
 application-data phase. Trusting the cert instead would mean installing a CA
 into three different OS trust stores, which is not worth the fragility.
 
@@ -55,10 +51,10 @@ BACKLOG = 2048
 HEADER_LIMIT = 64 * 1024
 IO_TIMEOUT = 15.0
 # Every 10, not every 100: the file is the only evidence the tunnel carried
-# TLS, and at 100 a short smoke run finishes without ever writing, which reads
-# as "zero handshakes" - the exact failure it is meant to detect. 1200 tiny
-# writes over a full workload cost nothing, and they happen in this process,
-# never in the one being measured.
+# TLS, and at 100 a short smoke run finishes without ever writing, which looks
+# like zero handshakes, the exact failure it is meant to detect. 1200 tiny
+# writes over a full workload cost nothing, and they happen in this process
+# rather than in the one being measured.
 FLUSH_EVERY = 10
 
 # Running out of descriptors, buffers or a client hanging up mid-accept are all
@@ -91,8 +87,8 @@ def record_handshake() -> None:
     is logged before the first check runs, so the harness's proxies_checked
     guard passes whether the 2000 checks did a TLS handshake or died in
     connect(). The count is written from this process, never from the process
-    being measured, so it cannot perturb the measurement. Flushed every
-    FLUSH_EVERY handshakes - the caller only needs the order of magnitude.
+    being measured, so it cannot perturb the measurement. It is flushed every
+    FLUSH_EVERY handshakes; the caller only needs the order of magnitude.
     """
     global _handshakes
     # The write stays inside the lock: released first, a thread that read an
@@ -116,16 +112,16 @@ def handle(conn: socket.socket) -> None:
         # Close with an RST rather than a FIN, and set it HERE, before
         # wrap_socket. A graceful close parks the 4-tuple in TIME_WAIT on
         # whichever side closed, usually the client, and macOS offers ~16384
-        # ephemeral ports with no loopback TIME_WAIT reuse - so a job simply
+        # ephemeral ports with no loopback TIME_WAIT reuse, so a job simply
         # stops being able to connect partway through. Two macos-26 jobs died
         # at 16400 and 16470 handshakes, which is that limit almost exactly.
         #
         # It has to precede wrap_socket because wrap_socket DETACHES this
         # socket: conn.fileno() becomes -1 and every later setsockopt on it
-        # fails. An earlier attempt set this in the finally block, where it
-        # silently did nothing and the port exhaustion came back unchanged.
-        # The option lives on the descriptor, so it survives the detach and
-        # applies when the SSLSocket eventually closes.
+        # fails. Setting it down in the finally block instead does nothing at
+        # all, silently, and the port exhaustion comes back unchanged. The
+        # option lives on the descriptor, so it survives the detach and applies
+        # when the SSLSocket eventually closes.
         try:
             conn.setsockopt(
                 socket.SOL_SOCKET,
@@ -135,8 +131,8 @@ def handle(conn: socket.socket) -> None:
         except OSError:
             pass
 
-        # Read the CONNECT request. The target host:port is ignored - this
-        # process is the target - but it must be consumed before the tunnel
+        # Read the CONNECT request. The target host:port is ignored, since this
+        # process is the target, but it must be consumed before the tunnel
         # turns into TLS bytes.
         buf = b""
         while b"\r\n\r\n" not in buf:
@@ -153,14 +149,14 @@ def handle(conn: socket.socket) -> None:
         conn.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
 
         # wrap_socket performs the server handshake. The client rejects the
-        # self-signed certificate and answers with a fatal alert, which surfaces
-        # here as SSLError - by which point both sides have done the work this
-        # workload exists to measure.
-        # Counted before the attempt, not after: the client answers our
-        # certificate with a fatal alert and frequently resets the connection,
-        # which surfaces here as ConnectionResetError rather than SSLError.
-        # Counting only the clean endings undercounted by nearly half. What
-        # this number has to prove is that the tunnel carried TLS at all.
+        # self-signed certificate and answers with a fatal alert, by which
+        # point both sides have done the work this workload measures.
+        #
+        # Counted before the attempt rather than after it: that fatal alert
+        # frequently comes with a reset, which surfaces here as
+        # ConnectionResetError rather than SSLError, and counting only the
+        # clean endings undercounted by nearly half. All this number has to
+        # show is that the tunnel carried TLS at all.
         record_handshake()
         try:
             tls = CONTEXT.wrap_socket(conn, server_side=True)
@@ -219,7 +215,7 @@ def main() -> None:
     # Not SO_REUSEADDR on Windows: there it means what SO_REUSEPORT means
     # elsewhere, so a second instance binds the same port successfully and the
     # kernel splits incoming connections between them. That silently divides
-    # the handshake count - observed locally with four listeners on one port.
+    # the handshake count, seen locally with four listeners on one port.
     # SO_EXCLUSIVEADDRUSE makes the second bind fail loudly instead.
     if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
@@ -236,12 +232,12 @@ def main() -> None:
                 try:
                     conn, _ = listener.accept()
                 except OSError as exc:
-                    # A transient accept() failure must not end the server. The
-                    # previous version broke out of the loop on any OSError,
-                    # which closed the listener and made every remaining
-                    # connection refuse instantly - indistinguishable in the
-                    # results from an allocator that suddenly needed a third of
-                    # the memory.
+                    # A transient accept() failure must not end the server.
+                    # Breaking out of the loop on any OSError closes the
+                    # listener and makes every remaining connection refuse
+                    # instantly, which in the results is indistinguishable
+                    # from an allocator that suddenly needed a third of the
+                    # memory.
                     if exc.errno in TRANSIENT_ACCEPT_ERRORS:
                         time.sleep(0.05)
                         continue

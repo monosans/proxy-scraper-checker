@@ -135,6 +135,8 @@ out/
     └── socks5.txt
 ```
 
+A text line is `host:port`, or `username:password@host:port` for a proxy that needs credentials, with `protocol://` in front of either in `all.txt`.
+
 ```json
 {
   "protocol": "socks5",

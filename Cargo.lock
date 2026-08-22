@@ -906,7 +906,7 @@ dependencies = [
 [[package]]
 name = "hyper-util"
 version = "0.1.20"
-source = "git+https://github.com/hyperium/hyper-util?branch=master#551e7bb9cb90e76bb68a637d45352df29b9742cd"
+source = "git+https://github.com/hyperium/hyper-util?branch=master#689dc29c98943ed687842c916d73f602b5f8307f"
 dependencies = [
  "base64 0.23.1",
  "bytes",

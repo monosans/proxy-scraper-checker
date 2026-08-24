@@ -777,9 +777,9 @@ checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
 
 [[package]]
 name = "h2"
-version = "0.4.18"
+version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "839c0e8a181239723652be9062bb56ca5bf5f64011f73b623f6f4fc59086a228"
+checksum = "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -906,7 +906,7 @@ dependencies = [
 [[package]]
 name = "hyper-util"
 version = "0.1.20"
-source = "git+https://github.com/hyperium/hyper-util?branch=master#07345689c815e115e616ce78a6a02c5df6c7081f"
+source = "git+https://github.com/hyperium/hyper-util?branch=master#7e0958bb537fb8b7901bae60d43a322c8f9a8a63"
 dependencies = [
  "base64 0.23.1",
  "bytes",

@@ -28,7 +28,7 @@ log = { version = "=0.4.34", features = [
   "release_max_level_debug",
   "std",
 ] }
-maxminddb = { version = "=0.30.0", features = ["mmap"] }
+maxminddb = { version = "=0.30.3", features = ["mmap"] }
 mimalloc = { version = "=0.1.52", optional = true }
 parking_lot = "=0.12.5"
 rapidhash = { version = "=4.5.1", features = ["unsafe"] }

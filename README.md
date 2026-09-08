@@ -170,9 +170,9 @@ Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes 
 
 ## Sponsors
 
-|                                                              |                                                                                                                                                               |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[RapidProxy.io](https://www.rapidproxy.io/?ref=monosans)** | <a href="https://www.rapidproxy.io/?ref=monosans"><img width="400" src="https://github.com/user-attachments/assets/143ed7cc-c200-4563-9253-4ccedcd3ecd5"></a> |
+|                                                                                                                          |                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[IPcook.com](https://www.ipcook.com/?ref=githubmonosans&utm_source=github&utm_medium=referral&utm_campaign=monosans)** | <a href="https://www.ipcook.com/?ref=githubmonosans&utm_source=github&utm_medium=referral&utm_campaign=monosans"><img width="400" src="https://github.com/user-attachments/assets/a1215c5c-e648-429a-90d4-a4cfb6b0affc"></a> |
 
 Want your name in this section? Support the project and it goes here.
 

@@ -131,9 +131,7 @@ def check_consistency(rows: list[dict[str, str]], out: list[str]) -> None:
 
 
 def summarize(rows: list[dict[str, str]]) -> dict:
-    cells: dict[tuple, dict[str, list[float]]] = defaultdict(
-        lambda: defaultdict(list)
-    )
+    cells: dict[tuple, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     for row in rows:
         key = (
             row["platform"],
@@ -178,7 +176,7 @@ def job_noise_floors(stats: dict) -> dict[tuple[str, str, str], float]:
     A "_dup" cell is the same features built in a second job, so the gap between
     X and X_dup is noise by construction. It is much larger than it looks from
     the auto-vs-system pair, which is the steadiest configuration in the matrix:
-    that pair sits within 1.4% while jemalloc_override on ubuntu-24.04 moved
+    that pair sits within 1.4% while jemalloc_override on ubuntu-26.04 moved
     ~14% between jobs across every tuning variant. Within-cell spread cannot see
     this at all - each side is individually tight - so without a floor the
     report will keep calling a 14% job-to-job wobble a result.
@@ -205,9 +203,7 @@ def job_noise_floors(stats: dict) -> dict[tuple[str, str, str], float]:
     # full confidence exactly where the noise is unknown, which is what this
     # whole mechanism is meant to prevent.
     for name, _, _ in METRICS:
-        worst = max(
-            (v for (_, _, m), v in floors.items() if m == name), default=0.0
-        )
+        worst = max((v for (_, _, m), v in floors.items() if m == name), default=0.0)
         floors[("*", "*", name)] = worst
     return floors
 
@@ -260,11 +256,7 @@ def render(stats: dict, out: list[str], floors: dict) -> None:
             f"workload={workload}, tokio-multi-thread={mt}\n"
         )
         baseline = next(
-            (
-                k
-                for k in keys
-                if k[5] == "system" and k[6] == "default"
-            ),
+            (k for k in keys if k[5] == "system" and k[6] == "default"),
             None,
         )
         if baseline is None:
@@ -379,8 +371,9 @@ def main() -> None:
     with open("bench-all.tsv", "w", encoding="utf-8", newline="\n") as fh:
         header = list(rows[0].keys())
         fh.write("\t".join(header) + "\n")
-        for row in rows:
-            fh.write("\t".join(row[column] for column in header) + "\n")
+        fh.writelines(
+            "\t".join(row[column] for column in header) + "\n" for row in rows
+        )
 
     out: list[str] = [f"# Allocator bench - {len(rows)} measured repetitions\n"]
     check_consistency(rows, out)

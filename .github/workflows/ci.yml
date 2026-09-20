@@ -18,7 +18,7 @@ jobs:
       - pre-commit
       - rustfmt
       - udeps
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # release/v1
         with:
@@ -31,7 +31,7 @@ jobs:
             runner: macos-26
             cross: false
           - target: aarch64-pc-windows-msvc
-            runner: windows-11-arm
+            runner: windows-11-vs2026-arm
             cross: false
             executable: proxy-scraper-checker.exe
           - target: i686-pc-windows-msvc
@@ -46,187 +46,187 @@ jobs:
             cross: false
             executable: proxy-scraper-checker.exe
           - target: aarch64-linux-android
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: aarch64-unknown-linux-gnu:centos
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           - target: aarch64-unknown-linux-musl
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: aarch64_be-unknown-linux-gnu
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           - target: arm-linux-androideabi
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: arm-unknown-linux-gnueabi
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: arm-unknown-linux-gnueabihf
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: arm-unknown-linux-musleabi
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: arm-unknown-linux-musleabihf
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: armv5te-unknown-linux-gnueabi
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: armv5te-unknown-linux-musleabi
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: armv7-linux-androideabi
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: armv7-unknown-linux-gnueabi
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: armv7-unknown-linux-gnueabihf
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: armv7-unknown-linux-musleabi
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: armv7-unknown-linux-musleabihf
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: i586-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: i586-unknown-linux-musl
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: i686-unknown-freebsd
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: i686-linux-android
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: i686-pc-windows-gnu
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           - target: i686-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: loongarch64-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: loongarch64-unknown-linux-musl
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: mips-unknown-linux-gnu
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: mips-unknown-linux-musl
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: mips64-unknown-linux-gnuabi64
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: mips64-unknown-linux-muslabi64
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: mips64el-unknown-linux-gnuabi64
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: mips64el-unknown-linux-muslabi64
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: mipsel-unknown-linux-gnu
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: mipsel-unknown-linux-musl
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           - target: powerpc-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: powerpc64-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: powerpc64le-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: riscv64gc-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: riscv64gc-unknown-linux-musl
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: s390x-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: sparc64-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: sparcv9-sun-solaris
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: thumbv6m-none-eabi
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: thumbv7em-none-eabi
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: thumbv7em-none-eabihf
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: thumbv7m-none-eabi
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           - target: thumbv7neon-linux-androideabi
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           - target: thumbv7neon-unknown-linux-gnueabihf
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: thumbv8m.base-none-eabi
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: thumbv8m.main-none-eabi
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: thumbv8m.main-none-eabihf
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: wasm32-unknown-emscripten
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           - target: x86_64-linux-android
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: x86_64-pc-windows-gnu
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: x86_64-pc-solaris
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           - target: x86_64-unknown-freebsd
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: x86_64-unknown-dragonfly
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           # - target: x86_64-unknown-illumos
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: x86_64-unknown-linux-gnu:centos
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
           - target: x86_64-unknown-linux-musl
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
             cross: true
           # - target: x86_64-unknown-netbsd
-          #   runner: ubuntu-24.04
+          #   runner: ubuntu-26.04
           #   cross: true
       fail-fast: false
     runs-on: ${{ matrix.runner }}
@@ -268,16 +268,16 @@ jobs:
         include:
           - platform: "linux/386"
             tag: "386"
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
           - platform: "linux/amd64"
             tag: "amd64"
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
           - platform: "linux/arm/v7"
             tag: "arm-v7"
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
           - platform: "linux/arm64/v8"
             tag: "arm64-v8"
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
       fail-fast: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -309,7 +309,7 @@ jobs:
   upload-docker-manifest:
     needs:
       - build-docker
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       packages: write
     steps:
@@ -328,7 +328,7 @@ jobs:
   upload-docker-prebuilt:
     needs:
       - upload-docker-manifest
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         platform:
@@ -378,7 +378,7 @@ jobs:
           - "riscv64"
           - "s390x"
       fail-fast: false
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -393,7 +393,7 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
   clippy:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         include:
@@ -464,7 +464,7 @@ jobs:
           cache-key: x86_64-unknown-linux-gnu-${{ matrix.id }}
       - run: cargo +beta clippy --all-targets ${{ matrix.features }} --
   pre-commit:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -475,7 +475,7 @@ jobs:
           enable-cache: false
       - run: uvx --no-cache prek run --all-files --show-diff-on-failure
   rustfmt:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -487,7 +487,7 @@ jobs:
           cache-key: x86_64-unknown-linux-gnu
       - run: cargo +nightly fmt --check
   udeps:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         include:

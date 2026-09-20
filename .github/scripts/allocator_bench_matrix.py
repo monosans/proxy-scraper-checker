@@ -26,14 +26,14 @@ import os
 
 # (label, runner, alpine, os_family)
 PLATFORMS = [
-    ("ubuntu-24.04", "ubuntu-24.04", False, "linux"),
-    ("ubuntu-24.04-arm", "ubuntu-24.04-arm", False, "linux"),
-    ("alpine", "ubuntu-24.04", True, "linux"),
-    ("alpine-arm", "ubuntu-24.04-arm", True, "linux"),
+    ("ubuntu-26.04", "ubuntu-26.04", False, "linux"),
+    ("ubuntu-26.04-arm", "ubuntu-26.04-arm", False, "linux"),
+    ("alpine", "ubuntu-26.04", True, "linux"),
+    ("alpine-arm", "ubuntu-26.04-arm", True, "linux"),
     ("macos-26", "macos-26", False, "macos"),
     ("macos-26-intel", "macos-26-intel", False, "macos"),
     ("windows-2025", "windows-2025", False, "windows"),
-    ("windows-11-arm", "windows-11-arm", False, "windows"),
+    ("windows-11-vs2026-arm", "windows-11-vs2026-arm", False, "windows"),
 ]
 
 # `auto` is the shipped default feature set, so leaving it out would mean never
@@ -65,7 +65,7 @@ JEMALLOC = ["jemalloc", "jemalloc_override"]
 # regressed 35 of 38 measured cells), but whether it buys any wall clock is
 # still open, so it stays as a small confirmation subset now that time is
 # recorded.
-MT_PLATFORMS = {"ubuntu-24.04", "ubuntu-24.04-arm", "macos-26", "windows-2025"}
+MT_PLATFORMS = {"ubuntu-26.04", "ubuntu-26.04-arm", "macos-26", "windows-2025"}
 MT_ALLOCATORS = {"system", "auto"}
 
 # Both spellings are set: jemalloc reads the prefixed name when built prefixed
@@ -100,9 +100,9 @@ JE_THP = "thp_never:MALLOC_CONF=thp:never _RJEM_MALLOC_CONF=thp:never"
 # allocator, measured instead of assumed. The suffix is stripped before the
 # feature list is assembled.
 NOISE_DUPES = [
-    ("ubuntu-24.04", "jemalloc_override"),
+    ("ubuntu-26.04", "jemalloc_override"),
     ("alpine", "jemalloc_override"),
-    ("ubuntu-24.04", "mimalloc_v3"),
+    ("ubuntu-26.04", "mimalloc_v3"),
     # Both macOS runners: this is the only platform whose result actually
     # decides anything, since it is the one place the shipped default is not
     # the system allocator, and it had no between-job measurement at all.

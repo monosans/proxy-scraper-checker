@@ -80,7 +80,7 @@ tui-logger = { version = "=0.18.3", features = [
 url = "=2.5.8"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-rustls-platform-verifier = "=0.7.0"
+rustls-platform-verifier = "=0.7.1"
 
 [target.'cfg(target_os = "android")'.dependencies]
 webpki-roots = "=1.0.9"

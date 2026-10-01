@@ -242,7 +242,7 @@ jobs:
       - if: ${{ matrix.cross  }}
         run: cargo +beta install cross --git https://github.com/cross-rs/cross
         env:
-          RUSTFLAGS: ""
+          CARGO_BUILD_WARNINGS: allow
       - if: ${{ matrix.cross  }}
         run: cross +beta build --features tui --release --target '${{ matrix.target }}' --locked
       - if: ${{ !matrix.cross }}

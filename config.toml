@@ -130,6 +130,8 @@ urls = [
   "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/https/data.txt",
   "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/HTTPS_RAW.txt",
   "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/http_proxies.txt",
+  "https://raw.githubusercontent.com/z3a4/free-proxy-list/refs/heads/main/proxies/checked/protocols/http/http-proxies.txt",
+  "https://raw.githubusercontent.com/z3a4/free-proxy-list/refs/heads/main/proxies/checked/protocols/https/https-proxies.txt",
   "https://raw.githubusercontent.com/zloi-user/hideip.me/refs/heads/main/connect.txt",
   "https://raw.githubusercontent.com/zloi-user/hideip.me/refs/heads/main/https.txt",
   "https://spys.me/proxy.txt",
@@ -146,7 +148,6 @@ urls = [
   "https://raw.githubusercontent.com/ObcbO/getproxy/refs/heads/master/file/socks4.txt",
   "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks4.txt",
   "https://raw.githubusercontent.com/TuanMinPay/live-proxy/refs/heads/master/socks4.txt",
-  "https://raw.githubusercontent.com/cyberh4ck3r/free-proxy-list/refs/heads/main/socks4-proxies.txt",
   "https://raw.githubusercontent.com/databay-labs/free-proxy-list/refs/heads/master/socks4.txt",
   "https://raw.githubusercontent.com/dinoz0rg/proxy-list/refs/heads/main/checked_proxies/socks4.txt",
   "https://raw.githubusercontent.com/dpangestuw/Free-PROXY/refs/heads/main/socks4_proxies.txt",
@@ -157,6 +158,7 @@ urls = [
   "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks4/data.txt",
   "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/SOCKS4_RAW.txt",
   "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks4_proxies.txt",
+  "https://raw.githubusercontent.com/z3a4/free-proxy-list/refs/heads/main/proxies/checked/protocols/socks4/socks4-proxies.txt",
   "https://raw.githubusercontent.com/zloi-user/hideip.me/refs/heads/main/socks4.txt",
 ]
 
@@ -170,7 +172,6 @@ urls = [
   "https://raw.githubusercontent.com/ObcbO/getproxy/refs/heads/master/file/socks5.txt",
   "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/refs/heads/master/socks5.txt",
   "https://raw.githubusercontent.com/TuanMinPay/live-proxy/refs/heads/master/socks5.txt",
-  "https://raw.githubusercontent.com/cyberh4ck3r/free-proxy-list/refs/heads/main/socks5-proxies.txt",
   "https://raw.githubusercontent.com/databay-labs/free-proxy-list/refs/heads/master/socks5.txt",
   "https://raw.githubusercontent.com/dinoz0rg/proxy-list/refs/heads/main/checked_proxies/socks5.txt",
   "https://raw.githubusercontent.com/dpangestuw/Free-PROXY/refs/heads/main/socks5_proxies.txt",
@@ -182,6 +183,7 @@ urls = [
   "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt",
   "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/SOCKS5_RAW.txt",
   "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks5_proxies.txt",
+  "https://raw.githubusercontent.com/z3a4/free-proxy-list/refs/heads/main/proxies/checked/protocols/socks5/socks5-proxies.txt",
   "https://raw.githubusercontent.com/zloi-user/hideip.me/refs/heads/main/socks5.txt",
   "https://socks-proxy.net/",
 ]

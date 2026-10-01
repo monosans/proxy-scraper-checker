@@ -115,9 +115,6 @@ tui = [
   "dep:tui-logger",
 ]
 
-[patch.crates-io]
-hyper-util = { git = "https://github.com/hyperium/hyper-util", branch = "master" }
-
 [profile.release]
 strip = true
 lto = "fat"

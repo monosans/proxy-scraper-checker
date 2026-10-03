@@ -56,7 +56,7 @@ smallvec = { version = "=1.16.2", features = [
 ], optional = true }
 strum = { version = "=0.28.0", features = ["derive"], optional = true }
 tikv-jemallocator = { version = "=0.7.0", default-features = false, optional = true }
-tokio = { version = "=1.53.1", features = [
+tokio = { version = "=1.53.2", features = [
   "fs",
   "macros",
   "parking_lot",

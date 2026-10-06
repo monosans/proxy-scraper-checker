@@ -392,6 +392,58 @@ jobs:
           path: dist/
           if-no-files-found: error
           include-hidden-files: true
+  release:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs:
+      - build
+      - upload-docker-prebuilt
+      - upload-docker-src
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: read
+      contents: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Publish the release and delete the previous ones
+        shell: bash
+        run: |
+          head_sha=$(gh api "repos/${GH_REPO}/commits/${GITHUB_REF_NAME}" --jq .sha)
+          if [[ "${head_sha}" != "${GITHUB_SHA}" ]]; then
+            echo "${GITHUB_REF_NAME} has moved to ${head_sha}, leaving the release to its run"
+            exit 0
+          fi
+
+          mkdir release
+          gh api --paginate "repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name | startswith("proxy-scraper-checker-")) | "\(.id) \(.name)"' |
+            while read -r id name; do
+              gh api "repos/${GH_REPO}/actions/artifacts/${id}/zip" > "release/${name}.zip"
+            done
+
+          tag="build-${GITHUB_RUN_NUMBER}"
+          if [[ "${GITHUB_RUN_ATTEMPT}" != 1 ]]; then
+            tag+=".${GITHUB_RUN_ATTEMPT}"
+          fi
+          notes_args=(--notes "Built from ${GITHUB_SHA}.")
+          previous_tag=$(gh release view --json tagName --jq .tagName || true)
+          if [[ -n "${previous_tag}" ]]; then
+            notes_args+=(--generate-notes --notes-start-tag "${previous_tag}")
+          fi
+          gh release create "${tag}" release/*.zip \
+            --target "${GITHUB_SHA}" \
+            --title "$(date -u +%Y-%m-%d) (${GITHUB_SHA::7})" \
+            --latest \
+            "${notes_args[@]}"
+
+          gh release list --limit 1000 --json tagName --jq ".[] | select(.tagName != \"${tag}\") | .tagName" |
+            while read -r old_tag; do
+              gh release delete "${old_tag}" --cleanup-tag --yes
+            done
   clippy:
     runs-on: ubuntu-26.04
     strategy:

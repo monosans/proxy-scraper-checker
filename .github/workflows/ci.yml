@@ -318,6 +318,9 @@ jobs:
       - build-docker
     runs-on: ubuntu-26.04
     permissions:
+      artifact-metadata: write
+      attestations: write
+      id-token: write
       packages: write
     outputs:
       digest: ${{ steps.push.outputs.digest }}
@@ -342,6 +345,10 @@ jobs:
             exit 1
           fi
           echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.push.outputs.digest }}
   upload-docker-prebuilt:
     needs:
       - upload-docker-manifest

@@ -262,6 +262,9 @@ jobs:
     if: ${{ github.event_name != 'pull_request' }}
     runs-on: ${{ matrix.runner }}
     permissions:
+      artifact-metadata: write
+      attestations: write
+      id-token: write
       packages: write
     strategy:
       matrix:
@@ -306,12 +309,21 @@ jobs:
           provenance: false
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.push.outputs.digest }}
   upload-docker-manifest:
     needs:
       - build-docker
     runs-on: ubuntu-26.04
     permissions:
+      artifact-metadata: write
+      attestations: write
+      id-token: write
       packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
@@ -324,7 +336,19 @@ jobs:
           --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
           --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm-v7
           --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64-v8
-      - run: docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }}
+      - id: push
+        shell: bash
+        run: |
+          digest=$(docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }} | tail -n 1)
+          if [[ ! "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Unexpected output of docker manifest push: ${digest}" >&2
+            exit 1
+          fi
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.push.outputs.digest }}
   upload-docker-prebuilt:
     needs:
       - upload-docker-manifest
@@ -349,7 +373,7 @@ jobs:
           cat << 'EOF' > dist/Dockerfile
           # syntax=docker.io/docker/dockerfile:1
 
-          FROM ghcr.io/${{ github.repository }}:${{ github.sha }}
+          FROM ghcr.io/${{ github.repository }}:${{ github.sha }}@${{ needs.upload-docker-manifest.outputs.digest }}
 
           ARG \
             UID=1000 \
@@ -401,7 +425,10 @@ jobs:
     runs-on: ubuntu-26.04
     permissions:
       actions: read
+      artifact-metadata: write
+      attestations: write
       contents: write
+      id-token: write
     concurrency:
       group: release
       cancel-in-progress: false
@@ -409,12 +436,14 @@ jobs:
       GH_REPO: ${{ github.repository }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Publish the release and delete the previous ones
+      - id: download
+        name: Download the archives
         shell: bash
         run: |
           head_sha=$(gh api "repos/${GH_REPO}/commits/${GITHUB_REF_NAME}" --jq .sha)
           if [[ "${head_sha}" != "${GITHUB_SHA}" ]]; then
             echo "${GITHUB_REF_NAME} has moved to ${head_sha}, leaving the release to its run"
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
@@ -424,21 +453,46 @@ jobs:
             while read -r id name; do
               gh api "repos/${GH_REPO}/actions/artifacts/${id}/zip" > "release/${name}.zip"
             done
-
+          echo "publish=true" >> "${GITHUB_OUTPUT}"
+      - id: attest
+        if: ${{ steps.download.outputs.publish == 'true' }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release/*.zip
+      - if: ${{ steps.download.outputs.publish == 'true' }}
+        name: Publish the release and delete the previous ones
+        shell: bash
+        env:
+          ATTESTATION_URL: ${{ steps.attest.outputs.attestation-url }}
+        run: |
           tag="build-${GITHUB_RUN_NUMBER}"
           if [[ "${GITHUB_RUN_ATTEMPT}" != 1 ]]; then
             tag+=".${GITHUB_RUN_ATTEMPT}"
           fi
-          notes_args=(--notes "Built from ${GITHUB_SHA}.")
-          previous_tag=$(gh release view --json tagName --jq .tagName || true)
-          if [[ -n "${previous_tag}" ]]; then
-            notes_args+=(--generate-notes --notes-start-tag "${previous_tag}")
-          fi
+          repo_url="${GITHUB_SERVER_URL}/${GH_REPO}"
+          previous=$(gh release view --json tagName,targetCommitish --jq '"\(.tagName) \(.targetCommitish)"' || true)
+          {
+            echo "Built from ${GITHUB_SHA} in [workflow run ${GITHUB_RUN_ID}](${repo_url}/actions/runs/${GITHUB_RUN_ID})."
+            echo
+            echo "Build provenance of every archive: ${ATTESTATION_URL} ([how to verify](${repo_url}#verifying-downloads))"
+            if [[ -n "${previous}" ]]; then
+              read -r previous_tag previous_sha <<< "${previous}"
+              echo
+              gh api --method POST "repos/${GH_REPO}/releases/generate-notes" \
+                -f tag_name="${tag}" \
+                -f target_commitish="${GITHUB_SHA}" \
+                -f previous_tag_name="${previous_tag}" \
+                --jq .body |
+                sed '/^\*\*Full Changelog\*\*/d'
+              # Previous tags get deleted, so compare commits instead.
+              echo "**Full Changelog**: ${repo_url}/compare/${previous_sha}...${GITHUB_SHA}"
+            fi
+          } > notes.md
           gh release create "${tag}" release/*.zip \
             --target "${GITHUB_SHA}" \
             --title "$(date -u +%Y-%m-%d) (${GITHUB_SHA::7})" \
             --latest \
-            "${notes_args[@]}"
+            --notes-file notes.md
 
           gh release list --limit 1000 --json tagName --jq ".[] | select(.tagName != \"${tag}\") | .tagName" |
             while read -r old_tag; do

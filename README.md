@@ -27,7 +27,7 @@ Checking opens hundreds of simultaneous connections to untrusted hosts. Your ISP
 
 Every option is documented inline in `config.toml`. The binary reads `config.toml` from the current directory; set `PROXY_SCRAPER_CHECKER_CONFIG` to point it somewhere else.
 
-Pre-built archives are produced by CI from the latest commit on `main` and published as the [latest release](https://github.com/monosans/proxy-scraper-checker/releases/latest). Open the section for your system.
+Pre-built archives are produced by CI from the latest commit on `main` and published as the [latest release](https://github.com/monosans/proxy-scraper-checker/releases/latest), see [Verifying downloads](#verifying-downloads). Open the section for your system.
 
 <details>
 <summary>Windows</summary>
@@ -317,6 +317,26 @@ Results land in `./out`; `output.path` is ignored in Docker.
 The binary lands in `target/release/proxy-scraper-checker` on Linux/macOS, or `target\release\proxy-scraper-checker.exe` on Windows.
 
 </details>
+
+## Verifying downloads
+
+Every archive is built by GitHub Actions from the public source and published by the [CI workflow](.github/workflows/ci.yml) straight from GitHub's runners. Nobody, the maintainer included, can slip a hand-built file in unnoticed:
+
+- Each release links to a build provenance attestation that GitHub signs through [Sigstore](https://www.sigstore.dev/). It lists the SHA-256 of every archive together with the commit and the workflow run that built it, and only that workflow run could have produced the signature.
+- Releases are [immutable](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/immutable-releases): once published, their files cannot be replaced.
+
+To check a downloaded archive without installing anything:
+
+1. Compute its SHA-256: `Get-FileHash <archive>` in PowerShell, `shasum -a 256 <archive>` on macOS, `sha256sum <archive>` on Linux and Termux, `sha256 <archive>` on FreeBSD.
+2. Open the "Build provenance" link in the notes of the [latest release](https://github.com/monosans/proxy-scraper-checker/releases/latest) and find the same hash next to the archive name. The page also shows the commit and the workflow run it was built from.
+
+To check the signature itself, use the [GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify <archive> --repo monosans/proxy-scraper-checker
+```
+
+The Docker images are attested the same way, and the prebuilt Docker archives pin the image by digest, so `docker compose build` uses exactly the image CI built.
 
 ## Output
 

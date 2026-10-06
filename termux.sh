@@ -36,6 +36,6 @@ esac
 download_path="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}/${project_name}.zip"
 trap 'rm -f "${download_path}"' EXIT
 
-curl -fL --retry 3 --retry-all-errors -o "${download_path}" "https://nightly.link/monosans/${project_name}/workflows/ci/main/${project_name}-binary-${target}.zip"
+curl -fL --retry 3 --retry-all-errors -o "${download_path}" "https://github.com/monosans/${project_name}/releases/latest/download/${project_name}-binary-${target}.zip"
 unzip -qod "${install_path}" "${download_path}"
 printf "%s installed successfully.\nRun 'cd %s && ./%s'.\n" "${project_name}" "${install_path}" "${project_name}"

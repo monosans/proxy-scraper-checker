@@ -62,7 +62,7 @@ tokio = { version = "=1.53.2", features = [
   "parking_lot",
   "signal",
 ] }
-tokio-util = "=0.7.19"
+tokio-util = "=0.7.20"
 toml = { version = "=1.1.8", default-features = false, features = [
   "parse",
   "serde",

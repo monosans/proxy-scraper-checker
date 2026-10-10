@@ -253,7 +253,7 @@ jobs:
       - run: mv config.toml dist/
       - run: mv LICENSE dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: proxy-scraper-checker-binary-${{ matrix.target }}
           path: dist/
@@ -386,7 +386,7 @@ jobs:
 
           USER app
           EOF
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
           path: dist/
@@ -410,7 +410,7 @@ jobs:
       - run: mkdir -p dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
       - run: mv {out,src,Cargo.lock,Cargo.toml,compose.yaml,config.toml,Dockerfile,LICENSE} dist/
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: proxy-scraper-checker-docker-${{ matrix.platform }}
           path: dist/

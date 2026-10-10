@@ -76,7 +76,7 @@ jobs:
           RUST_IMAGE: rust:alpine
         run: bash .github/scripts/allocator_bench_alpine.sh
       - if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bench-${{ matrix.cell.platform }}-${{ matrix.cell.allocator }}-mt${{ matrix.cell.mt }}
           path: |
@@ -100,7 +100,7 @@ jobs:
           path: artifacts
           pattern: bench-*
       - run: python3 .github/scripts/allocator_bench_aggregate.py artifacts
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bench-all
           path: bench-all.tsv

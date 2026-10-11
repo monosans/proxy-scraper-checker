@@ -57,7 +57,7 @@ jobs:
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-26.04
             cross: true
-          # aws-lc does not support big-endian AArch64.
+          # Tier 3 in Rust, and aws-lc does not support big-endian AArch64.
           # - target: aarch64_be-unknown-linux-gnu
           #   runner: ubuntu-26.04
           #   cross: true
@@ -121,41 +121,28 @@ jobs:
           - target: loongarch64-unknown-linux-musl
             runner: ubuntu-26.04
             cross: true
-          - target: mips-unknown-linux-gnu
-            runner: ubuntu-26.04
-            cross: true
-            toolchain: nightly
-            build-std: true
-          # rust-musl-cross builds hard-float MIPS objects, the Rust target is soft-float.
+          # Tier 3 in Rust: no prebuilt std, so they would need nightly and -Z build-std.
+          # - target: mips-unknown-linux-gnu
+          #   runner: ubuntu-26.04
+          #   cross: true
           # - target: mips-unknown-linux-musl
           #   runner: ubuntu-26.04
           #   cross: true
-          - target: mips64-unknown-linux-gnuabi64
-            runner: ubuntu-26.04
-            cross: true
-            toolchain: nightly
-            build-std: true
-          - target: mips64-unknown-linux-muslabi64
-            runner: ubuntu-26.04
-            cross: true
-            toolchain: nightly
-            build-std: true
-          - target: mips64el-unknown-linux-gnuabi64
-            runner: ubuntu-26.04
-            cross: true
-            toolchain: nightly
-            build-std: true
-          - target: mips64el-unknown-linux-muslabi64
-            runner: ubuntu-26.04
-            cross: true
-            toolchain: nightly
-            build-std: true
-          - target: mipsel-unknown-linux-gnu
-            runner: ubuntu-26.04
-            cross: true
-            toolchain: nightly
-            build-std: true
-          # rust-musl-cross builds hard-float MIPS objects, the Rust target is soft-float.
+          # - target: mips64-unknown-linux-gnuabi64
+          #   runner: ubuntu-26.04
+          #   cross: true
+          # - target: mips64-unknown-linux-muslabi64
+          #   runner: ubuntu-26.04
+          #   cross: true
+          # - target: mips64el-unknown-linux-gnuabi64
+          #   runner: ubuntu-26.04
+          #   cross: true
+          # - target: mips64el-unknown-linux-muslabi64
+          #   runner: ubuntu-26.04
+          #   cross: true
+          # - target: mipsel-unknown-linux-gnu
+          #   runner: ubuntu-26.04
+          #   cross: true
           # - target: mipsel-unknown-linux-musl
           #   runner: ubuntu-26.04
           #   cross: true
@@ -229,11 +216,10 @@ jobs:
           - target: x86_64-unknown-freebsd
             runner: ubuntu-26.04
             cross: true
-          - target: x86_64-unknown-dragonfly
-            runner: ubuntu-26.04
-            cross: true
-            toolchain: nightly
-            build-std: true
+          # Tier 3 in Rust: no prebuilt std, so it would need nightly and -Z build-std.
+          # - target: x86_64-unknown-dragonfly
+          #   runner: ubuntu-26.04
+          #   cross: true
           - target: x86_64-unknown-illumos
             runner: ubuntu-26.04
             cross: true
@@ -255,29 +241,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      # Tier 3 targets have no prebuilt std, so they build it with nightly.
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
         with:
-          toolchain: ${{ matrix.toolchain || 'beta' }}
-          target: ${{ !matrix.build-std && matrix.target || '' }}
-          components: ${{ matrix.build-std && 'rust-src' || '' }}
+          toolchain: beta
+          target: ${{ matrix.target }}
           cache: false
       - if: ${{ matrix.cross  }}
-        run: cargo install cross --git https://github.com/cross-rs/cross --locked
+        run: cargo +beta install cross --git https://github.com/cross-rs/cross --locked
         env:
           CARGO_BUILD_WARNINGS: allow
-      - shell: bash
-        env:
-          BUILD_STD: ${{ matrix.build-std }}
-          CARGO: ${{ matrix.cross && 'cross' || 'cargo' }}
-          TARGET: ${{ matrix.target }}
-          TOOLCHAIN: ${{ matrix.toolchain || 'beta' }}
-        run: |
-          args=(build --features tui --release --target "${TARGET}" --locked)
-          if [[ "${BUILD_STD}" == true ]]; then
-            args+=(-Z build-std=std,panic_abort)
-          fi
-          "${CARGO}" "+${TOOLCHAIN}" "${args[@]}"
+      - if: ${{ matrix.cross  }}
+        run: cross +beta build --features tui --release --target '${{ matrix.target }}' --locked
+      - if: ${{ !matrix.cross }}
+        run: cargo +beta build --features tui --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
         shell: bash

@@ -92,25 +92,29 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 
 1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). Take the musl build on Alpine, or if the glibc build refuses to start.
 
-   | Processor                                                         | `uname -m`    | glibc                                           | musl                                       |
-   | ----------------------------------------------------------------- | ------------- | ----------------------------------------------- | ------------------------------------------ |
-   | 64-bit Intel or AMD                                               | `x86_64`      | [Download][x86_64-unknown-linux-gnu]            | [Download][x86_64-unknown-linux-musl]      |
-   | 64-bit ARM (Raspberry Pi 3 and newer on a 64-bit OS, ARM servers) | `aarch64`     | [Download][aarch64-unknown-linux-gnu]           | [Download][aarch64-unknown-linux-musl]     |
-   | 32-bit ARMv7 (Raspberry Pi 2 and newer on a 32-bit OS)            | `armv7l`      | [Download][armv7-unknown-linux-gnueabihf]       | [Download][armv7-unknown-linux-musleabihf] |
-   | 32-bit ARMv6 (Raspberry Pi 1, Zero, Zero W)                       | `armv6l`      | [Download][arm-unknown-linux-gnueabihf]         | [Download][arm-unknown-linux-musleabihf]   |
-   | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu]              | [Download][i586-unknown-linux-musl]        |
-   | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu]         | [Download][riscv64gc-unknown-linux-musl]   |
-   | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu]       | [Download][loongarch64-unknown-linux-musl] |
-   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu]       | —                                          |
-   | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu]         | —                                          |
-   | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu]           | —                                          |
-   | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu]             | —                                          |
-   | 64-bit SPARC                                                      | `sparc64`     | [Download][sparc64-unknown-linux-gnu]           | —                                          |
-   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi]       | [Download][armv5te-unknown-linux-musleabi] |
-   | 32-bit x86 without SSE2 (Pentium III, Athlon XP and older)        | `i686`        | [Download][i586-unknown-linux-gnu]              | [Download][i586-unknown-linux-musl]        |
-   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi]         | [Download][armv7-unknown-linux-musleabi]   |
-   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi]           | [Download][arm-unknown-linux-musleabi]     |
-   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] | —                                          |
+   | Processor                                                         | `uname -m`    | glibc                                           | musl                                         |
+   | ----------------------------------------------------------------- | ------------- | ----------------------------------------------- | -------------------------------------------- |
+   | 64-bit Intel or AMD                                               | `x86_64`      | [Download][x86_64-unknown-linux-gnu]            | [Download][x86_64-unknown-linux-musl]        |
+   | 64-bit ARM (Raspberry Pi 3 and newer on a 64-bit OS, ARM servers) | `aarch64`     | [Download][aarch64-unknown-linux-gnu]           | [Download][aarch64-unknown-linux-musl]       |
+   | 32-bit ARMv7 (Raspberry Pi 2 and newer on a 32-bit OS)            | `armv7l`      | [Download][armv7-unknown-linux-gnueabihf]       | [Download][armv7-unknown-linux-musleabihf]   |
+   | 32-bit ARMv6 (Raspberry Pi 1, Zero, Zero W)                       | `armv6l`      | [Download][arm-unknown-linux-gnueabihf]         | [Download][arm-unknown-linux-musleabihf]     |
+   | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu]              | [Download][i586-unknown-linux-musl]          |
+   | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu]         | [Download][riscv64gc-unknown-linux-musl]     |
+   | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu]       | [Download][loongarch64-unknown-linux-musl]   |
+   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu]       | —                                            |
+   | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu]         | —                                            |
+   | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu]           | —                                            |
+   | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu]             | —                                            |
+   | 64-bit SPARC                                                      | `sparc64`     | [Download][sparc64-unknown-linux-gnu]           | —                                            |
+   | 64-bit MIPS, little-endian                                        | `mips64`      | [Download][mips64el-unknown-linux-gnuabi64]     | [Download][mips64el-unknown-linux-muslabi64] |
+   | 64-bit MIPS, big-endian                                           | `mips64`      | [Download][mips64-unknown-linux-gnuabi64]       | [Download][mips64-unknown-linux-muslabi64]   |
+   | 32-bit MIPS, little-endian                                        | `mips`        | [Download][mipsel-unknown-linux-gnu]            | —                                            |
+   | 32-bit MIPS, big-endian                                           | `mips`        | [Download][mips-unknown-linux-gnu]              | —                                            |
+   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi]       | [Download][armv5te-unknown-linux-musleabi]   |
+   | 32-bit x86 without SSE2 (Pentium III, Athlon XP and older)        | `i686`        | [Download][i586-unknown-linux-gnu]              | [Download][i586-unknown-linux-musl]          |
+   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi]         | [Download][armv7-unknown-linux-musleabi]     |
+   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi]           | [Download][arm-unknown-linux-musleabi]       |
+   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] | —                                            |
 
 2. Extract the archive to a dedicated folder.
 
@@ -139,6 +143,12 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 [i686-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i686-unknown-linux-gnu.zip
 [loongarch64-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-loongarch64-unknown-linux-gnu.zip
 [loongarch64-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-loongarch64-unknown-linux-musl.zip
+[mips-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-mips-unknown-linux-gnu.zip
+[mips64-unknown-linux-gnuabi64]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-mips64-unknown-linux-gnuabi64.zip
+[mips64-unknown-linux-muslabi64]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-mips64-unknown-linux-muslabi64.zip
+[mips64el-unknown-linux-gnuabi64]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-mips64el-unknown-linux-gnuabi64.zip
+[mips64el-unknown-linux-muslabi64]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-mips64el-unknown-linux-muslabi64.zip
+[mipsel-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-mipsel-unknown-linux-gnu.zip
 [powerpc-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc-unknown-linux-gnu.zip
 [powerpc64-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64-unknown-linux-gnu.zip
 [powerpc64le-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64le-unknown-linux-gnu.zip
@@ -216,6 +226,63 @@ The script picks the right archive by itself. To fetch one by hand, match the ou
 
 [i686-unknown-freebsd]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i686-unknown-freebsd.zip
 [x86_64-unknown-freebsd]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-x86_64-unknown-freebsd.zip
+
+</details>
+
+<details>
+<summary>NetBSD</summary>
+
+1. Download [the 64-bit x86 archive][x86_64-unknown-netbsd].
+
+2. Extract the archive to a dedicated folder.
+
+3. Edit `config.toml`.
+
+4. Run it from that folder:
+
+   ```bash
+   ./proxy-scraper-checker
+   ```
+
+[x86_64-unknown-netbsd]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-x86_64-unknown-netbsd.zip
+
+</details>
+
+<details>
+<summary>DragonFly BSD</summary>
+
+1. Download [the 64-bit x86 archive][x86_64-unknown-dragonfly].
+
+2. Extract the archive to a dedicated folder.
+
+3. Edit `config.toml`.
+
+4. Run it from that folder:
+
+   ```bash
+   ./proxy-scraper-checker
+   ```
+
+[x86_64-unknown-dragonfly]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-x86_64-unknown-dragonfly.zip
+
+</details>
+
+<details>
+<summary>illumos</summary>
+
+1. Download [the 64-bit x86 archive][x86_64-unknown-illumos].
+
+2. Extract the archive to a dedicated folder.
+
+3. Edit `config.toml`.
+
+4. Run it from that folder:
+
+   ```bash
+   ./proxy-scraper-checker
+   ```
+
+[x86_64-unknown-illumos]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-x86_64-unknown-illumos.zip
 
 </details>
 

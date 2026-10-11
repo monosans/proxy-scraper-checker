@@ -1,0 +1,4 @@
+# The illumos target passes `-z ignore`, which the GNU ld in cross's image
+# reports as ignored, and `linker_messages` turns that into a warning.
+[target.x86_64-unknown-illumos]
+rustflags = ["-A", "linker_messages"]

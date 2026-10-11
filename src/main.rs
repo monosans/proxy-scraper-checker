@@ -52,6 +52,8 @@ mod config;
 #[cfg(feature = "tui")]
 mod event;
 mod fs;
+#[cfg(target_os = "netbsd")]
+mod getentropy;
 mod http;
 mod ipdb;
 mod output;

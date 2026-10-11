@@ -232,9 +232,10 @@ jobs:
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-26.04
             cross: true
-          - target: x86_64-unknown-netbsd
-            runner: ubuntu-26.04
-            cross: true
+          # cross links against NetBSD 9.3, whose libc lacks the getentropy(3) that aws-lc needs.
+          # - target: x86_64-unknown-netbsd
+          #   runner: ubuntu-26.04
+          #   cross: true
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     steps:

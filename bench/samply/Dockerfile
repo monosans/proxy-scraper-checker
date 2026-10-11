@@ -12,13 +12,20 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   apt-get update \
   && apt-get install -y --no-install-recommends cmake make
 
-RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
-  cargo install --locked --git https://github.com/mstange/samply samply
+ARG TARGETPLATFORM
+
+# A RUN that clones samply would stay cached on an old commit. ADD resolves
+# the branch on every build, so the layer is rebuilt when main moves.
+ADD --link https://github.com/mstange/samply.git#main /samply
+
+RUN --mount=type=cache,id=samply-target-${TARGETPLATFORM},target=/samply/target,sharing=locked \
+  --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+  cargo install --locked --path /samply/samply
 
 RUN --mount=source=src,target=src \
   --mount=source=Cargo.toml,target=Cargo.toml \
   --mount=source=Cargo.lock,target=Cargo.lock \
-  --mount=type=cache,target=/app/target,sharing=locked \
+  --mount=type=cache,id=proxy-scraper-checker-profiling-target-${TARGETPLATFORM},target=/app/target,sharing=locked \
   --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
   cargo build --profile profiling --locked \
   && cp target/profiling/proxy-scraper-checker .

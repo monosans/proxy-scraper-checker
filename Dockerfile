@@ -12,10 +12,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
   apt-get update \
   && apt-get install -y --no-install-recommends cmake make
 
+ARG TARGETPLATFORM
+
 RUN --mount=source=src,target=src \
   --mount=source=Cargo.toml,target=Cargo.toml \
   --mount=source=Cargo.lock,target=Cargo.lock \
-  --mount=type=cache,target=/app/target,sharing=locked \
+  --mount=type=cache,id=proxy-scraper-checker-target-${TARGETPLATFORM},target=/app/target,sharing=locked \
   --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
   cargo build --release --locked \
   && cp target/release/proxy-scraper-checker .
@@ -42,7 +44,7 @@ RUN (getent group "${GID}" || groupadd --gid "${GID}" app) \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \
   && chown "${UID}:${GID}" /home/app/.cache/proxy_scraper_checker
 
-COPY --from=builder --chown=${UID}:${GID} --link /app/proxy-scraper-checker .
+COPY --from=builder --link /app/proxy-scraper-checker .
 
 USER app
 

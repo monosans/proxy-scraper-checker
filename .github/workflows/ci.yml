@@ -238,9 +238,9 @@ jobs:
         with:
           toolchain: beta
           target: ${{ matrix.target }}
-          cache-key: ${{ matrix.target }}
+          cache: false
       - if: ${{ matrix.cross  }}
-        run: cargo +beta install cross --git https://github.com/cross-rs/cross
+        run: cargo +beta install cross --git https://github.com/cross-rs/cross --locked
         env:
           CARGO_BUILD_WARNINGS: allow
       - if: ${{ matrix.cross  }}
@@ -302,8 +302,6 @@ jobs:
           DOCKER_BUILD_RECORD_UPLOAD: false
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           labels: ${{ steps.meta.outputs.labels }}
           platforms: ${{ matrix.platform }}
           provenance: false
@@ -505,58 +503,8 @@ jobs:
         include:
           - id: tui
             features: "--features tui"
-            target: >
-              aarch64-apple-darwin,
-              aarch64-pc-windows-msvc,
-              aarch64-unknown-linux-gnu,
-              i686-pc-windows-msvc,
-              x86_64-apple-darwin,
-              x86_64-pc-windows-msvc,
-              x86_64-unknown-linux-gnu,
-              aarch64-linux-android,
-              aarch64-unknown-linux-musl,
-              arm-linux-androideabi,
-              arm-unknown-linux-gnueabi,
-              arm-unknown-linux-gnueabihf,
-              arm-unknown-linux-musleabi,
-              arm-unknown-linux-musleabihf,
-              armv5te-unknown-linux-gnueabi,
-              armv5te-unknown-linux-musleabi,
-              armv7-linux-androideabi,
-              armv7-unknown-linux-gnueabi,
-              armv7-unknown-linux-gnueabihf,
-              armv7-unknown-linux-musleabi,
-              armv7-unknown-linux-musleabihf,
-              i586-unknown-linux-gnu,
-              i586-unknown-linux-musl,
-              i686-unknown-freebsd,
-              i686-linux-android,
-              i686-unknown-linux-gnu,
-              loongarch64-unknown-linux-gnu,
-              loongarch64-unknown-linux-musl,
-              powerpc-unknown-linux-gnu,
-              powerpc64-unknown-linux-gnu,
-              powerpc64le-unknown-linux-gnu,
-              riscv64gc-unknown-linux-gnu,
-              riscv64gc-unknown-linux-musl,
-              s390x-unknown-linux-gnu,
-              sparc64-unknown-linux-gnu,
-              thumbv7neon-linux-androideabi,
-              thumbv7neon-unknown-linux-gnueabihf,
-              x86_64-linux-android,
-              x86_64-unknown-freebsd,
-              x86_64-unknown-illumos,
-              x86_64-unknown-linux-musl
           - id: default
             features: ""
-            target: >
-              i686-unknown-linux-gnu,
-              x86_64-unknown-linux-gnu,
-              armv7-unknown-linux-gnueabihf,
-              aarch64-unknown-linux-gnu,
-              powerpc64le-unknown-linux-gnu,
-              riscv64gc-unknown-linux-gnu,
-              s390x-unknown-linux-gnu
       fail-fast: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -565,9 +513,9 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
         with:
           toolchain: beta
-          target: ${{ matrix.target }}
           components: clippy
           cache-key: x86_64-unknown-linux-gnu-${{ matrix.id }}
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo +beta clippy --all-targets ${{ matrix.features }} --
   pre-commit:
     runs-on: ubuntu-26.04
@@ -590,7 +538,7 @@ jobs:
         with:
           toolchain: nightly
           components: rustfmt
-          cache-key: x86_64-unknown-linux-gnu
+          cache: false
       - run: cargo +nightly fmt --check
   udeps:
     runs-on: ubuntu-26.04
@@ -609,6 +557,9 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
         with:
           toolchain: nightly
-          cache-key: x86_64-unknown-linux-gnu-${{ matrix.id }}
-      - run: cargo +nightly install --locked cargo-udeps
+          cache: false
+      - uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
+        with:
+          tool: cargo-udeps
+          fallback: none
       - run: cargo +nightly udeps ${{ matrix.features }}

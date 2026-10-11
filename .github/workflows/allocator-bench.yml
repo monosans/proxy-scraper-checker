@@ -63,7 +63,10 @@ jobs:
         with:
           toolchain: beta
           cache: true
-          cache-key: allocator-bench-${{ matrix.cell.runner }}-${{ matrix.cell.allocator }}-mt-${{ matrix.cell.mt }}
+          # One cache per runner instead of per cell: the cells differ only in
+          # allocator features, so they share almost every dependency, and ~50
+          # per-cell caches would push the CI caches out of the 10 GB quota.
+          cache-shared-key: allocator-bench-${{ matrix.cell.runner }}
       - if: ${{ !matrix.cell.alpine && runner.os != 'Windows' }}
         shell: bash
         run: bash .github/scripts/allocator_bench_unix.sh

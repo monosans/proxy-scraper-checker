@@ -199,10 +199,11 @@ The script picks the right archive by itself. To fetch one by hand, match the ou
 
 1. Run `uname -m` and download the archive from the matching row:
 
-   | Processor | `uname -m` | Download                           |
-   | --------- | ---------- | ---------------------------------- |
-   | 64-bit    | `amd64`    | [Download][x86_64-unknown-freebsd] |
-   | 32-bit    | `i386`     | [Download][i686-unknown-freebsd]   |
+   | Processor           | `uname -m` | Download                            |
+   | ------------------- | ---------- | ----------------------------------- |
+   | 64-bit Intel or AMD | `amd64`    | [Download][x86_64-unknown-freebsd]  |
+   | 64-bit ARM          | `arm64`    | [Download][aarch64-unknown-freebsd] |
+   | 32-bit Intel or AMD | `i386`     | [Download][i686-unknown-freebsd]    |
 
 2. Extract the archive to a dedicated folder.
 
@@ -214,6 +215,7 @@ The script picks the right archive by itself. To fetch one by hand, match the ou
    ./proxy-scraper-checker
    ```
 
+[aarch64-unknown-freebsd]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-aarch64-unknown-freebsd.zip
 [i686-unknown-freebsd]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i686-unknown-freebsd.zip
 [x86_64-unknown-freebsd]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-x86_64-unknown-freebsd.zip
 

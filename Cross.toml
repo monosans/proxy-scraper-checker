@@ -1,6 +1,7 @@
 # cross builds its Android images for API level 28 (Android 9), but Rust's
 # Android targets support API level 21 (Android 5). Point the image's compiler
-# wrappers at API level 21 so the binaries also run on older devices.
+# wrappers at API level 21 so the binaries also run on older devices. Once
+# cross-rs/cross#1809 is in the images, CROSS_ANDROID_SDK alone does this.
 [target.aarch64-linux-android]
 pre-build = ["sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"]
 env.passthrough = ["CROSS_ANDROID_SDK=21"]
@@ -34,4 +35,20 @@ pre-build = [
   "apt-get update && apt-get install --assume-yes --no-install-recommends ca-certificates curl xz-utils",
   "mkdir /tmp/netbsd && for set in base comp; do curl -fsSL https://archive.netbsd.org/pub/NetBSD-archive/NetBSD-10.0/amd64/binary/sets/$set.tar.xz | tar -C /tmp/netbsd -xJf - ./usr/include ./usr/lib; done && curl -fsSL https://archive.netbsd.org/pub/NetBSD-archive/NetBSD-10.0/amd64/binary/sets/base.tar.xz | tar -C /tmp/netbsd -xJf - ./lib",
   "cd /usr/local/x86_64-unknown-netbsd && rm -rf include && cp -r /tmp/netbsd/usr/include . && cd lib && rm -f libc.so* libm.so* && cp /tmp/netbsd/lib/libc.so.12.220 /tmp/netbsd/lib/libm.so.0.13 /tmp/netbsd/lib/libutil.so.7.24 /tmp/netbsd/lib/libpthread.so.1.4 /tmp/netbsd/usr/lib/librt.so.1.1 /tmp/netbsd/usr/lib/libexecinfo.so /tmp/netbsd/usr/lib/libc.a /tmp/netbsd/usr/lib/libc_p.a /tmp/netbsd/usr/lib/libm.a /tmp/netbsd/usr/lib/libm_p.a /tmp/netbsd/usr/lib/libpthread.a /tmp/netbsd/usr/lib/libpthread_p.a /tmp/netbsd/usr/lib/crt0.o /tmp/netbsd/usr/lib/crti.o /tmp/netbsd/usr/lib/crtn.o /tmp/netbsd/usr/lib/crtbegin.o /tmp/netbsd/usr/lib/crtbeginS.o /tmp/netbsd/usr/lib/crtend.o /tmp/netbsd/usr/lib/crtendS.o /tmp/netbsd/usr/lib/gcrt0.o . && ln -s libc.so.12.220 libc.so && ln -s libc.so.12.220 libc.so.12 && ln -s libm.so.0.13 libm.so && ln -s libm.so.0.13 libm.so.0 && rm -rf /tmp/netbsd",
+]
+
+# cross links the Solaris targets against DilOS libraries standing in for
+# Solaris 10, but Rust's Solaris targets are built for Solaris 11.4. Swap in the
+# Solaris 11.4 sysroot that Rust's own CI uses and regenerate GCC's fixed
+# headers from it.
+[target.sparcv9-sun-solaris]
+pre-build = [
+  "curl -fsSL -o /tmp/sysroot.tar.bz2 https://ci-mirrors.rust-lang.org/rustc/solaris-11.4.42.111.0-sparc-sysroot-v2025-02-21.tar.bz2 && echo 'e249a7ef781b9b3297419bd014fa0574800703981d84e113d6af3a897a8b4ffc  /tmp/sysroot.tar.bz2' | sha256sum -c && mkdir /tmp/solaris && tar -C /tmp/solaris -xjf /tmp/sysroot.tar.bz2",
+  "cd /usr/local/sparcv9-sun-solaris2.10 && rm -rf usr/include lib/*.so* lib/*.o && cp -r /tmp/solaris/usr/include usr/ && cp -P /tmp/solaris/lib/sparcv9/* /tmp/solaris/usr/lib/sparcv9/*.o /tmp/solaris/usr/lib/sparcv9/liblgrp.so* lib/ && /usr/local/libexec/gcc/sparcv9-sun-solaris2.10/8.4.0/install-tools/mkheaders && rm -rf /tmp/solaris /tmp/sysroot.tar.bz2",
+]
+
+[target.x86_64-pc-solaris]
+pre-build = [
+  "curl -fsSL -o /tmp/sysroot.tar.bz2 https://ci-mirrors.rust-lang.org/rustc/solaris-11.4.42.111.0-i386-sysroot-v2025-02-21.tar.bz2 && echo 'e82b78c14464cc2dc71f3cdab312df3dd63441d7c23eeeaf34d41d8b947688d3  /tmp/sysroot.tar.bz2' | sha256sum -c && mkdir /tmp/solaris && tar -C /tmp/solaris -xjf /tmp/sysroot.tar.bz2",
+  "cd /usr/local/x86_64-pc-solaris2.10 && rm -rf usr/include lib/*.so* lib/*.o && cp -r /tmp/solaris/usr/include usr/ && cp -P /tmp/solaris/lib/amd64/* /tmp/solaris/usr/lib/amd64/*.o /tmp/solaris/usr/lib/amd64/liblgrp.so* lib/ && /usr/local/libexec/gcc/x86_64-pc-solaris2.10/8.4.0/install-tools/mkheaders && rm -rf /tmp/solaris /tmp/sysroot.tar.bz2",
 ]

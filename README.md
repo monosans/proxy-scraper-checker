@@ -260,6 +260,31 @@ The script picks the right archive by itself. To fetch one by hand, match the ou
 </details>
 
 <details>
+<summary>Solaris</summary>
+
+1. Run `uname -p` and download the archive from the matching row. It needs Solaris 11.4 or newer.
+
+   | Processor  | `uname -p` | Download                        |
+   | ---------- | ---------- | ------------------------------- |
+   | 64-bit x86 | `i386`     | [Download][x86_64-pc-solaris]   |
+   | SPARC      | `sparc`    | [Download][sparcv9-sun-solaris] |
+
+2. Extract the archive to a dedicated folder.
+
+3. Edit `config.toml`.
+
+4. Run it from that folder:
+
+   ```bash
+   ./proxy-scraper-checker
+   ```
+
+[sparcv9-sun-solaris]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-sparcv9-sun-solaris.zip
+[x86_64-pc-solaris]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-x86_64-pc-solaris.zip
+
+</details>
+
+<details>
 <summary>Docker on Windows</summary>
 
 > The Docker image logs to stdout instead of showing the interactive TUI.

@@ -1,4 +1,4 @@
-# The illumos target passes `-z ignore`, which the GNU ld in cross's image
-# reports as ignored, and `linker_messages` turns that into a warning.
-[target.x86_64-unknown-illumos]
+# The illumos and Solaris targets pass `-z ignore`, which the GNU ld in cross's
+# images reports as ignored, and `linker_messages` turns that into a warning.
+[target.'cfg(any(target_os = "illumos", target_os = "solaris"))']
 rustflags = ["-A", "linker_messages"]

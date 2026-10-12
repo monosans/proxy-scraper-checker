@@ -171,10 +171,9 @@ jobs:
           - target: sparc64-unknown-linux-gnu
             runner: ubuntu-26.04
             cross: true
-          # cross links against Solaris 10, Rust's libc needs Solaris 11.4.
-          # - target: sparcv9-sun-solaris
-          #   runner: ubuntu-26.04
-          #   cross: true
+          - target: sparcv9-sun-solaris
+            runner: ubuntu-26.04
+            cross: true
           # The *-none-eabi targets are bare metal, without the std that tokio needs.
           # - target: thumbv6m-none-eabi
           #   runner: ubuntu-26.04
@@ -213,10 +212,9 @@ jobs:
           # - target: x86_64-pc-windows-gnu
           #   runner: ubuntu-26.04
           #   cross: true
-          # cross links against Solaris 10, Rust's libc needs Solaris 11.4.
-          # - target: x86_64-pc-solaris
-          #   runner: ubuntu-26.04
-          #   cross: true
+          - target: x86_64-pc-solaris
+            runner: ubuntu-26.04
+            cross: true
           - target: x86_64-unknown-freebsd
             runner: ubuntu-26.04
             cross: true

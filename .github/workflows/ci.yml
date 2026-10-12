@@ -14,6 +14,7 @@ jobs:
     if: ${{ always() && github.event_name == 'pull_request' }}
     needs:
       - build
+      - build-docker
       - clippy
       - pre-commit
       - rustfmt
@@ -269,7 +270,6 @@ jobs:
           path: dist/
           if-no-files-found: error
   build-docker:
-    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ${{ matrix.runner }}
     permissions:
       artifact-metadata: write
@@ -291,6 +291,20 @@ jobs:
           - platform: "linux/arm64/v8"
             tag: "arm64-v8"
             runner: ubuntu-26.04-arm
+          # The builder stage cross-compiles natively; QEMU only runs the few
+          # RUN steps of the final stage.
+          - platform: "linux/ppc64le"
+            tag: "ppc64le"
+            runner: ubuntu-26.04
+            qemu: true
+          - platform: "linux/riscv64"
+            tag: "riscv64"
+            runner: ubuntu-26.04
+            qemu: true
+          - platform: "linux/s390x"
+            tag: "s390x"
+            runner: ubuntu-26.04
+            qemu: true
       fail-fast: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -301,11 +315,16 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: type=raw,value=${{ github.sha }}-${{ matrix.tag }}
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+      - if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - if: ${{ matrix.qemu }}
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+        with:
+          platforms: ${{ matrix.platform }}
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - id: push
         env:
@@ -315,13 +334,15 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: ${{ matrix.platform }}
           provenance: false
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+      - if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.push.outputs.digest }}
   upload-docker-manifest:
+    if: ${{ github.event_name != 'pull_request' }}
     needs:
       - build-docker
     runs-on: ubuntu-26.04
@@ -344,6 +365,9 @@ jobs:
           --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
           --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm-v7
           --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64-v8
+          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-ppc64le
+          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-riscv64
+          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-s390x
       - id: push
         shell: bash
         run: |
@@ -368,6 +392,9 @@ jobs:
           - "amd64"
           - "arm-v7"
           - "arm64-v8"
+          - "ppc64le"
+          - "riscv64"
+          - "s390x"
       fail-fast: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -400,36 +427,11 @@ jobs:
           path: dist/
           if-no-files-found: error
           include-hidden-files: true
-  upload-docker-src:
-    needs:
-      - build-docker
-    strategy:
-      matrix:
-        platform:
-          - "ppc64le"
-          - "riscv64"
-          - "s390x"
-      fail-fast: false
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - run: mkdir -p dist
-      - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
-      - run: mv {.dockerignore,out,src,Cargo.lock,Cargo.toml,compose.yaml,config.toml,Dockerfile,LICENSE} dist/
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: proxy-scraper-checker-docker-${{ matrix.platform }}
-          path: dist/
-          if-no-files-found: error
-          include-hidden-files: true
   release:
     if: ${{ github.event_name != 'pull_request' }}
     needs:
       - build
       - upload-docker-prebuilt
-      - upload-docker-src
     runs-on: ubuntu-26.04
     permissions:
       actions: read

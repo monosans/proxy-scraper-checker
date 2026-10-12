@@ -305,8 +305,6 @@ Results land in `out` inside that folder; `output.path` is ignored in Docker.
    | 64-bit RISC-V                                                | `riscv64`                   | [Download][docker-riscv64]  |
    | IBM Z                                                        | `s390x`                     | [Download][docker-s390x]    |
 
-   The `ppc64le`, `riscv64` and `s390x` archives compile the program during `docker compose build`, so the first build takes a while.
-
 3. Extract it to a folder and edit `config.toml`.
 
 4. Build and run from that folder. The build arguments make the files in `./out` belong to your user:

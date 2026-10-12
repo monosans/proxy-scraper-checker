@@ -1,6 +1,7 @@
 # cross links x86_64-unknown-netbsd against NetBSD 9.3, whose libc has no
 # getentropy(3), which aws-lc calls. Swap in the NetBSD 10.0 sysroot (the
-# release Rust's own NetBSD target is built for) until cross ships it.
+# release Rust's own NetBSD target is built for) until cross-rs/cross#1807 is
+# in the image.
 [target.x86_64-unknown-netbsd]
 pre-build = [
   "apt-get update && apt-get install --assume-yes --no-install-recommends ca-certificates curl xz-utils",

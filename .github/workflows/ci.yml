@@ -57,6 +57,7 @@ jobs:
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-26.04
             cross: true
+          # Tier 3 in Rust, and aws-lc does not support big-endian AArch64.
           # - target: aarch64_be-unknown-linux-gnu
           #   runner: ubuntu-26.04
           #   cross: true
@@ -120,6 +121,7 @@ jobs:
           - target: loongarch64-unknown-linux-musl
             runner: ubuntu-26.04
             cross: true
+          # Tier 3 in Rust: no prebuilt std, so they would need nightly and -Z build-std.
           # - target: mips-unknown-linux-gnu
           #   runner: ubuntu-26.04
           #   cross: true
@@ -165,9 +167,11 @@ jobs:
           - target: sparc64-unknown-linux-gnu
             runner: ubuntu-26.04
             cross: true
+          # cross links against Solaris 10, Rust's libc needs Solaris 11.4.
           # - target: sparcv9-sun-solaris
           #   runner: ubuntu-26.04
           #   cross: true
+          # The *-none-eabi targets are bare metal, without the std that tokio needs.
           # - target: thumbv6m-none-eabi
           #   runner: ubuntu-26.04
           #   cross: true
@@ -195,6 +199,7 @@ jobs:
           # - target: thumbv8m.main-none-eabihf
           #   runner: ubuntu-26.04
           #   cross: true
+          # tokio has no networking on Emscripten.
           # - target: wasm32-unknown-emscripten
           #   runner: ubuntu-26.04
           #   cross: true
@@ -204,18 +209,20 @@ jobs:
           # - target: x86_64-pc-windows-gnu
           #   runner: ubuntu-26.04
           #   cross: true
+          # cross links against Solaris 10, Rust's libc needs Solaris 11.4.
           # - target: x86_64-pc-solaris
           #   runner: ubuntu-26.04
           #   cross: true
           - target: x86_64-unknown-freebsd
             runner: ubuntu-26.04
             cross: true
+          # Tier 3 in Rust: no prebuilt std, so it would need nightly and -Z build-std.
           # - target: x86_64-unknown-dragonfly
           #   runner: ubuntu-26.04
           #   cross: true
-          # - target: x86_64-unknown-illumos
-          #   runner: ubuntu-26.04
-          #   cross: true
+          - target: x86_64-unknown-illumos
+            runner: ubuntu-26.04
+            cross: true
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-26.04
             cross: true
@@ -225,6 +232,7 @@ jobs:
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-26.04
             cross: true
+          # cross links against NetBSD 9.3, whose libc lacks the getentropy(3) that aws-lc needs.
           # - target: x86_64-unknown-netbsd
           #   runner: ubuntu-26.04
           #   cross: true

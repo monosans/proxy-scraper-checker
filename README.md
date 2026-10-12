@@ -220,6 +220,25 @@ The script picks the right archive by itself. To fetch one by hand, match the ou
 </details>
 
 <details>
+<summary>illumos</summary>
+
+1. Download [the 64-bit x86 archive][x86_64-unknown-illumos].
+
+2. Extract the archive to a dedicated folder.
+
+3. Edit `config.toml`.
+
+4. Run it from that folder:
+
+   ```bash
+   ./proxy-scraper-checker
+   ```
+
+[x86_64-unknown-illumos]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-x86_64-unknown-illumos.zip
+
+</details>
+
+<details>
 <summary>Docker on Windows</summary>
 
 > The Docker image logs to stdout instead of showing the interactive TUI.

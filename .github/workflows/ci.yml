@@ -48,7 +48,8 @@ jobs:
             executable: proxy-scraper-checker.exe
           - target: aarch64-linux-android
             runner: ubuntu-26.04
-            cross: true
+            cross: false
+            ndk: aarch64-linux-android
           - target: aarch64-unknown-freebsd
             runner: ubuntu-26.04
             cross: true
@@ -67,7 +68,8 @@ jobs:
           #   cross: true
           - target: arm-linux-androideabi
             runner: ubuntu-26.04
-            cross: true
+            cross: false
+            ndk: armv7a-linux-androideabi
           - target: arm-unknown-linux-gnueabi
             runner: ubuntu-26.04
             cross: true
@@ -88,7 +90,8 @@ jobs:
             cross: true
           - target: armv7-linux-androideabi
             runner: ubuntu-26.04
-            cross: true
+            cross: false
+            ndk: armv7a-linux-androideabi
           - target: armv7-unknown-linux-gnueabi
             runner: ubuntu-26.04
             cross: true
@@ -112,7 +115,8 @@ jobs:
             cross: true
           - target: i686-linux-android
             runner: ubuntu-26.04
-            cross: true
+            cross: false
+            ndk: i686-linux-android
           # - target: i686-pc-windows-gnu
           #   runner: ubuntu-26.04
           #   cross: true
@@ -190,7 +194,8 @@ jobs:
           #   cross: true
           - target: thumbv7neon-linux-androideabi
             runner: ubuntu-26.04
-            cross: true
+            cross: false
+            ndk: armv7a-linux-androideabi
           - target: thumbv7neon-unknown-linux-gnueabihf
             runner: ubuntu-26.04
             cross: true
@@ -209,7 +214,8 @@ jobs:
           #   cross: true
           - target: x86_64-linux-android
             runner: ubuntu-26.04
-            cross: true
+            cross: false
+            ndk: x86_64-linux-android
           # - target: x86_64-pc-windows-gnu
           #   runner: ubuntu-26.04
           #   cross: true
@@ -250,6 +256,24 @@ jobs:
           toolchain: beta
           target: ${{ matrix.target }}
           cache: false
+      # cross links Android binaries against API level 28 (Android 9). The NDK
+      # on the runner can target API level 21, the oldest one Rust supports.
+      - if: ${{ matrix.ndk }}
+        shell: bash
+        env:
+          ANDROID_API: "21"
+          NDK_TARGET: ${{ matrix.ndk }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          bin="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          clang="${bin}/${NDK_TARGET}${ANDROID_API}-clang"
+          target_upper="$(echo "${TARGET}" | tr a-z- A-Z_)"
+          target_lower="$(echo "${TARGET}" | tr - _)"
+          {
+            echo "CARGO_TARGET_${target_upper}_LINKER=${clang}"
+            echo "CC_${target_lower}=${clang}"
+            echo "AR_${target_lower}=${bin}/llvm-ar"
+          } >> "${GITHUB_ENV}"
       - if: ${{ matrix.cross  }}
         run: cargo +beta install cross --git https://github.com/cross-rs/cross --locked
         env:

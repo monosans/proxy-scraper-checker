@@ -98,7 +98,7 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
    | 64-bit ARM (Raspberry Pi 3 and newer on a 64-bit OS, ARM servers) | `aarch64`     | [Download][aarch64-unknown-linux-gnu]           | [Download][aarch64-unknown-linux-musl]     |
    | 32-bit ARMv7 (Raspberry Pi 2 and newer on a 32-bit OS)            | `armv7l`      | [Download][armv7-unknown-linux-gnueabihf]       | [Download][armv7-unknown-linux-musleabihf] |
    | 32-bit ARMv6 (Raspberry Pi 1, Zero, Zero W)                       | `armv6l`      | [Download][arm-unknown-linux-gnueabihf]         | [Download][arm-unknown-linux-musleabihf]   |
-   | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu]              | [Download][i586-unknown-linux-musl]        |
+   | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu]              | [Download][i686-unknown-linux-musl]        |
    | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu]         | [Download][riscv64gc-unknown-linux-musl]   |
    | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu]       | [Download][loongarch64-unknown-linux-musl] |
    | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu]       | —                                          |
@@ -137,6 +137,7 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 [i586-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i586-unknown-linux-gnu.zip
 [i586-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i586-unknown-linux-musl.zip
 [i686-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i686-unknown-linux-gnu.zip
+[i686-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i686-unknown-linux-musl.zip
 [loongarch64-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-loongarch64-unknown-linux-gnu.zip
 [loongarch64-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-loongarch64-unknown-linux-musl.zip
 [powerpc-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc-unknown-linux-gnu.zip

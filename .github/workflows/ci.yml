@@ -301,11 +301,6 @@ jobs:
       # old distributions.
       - if: ${{ matrix.builder == 'zigbuild' }}
         run: cargo +beta zigbuild --features tui --release --target '${{ matrix.target }}${{ matrix.glibc && format('.{0}', matrix.glibc) || '' }}' --locked
-        env:
-          # rustc passes -O1 to the linker, which zig 0.17 ignores and warns
-          # about. cargo-zigbuild drops the flag for zig 0.12-0.16 only
-          # (rust-cross/cargo-zigbuild#486).
-          RUSTFLAGS: -A linker_messages
       - if: ${{ matrix.builder == 'cargo' }}
         run: cargo +beta build --features tui --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist

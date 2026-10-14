@@ -64,14 +64,11 @@ jobs:
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
-          # Tier 3 in Rust, and aws-lc does not support big-endian AArch64.
-          # - target: aarch64_be-unknown-linux-gnu
-          #   runner: ubuntu-26.04
-          #   builder: cross
           - target: arm-linux-androideabi
             runner: ubuntu-26.04
             builder: cross
-          # Linking with zig leaves fmaximum_num undefined on soft-float Arm.
+          # Linking with zig leaves fmaximum_num undefined on soft-float Arm
+          # (rust-cross/cargo-zigbuild#495).
           - target: arm-unknown-linux-gnueabi
             runner: ubuntu-26.04
             builder: cross
@@ -79,25 +76,31 @@ jobs:
             runner: ubuntu-26.04
             builder: zigbuild
             glibc: "2.17"
-          # Linking with zig leaves fmaximum_num undefined on soft-float Arm.
+          # Linking with zig leaves fmaximum_num undefined on soft-float Arm
+          # (rust-cross/cargo-zigbuild#495).
           - target: arm-unknown-linux-musleabi
             runner: ubuntu-26.04
             builder: cross
           - target: arm-unknown-linux-musleabihf
             runner: ubuntu-26.04
             builder: zigbuild
-          # cargo-zigbuild picks a CPU without bx for Armv5TE C, so aws-lc fails to assemble.
+          # cargo-zigbuild picks a CPU without bx for Armv5TE C, so aws-lc fails to
+          # assemble (rust-cross/cargo-zigbuild#502), and the link misses __sync_*
+          # (rust-cross/cargo-zigbuild#496).
           - target: armv5te-unknown-linux-gnueabi
             runner: ubuntu-26.04
             builder: cross
-          # cargo-zigbuild picks a CPU without bx for Armv5TE C, so aws-lc fails to assemble.
+          # cargo-zigbuild picks a CPU without bx for Armv5TE C, so aws-lc fails to
+          # assemble (rust-cross/cargo-zigbuild#502), and the link misses __sync_*
+          # (rust-cross/cargo-zigbuild#496).
           - target: armv5te-unknown-linux-musleabi
             runner: ubuntu-26.04
             builder: cross
           - target: armv7-linux-androideabi
             runner: ubuntu-26.04
             builder: cross
-          # Linking with zig leaves fmaximum_num undefined on soft-float Arm.
+          # Linking with zig leaves fmaximum_num undefined on soft-float Arm
+          # (rust-cross/cargo-zigbuild#495).
           - target: armv7-unknown-linux-gnueabi
             runner: ubuntu-26.04
             builder: cross
@@ -105,7 +108,8 @@ jobs:
             runner: ubuntu-26.04
             builder: zigbuild
             glibc: "2.17"
-          # Linking with zig leaves fmaximum_num undefined on soft-float Arm.
+          # Linking with zig leaves fmaximum_num undefined on soft-float Arm
+          # (rust-cross/cargo-zigbuild#495).
           - target: armv7-unknown-linux-musleabi
             runner: ubuntu-26.04
             builder: cross
@@ -125,9 +129,6 @@ jobs:
           - target: i686-linux-android
             runner: ubuntu-26.04
             builder: cross
-          # - target: i686-pc-windows-gnu
-          #   runner: ubuntu-26.04
-          #   builder: cross
           - target: i686-unknown-linux-gnu
             runner: ubuntu-26.04
             builder: zigbuild
@@ -135,39 +136,16 @@ jobs:
           - target: i686-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
-          # zig rejects the --no-rosegment linker argument rustc passes for LoongArch.
+          # zig rejects the --no-rosegment linker argument rustc passes for LoongArch
+          # (rust-cross/cargo-zigbuild#503).
           - target: loongarch64-unknown-linux-gnu
             runner: ubuntu-26.04
             builder: cross
-          # zig rejects the --no-rosegment linker argument rustc passes for LoongArch.
+          # zig rejects the --no-rosegment linker argument rustc passes for LoongArch
+          # (rust-cross/cargo-zigbuild#503).
           - target: loongarch64-unknown-linux-musl
             runner: ubuntu-26.04
             builder: cross
-          # Tier 3 in Rust: no prebuilt std, so they would need nightly and -Z build-std.
-          # - target: mips-unknown-linux-gnu
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: mips-unknown-linux-musl
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: mips64-unknown-linux-gnuabi64
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: mips64-unknown-linux-muslabi64
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: mips64el-unknown-linux-gnuabi64
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: mips64el-unknown-linux-muslabi64
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: mipsel-unknown-linux-gnu
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: mipsel-unknown-linux-musl
-          #   runner: ubuntu-26.04
-          #   builder: cross
           # zig ships no glibc for 32-bit and big-endian 64-bit PowerPC.
           - target: powerpc-unknown-linux-gnu
             runner: ubuntu-26.04
@@ -186,6 +164,12 @@ jobs:
           - target: powerpc64le-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
+          # cargo-zigbuild does not know the riscv64a23 architecture
+          # (rust-cross/cargo-zigbuild#501).
+          # - target: riscv64a23-unknown-linux-gnu
+          #   runner: ubuntu-26.04
+          #   builder: zigbuild
+          #   glibc: "2.39"
           - target: riscv64gc-unknown-linux-gnu
             runner: ubuntu-26.04
             builder: zigbuild
@@ -204,55 +188,23 @@ jobs:
           - target: sparcv9-sun-solaris
             runner: ubuntu-26.04
             builder: cross
-          # The *-none-eabi targets are bare metal, without the std that tokio needs.
-          # - target: thumbv6m-none-eabi
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: thumbv7em-none-eabi
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: thumbv7em-none-eabihf
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: thumbv7m-none-eabi
-          #   runner: ubuntu-26.04
-          #   builder: cross
           - target: thumbv7neon-linux-androideabi
             runner: ubuntu-26.04
             builder: cross
-          # cargo-zigbuild does not know the thumbv7neon architecture.
+          # cargo-zigbuild does not know the thumbv7neon architecture
+          # (rust-cross/cargo-zigbuild#500).
           - target: thumbv7neon-unknown-linux-gnueabihf
             runner: ubuntu-26.04
             builder: cross
-          # - target: thumbv8m.base-none-eabi
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: thumbv8m.main-none-eabi
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # - target: thumbv8m.main-none-eabihf
-          #   runner: ubuntu-26.04
-          #   builder: cross
-          # tokio has no networking on Emscripten.
-          # - target: wasm32-unknown-emscripten
-          #   runner: ubuntu-26.04
-          #   builder: cross
           - target: x86_64-linux-android
             runner: ubuntu-26.04
             builder: cross
-          # - target: x86_64-pc-windows-gnu
-          #   runner: ubuntu-26.04
-          #   builder: cross
           - target: x86_64-pc-solaris
             runner: ubuntu-26.04
             builder: cross
           - target: x86_64-unknown-freebsd
             runner: ubuntu-26.04
             builder: zigbuild
-          # Tier 3 in Rust: no prebuilt std, so it would need nightly and -Z build-std.
-          # - target: x86_64-unknown-dragonfly
-          #   runner: ubuntu-26.04
-          #   builder: cross
           - target: x86_64-unknown-illumos
             runner: ubuntu-26.04
             builder: cross
@@ -260,6 +212,11 @@ jobs:
             runner: ubuntu-26.04
             builder: zigbuild
             glibc: "2.17"
+          # aws-lc does not build for the x32 ABI.
+          # - target: x86_64-unknown-linux-gnux32
+          #   runner: ubuntu-26.04
+          #   builder: zigbuild
+          #   glibc: "2.27"
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild

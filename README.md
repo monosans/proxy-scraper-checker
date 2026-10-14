@@ -470,4 +470,8 @@ Star the repository so other people can find it. If you are interested in sponso
 
 [MIT](LICENSE)
 
-_This product includes GeoLite2 Data created by MaxMind, available from <https://www.maxmind.com>_
+The binaries contain third-party code under its own licenses, listed in [LICENSE-THIRD-PARTY](LICENSE-THIRD-PARTY). Both files come with every release archive and sit next to the binary in `/app` of the Docker image.
+
+The ASN and geolocation databases are not part of the binaries: the program downloads them at run time. They are GeoLite Data, covered by the [GeoLite End User License Agreement](https://www.maxmind.com/en/geolite2/eula).
+
+_This product includes GeoLite Data created by MaxMind, available from <https://www.maxmind.com>._

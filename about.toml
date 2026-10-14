@@ -1,0 +1,139 @@
+# The targets CI builds binaries for. The Docker images are built for some of
+# the linux-gnu ones.
+targets = [
+  "aarch64-apple-darwin",
+  "aarch64-linux-android",
+  "aarch64-pc-windows-msvc",
+  "aarch64-unknown-freebsd",
+  "aarch64-unknown-linux-gnu",
+  "aarch64-unknown-linux-musl",
+  "arm-linux-androideabi",
+  "arm-unknown-linux-gnueabi",
+  "arm-unknown-linux-gnueabihf",
+  "arm-unknown-linux-musleabi",
+  "arm-unknown-linux-musleabihf",
+  "armv5te-unknown-linux-gnueabi",
+  "armv5te-unknown-linux-musleabi",
+  "armv7-linux-androideabi",
+  "armv7-unknown-linux-gnueabi",
+  "armv7-unknown-linux-gnueabihf",
+  "armv7-unknown-linux-musleabi",
+  "armv7-unknown-linux-musleabihf",
+  "i586-unknown-linux-gnu",
+  "i586-unknown-linux-musl",
+  "i686-linux-android",
+  "i686-pc-windows-msvc",
+  "i686-unknown-freebsd",
+  "i686-unknown-linux-gnu",
+  "i686-unknown-linux-musl",
+  "loongarch64-unknown-linux-gnu",
+  "loongarch64-unknown-linux-musl",
+  "powerpc-unknown-linux-gnu",
+  "powerpc64-unknown-linux-gnu",
+  "powerpc64-unknown-linux-musl",
+  "powerpc64le-unknown-linux-gnu",
+  "powerpc64le-unknown-linux-musl",
+  "riscv64gc-unknown-linux-gnu",
+  "riscv64gc-unknown-linux-musl",
+  "s390x-unknown-linux-gnu",
+  "sparc64-unknown-linux-gnu",
+  "sparcv9-sun-solaris",
+  "thumbv7neon-linux-androideabi",
+  "thumbv7neon-unknown-linux-gnueabihf",
+  "x86_64-apple-darwin",
+  "x86_64-linux-android",
+  "x86_64-pc-solaris",
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-freebsd",
+  "x86_64-unknown-illumos",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "x86_64-unknown-netbsd",
+]
+private = { ignore = true }
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+accepted = [
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "CDLA-Permissive-2.0",
+  "ISC",
+  "MIT",
+  "MPL-2.0",
+  "Unicode-3.0",
+  "Unicode-DFS-2016",
+  "Zlib",
+]
+
+# aws-lc-sys bundles the AWS-LC C library. Its LICENSE lists the copyright
+# notices of everything compiled in, followed by the full texts of the licenses.
+# Take the notices with the Apache-2.0 text, the ISC and BSD-3-Clause texts on
+# their own, and the MIT text from the bundled fiat-crypto with its notice.
+[aws-lc-sys.clarify]
+license = "Apache-2.0 AND ISC AND MIT AND BSD-3-Clause"
+
+[[aws-lc-sys.clarify.files]]
+path = "LICENSE"
+license = "Apache-2.0"
+start = "AWS Libcrypto (AWS-LC)"
+end = "limitations under the License."
+checksum = "a43aa660712ebf1f091d4c1dd20290dca098b3161e01c681b0ca05c6d8d1bacb"
+
+[[aws-lc-sys.clarify.files]]
+path = "LICENSE"
+license = "ISC"
+start = "ISC License\n-----------"
+end = "PERFORMANCE OF THIS SOFTWARE."
+checksum = "44dec10b6577f5726bd40eebd9aec6ce18e09c58df7d233dc493f32a98f73f3a"
+
+[[aws-lc-sys.clarify.files]]
+path = "aws-lc/third_party/fiat/LICENSE"
+license = "MIT"
+checksum = "43e358d7b6eb109d0f51f7b3a090fd82607965767c25fadee39e922475de2061"
+
+[[aws-lc-sys.clarify.files]]
+path = "LICENSE"
+license = "BSD-3-Clause"
+start = "BSD 3-Clause License\n--------------------"
+end = "EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+checksum = "636ab24d0ebae802ea87599d6ea0aa9466fff495c5be10be483860abba2f98c7"
+
+# regex-syntax embeds tables generated from the Unicode Character Database.
+[regex-syntax.clarify]
+license = "(MIT OR Apache-2.0) AND Unicode-DFS-2016"
+
+[[regex-syntax.clarify.files]]
+path = "LICENSE-APACHE"
+license = "Apache-2.0"
+checksum = "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+
+[[regex-syntax.clarify.files]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+
+[[regex-syntax.clarify.files]]
+path = "src/unicode_tables/LICENSE-UNICODE"
+license = "Unicode-DFS-2016"
+checksum = "74db5baf44a41b1000312c673544b3374e4198af5605c7f9080a402cec42cfa3"
+
+# tikv-jemalloc-sys bundles the jemalloc C library, which has a license of its
+# own. The macOS binaries use it.
+[tikv-jemalloc-sys.clarify]
+license = "(MIT OR Apache-2.0) AND BSD-2-Clause"
+
+[[tikv-jemalloc-sys.clarify.files]]
+path = "LICENSE-APACHE"
+license = "Apache-2.0"
+checksum = "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+
+[[tikv-jemalloc-sys.clarify.files]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+
+[[tikv-jemalloc-sys.clarify.files]]
+path = "jemalloc/COPYING"
+license = "BSD-2-Clause"
+checksum = "94aa2caa98c25d942f58b956c71dba6a99ff98fc3a31cbc669fe2a4cd0268b53"

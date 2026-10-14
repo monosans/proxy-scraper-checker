@@ -7,6 +7,7 @@
     "config:recommended",
     ":disableRateLimiting",
     ":pinDevDependencies",
+    "customManagers:githubActionsVersions",
     "helpers:pinGitHubActionDigests"
   ],
   "lockFileMaintenance": { "enabled": true, "schedule": ["at any time"] },

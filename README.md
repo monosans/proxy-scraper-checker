@@ -90,27 +90,27 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 <details>
 <summary>Linux</summary>
 
-1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). The builds for 64-bit and 32-bit Intel or AMD, 64-bit ARM, ARMv6 and ARMv7 with hardware floating point (but not the Thumb-2 one) and IBM Z need only glibc 2.17, so they also run on CentOS 7; the 64-bit RISC-V one needs glibc 2.29. Take the musl build on Alpine, or if the glibc build refuses to start.
+1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). Each glibc download notes the oldest glibc it runs on (`ldd --version` prints yours). Take the musl build on Alpine, on an older glibc, or if the glibc build refuses to start.
 
-   | Processor                                                         | `uname -m`    | glibc                                           | musl                                       |
-   | ----------------------------------------------------------------- | ------------- | ----------------------------------------------- | ------------------------------------------ |
-   | 64-bit Intel or AMD                                               | `x86_64`      | [Download][x86_64-unknown-linux-gnu]            | [Download][x86_64-unknown-linux-musl]      |
-   | 64-bit ARM (Raspberry Pi 3 and newer on a 64-bit OS, ARM servers) | `aarch64`     | [Download][aarch64-unknown-linux-gnu]           | [Download][aarch64-unknown-linux-musl]     |
-   | 32-bit ARMv7 (Raspberry Pi 2 and newer on a 32-bit OS)            | `armv7l`      | [Download][armv7-unknown-linux-gnueabihf]       | [Download][armv7-unknown-linux-musleabihf] |
-   | 32-bit ARMv6 (Raspberry Pi 1, Zero, Zero W)                       | `armv6l`      | [Download][arm-unknown-linux-gnueabihf]         | [Download][arm-unknown-linux-musleabihf]   |
-   | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu]              | [Download][i686-unknown-linux-musl]        |
-   | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu]         | [Download][riscv64gc-unknown-linux-musl]   |
-   | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu]       | [Download][loongarch64-unknown-linux-musl] |
-   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu]       | [Download][powerpc64le-unknown-linux-musl] |
-   | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu]         | [Download][powerpc64-unknown-linux-musl]   |
-   | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu]           | —                                          |
-   | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu]             | —                                          |
-   | 64-bit SPARC                                                      | `sparc64`     | [Download][sparc64-unknown-linux-gnu]           | —                                          |
-   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi]       | [Download][armv5te-unknown-linux-musleabi] |
-   | 32-bit x86 without SSE2 (Pentium III, Athlon XP and older)        | `i686`        | [Download][i586-unknown-linux-gnu]              | [Download][i586-unknown-linux-musl]        |
-   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi]         | [Download][armv7-unknown-linux-musleabi]   |
-   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi]           | [Download][arm-unknown-linux-musleabi]     |
-   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] | —                                          |
+   | Processor                                                         | `uname -m`    | glibc                                                   | musl                                       |
+   | ----------------------------------------------------------------- | ------------- | ------------------------------------------------------- | ------------------------------------------ |
+   | 64-bit Intel or AMD                                               | `x86_64`      | [Download][x86_64-unknown-linux-gnu] (2.17+)            | [Download][x86_64-unknown-linux-musl]      |
+   | 64-bit ARM (Raspberry Pi 3 and newer on a 64-bit OS, ARM servers) | `aarch64`     | [Download][aarch64-unknown-linux-gnu] (2.17+)           | [Download][aarch64-unknown-linux-musl]     |
+   | 32-bit ARMv7 (Raspberry Pi 2 and newer on a 32-bit OS)            | `armv7l`      | [Download][armv7-unknown-linux-gnueabihf] (2.17+)       | [Download][armv7-unknown-linux-musleabihf] |
+   | 32-bit ARMv6 (Raspberry Pi 1, Zero, Zero W)                       | `armv6l`      | [Download][arm-unknown-linux-gnueabihf] (2.17+)         | [Download][arm-unknown-linux-musleabihf]   |
+   | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu] (2.17+)              | [Download][i686-unknown-linux-musl]        |
+   | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu] (2.29+)         | [Download][riscv64gc-unknown-linux-musl]   |
+   | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu] (2.36+)       | [Download][loongarch64-unknown-linux-musl] |
+   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu] (2.39+)       | [Download][powerpc64le-unknown-linux-musl] |
+   | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu] (2.39+)         | [Download][powerpc64-unknown-linux-musl]   |
+   | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu] (2.39+)           | —                                          |
+   | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu] (2.17+)             | —                                          |
+   | 64-bit SPARC                                                      | `sparc64`     | [Download][sparc64-unknown-linux-gnu] (2.39+)           | —                                          |
+   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi] (2.39+)       | [Download][armv5te-unknown-linux-musleabi] |
+   | 32-bit x86 without SSE2 (Pentium III, Athlon XP and older)        | `i686`        | [Download][i586-unknown-linux-gnu] (2.17+)              | [Download][i586-unknown-linux-musl]        |
+   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi] (2.39+)         | [Download][armv7-unknown-linux-musleabi]   |
+   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi] (2.39+)           | [Download][arm-unknown-linux-musleabi]     |
+   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] (2.39+) | —                                          |
 
 2. Extract the archive to a dedicated folder.
 

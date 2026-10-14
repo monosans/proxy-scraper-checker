@@ -26,6 +26,8 @@ jobs:
           jobs: ${{ toJSON(needs) }}
   build:
     env:
+      # renovate: datasource=pypi depName=cargo-zigbuild
+      CARGO_ZIGBUILD_VERSION: 0.23.4
       # renovate: datasource=pypi depName=ziglang
       ZIG_VERSION: 0.17.0
     strategy:
@@ -176,11 +178,11 @@ jobs:
           - target: powerpc64-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
-          # zig has no glibc headers older than 2.19 for ppc64le.
+          # zig has no glibc headers older than 2.19 for ppc64le, and with them
+          # aws-lc links against the IEEE 128-bit long double symbols of 2.32.
           - target: powerpc64le-unknown-linux-gnu
             runner: ubuntu-26.04
-            builder: zigbuild
-            glibc: "2.19"
+            builder: cross
           - target: powerpc64le-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
@@ -285,15 +287,15 @@ jobs:
       - if: ${{ matrix.builder == 'cross' }}
         run: cross +beta build --features tui --release --target '${{ matrix.target }}' --locked
       - if: ${{ matrix.builder == 'zigbuild' }}
-        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
-          version: ${{ env.ZIG_VERSION }}
-          use-cache: false
+          enable-cache: false
+      # zig comes from its official PyPI package. cargo-zigbuild runs it as
+      # `python -m ziglang` with the Python of its own tool environment.
       - if: ${{ matrix.builder == 'zigbuild' }}
-        uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2.87.27
-        with:
-          tool: cargo-zigbuild
-          fallback: none
+        run: |
+          uv tool install "cargo-zigbuild==${CARGO_ZIGBUILD_VERSION}" --with "ziglang==${ZIG_VERSION}"
+          echo "CARGO_ZIGBUILD_PYTHON_PATH=$(uv tool dir)/cargo-zigbuild/bin/python" >> "${GITHUB_ENV}"
       # The .<version> suffix links the gnu targets against that glibc: the
       # oldest one Rust supports on the target, so the binaries also start on
       # old distributions.

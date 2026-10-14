@@ -90,7 +90,7 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 <details>
 <summary>Linux</summary>
 
-1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). Take the musl build on Alpine, or if the glibc build refuses to start.
+1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). The builds for 64-bit and 32-bit Intel or AMD, 64-bit ARM, ARMv6 and ARMv7 with hardware floating point (but not the Thumb-2 one) and IBM Z need only glibc 2.17, so they also run on CentOS 7; the 64-bit RISC-V one needs glibc 2.29. Take the musl build on Alpine, or if the glibc build refuses to start.
 
    | Processor                                                         | `uname -m`    | glibc                                           | musl                                       |
    | ----------------------------------------------------------------- | ------------- | ----------------------------------------------- | ------------------------------------------ |
@@ -101,8 +101,8 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
    | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu]              | [Download][i686-unknown-linux-musl]        |
    | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu]         | [Download][riscv64gc-unknown-linux-musl]   |
    | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu]       | [Download][loongarch64-unknown-linux-musl] |
-   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu]       | —                                          |
-   | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu]         | —                                          |
+   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu]       | [Download][powerpc64le-unknown-linux-musl] |
+   | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu]         | [Download][powerpc64-unknown-linux-musl]   |
    | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu]           | —                                          |
    | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu]             | —                                          |
    | 64-bit SPARC                                                      | `sparc64`     | [Download][sparc64-unknown-linux-gnu]           | —                                          |
@@ -142,7 +142,9 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 [loongarch64-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-loongarch64-unknown-linux-musl.zip
 [powerpc-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc-unknown-linux-gnu.zip
 [powerpc64-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64-unknown-linux-gnu.zip
+[powerpc64-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64-unknown-linux-musl.zip
 [powerpc64le-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64le-unknown-linux-gnu.zip
+[powerpc64le-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64le-unknown-linux-musl.zip
 [riscv64gc-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64gc-unknown-linux-gnu.zip
 [riscv64gc-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64gc-unknown-linux-musl.zip
 [s390x-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-s390x-unknown-linux-gnu.zip

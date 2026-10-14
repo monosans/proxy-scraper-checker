@@ -25,221 +25,247 @@ jobs:
         with:
           jobs: ${{ toJSON(needs) }}
   build:
+    env:
+      # renovate: datasource=pypi depName=ziglang
+      ZIG_VERSION: 0.17.0
     strategy:
       matrix:
         include:
           - target: aarch64-apple-darwin
             runner: macos-26
-            cross: false
+            builder: cargo
           - target: aarch64-pc-windows-msvc
             runner: windows-11-vs2026-arm
-            cross: false
+            builder: cargo
             executable: proxy-scraper-checker.exe
           - target: i686-pc-windows-msvc
             runner: windows-2025
-            cross: false
+            builder: cargo
             executable: proxy-scraper-checker.exe
           - target: x86_64-apple-darwin
             runner: macos-26-intel
-            cross: false
+            builder: cargo
           - target: x86_64-pc-windows-msvc
             runner: windows-2025
-            cross: false
+            builder: cargo
             executable: proxy-scraper-checker.exe
           - target: aarch64-linux-android
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           - target: aarch64-unknown-freebsd
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
-          # - target: aarch64-unknown-linux-gnu:centos
-          #   runner: ubuntu-26.04
-          #   cross: true
+            builder: zigbuild
+            glibc: "2.17"
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           # Tier 3 in Rust, and aws-lc does not support big-endian AArch64.
           # - target: aarch64_be-unknown-linux-gnu
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           - target: arm-linux-androideabi
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           - target: arm-unknown-linux-gnueabi
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.17"
           - target: arm-unknown-linux-gnueabihf
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.17"
           - target: arm-unknown-linux-musleabi
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: arm-unknown-linux-musleabihf
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: armv5te-unknown-linux-gnueabi
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.23"
           - target: armv5te-unknown-linux-musleabi
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: armv7-linux-androideabi
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           - target: armv7-unknown-linux-gnueabi
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.27"
           - target: armv7-unknown-linux-gnueabihf
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.17"
           - target: armv7-unknown-linux-musleabi
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: armv7-unknown-linux-musleabihf
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: i586-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.17"
           - target: i586-unknown-linux-musl
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: i686-unknown-freebsd
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: i686-linux-android
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           # - target: i686-pc-windows-gnu
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           - target: i686-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.17"
           - target: i686-unknown-linux-musl
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: loongarch64-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.36"
           - target: loongarch64-unknown-linux-musl
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           # Tier 3 in Rust: no prebuilt std, so they would need nightly and -Z build-std.
           # - target: mips-unknown-linux-gnu
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: mips-unknown-linux-musl
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: mips64-unknown-linux-gnuabi64
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: mips64-unknown-linux-muslabi64
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: mips64el-unknown-linux-gnuabi64
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: mips64el-unknown-linux-muslabi64
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: mipsel-unknown-linux-gnu
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: mipsel-unknown-linux-musl
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           - target: powerpc-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           - target: powerpc64-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
+          - target: powerpc64-unknown-linux-musl
+            runner: ubuntu-26.04
+            builder: zigbuild
           - target: powerpc64le-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.17"
+          - target: powerpc64le-unknown-linux-musl
+            runner: ubuntu-26.04
+            builder: zigbuild
+          - target: riscv64a23-unknown-linux-gnu
+            runner: ubuntu-26.04
+            builder: zigbuild
+            glibc: "2.39"
           - target: riscv64gc-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.29"
           - target: riscv64gc-unknown-linux-musl
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: s390x-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.17"
           - target: sparc64-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.23"
           - target: sparcv9-sun-solaris
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           # The *-none-eabi targets are bare metal, without the std that tokio needs.
           # - target: thumbv6m-none-eabi
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: thumbv7em-none-eabi
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: thumbv7em-none-eabihf
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: thumbv7m-none-eabi
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           - target: thumbv7neon-linux-androideabi
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           - target: thumbv7neon-unknown-linux-gnueabihf
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
+            glibc: "2.23"
           # - target: thumbv8m.base-none-eabi
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: thumbv8m.main-none-eabi
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # - target: thumbv8m.main-none-eabihf
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           # tokio has no networking on Emscripten.
           # - target: wasm32-unknown-emscripten
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           - target: x86_64-linux-android
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           # - target: x86_64-pc-windows-gnu
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           - target: x86_64-pc-solaris
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           - target: x86_64-unknown-freebsd
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           # Tier 3 in Rust: no prebuilt std, so it would need nightly and -Z build-std.
           # - target: x86_64-unknown-dragonfly
           #   runner: ubuntu-26.04
-          #   cross: true
+          #   builder: cross
           - target: x86_64-unknown-illumos
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-26.04
-            cross: true
-          # - target: x86_64-unknown-linux-gnu:centos
-          #   runner: ubuntu-26.04
-          #   cross: true
+            builder: zigbuild
+            glibc: "2.17"
+          - target: x86_64-unknown-linux-gnux32
+            runner: ubuntu-26.04
+            builder: zigbuild
+            glibc: "2.27"
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-26.04
-            cross: true
+            builder: zigbuild
           - target: x86_64-unknown-netbsd
             runner: ubuntu-26.04
-            cross: true
+            builder: cross
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     steps:
@@ -251,13 +277,30 @@ jobs:
           toolchain: beta
           target: ${{ matrix.target }}
           cache: false
-      - if: ${{ matrix.cross  }}
+      # cross is left for the targets whose libc zig does not ship: Android,
+      # NetBSD, Solaris, illumos, and glibc on 32-bit and big-endian PowerPC.
+      - if: ${{ matrix.builder == 'cross' }}
         run: cargo +beta install cross --git https://github.com/cross-rs/cross --locked
         env:
           CARGO_BUILD_WARNINGS: allow
-      - if: ${{ matrix.cross  }}
+      - if: ${{ matrix.builder == 'cross' }}
         run: cross +beta build --features tui --release --target '${{ matrix.target }}' --locked
-      - if: ${{ !matrix.cross }}
+      - if: ${{ matrix.builder == 'zigbuild' }}
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+          use-cache: false
+      - if: ${{ matrix.builder == 'zigbuild' }}
+        uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2.87.27
+        with:
+          tool: cargo-zigbuild
+          fallback: none
+      # The .<version> suffix links the gnu targets against that glibc: the
+      # oldest one Rust supports on the target, so the binaries also start on
+      # old distributions.
+      - if: ${{ matrix.builder == 'zigbuild' }}
+        run: cargo +beta zigbuild --features tui --release --target '${{ matrix.target }}${{ matrix.glibc && format('.{0}', matrix.glibc) || '' }}' --locked
+      - if: ${{ matrix.builder == 'cargo' }}
         run: cargo +beta build --features tui --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt

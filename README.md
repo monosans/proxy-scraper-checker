@@ -92,6 +92,8 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 
 1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). Each glibc download notes the oldest glibc it runs on (`ldd --version` prints yours). Take the musl build on Alpine, on an older glibc, or if the glibc build refuses to start.
 
+   Several rows share `i686`, `armv7l` or `armv6l`. On `i686`, take the row without SSE2 only if `grep -w sse2 /proc/cpuinfo` prints nothing. On `armv7l` and `armv6l`, the system has hardware floating point if `/lib/ld-linux-armhf.so.3` (glibc), `/lib/ld-musl-armhf.so.1` or `/lib/ld-musl-armv7.so.1` (musl) exists; otherwise take a row without hardware floating point. The Thumb-2 build also needs `neon` in `/proc/cpuinfo`.
+
    | Processor                                                         | `uname -m`    | glibc                                                   | musl                                       |
    | ----------------------------------------------------------------- | ------------- | ------------------------------------------------------- | ------------------------------------------ |
    | 64-bit Intel or AMD                                               | `x86_64`      | [Download][x86_64-unknown-linux-gnu] (2.17+)            | [Download][x86_64-unknown-linux-musl]      |

@@ -16,6 +16,7 @@ jobs:
       - build
       - build-docker
       - clippy
+      - licenses
       - pre-commit
       - rustfmt
       - udeps
@@ -270,6 +271,7 @@ jobs:
         shell: bash
       - run: mv config.toml dist/
       - run: mv LICENSE dist/
+      - run: mv LICENSE-THIRD-PARTY dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -409,7 +411,7 @@ jobs:
           persist-credentials: false
       - run: mkdir -p dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
-      - run: mv {out,compose.yaml,config.toml,LICENSE} dist/
+      - run: mv {out,compose.yaml,config.toml,LICENSE,LICENSE-THIRD-PARTY} dist/
       - name: Create Dockerfile
         run: |
           cat << 'EOF' > dist/Dockerfile
@@ -536,6 +538,24 @@ jobs:
           cache-key: x86_64-unknown-linux-gnu-${{ matrix.id }}
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo +beta clippy --all-targets ${{ matrix.features }} --
+  licenses:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+        with:
+          toolchain: beta
+          cache: false
+      - uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2.87.27
+        with:
+          tool: cargo-about@0.9.2
+          fallback: none
+      # The command at the top of LICENSE-THIRD-PARTY. The tui feature is what
+      # the release binaries are built with; the Docker images use a subset.
+      - run: cargo +beta about generate --fail --locked --features tui about.hbs | tr -d '\r' > LICENSE-THIRD-PARTY
+      - run: git diff --exit-code LICENSE-THIRD-PARTY
   pre-commit:
     runs-on: ubuntu-26.04
     steps:

@@ -74,6 +74,8 @@ RUN (getent group "${GID}" || groupadd --gid "${GID}" app) \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \
   && chown "${UID}:${GID}" /home/app/.cache/proxy_scraper_checker
 
+COPY --link LICENSE LICENSE-THIRD-PARTY ./
+
 COPY --from=builder --link /app/proxy-scraper-checker .
 
 USER app

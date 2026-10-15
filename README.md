@@ -1,4 +1,4 @@
-# <img src="assets/logo.svg" alt="" width="40" align="top"> proxy-scraper-checker
+# <picture><source media="(prefers-color-scheme: dark)" srcset="assets/lockup-dark.svg"><img src="assets/lockup-light.svg" alt="proxy-scraper-checker" width="572"></picture>
 
 ![TUI Demo](https://github.com/user-attachments/assets/0ac37021-d11c-4f68-b80d-bafdbaeb00bb)
 

@@ -570,7 +570,8 @@ jobs:
       # Every artifact ships the licenses of the code it compiles in. The tui
       # feature is what the release binaries are built with; the Docker images
       # use a subset.
-      - run: cargo +beta about generate --fail --locked --features tui about.hbs | tr -d '\r' > LICENSE-THIRD-PARTY
+      - shell: bash
+        run: cargo +beta about generate --fail --locked --features tui about.hbs | tr -d '\r' > LICENSE-THIRD-PARTY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: third-party-licenses

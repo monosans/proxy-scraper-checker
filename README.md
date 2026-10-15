@@ -11,7 +11,7 @@ It collects HTTP/SOCKS4/SOCKS5 proxies from any number of sources, verifies each
 - Async Rust, shipped as a single binary for Windows, Linux, macOS, Android, FreeBSD, NetBSD, illumos and Solaris. Nothing to install.
 - Proxies are pattern-matched out of raw text, HTML or JSON, so any source works untouched. `scheme://user:pass@host:port` and CIDR ranges are understood, from URLs or local files.
 - Every proxy has to fetch a real URL _in full_ to survive, so ones that connect and then stall get dropped. Results are deduplicated across sources.
-- Each working proxy comes with its response time and exit IP. ASN and city-level geolocation are looked up in offline MaxMind databases, so there are no per-proxy API calls.
+- Each working proxy comes with its response time, and with its exit IP when `check_url` returns one. ASN and city-level geolocation are looked up in offline MaxMind databases, so there are no per-proxy API calls.
 - The interactive TUI shows per-protocol progress and logs as the run goes.
 - Output is JSON with metadata, plus ready-to-paste plain text lists.
 

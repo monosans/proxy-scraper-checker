@@ -8,10 +8,10 @@ It collects HTTP/SOCKS4/SOCKS5 proxies from any number of sources, verifies each
 
 ## Features
 
-- Async Rust, shipped as a single binary for Windows, Linux, macOS and Android. Nothing to install.
+- Async Rust, shipped as a single binary for Windows, Linux, macOS, Android, FreeBSD, NetBSD, illumos and Solaris. Nothing to install.
 - Proxies are pattern-matched out of raw text, HTML or JSON, so any source works untouched. `scheme://user:pass@host:port` and CIDR ranges are understood, from URLs or local files.
 - Every proxy has to fetch a real URL _in full_ to survive, so ones that connect and then stall get dropped. Results are deduplicated across sources.
-- Response time, exit IP, ASN and city-level geolocation come from offline MaxMind databases, so there are no per-proxy API calls.
+- Each working proxy comes with its response time and exit IP. ASN and city-level geolocation are looked up in offline MaxMind databases, so there are no per-proxy API calls.
 - The interactive TUI shows per-protocol progress and logs as the run goes.
 - Output is JSON with metadata, plus ready-to-paste plain text lists.
 
@@ -370,13 +370,7 @@ Results land in `./out`; `output.path` is ignored in Docker.
    cd proxy-scraper-checker
    ```
 
-3. Build a release binary with the TUI enabled:
-
-   ```bash
-   cargo build --features tui --release --locked
-   ```
-
-4. Run with the TUI:
+3. Build and run it with the TUI:
 
    ```bash
    cargo run --features tui --release --locked
@@ -452,7 +446,7 @@ A text line is `host:port`, or `username:password@host:port` for a proxy that ne
 
 `exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns the exit IP, so pointing it at an ordinary web page leaves all three `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
 
-Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes out everything checked so far. If you stop before any proxy has been checked, the previous run's files are left untouched rather than emptied.
+Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes out the working proxies found so far. If none has been found yet, the previous run's files are left as they were.
 
 ## Sponsors
 

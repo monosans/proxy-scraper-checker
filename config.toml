@@ -24,12 +24,14 @@ enabled = true
 # The ASN and geolocation databases are GeoLite Data created by MaxMind, available
 # from https://www.maxmind.com, under https://www.maxmind.com/en/geolite2/eula.
 
-# Network owner of the exit IP. Offline database, downloaded once (~12 MB).
-# Only works if check_url reveals the exit IP (see below).
+# Network owner of the exit IP. Offline database (~9 MB), downloaded on the first run
+# and again only when a newer one is published. Only works if check_url reveals the
+# exit IP (see below).
 include_asn = true
 
-# Country, city and coordinates of the exit IP. Offline database, downloaded once
-# (~66 MB). Only works if check_url reveals the exit IP (see below).
+# Country, city and coordinates of the exit IP. Offline database (~50 MB), downloaded
+# on the first run and again only when a newer one is published. Only works if
+# check_url reveals the exit IP (see below).
 include_geolocation = true
 
 [checking]

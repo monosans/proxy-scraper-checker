@@ -470,7 +470,7 @@ Star the repository so other people can find it. If you are interested in sponso
 
 [MIT](LICENSE)
 
-The binaries contain third-party code under its own licenses, listed in `LICENSE-THIRD-PARTY`. It is generated for every build, and comes with `LICENSE` in every release archive and next to the binary in `/app` of the Docker image.
+The binaries contain third-party code under its own licenses, listed in `LICENSE-THIRD-PARTY`. CI generates it for every build, and it comes with `LICENSE` in every release archive and next to the binary in `/app` of the published Docker image. An image you build yourself from a checkout does not include it.
 
 The ASN and geolocation databases are not part of the binaries: the program downloads them at run time. They are GeoLite Data, covered by the [GeoLite End User License Agreement](https://www.maxmind.com/en/geolite2/eula).
 

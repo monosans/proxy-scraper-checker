@@ -26,6 +26,8 @@ jobs:
         with:
           jobs: ${{ toJSON(needs) }}
   build:
+    needs:
+      - licenses
     env:
       # renovate: datasource=pypi depName=cargo-zigbuild
       CARGO_ZIGBUILD_VERSION: 0.23.4
@@ -271,6 +273,9 @@ jobs:
         shell: bash
       - run: mv config.toml dist/
       - run: mv LICENSE dist/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: third-party-licenses
       - run: mv LICENSE-THIRD-PARTY dist/
       - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -279,6 +284,8 @@ jobs:
           path: dist/
           if-no-files-found: error
   build-docker:
+    needs:
+      - licenses
     runs-on: ${{ matrix.runner }}
     permissions:
       artifact-metadata: write
@@ -319,6 +326,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: third-party-licenses
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
@@ -340,6 +350,7 @@ jobs:
           DOCKER_BUILD_RECORD_UPLOAD: false
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
+          context: .
           labels: ${{ steps.meta.outputs.labels }}
           platforms: ${{ matrix.platform }}
           provenance: false
@@ -392,6 +403,7 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
   upload-docker-prebuilt:
     needs:
+      - licenses
       - upload-docker-manifest
     runs-on: ubuntu-26.04
     strategy:
@@ -411,6 +423,9 @@ jobs:
           persist-credentials: false
       - run: mkdir -p dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: third-party-licenses
       - run: mv {out,compose.yaml,config.toml,LICENSE,LICENSE-THIRD-PARTY} dist/
       - name: Create Dockerfile
         run: |
@@ -552,10 +567,14 @@ jobs:
         with:
           tool: cargo-about@0.9.2
           fallback: none
-      # The command at the top of LICENSE-THIRD-PARTY. The tui feature is what
-      # the release binaries are built with; the Docker images use a subset.
+      # Every artifact ships the licenses of the code it compiles in. The tui
+      # feature is what the release binaries are built with; the Docker images
+      # use a subset.
       - run: cargo +beta about generate --fail --locked --features tui about.hbs | tr -d '\r' > LICENSE-THIRD-PARTY
-      - run: git diff --exit-code LICENSE-THIRD-PARTY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: third-party-licenses
+          path: LICENSE-THIRD-PARTY
   pre-commit:
     runs-on: ubuntu-26.04
     steps:

@@ -92,7 +92,7 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 
 1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). Each glibc download notes the oldest glibc it runs on (`ldd --version` prints yours). Take the musl build on Alpine, on an older glibc, or if the glibc build refuses to start.
 
-   Several rows share `i686`, `armv7l` or `armv6l`. On `i686`, take the row without SSE2 only if `grep -w sse2 /proc/cpuinfo` prints nothing. On `armv7l` and `armv6l`, the system has hardware floating point if `/lib/ld-linux-armhf.so.3` (glibc), `/lib/ld-musl-armhf.so.1` or `/lib/ld-musl-armv7.so.1` (musl) exists; otherwise take a row without hardware floating point. The Thumb-2 build also needs `neon` in `/proc/cpuinfo`.
+   Several rows share `i686`, `armv7l`, `armv6l` or `riscv64`. On `i686`, take the row without SSE2 only if `grep -w sse2 /proc/cpuinfo` prints nothing. On `armv7l` and `armv6l`, the system has hardware floating point if `/lib/ld-linux-armhf.so.3` (glibc), `/lib/ld-musl-armhf.so.1` or `/lib/ld-musl-armv7.so.1` (musl) exists; otherwise take a row without hardware floating point. The Thumb-2 build also needs `neon` in `/proc/cpuinfo`. On `riscv64`, take the RVA23 build only if the processor implements the RVA23 profile.
 
    | Processor                                                         | `uname -m`    | glibc                                                   | musl                                       |
    | ----------------------------------------------------------------- | ------------- | ------------------------------------------------------- | ------------------------------------------ |
@@ -108,11 +108,12 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
    | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu] (2.39+)           | —                                          |
    | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu] (2.17+)             | —                                          |
    | 64-bit SPARC                                                      | `sparc64`     | [Download][sparc64-unknown-linux-gnu] (2.39+)           | —                                          |
-   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi] (2.39+)       | [Download][armv5te-unknown-linux-musleabi] |
+   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi] (2.23+)       | [Download][armv5te-unknown-linux-musleabi] |
    | 32-bit x86 without SSE2 (Pentium III, Athlon XP and older)        | `i686`        | [Download][i586-unknown-linux-gnu] (2.17+)              | [Download][i586-unknown-linux-musl]        |
-   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi] (2.39+)         | [Download][armv7-unknown-linux-musleabi]   |
-   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi] (2.39+)           | [Download][arm-unknown-linux-musleabi]     |
-   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] (2.39+) | —                                          |
+   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi] (2.27+)         | [Download][armv7-unknown-linux-musleabi]   |
+   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi] (2.17+)           | [Download][arm-unknown-linux-musleabi]     |
+   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] (2.23+) | —                                          |
+   | 64-bit RISC-V with the RVA23 profile                              | `riscv64`     | [Download][riscv64a23-unknown-linux-gnu] (2.39+)        | —                                          |
 
 2. Extract the archive to a dedicated folder.
 
@@ -147,6 +148,7 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 [powerpc64-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64-unknown-linux-musl.zip
 [powerpc64le-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64le-unknown-linux-gnu.zip
 [powerpc64le-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64le-unknown-linux-musl.zip
+[riscv64a23-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64a23-unknown-linux-gnu.zip
 [riscv64gc-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64gc-unknown-linux-gnu.zip
 [riscv64gc-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64gc-unknown-linux-musl.zip
 [s390x-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-s390x-unknown-linux-gnu.zip

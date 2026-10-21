@@ -1,4 +1,4 @@
-# proxy-scraper-checker
+# <img src="assets/logo.svg" alt="" width="40" align="top"> proxy-scraper-checker
 
 ![TUI Demo](https://github.com/user-attachments/assets/0ac37021-d11c-4f68-b80d-bafdbaeb00bb)
 
@@ -8,10 +8,10 @@ It collects HTTP/SOCKS4/SOCKS5 proxies from any number of sources, verifies each
 
 ## Features
 
-- Async Rust, shipped as a single binary for Windows, Linux, macOS and Android. Nothing to install.
+- Async Rust, shipped as a single binary for Windows, Linux, macOS, Android, FreeBSD, NetBSD, illumos and Solaris. Nothing to install.
 - Proxies are pattern-matched out of raw text, HTML or JSON, so any source works untouched. `scheme://user:pass@host:port` and CIDR ranges are understood, from URLs or local files.
 - Every proxy has to fetch a real URL _in full_ to survive, so ones that connect and then stall get dropped. Results are deduplicated across sources.
-- Response time, exit IP, ASN and city-level geolocation come from offline MaxMind databases, so there are no per-proxy API calls.
+- Each working proxy comes with its response time, and with its exit IP when `check_url` returns one. ASN and city-level geolocation are looked up in offline MaxMind databases, so there are no per-proxy API calls.
 - The interactive TUI shows per-protocol progress and logs as the run goes.
 - Output is JSON with metadata, plus ready-to-paste plain text lists.
 
@@ -90,27 +90,29 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 <details>
 <summary>Linux</summary>
 
-1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). Take the musl build on Alpine, or if the glibc build refuses to start.
+1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). Each glibc download notes the oldest glibc it runs on (`ldd --version` prints yours). Take the musl build on Alpine, on an older glibc, or if the glibc build refuses to start.
 
-   | Processor                                                         | `uname -m`    | glibc                                           | musl                                       |
-   | ----------------------------------------------------------------- | ------------- | ----------------------------------------------- | ------------------------------------------ |
-   | 64-bit Intel or AMD                                               | `x86_64`      | [Download][x86_64-unknown-linux-gnu]            | [Download][x86_64-unknown-linux-musl]      |
-   | 64-bit ARM (Raspberry Pi 3 and newer on a 64-bit OS, ARM servers) | `aarch64`     | [Download][aarch64-unknown-linux-gnu]           | [Download][aarch64-unknown-linux-musl]     |
-   | 32-bit ARMv7 (Raspberry Pi 2 and newer on a 32-bit OS)            | `armv7l`      | [Download][armv7-unknown-linux-gnueabihf]       | [Download][armv7-unknown-linux-musleabihf] |
-   | 32-bit ARMv6 (Raspberry Pi 1, Zero, Zero W)                       | `armv6l`      | [Download][arm-unknown-linux-gnueabihf]         | [Download][arm-unknown-linux-musleabihf]   |
-   | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu]              | [Download][i586-unknown-linux-musl]        |
-   | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu]         | [Download][riscv64gc-unknown-linux-musl]   |
-   | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu]       | [Download][loongarch64-unknown-linux-musl] |
-   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu]       | —                                          |
-   | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu]         | —                                          |
-   | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu]           | —                                          |
-   | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu]             | —                                          |
-   | 64-bit SPARC                                                      | `sparc64`     | [Download][sparc64-unknown-linux-gnu]           | —                                          |
-   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi]       | [Download][armv5te-unknown-linux-musleabi] |
-   | 32-bit x86 without SSE2 (Pentium III, Athlon XP and older)        | `i686`        | [Download][i586-unknown-linux-gnu]              | [Download][i586-unknown-linux-musl]        |
-   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi]         | [Download][armv7-unknown-linux-musleabi]   |
-   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi]           | [Download][arm-unknown-linux-musleabi]     |
-   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] | —                                          |
+   Several rows share `i686`, `armv7l` or `armv6l`. On `i686`, take the row without SSE2 only if `grep -w sse2 /proc/cpuinfo` prints nothing. On `armv7l` and `armv6l`, the system has hardware floating point if `/lib/ld-linux-armhf.so.3` (glibc), `/lib/ld-musl-armhf.so.1` or `/lib/ld-musl-armv7.so.1` (musl) exists; otherwise take a row without hardware floating point. The Thumb-2 build also needs `neon` in `/proc/cpuinfo`.
+
+   | Processor                                                         | `uname -m`    | glibc                                                   | musl                                       |
+   | ----------------------------------------------------------------- | ------------- | ------------------------------------------------------- | ------------------------------------------ |
+   | 64-bit Intel or AMD                                               | `x86_64`      | [Download][x86_64-unknown-linux-gnu] (2.17+)            | [Download][x86_64-unknown-linux-musl]      |
+   | 64-bit ARM (Raspberry Pi 3 and newer on a 64-bit OS, ARM servers) | `aarch64`     | [Download][aarch64-unknown-linux-gnu] (2.17+)           | [Download][aarch64-unknown-linux-musl]     |
+   | 32-bit ARMv7 (Raspberry Pi 2 and newer on a 32-bit OS)            | `armv7l`      | [Download][armv7-unknown-linux-gnueabihf] (2.17+)       | [Download][armv7-unknown-linux-musleabihf] |
+   | 32-bit ARMv6 (Raspberry Pi 1, Zero, Zero W)                       | `armv6l`      | [Download][arm-unknown-linux-gnueabihf] (2.17+)         | [Download][arm-unknown-linux-musleabihf]   |
+   | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu] (2.17+)              | [Download][i686-unknown-linux-musl]        |
+   | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu] (2.29+)         | [Download][riscv64gc-unknown-linux-musl]   |
+   | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu] (2.36+)       | [Download][loongarch64-unknown-linux-musl] |
+   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu] (2.39+)       | [Download][powerpc64le-unknown-linux-musl] |
+   | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu] (2.39+)         | [Download][powerpc64-unknown-linux-musl]   |
+   | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu] (2.39+)           | —                                          |
+   | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu] (2.17+)             | —                                          |
+   | 64-bit SPARC                                                      | `sparc64`     | [Download][sparc64-unknown-linux-gnu] (2.39+)           | —                                          |
+   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi] (2.39+)       | [Download][armv5te-unknown-linux-musleabi] |
+   | 32-bit x86 without SSE2 (Pentium III, Athlon XP and older)        | `i686`        | [Download][i586-unknown-linux-gnu] (2.17+)              | [Download][i586-unknown-linux-musl]        |
+   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi] (2.39+)         | [Download][armv7-unknown-linux-musleabi]   |
+   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi] (2.39+)           | [Download][arm-unknown-linux-musleabi]     |
+   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] (2.39+) | —                                          |
 
 2. Extract the archive to a dedicated folder.
 
@@ -137,11 +139,14 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 [i586-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i586-unknown-linux-gnu.zip
 [i586-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i586-unknown-linux-musl.zip
 [i686-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i686-unknown-linux-gnu.zip
+[i686-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-i686-unknown-linux-musl.zip
 [loongarch64-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-loongarch64-unknown-linux-gnu.zip
 [loongarch64-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-loongarch64-unknown-linux-musl.zip
 [powerpc-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc-unknown-linux-gnu.zip
 [powerpc64-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64-unknown-linux-gnu.zip
+[powerpc64-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64-unknown-linux-musl.zip
 [powerpc64le-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64le-unknown-linux-gnu.zip
+[powerpc64le-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64le-unknown-linux-musl.zip
 [riscv64gc-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64gc-unknown-linux-gnu.zip
 [riscv64gc-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64gc-unknown-linux-musl.zip
 [s390x-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-s390x-unknown-linux-gnu.zip
@@ -365,13 +370,7 @@ Results land in `./out`; `output.path` is ignored in Docker.
    cd proxy-scraper-checker
    ```
 
-3. Build a release binary with the TUI enabled:
-
-   ```bash
-   cargo build --features tui --release --locked
-   ```
-
-4. Run with the TUI:
+3. Build and run it with the TUI:
 
    ```bash
    cargo run --features tui --release --locked
@@ -447,7 +446,7 @@ A text line is `host:port`, or `username:password@host:port` for a proxy that ne
 
 `exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns the exit IP, so pointing it at an ordinary web page leaves all three `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
 
-Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes out everything checked so far. If you stop before any proxy has been checked, the previous run's files are left untouched rather than emptied.
+Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes out the working proxies found so far. If none has been found yet, the previous run's files are left as they were.
 
 ## Sponsors
 
@@ -465,4 +464,8 @@ Star the repository so other people can find it. If you are interested in sponso
 
 [MIT](LICENSE)
 
-_This product includes GeoLite2 Data created by MaxMind, available from <https://www.maxmind.com>_
+The binaries contain third-party code under its own licenses, listed in `LICENSE-THIRD-PARTY`. CI generates it for every build, and it comes with `LICENSE` in every release archive and next to the binary in `/app` of the published Docker image. An image you build yourself includes it only if the file is in your checkout.
+
+The ASN and geolocation databases are not part of the binaries: the program downloads them at run time. They are GeoLite Data, covered by the [GeoLite End User License Agreement](https://www.maxmind.com/en/geolite2/eula).
+
+_This product includes GeoLite Data created by MaxMind, available from <https://www.maxmind.com>._

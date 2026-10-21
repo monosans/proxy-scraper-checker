@@ -30,7 +30,7 @@ log = { version = "=0.4.34", features = [
 ] }
 maxminddb = { version = "=0.32.0", features = ["mmap"] }
 mimalloc = { version = "=0.1.52", optional = true }
-parking_lot = "=0.12.5"
+parking_lot = "=0.13.0"
 rapidhash = { version = "=4.5.1", features = ["unsafe"] }
 ratatui = { version = "=0.30.2", default-features = false, features = [
   "crossterm",
@@ -41,7 +41,7 @@ regex = "=1.13.1"
 reqwest = { version = "=0.13.5", features = ["brotli", "gzip", "socks"] }
 reqwest-middleware = "=0.5.2"
 rlimit = "=0.11.0"
-rustls = { version = "=0.23.45", default-features = false, features = [
+rustls = { version = "=0.23.46", default-features = false, features = [
   "aws_lc_rs",
   "brotli",
   "prefer-post-quantum",
@@ -56,7 +56,7 @@ smallvec = { version = "=1.16.3", features = [
 ], optional = true }
 strum = { version = "=0.28.0", features = ["derive"], optional = true }
 tikv-jemallocator = { version = "=0.7.0", default-features = false, optional = true }
-tokio = { version = "=1.53.2", features = [
+tokio = { version = "=1.54.0", features = [
   "fs",
   "macros",
   "parking_lot",
@@ -83,7 +83,7 @@ url = "=2.5.8"
 rustls-platform-verifier = "=0.7.1"
 
 [target.'cfg(target_os = "android")'.dependencies]
-webpki-roots = "=1.0.9"
+webpki-roots = "=1.0.10"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator-auto = { package = "tikv-jemallocator", version = "=0.7.0", default-features = false, features = [

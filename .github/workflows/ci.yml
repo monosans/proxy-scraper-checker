@@ -145,11 +145,12 @@ jobs:
           - target: powerpc64-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
-          # zig has no glibc headers older than 2.19 for ppc64le, and with them
-          # aws-lc links against the IEEE 128-bit long double symbols of 2.32.
+          # aws-lc links against the IEEE 128-bit long double symbols that
+          # glibc added in 2.32.
           - target: powerpc64le-unknown-linux-gnu
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
+            glibc: "2.32"
           - target: powerpc64le-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
@@ -168,10 +169,10 @@ jobs:
             runner: ubuntu-26.04
             builder: zigbuild
             glibc: "2.17"
-          # zig cc crashes compiling aws-lc for SPARC.
           - target: sparc64-unknown-linux-gnu
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
+            glibc: "2.23"
           - target: sparcv9-sun-solaris
             runner: ubuntu-26.04
             builder: cross

@@ -103,7 +103,7 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
    | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu] (2.17+)              | [Download][i686-unknown-linux-musl]        |
    | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu] (2.29+)         | [Download][riscv64gc-unknown-linux-musl]   |
    | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu] (2.36+)       | [Download][loongarch64-unknown-linux-musl] |
-   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu] (2.39+)       | [Download][powerpc64le-unknown-linux-musl] |
+   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu] (2.32+)       | [Download][powerpc64le-unknown-linux-musl] |
    | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu] (2.39+)         | [Download][powerpc64-unknown-linux-musl]   |
    | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu] (2.39+)           | —                                          |
    | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu] (2.17+)             | —                                          |

@@ -169,10 +169,10 @@ jobs:
             runner: ubuntu-26.04
             builder: zigbuild
             glibc: "2.17"
+          # zig cc crashes compiling aws-lc for SPARC with optimizations on.
           - target: sparc64-unknown-linux-gnu
             runner: ubuntu-26.04
-            builder: zigbuild
-            glibc: "2.23"
+            builder: cross
           - target: sparcv9-sun-solaris
             runner: ubuntu-26.04
             builder: cross

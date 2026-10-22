@@ -30,7 +30,7 @@ jobs:
       - licenses
     env:
       # renovate: datasource=pypi depName=cargo-zigbuild
-      CARGO_ZIGBUILD_VERSION: 0.23.4
+      CARGO_ZIGBUILD_VERSION: 0.24.0
       # renovate: datasource=pypi depName=ziglang
       ZIG_VERSION: 0.17.0
     strategy:
@@ -70,52 +70,41 @@ jobs:
           - target: arm-linux-androideabi
             runner: ubuntu-26.04
             builder: cross
-          # Linking with zig leaves fmaximum_num undefined on soft-float Arm
-          # (rust-cross/cargo-zigbuild#495).
           - target: arm-unknown-linux-gnueabi
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
+            glibc: "2.17"
           - target: arm-unknown-linux-gnueabihf
             runner: ubuntu-26.04
             builder: zigbuild
             glibc: "2.17"
-          # Linking with zig leaves fmaximum_num undefined on soft-float Arm
-          # (rust-cross/cargo-zigbuild#495).
           - target: arm-unknown-linux-musleabi
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
           - target: arm-unknown-linux-musleabihf
             runner: ubuntu-26.04
             builder: zigbuild
-          # cargo-zigbuild picks a CPU without bx for Armv5TE C, so aws-lc fails to
-          # assemble (rust-cross/cargo-zigbuild#502), and the link misses __sync_*
-          # (rust-cross/cargo-zigbuild#496).
           - target: armv5te-unknown-linux-gnueabi
             runner: ubuntu-26.04
-            builder: cross
-          # cargo-zigbuild picks a CPU without bx for Armv5TE C, so aws-lc fails to
-          # assemble (rust-cross/cargo-zigbuild#502), and the link misses __sync_*
-          # (rust-cross/cargo-zigbuild#496).
+            builder: zigbuild
+            glibc: "2.23"
           - target: armv5te-unknown-linux-musleabi
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
           - target: armv7-linux-androideabi
             runner: ubuntu-26.04
             builder: cross
-          # Linking with zig leaves fmaximum_num undefined on soft-float Arm
-          # (rust-cross/cargo-zigbuild#495).
           - target: armv7-unknown-linux-gnueabi
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
+            glibc: "2.27"
           - target: armv7-unknown-linux-gnueabihf
             runner: ubuntu-26.04
             builder: zigbuild
             glibc: "2.17"
-          # Linking with zig leaves fmaximum_num undefined on soft-float Arm
-          # (rust-cross/cargo-zigbuild#495).
           - target: armv7-unknown-linux-musleabi
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
           - target: armv7-unknown-linux-musleabihf
             runner: ubuntu-26.04
             builder: zigbuild
@@ -139,16 +128,13 @@ jobs:
           - target: i686-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
-          # zig rejects the --no-rosegment linker argument rustc passes for LoongArch
-          # (rust-cross/cargo-zigbuild#503).
           - target: loongarch64-unknown-linux-gnu
             runner: ubuntu-26.04
-            builder: cross
-          # zig rejects the --no-rosegment linker argument rustc passes for LoongArch
-          # (rust-cross/cargo-zigbuild#503).
+            builder: zigbuild
+            glibc: "2.36"
           - target: loongarch64-unknown-linux-musl
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
           # zig ships no glibc for 32-bit and big-endian 64-bit PowerPC.
           - target: powerpc-unknown-linux-gnu
             runner: ubuntu-26.04
@@ -159,20 +145,19 @@ jobs:
           - target: powerpc64-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
-          # zig has no glibc headers older than 2.19 for ppc64le, and with them
-          # aws-lc links against the IEEE 128-bit long double symbols of 2.32.
+          # aws-lc links against the IEEE 128-bit long double symbols that
+          # glibc added in 2.32.
           - target: powerpc64le-unknown-linux-gnu
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
+            glibc: "2.32"
           - target: powerpc64le-unknown-linux-musl
             runner: ubuntu-26.04
             builder: zigbuild
-          # cargo-zigbuild does not know the riscv64a23 architecture
-          # (rust-cross/cargo-zigbuild#501).
-          # - target: riscv64a23-unknown-linux-gnu
-          #   runner: ubuntu-26.04
-          #   builder: zigbuild
-          #   glibc: "2.39"
+          - target: riscv64a23-unknown-linux-gnu
+            runner: ubuntu-26.04
+            builder: zigbuild
+            glibc: "2.39"
           - target: riscv64gc-unknown-linux-gnu
             runner: ubuntu-26.04
             builder: zigbuild
@@ -184,7 +169,7 @@ jobs:
             runner: ubuntu-26.04
             builder: zigbuild
             glibc: "2.17"
-          # zig cc crashes compiling aws-lc for SPARC.
+          # zig cc crashes compiling aws-lc for SPARC with optimizations on.
           - target: sparc64-unknown-linux-gnu
             runner: ubuntu-26.04
             builder: cross
@@ -194,11 +179,10 @@ jobs:
           - target: thumbv7neon-linux-androideabi
             runner: ubuntu-26.04
             builder: cross
-          # cargo-zigbuild does not know the thumbv7neon architecture
-          # (rust-cross/cargo-zigbuild#500).
           - target: thumbv7neon-unknown-linux-gnueabihf
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
+            glibc: "2.23"
           - target: x86_64-linux-android
             runner: ubuntu-26.04
             builder: cross
@@ -261,11 +245,6 @@ jobs:
       # old distributions.
       - if: ${{ matrix.builder == 'zigbuild' }}
         run: cargo +beta zigbuild --features tui --release --target '${{ matrix.target }}${{ matrix.glibc && format('.{0}', matrix.glibc) || '' }}' --locked
-        env:
-          # rustc passes -O1 to the linker, which zig 0.17 ignores and warns
-          # about. cargo-zigbuild drops the flag for zig 0.12-0.16 only
-          # (rust-cross/cargo-zigbuild#486, rust-cross/cargo-zigbuild#506).
-          RUSTFLAGS: -A linker_messages
       - if: ${{ matrix.builder == 'cargo' }}
         run: cargo +beta build --features tui --release --target '${{ matrix.target }}' --locked
       - run: mkdir dist

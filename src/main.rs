@@ -97,7 +97,12 @@ static GLOBAL: tikv_jemallocator_auto::Jemalloc =
 // cross-compiled build assumes 4 KiB pages and aborts on 16/64 KiB kernels
 // (Raspberry Pi 5, Asahi, ppc64le). v2 with no_thp costs 5-25% peak RSS over
 // mallocng; v3 or letting it madvise(MADV_HUGEPAGE) costs up to 60%.
-#[cfg(all(feature = "auto-allocator", target_env = "musl"))]
+// mimalloc needs 64-bit atomics, which armv5te lacks.
+#[cfg(all(
+    feature = "auto-allocator",
+    target_env = "musl",
+    target_has_atomic = "64"
+))]
 #[global_allocator]
 static GLOBAL: mimalloc_auto::MiMalloc = mimalloc_auto::MiMalloc;
 

@@ -55,7 +55,14 @@ PLATFORMS = [
 # reasoning: mimalloc's `override` and jemalloc's
 # `override_allocator_on_supported_platforms` change what happens to the C
 # dependencies' allocations (here aws-lc-sys), never to Rust's.
-COMMON = ["system", "auto", "mimalloc_v2", "mimalloc_v3", "mimalloc_v3_override"]
+COMMON = [
+    "system",
+    "auto",
+    "mimalloc_v2",
+    "mimalloc_v2_override",
+    "mimalloc_v3",
+    "mimalloc_v3_override",
+]
 
 # jemalloc-sys shells out to `sh` and `mingw32-make` and has no gnu_target
 # mapping for aarch64-pc-windows-msvc, so it cannot be built on Windows at all.
@@ -103,6 +110,9 @@ NOISE_DUPES = [
     ("ubuntu-26.04", "jemalloc_override"),
     ("alpine", "jemalloc_override"),
     ("ubuntu-26.04", "mimalloc_v3"),
+    ("alpine", "mimalloc_v3_override"),
+    ("alpine-arm", "mimalloc_v3_override"),
+    ("ubuntu-26.04-arm", "mimalloc_v3_override"),
     # Both macOS runners: this is the only platform whose result actually
     # decides anything, since it is the one place the shipped default is not
     # the system allocator, and it had no between-job measurement at all.
@@ -144,7 +154,7 @@ def main() -> None:
             # labelled as an override that overrides nothing. exe_sha will not
             # catch it either: the feature adds a #[used] static regardless of
             # target, so the binaries differ while the behaviour does not.
-            allocators = [a for a in allocators if a != "mimalloc_v3_override"]
+            allocators = [a for a in allocators if not a.endswith("_override") or a.startswith("jemalloc")]
         allocators = allocators + [
             a + DUP_SUFFIX for p, a in NOISE_DUPES if p == platform
         ]

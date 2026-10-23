@@ -47,6 +47,7 @@ case "$allocator_features" in
   system) ;;
   auto) no_default="" ;;
   mimalloc_v3_override) features="mimalloc_v3,mimalloc_override" ;;
+  mimalloc_v2_override) features="mimalloc_v2,mimalloc_override" ;;
   *) features="$allocator_features" ;;
 esac
 if [ "$TOKIO_MULTI_THREAD" = "true" ]; then

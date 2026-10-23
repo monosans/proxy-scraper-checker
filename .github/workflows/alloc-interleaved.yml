@@ -1,0 +1,86 @@
+name: Allocator Interleaved
+on:
+  push:
+    branches:
+      - bench/allocator-data
+permissions:
+  contents: read
+jobs:
+  bench:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macos-26
+            runner: macos-26
+            kind: unix
+            variants: system jemalloc_override jemalloc mimalloc_v2 mimalloc_v3 mimalloc_v3_override=mimalloc_v3,mimalloc_override
+          - label: macos-26-intel
+            runner: macos-26-intel
+            kind: unix
+            variants: system jemalloc_override jemalloc mimalloc_v2 mimalloc_v3 mimalloc_v3_override=mimalloc_v3,mimalloc_override
+          - label: ubuntu-26.04
+            runner: ubuntu-26.04
+            kind: unix
+            variants: system jemalloc_override mimalloc_v2_override=mimalloc_v2,mimalloc_override mimalloc_v2_override_nothp=mimalloc_v2_no_thp,mimalloc_override mimalloc_v3_override_nothp=mimalloc_v3_no_thp,mimalloc_override
+          - label: ubuntu-26.04-arm
+            runner: ubuntu-26.04-arm
+            kind: unix
+            variants: system jemalloc_override mimalloc_v2_override=mimalloc_v2,mimalloc_override mimalloc_v2_override_nothp=mimalloc_v2_no_thp,mimalloc_override mimalloc_v3_override_nothp=mimalloc_v3_no_thp,mimalloc_override
+          - label: alpine
+            runner: ubuntu-26.04
+            kind: alpine
+            variants: system jemalloc_override mimalloc_v2_override=mimalloc_v2,mimalloc_override mimalloc_v2_override_nothp=mimalloc_v2_no_thp,mimalloc_override mimalloc_v3_override_nothp=mimalloc_v3_no_thp,mimalloc_override
+          - label: alpine-arm
+            runner: ubuntu-26.04-arm
+            kind: alpine
+            variants: system jemalloc_override mimalloc_v2_override=mimalloc_v2,mimalloc_override mimalloc_v2_override_nothp=mimalloc_v2_no_thp,mimalloc_override mimalloc_v3_override_nothp=mimalloc_v3_no_thp,mimalloc_override
+          - label: windows-2025
+            runner: windows-2025
+            kind: windows
+            variants: system mimalloc_v2 mimalloc_v3
+          - label: windows-11-vs2026-arm
+            runner: windows-11-vs2026-arm
+            kind: windows
+            variants: system mimalloc_v2 mimalloc_v3
+    env:
+      VARIANTS: ${{ matrix.variants }}
+      LABEL: ${{ matrix.label }}
+      REPS: "20"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - if: ${{ matrix.kind != 'alpine' }}
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+        with:
+          toolchain: beta
+          cache: false
+      - if: ${{ matrix.kind == 'unix' && runner.os == 'Linux' }}
+        run: sudo apt-get install -y time
+      - if: ${{ matrix.kind == 'unix' }}
+        run: bash .github/scripts/alloc_interleaved.sh
+        env:
+          OUT: interleaved.tsv
+      - if: ${{ matrix.kind == 'alpine' }}
+        run: |
+          docker run --rm --ulimit nofile=65536:65536 -v "$PWD:/work" -w /work \
+            -e VARIANTS -e LABEL -e REPS -e OUT=interleaved.tsv -e CARGO_TARGET_DIR=/tmp/target \
+            rust:alpine sh -euc '
+              apk add --no-cache bash build-base pkgconfig time python3 openssl coreutils
+              exec bash .github/scripts/alloc_interleaved.sh
+            '
+          sudo chown -R "$(id -u):$(id -g)" .
+      - if: ${{ matrix.kind == 'windows' }}
+        shell: pwsh
+        run: >-
+          ./.github/scripts/alloc_interleaved.ps1 -BinDir alloc-bins -Results interleaved.tsv
+          -Reps 20 -Workloads scrape,tls -Python (Get-Command python).Source
+      - if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: interleaved-${{ matrix.label }}
+          path: interleaved.tsv

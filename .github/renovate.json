@@ -3,7 +3,6 @@
   "branchTopic": "{{{depNameSanitized}}}-{{{newMajor}}}{{#if separateMinorPatch}}{{#if isPatch}}.{{{newMinor}}}{{/if}}{{/if}}{{#if separateMultipleMinor}}{{#if isMinor}}.{{{newMinor}}}{{/if}}{{/if}}.x",
   "configMigration": true,
   "dependencyDashboard": false,
-  "docker-compose": { "enabled": true },
   "extends": [
     "config:recommended",
     ":disableRateLimiting",
@@ -24,10 +23,13 @@
       "automerge": true
     },
     { "matchManagers": ["github-actions", "pre-commit"], "automerge": true },
-    { "matchManagers": ["cargo"], "minimumReleaseAge": null }
+    {
+      "description": "Cargo has no cooldown for the transitive dependencies it resolves, so one on the direct dependencies would only delay updates",
+      "matchManagers": ["cargo"],
+      "minimumReleaseAge": null
+    }
   ],
   "pre-commit": { "enabled": true },
   "rollbackPrs": true,
-  "semanticCommits": "enabled",
-  "schedule": ["at any time"]
+  "semanticCommits": "enabled"
 }

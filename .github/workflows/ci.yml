@@ -238,7 +238,7 @@ jobs:
       # `python -m ziglang` with the Python of its own tool environment.
       - if: ${{ matrix.builder == 'zigbuild' }}
         run: |
-          uv tool install "cargo-zigbuild==${CARGO_ZIGBUILD_VERSION}" --with "ziglang==${ZIG_VERSION}"
+          uv tool install --exclude-newer '3 days' "cargo-zigbuild==${CARGO_ZIGBUILD_VERSION}" --with "ziglang==${ZIG_VERSION}"
           echo "CARGO_ZIGBUILD_PYTHON_PATH=$(uv tool dir)/cargo-zigbuild/bin/python" >> "${GITHUB_ENV}"
       # The .<version> suffix links the gnu targets against that glibc: the
       # oldest one Rust supports on the target, so the binaries also start on
@@ -544,7 +544,7 @@ jobs:
           cache: false
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
-          tool: cargo-about@0.9.2
+          tool: cargo-about
           fallback: none
       # Every artifact ships the licenses of the code it compiles in. The tui
       # feature is what the release binaries are built with; the Docker images
@@ -565,7 +565,12 @@ jobs:
         with:
           python-version: "3.14"
           enable-cache: false
+      # uvx and the hook environments prek installs read neither pyproject.toml
+      # nor .npmrc, so their dependency cooldown is set here.
       - run: uvx --no-cache prek run --all-files --show-diff-on-failure
+        env:
+          NPM_CONFIG_MIN_RELEASE_AGE: "3" # days
+          UV_EXCLUDE_NEWER: 3 days
   rustfmt:
     runs-on: ubuntu-26.04
     steps:

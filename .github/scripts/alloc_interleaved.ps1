@@ -1,5 +1,6 @@
 param([string]$BinDir, [string]$Results, [int]$Reps, [string[]]$Workloads, [string]$Python)
 $ErrorActionPreference = 'Stop'
+$Workloads = @($Workloads | ForEach-Object { $_ -split ',' })
 Add-Type -Namespace '' -Name Psapi -MemberDefinition @'
 [StructLayout(LayoutKind.Sequential)]
 public struct PROCESS_MEMORY_COUNTERS_EX {

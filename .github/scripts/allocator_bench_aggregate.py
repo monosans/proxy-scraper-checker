@@ -397,8 +397,8 @@ def main() -> None:
         "The MAD is measured *within* one job on one runner, but every delta "
         "compares two jobs on two runner VMs, so timing deltas in particular "
         "are less significant than they look here. Calibrate against the "
-        "`auto` vs `system` row: off macOS those two build the same program, "
-        "so whatever spread they show is pure between-job noise.\n"
+        "`auto` vs `system` row: off macOS and musl those two build the same "
+        "program, so whatever spread they show is pure between-job noise.\n"
     )
 
     text = "\n".join(out)

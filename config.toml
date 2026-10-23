@@ -45,7 +45,8 @@ include_geolocation = true
 # Any other page (https://google.com, say) still proves the proxy works, but leaves
 # exit_ip, asn and geolocation null no matter what is enabled above.
 #
-# Set to "" to skip checking entirely and output everything scraped.
+# Set to "" to skip checking entirely and output everything scraped. The ASN and
+# geolocation databases are then not downloaded.
 check_url = "https://ipv4.icanhazip.com"
 
 # How many proxies to check at once. A run takes roughly

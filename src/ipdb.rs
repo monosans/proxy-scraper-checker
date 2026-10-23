@@ -1,11 +1,34 @@
 use std::{io, path::PathBuf, time::Duration};
 
-use color_eyre::eyre::{WrapErr as _, eyre};
+use color_eyre::eyre::{OptionExt as _, WrapErr as _, eyre};
 use tokio::io::AsyncWriteExt as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
-use crate::{fs::get_cache_path, utils::is_container};
+use crate::utils::is_container;
+
+const CACHE_DIRECTORY_NAME: &str = "proxy_scraper_checker";
+
+async fn get_cache_path() -> crate::Result<PathBuf> {
+    static CACHE: tokio::sync::OnceCell<PathBuf> =
+        tokio::sync::OnceCell::const_new();
+
+    Ok(CACHE
+        .get_or_try_init(async || -> crate::Result<PathBuf> {
+            let path = dirs::cache_dir()
+                .ok_or_eyre("failed to get user's cache directory")?
+                .join(CACHE_DIRECTORY_NAME);
+            tokio::fs::create_dir_all(&path).await.wrap_err_with(|| {
+                compact_str::format_compact!(
+                    "failed to create directory: {}",
+                    path.display()
+                )
+            })?;
+            Ok(path)
+        })
+        .await?
+        .clone())
+}
 
 #[derive(Clone, Copy)]
 pub enum DbType {
@@ -101,7 +124,7 @@ impl DbType {
         .await?
     }
 
-    const fn name(self) -> &'static str {
+    pub const fn name(self) -> &'static str {
         match self {
             Self::Asn => "ASN",
             Self::Geo => "geolocation",
@@ -146,21 +169,25 @@ impl DbType {
         ))));
 
         let db_path = self.db_path().await?;
+        let tmp_path = db_path.with_extension("mmdb.tmp");
         let file =
-            tokio::fs::File::create(&db_path).await.wrap_err_with(|| {
+            tokio::fs::File::create(&tmp_path).await.wrap_err_with(|| {
                 compact_str::format_compact!(
                     "failed to create file: {}",
-                    db_path.display()
+                    tmp_path.display()
                 )
             })?;
         let mut writer = tokio::io::BufWriter::new(file);
+
+        let failed_to_write = || {
+            compact_str::format_compact!(
+                "failed to write to file: {}",
+                tmp_path.display()
+            )
+        };
+
         while let Some(chunk) = response.chunk().await? {
-            writer.write_all(&chunk).await.wrap_err_with(|| {
-                compact_str::format_compact!(
-                    "failed to write to file: {}",
-                    db_path.display()
-                )
-            })?;
+            writer.write_all(&chunk).await.wrap_err_with(failed_to_write)?;
             #[cfg(feature = "tui")]
             drop(
                 tx.send(Event::App(AppEvent::IpDbDownloaded(
@@ -173,14 +200,16 @@ impl DbType {
         #[cfg(feature = "tui")]
         drop(tx);
 
-        writer.flush().await.wrap_err_with(move || {
+        writer.flush().await.wrap_err_with(failed_to_write)?;
+        drop(writer);
+
+        tokio::fs::rename(&tmp_path, &db_path).await.wrap_err_with(|| {
             compact_str::format_compact!(
-                "failed to write to file: {}",
+                "failed to rename {} to {}",
+                tmp_path.display(),
                 db_path.display()
             )
-        })?;
-
-        Ok(())
+        })
     }
 
     async fn save_etag(self, etag: impl AsRef<[u8]>) -> crate::Result<()> {

@@ -1,8 +1,10 @@
 use crate::{ipdb, proxy::ProxyType};
 
+#[derive(Clone, Copy)]
 pub enum AppEvent {
     IpDbTotal(ipdb::DbType, Option<u64>),
     IpDbDownloaded(ipdb::DbType, usize),
+    IpDbFinished(ipdb::DbType, bool),
 
     SourcesTotal(ProxyType, usize),
     SourceScraped(ProxyType),

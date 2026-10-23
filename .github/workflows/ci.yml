@@ -19,6 +19,7 @@ jobs:
       - licenses
       - pre-commit
       - rustfmt
+      - test
       - udeps
     runs-on: ubuntu-26.04
     steps:
@@ -583,6 +584,18 @@ jobs:
           components: rustfmt
           cache: false
       - run: cargo +nightly fmt --check
+  test:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+        with:
+          toolchain: beta
+          cache-key: x86_64-unknown-linux-gnu-test
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo +beta test --features tui --locked
   udeps:
     runs-on: ubuntu-26.04
     strategy:

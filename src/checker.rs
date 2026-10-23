@@ -101,8 +101,8 @@ pub async fn check_all(
                         {
                             tracing::debug!(
                                 "{}: {}",
-                                proxy.to_string(true),
-                                pretty_error(&e)
+                                proxy.to_compact_string(true),
+                                pretty_error(&e.into())
                             );
                         }
                         Err(_) => {}

@@ -82,6 +82,13 @@ url = "=2.5.8"
 [target.'cfg(not(target_os = "android"))'.dependencies]
 rustls-platform-verifier = "=0.7.1"
 
+[target.'cfg(target_env = "musl")'.dependencies]
+mimalloc-auto = { package = "mimalloc", version = "=0.1.52", features = [
+  "no_thp",
+  "override",
+  "v2",
+], optional = true }
+
 [target.'cfg(target_os = "android")'.dependencies]
 webpki-roots = "=1.0.11"
 
@@ -93,7 +100,7 @@ tikv-jemallocator-auto = { package = "tikv-jemallocator", version = "=0.7.0", de
 [features]
 default = ["auto-allocator"]
 __mimalloc = ["dep:mimalloc"]
-auto-allocator = ["dep:tikv-jemallocator-auto"]
+auto-allocator = ["dep:mimalloc-auto", "dep:tikv-jemallocator-auto"]
 dhat = ["dep:dhat"]
 jemalloc = ["dep:tikv-jemallocator"]
 jemalloc_override = [

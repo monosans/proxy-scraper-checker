@@ -81,10 +81,26 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+// auto-allocator replaces the system allocator only where that measurably
+// wins, and both replacements also take over malloc for the C dependencies
+// (aws-lc). On glibc and Windows the system allocator had the lowest peak RSS
+// and mimalloc/jemalloc saved no significant CPU. The BSDs ship jemalloc and
+// Android ships Scudo as their libc allocator already.
+
+// macOS: 12-58% lower peak RSS than libmalloc.
 #[cfg(all(feature = "auto-allocator", target_os = "macos"))]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator_auto::Jemalloc =
     tikv_jemallocator_auto::Jemalloc;
+
+// musl: 8-18% less CPU than mallocng when checking. mimalloc rather than
+// jemalloc because jemalloc fixes the page size at build time, and a
+// cross-compiled build assumes 4 KiB pages and aborts on 16/64 KiB kernels
+// (Raspberry Pi 5, Asahi, ppc64le). v2 with no_thp costs 5-25% peak RSS over
+// mallocng; v3 or letting it madvise(MADV_HUGEPAGE) costs up to 60%.
+#[cfg(all(feature = "auto-allocator", target_env = "musl"))]
+#[global_allocator]
+static GLOBAL: mimalloc_auto::MiMalloc = mimalloc_auto::MiMalloc;
 
 type Error = color_eyre::Report;
 type Result<T> = color_eyre::Result<T>;

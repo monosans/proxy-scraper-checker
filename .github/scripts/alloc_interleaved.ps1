@@ -51,7 +51,7 @@ try {
         $p.WaitForExit()
         $sw.Stop()
         if ($p.ExitCode -ne 0) { Write-Host $outTask.Result $errTask.Result; throw "$($b.Name) $wl exit $($p.ExitCode)" }
-        $c = New-Object PROCESS_MEMORY_COUNTERS_EX
+        $c = New-Object 'Psapi+PROCESS_MEMORY_COUNTERS_EX'
         $c.cb = [Runtime.InteropServices.Marshal]::SizeOf($c)
         [void][Psapi]::GetProcessMemoryInfo($h, [ref]$c, $c.cb)
         $cr = 0L; $ex = 0L; $k = 0L; $u = 0L

@@ -14,30 +14,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: macos-26
-            runner: macos-26
-            kind: unix
-            variants: system jemalloc_override jemalloc mimalloc_v2 mimalloc_v3 mimalloc_v3_override=mimalloc_v3,mimalloc_override
-          - label: macos-26-intel
-            runner: macos-26-intel
-            kind: unix
-            variants: system jemalloc_override jemalloc mimalloc_v2 mimalloc_v3 mimalloc_v3_override=mimalloc_v3,mimalloc_override
-          - label: ubuntu-26.04
-            runner: ubuntu-26.04
-            kind: unix
-            variants: system jemalloc_override mimalloc_v2_override=mimalloc_v2,mimalloc_override mimalloc_v2_override_nothp=mimalloc_v2_no_thp,mimalloc_override mimalloc_v3_override_nothp=mimalloc_v3_no_thp,mimalloc_override
-          - label: ubuntu-26.04-arm
-            runner: ubuntu-26.04-arm
-            kind: unix
-            variants: system jemalloc_override mimalloc_v2_override=mimalloc_v2,mimalloc_override mimalloc_v2_override_nothp=mimalloc_v2_no_thp,mimalloc_override mimalloc_v3_override_nothp=mimalloc_v3_no_thp,mimalloc_override
-          - label: alpine
-            runner: ubuntu-26.04
-            kind: alpine
-            variants: system jemalloc_override mimalloc_v2_override=mimalloc_v2,mimalloc_override mimalloc_v2_override_nothp=mimalloc_v2_no_thp,mimalloc_override mimalloc_v3_override_nothp=mimalloc_v3_no_thp,mimalloc_override
-          - label: alpine-arm
-            runner: ubuntu-26.04-arm
-            kind: alpine
-            variants: system jemalloc_override mimalloc_v2_override=mimalloc_v2,mimalloc_override mimalloc_v2_override_nothp=mimalloc_v2_no_thp,mimalloc_override mimalloc_v3_override_nothp=mimalloc_v3_no_thp,mimalloc_override
           - label: windows-2025
             runner: windows-2025
             kind: windows

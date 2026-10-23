@@ -40,8 +40,7 @@ connect_timeout = 1.0
 user_agent = "proxy-scraper-checker-bench"
 
 [scraping]
-# 0 = no limit. The guard in scraper.rs is evaluated before CIDR expansion, so
-# any non-zero value is not a real bound and would only add nondeterminism.
+# 0 = no limit, so the per-source guard can never discard a corpus file.
 max_proxies_per_source = 0
 timeout = 10.0
 connect_timeout = 5.0

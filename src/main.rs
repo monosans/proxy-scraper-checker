@@ -51,7 +51,6 @@ mod checker;
 mod config;
 #[cfg(feature = "tui")]
 mod event;
-mod fs;
 mod http;
 mod ipdb;
 mod output;
@@ -129,54 +128,77 @@ fn create_logging_filter(
 }
 
 async fn download_ipdb(
-    config: &config::Config,
+    config: Arc<config::Config>,
     http_client: reqwest_middleware::ClientWithMiddleware,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> crate::Result<output::UseIpDb> {
-    let spawn = move |db_type: ipdb::DbType, enabled: bool| {
-        if enabled {
-            let http_client = http_client.clone();
-            let token = token.clone();
-            #[cfg(feature = "tui")]
-            let tx = tx.clone();
+) {
+    let databases = [
+        (ipdb::DbType::Asn, config.asn_enabled()),
+        (ipdb::DbType::Geo, config.geolocation_enabled()),
+    ];
+    drop(config);
 
-            tokio::spawn(async move {
-                let download = db_type.download(
-                    http_client,
-                    #[cfg(feature = "tui")]
-                    tx,
-                );
+    let mut join_set = tokio::task::JoinSet::new();
 
-                let downloaded_ok = |res: crate::Result<()>| match res {
-                    Ok(()) => true,
-                    Err(e) => {
-                        tracing::warn!(
-                            "failed to download IP database: {}",
-                            utils::pretty_error(&e),
-                        );
-                        false
-                    }
-                };
-
-                tokio::select! {
-                    biased;
-                    res = download => downloaded_ok(res),
-                    () = token.cancelled() => false,
-                }
-            })
-        } else {
-            tokio::spawn(async { false })
+    for (db_type, enabled) in databases {
+        if !enabled {
+            continue;
         }
-    };
 
-    let asn_task = spawn(ipdb::DbType::Asn, config.asn_enabled());
-    let geodb_task = spawn(ipdb::DbType::Geo, config.geolocation_enabled());
-    drop(spawn);
+        let http_client = http_client.clone();
+        let token = token.clone();
+        #[cfg(feature = "tui")]
+        let tx = tx.clone();
 
-    Ok(output::UseIpDb { asn: asn_task.await?, geo: geodb_task.await? })
+        join_set.spawn(async move {
+            let download = db_type.download(
+                http_client,
+                #[cfg(feature = "tui")]
+                tx.clone(),
+            );
+
+            let result = tokio::select! {
+                biased;
+                res = download => res,
+                () = token.cancelled() => Ok(()),
+            };
+
+            if let Err(e) = &result {
+                tracing::warn!(
+                    "failed to download {} database: {}",
+                    db_type.name(),
+                    utils::pretty_error(e),
+                );
+            }
+
+            #[cfg(feature = "tui")]
+            if !token.is_cancelled() {
+                drop(tx.send(event::Event::App(
+                    event::AppEvent::IpDbFinished(db_type, result.is_ok()),
+                )));
+            }
+        });
+    }
+
+    drop(http_client);
+    drop(token);
+    #[cfg(feature = "tui")]
+    drop(tx);
+
+    // A panic here should cost the ASN and geolocation data, not the run:
+    // every real download failure is already logged inside the task, and
+    // save_proxies degrades gracefully when a database is unavailable.
+    while let Some(res) = join_set.join_next().await {
+        if let Err(e) = res {
+            tracing::error!(
+                "IP database task panicked: {}",
+                utils::pretty_error(&e.into())
+            );
+        }
+    }
 }
 
 async fn main_task(
@@ -188,9 +210,12 @@ async fn main_task(
 ) -> crate::Result<()> {
     let http_client = http::create_reqwest_client(&config).await?;
 
-    let (use_ipdb, mut proxies) = tokio::try_join!(
+    // The databases download while scraping rather than while checking, so
+    // the download does not compete with the checks for bandwidth and skew
+    // their timeouts.
+    let ((), scraped) = tokio::join!(
         download_ipdb(
-            &config,
+            Arc::clone(&config),
             http_client.clone(),
             token.clone(),
             #[cfg(feature = "tui")]
@@ -203,24 +228,21 @@ async fn main_task(
             #[cfg(feature = "tui")]
             tx.clone(),
         ),
-    )?;
+    );
 
-    proxies = checker::check_all(
+    let proxies = checker::check_all(
         Arc::clone(&config),
-        proxies,
-        token.clone(),
+        scraped?,
+        token,
         #[cfg(feature = "tui")]
         tx.clone(),
     )
     .await?;
 
-    if proxies.is_empty() && token.is_cancelled() {
-        tracing::warn!(
-            "Stopped before any proxy was checked - previous results left \
-             untouched"
-        );
+    if proxies.is_empty() {
+        tracing::warn!("No proxies to save - previous results left untouched");
     } else {
-        output::save_proxies(config, proxies, use_ipdb).await?;
+        output::save_proxies(config, proxies).await?;
     }
 
     tracing::info!("Thank you for using proxy-scraper-checker!");
@@ -310,9 +332,9 @@ async fn run_with_tui(
     watch_signals(&token, &tx);
 
     tokio::try_join!(
-        main_task(config, token.clone(), tx.clone()),
+        main_task(Arc::clone(&config), token.clone(), tx.clone()),
         async move {
-            let result = tui::run(terminal, token, tx, rx).await;
+            let result = tui::run(terminal, config, token, tx, rx).await;
             drop(terminal_guard);
             result
         }

@@ -7,21 +7,57 @@ use std::{
 
 use color_eyre::eyre::eyre;
 
-use crate::{
-    config::{Config, HttpbinResponse},
-    parsers::parse_ipv4,
-};
+use crate::{config::Config, parsers::parse_ipv4};
+
+#[derive(serde::Deserialize)]
+struct HttpbinResponse {
+    origin: compact_str::CompactString,
+}
 
 #[repr(u8)]
 #[derive(
     Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize,
 )]
-#[cfg_attr(feature = "tui", derive(strum::EnumCount))]
 #[serde(rename_all = "lowercase")]
 pub enum ProxyType {
     Http = 1 << 0_u8,
     Socks4 = 1 << 1_u8,
     Socks5 = 1 << 2_u8,
+}
+
+impl ProxyType {
+    const ALL: [Self; 3] = [Self::Http, Self::Socks4, Self::Socks5];
+
+    const fn as_proxy_url_scheme(self, force_remote_dns: bool) -> &'static str {
+        match self {
+            Self::Http => "http",
+            Self::Socks4 => {
+                if force_remote_dns {
+                    "socks4a"
+                } else {
+                    "socks4"
+                }
+            }
+            Self::Socks5 => "socks5h",
+        }
+    }
+
+    pub const fn as_str_lowercase(self) -> &'static str {
+        match self {
+            Self::Http => "http",
+            Self::Socks4 => "socks4",
+            Self::Socks5 => "socks5",
+        }
+    }
+
+    #[cfg(feature = "tui")]
+    pub const fn as_str_uppercase(self) -> &'static str {
+        match self {
+            Self::Http => "HTTP",
+            Self::Socks4 => "SOCKS4",
+            Self::Socks5 => "SOCKS5",
+        }
+    }
 }
 
 impl FromStr for ProxyType {
@@ -57,59 +93,43 @@ impl ProxyTypeSet {
     }
 
     pub fn iter(self) -> impl Iterator<Item = ProxyType> {
-        [ProxyType::Http, ProxyType::Socks4, ProxyType::Socks5]
+        ProxyType::ALL
             .into_iter()
             .filter(move |&proxy_type| self.contains(proxy_type))
     }
-}
-
-impl FromIterator<ProxyType> for ProxyTypeSet {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = ProxyType>,
-    {
-        let mut set = Self::default();
-        for proxy_type in iter {
-            set.insert(proxy_type);
-        }
-        set
-    }
-}
-
-impl ProxyType {
-    const fn as_proxy_url_scheme(self, force_remote_dns: bool) -> &'static str {
-        match self {
-            Self::Http => "http",
-            Self::Socks4 => {
-                if force_remote_dns {
-                    "socks4a"
-                } else {
-                    "socks4"
-                }
-            }
-            Self::Socks5 => "socks5h",
-        }
-    }
-
-    pub const fn as_str_lowercase(self) -> &'static str {
-        match self {
-            Self::Http => "http",
-            Self::Socks4 => "socks4",
-            Self::Socks5 => "socks5",
-        }
-    }
 
     #[cfg(feature = "tui")]
-    pub const fn as_str_uppercase(self) -> &'static str {
-        match self {
-            Self::Http => "HTTP",
-            Self::Socks4 => "SOCKS4",
-            Self::Socks5 => "SOCKS5",
+    pub const fn len(self) -> usize {
+        self.0.count_ones() as usize
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct PerProxyType<T> {
+    http: T,
+    socks4: T,
+    socks5: T,
+}
+
+impl<T> PerProxyType<T> {
+    pub const fn get(&self, proxy_type: ProxyType) -> &T {
+        match proxy_type {
+            ProxyType::Http => &self.http,
+            ProxyType::Socks4 => &self.socks4,
+            ProxyType::Socks5 => &self.socks5,
+        }
+    }
+
+    pub const fn get_mut(&mut self, proxy_type: ProxyType) -> &mut T {
+        match proxy_type {
+            ProxyType::Http => &mut self.http,
+            ProxyType::Socks4 => &mut self.socks4,
+            ProxyType::Socks5 => &mut self.socks5,
         }
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ProxyAuth {
     pub username: compact_str::CompactString,
     pub password: compact_str::CompactString,
@@ -129,7 +149,7 @@ impl Proxy {
     fn as_reqwest_proxy(
         &self,
         force_remote_dns: bool,
-    ) -> crate::Result<reqwest::Proxy> {
+    ) -> reqwest::Result<reqwest::Proxy> {
         let proxy = reqwest::Proxy::all(
             compact_str::format_compact!(
                 "{}://{}:{}",
@@ -152,7 +172,7 @@ impl Proxy {
         config: &Config,
         check_url_addrs: &[SocketAddr],
         tls_backend: rustls::ClientConfig,
-    ) -> crate::Result<()> {
+    ) -> reqwest::Result<()> {
         let Some(check_url) = config.checking.check_url.clone() else {
             return Ok(());
         };
@@ -200,31 +220,31 @@ impl Proxy {
         Ok(())
     }
 
-    pub fn write_to(&self, buf: &mut Vec<u8>, include_protocol: bool) {
+    pub fn write_to(&self, buf: &mut String, include_protocol: bool) {
         if include_protocol {
-            buf.extend_from_slice(self.protocol.as_str_lowercase().as_bytes());
-            buf.extend_from_slice(b"://");
+            buf.push_str(self.protocol.as_str_lowercase());
+            buf.push_str("://");
         }
 
         if let Some(auth) = &self.auth {
-            buf.extend_from_slice(auth.username.as_bytes());
-            buf.push(b':');
-            buf.extend_from_slice(auth.password.as_bytes());
-            buf.push(b'@');
+            buf.push_str(&auth.username);
+            buf.push(':');
+            buf.push_str(&auth.password);
+            buf.push('@');
         }
 
-        buf.extend_from_slice(self.host.as_bytes());
-        buf.push(b':');
-        buf.extend_from_slice(itoa::Buffer::new().format(self.port).as_bytes());
+        buf.push_str(&self.host);
+        buf.push(':');
+        buf.push_str(itoa::Buffer::new().format(self.port));
     }
 
-    pub fn to_string(
+    pub fn to_compact_string(
         &self,
         include_protocol: bool,
     ) -> compact_str::CompactString {
-        let mut buf = Vec::new();
+        let mut buf = String::new();
         self.write_to(&mut buf, include_protocol);
-        compact_str::CompactString::from_utf8_lossy(&buf)
+        buf.into()
     }
 }
 
@@ -248,5 +268,92 @@ impl Hash for Proxy {
         self.host.hash(state);
         self.port.hash(state);
         self.auth.hash(state);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::Ipv4Addr;
+
+    use compact_str::CompactString;
+
+    use super::{Duration, Proxy, ProxyAuth, ProxyType, ProxyTypeSet};
+
+    fn proxy(auth: Option<ProxyAuth>) -> Proxy {
+        Proxy {
+            protocol: ProxyType::Socks5,
+            host: CompactString::const_new("1.2.3.4"),
+            port: 1080,
+            auth: auth.map(Box::new),
+            timeout: None,
+            exit_ip: None,
+        }
+    }
+
+    fn auth() -> ProxyAuth {
+        ProxyAuth {
+            username: CompactString::const_new("user"),
+            password: CompactString::const_new("pass"),
+        }
+    }
+
+    #[test]
+    fn scheme_aliases_collapse_to_one_protocol() {
+        for (input, expected) in [
+            ("http", "http"),
+            ("HTTPS", "http"),
+            ("socks4", "socks4"),
+            ("Socks4a", "socks4"),
+            ("socks5", "socks5"),
+            ("SOCKS5H", "socks5"),
+        ] {
+            assert_eq!(
+                input.parse::<ProxyType>().unwrap().as_str_lowercase(),
+                expected
+            );
+        }
+        assert!("ftp".parse::<ProxyType>().is_err());
+    }
+
+    #[test]
+    fn proxy_type_set_iterates_in_protocol_order() {
+        let mut set = ProxyTypeSet::default();
+        set.insert(ProxyType::Socks5);
+        set.insert(ProxyType::Http);
+
+        let names: Vec<_> =
+            set.iter().map(ProxyType::as_str_lowercase).collect();
+        assert_eq!(names, ["http", "socks5"]);
+        assert!(set.contains(ProxyType::Http));
+        assert!(!set.contains(ProxyType::Socks4));
+    }
+
+    #[test]
+    fn text_output_matches_documented_format() {
+        assert_eq!(proxy(None).to_compact_string(false), "1.2.3.4:1080");
+        assert_eq!(
+            proxy(None).to_compact_string(true),
+            "socks5://1.2.3.4:1080"
+        );
+        assert_eq!(
+            proxy(Some(auth())).to_compact_string(false),
+            "user:pass@1.2.3.4:1080"
+        );
+        assert_eq!(
+            proxy(Some(auth())).to_compact_string(true),
+            "socks5://user:pass@1.2.3.4:1080"
+        );
+    }
+
+    #[test]
+    fn deduplication_ignores_check_results() {
+        let mut measured = proxy(None);
+        measured.timeout = Some(Duration::from_secs(1));
+        measured.exit_ip = Some(Ipv4Addr::LOCALHOST);
+
+        let mut seen = crate::HashSet::default();
+        assert!(seen.insert(measured));
+        assert!(!seen.insert(proxy(None)));
+        assert!(seen.insert(proxy(Some(auth()))));
     }
 }

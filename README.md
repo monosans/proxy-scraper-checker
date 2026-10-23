@@ -170,6 +170,8 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
    bash <(curl -fsSL 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/termux.sh')
    ```
 
+   Running it again updates the binary and resets `config.toml`.
+
 2. Edit the config in a text editor:
 
    ```bash
@@ -378,6 +380,8 @@ Results land in `./out`; `output.path` is ignored in Docker.
    cargo run --features tui --release --locked
    ```
 
+   Leave out `--features tui` to get plain log output instead of the interactive interface.
+
 The binary lands in `target/release/proxy-scraper-checker` on Linux/macOS, or `target\release\proxy-scraper-checker.exe` on Windows.
 
 </details>
@@ -419,6 +423,8 @@ out/
 
 A text line is `host:port`, or `username:password@host:port` for a proxy that needs credentials, with `protocol://` in front of either in `all.txt`.
 
+The JSON files hold an array of entries like this one:
+
 ```json
 {
   "protocol": "socks5",
@@ -448,7 +454,9 @@ A text line is `host:port`, or `username:password@host:port` for a proxy that ne
 
 `exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns the exit IP, so pointing it at an ordinary web page leaves all three `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
 
-Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes out the working proxies found so far. If none has been found yet, the previous run's files are left as they were.
+Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes out the working proxies found so far. A run that ends with no proxies to write leaves the previous run's files as they were.
+
+With `sort_by_speed = false` the text files list the same proxies in the same order on every run, so committing them to a repository shows a diff only when the list changed.
 
 ## Sponsors
 

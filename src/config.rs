@@ -1,29 +1,21 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::Duration,
-};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use color_eyre::eyre::WrapErr as _;
+use color_eyre::eyre::{WrapErr as _, eyre};
 
 use crate::{
     HashMap,
     http::BasicAuth,
-    proxy::{ProxyType, ProxyTypeSet},
+    proxy::{PerProxyType, ProxyType, ProxyTypeSet},
     raw_config,
     utils::is_container,
 };
 
-pub const APP_DIRECTORY_NAME: &str = "proxy_scraper_checker";
-
 #[derive(serde::Deserialize)]
-pub struct HttpbinResponse {
-    pub origin: compact_str::CompactString,
-}
-
 pub struct Source {
     pub url: compact_str::CompactString,
+    #[serde(default)]
     pub basic_auth: Option<BasicAuth>,
+    #[serde(default)]
     pub headers:
         Option<HashMap<compact_str::CompactString, compact_str::CompactString>>,
 }
@@ -34,7 +26,7 @@ pub struct ScrapingConfig {
     pub connect_timeout: Duration,
     pub proxy: Option<url::Url>,
     pub user_agent: compact_str::CompactString,
-    pub sources: HashMap<ProxyType, Vec<Arc<Source>>>,
+    pub sources: PerProxyType<Vec<Arc<Source>>>,
     pub enabled_protocols: ProxyTypeSet,
 }
 
@@ -46,10 +38,12 @@ pub struct CheckingConfig {
     pub user_agent: compact_str::CompactString,
 }
 
+#[derive(serde::Deserialize)]
 pub struct TxtOutputConfig {
     pub enabled: bool,
 }
 
+#[derive(serde::Deserialize)]
 pub struct JsonOutputConfig {
     pub enabled: bool,
     pub include_asn: bool,
@@ -70,21 +64,6 @@ pub struct Config {
     pub output: OutputConfig,
 }
 
-impl From<raw_config::SourceConfig> for Source {
-    fn from(sc: raw_config::SourceConfig) -> Self {
-        match sc {
-            raw_config::SourceConfig::Simple(url) => {
-                Self { url, basic_auth: None, headers: None }
-            }
-            raw_config::SourceConfig::Detailed(config) => Self {
-                url: config.url,
-                basic_auth: config.basic_auth,
-                headers: config.headers,
-            },
-        }
-    }
-}
-
 async fn get_output_path(
     raw_config: &raw_config::RawConfig,
 ) -> crate::Result<PathBuf> {
@@ -102,65 +81,71 @@ async fn get_output_path(
     Ok(output_path)
 }
 
+fn get_max_concurrent_checks(raw_config: &raw_config::RawConfig) -> usize {
+    let requested = raw_config.checking.max_concurrent_checks.get();
+    let Ok(limit) = rlimit::increase_nofile_limit(u64::MAX) else {
+        return requested;
+    };
+    let limit = usize::try_from(limit).unwrap_or(usize::MAX).max(1);
+
+    if requested > limit {
+        tracing::warn!(
+            "max_concurrent_checks config value is too high for your OS. It \
+             will be ignored and {limit} will be used."
+        );
+        limit
+    } else {
+        requested
+    }
+}
+
 impl Config {
     pub const fn exit_ip_enabled(&self) -> bool {
-        self.output.json.enabled
+        self.output.json.enabled && self.checking.check_url.is_some()
     }
 
     pub const fn asn_enabled(&self) -> bool {
-        self.output.json.enabled && self.output.json.include_asn
+        self.exit_ip_enabled() && self.output.json.include_asn
     }
 
     pub const fn geolocation_enabled(&self) -> bool {
-        self.output.json.enabled && self.output.json.include_geolocation
+        self.exit_ip_enabled() && self.output.json.include_geolocation
     }
 
     pub const fn protocol_is_enabled(&self, protocol: ProxyType) -> bool {
         self.scraping.enabled_protocols.contains(protocol)
     }
 
-    pub async fn from_raw_config(
+    async fn from_raw_config(
         raw_config: raw_config::RawConfig,
     ) -> crate::Result<Self> {
+        if !raw_config.output.json.enabled && !raw_config.output.txt.enabled {
+            return Err(eyre!(
+                "at least one of 'output.json' or 'output.txt' must be \
+                 enabled in config"
+            ));
+        }
+
         let output_path = get_output_path(&raw_config).await?;
+        let max_concurrent_checks = get_max_concurrent_checks(&raw_config);
 
-        let max_concurrent_checks =
-            if let Ok(lim) = rlimit::increase_nofile_limit(u64::MAX) {
-                let lim = usize::try_from(lim).unwrap_or(usize::MAX);
-
-                if raw_config.checking.max_concurrent_checks.get() > lim {
-                    tracing::warn!(
-                        "max_concurrent_checks config value is too high for \
-                         your OS. It will be ignored and {lim} will be used."
-                    );
-                    lim
-                } else {
-                    raw_config.checking.max_concurrent_checks.get()
-                }
-            } else {
-                raw_config.checking.max_concurrent_checks.get()
-            };
-
-        let sources: HashMap<ProxyType, Vec<Arc<Source>>> = [
+        let mut sources = PerProxyType::<Vec<Arc<Source>>>::default();
+        let mut enabled_protocols = ProxyTypeSet::default();
+        for (proxy_type, section) in [
             (ProxyType::Http, raw_config.scraping.http),
             (ProxyType::Socks4, raw_config.scraping.socks4),
             (ProxyType::Socks5, raw_config.scraping.socks5),
-        ]
-        .into_iter()
-        .filter_map(|(proxy_type, section)| {
-            section.enabled.then(move || {
-                (
-                    proxy_type,
-                    section
-                        .urls
-                        .into_iter()
-                        .map(Into::into)
-                        .map(Arc::new)
-                        .collect(),
-                )
-            })
-        })
-        .collect();
+        ] {
+            if section.enabled {
+                enabled_protocols.insert(proxy_type);
+                *sources.get_mut(proxy_type) = section
+                    .urls
+                    .into_iter()
+                    .map(Into::into)
+                    .map(Arc::new)
+                    .collect();
+            }
+        }
 
         Ok(Self {
             debug: raw_config.debug,
@@ -172,8 +157,8 @@ impl Config {
                 connect_timeout: raw_config.scraping.connect_timeout,
                 proxy: raw_config.scraping.proxy,
                 user_agent: raw_config.scraping.user_agent,
-                enabled_protocols: sources.keys().copied().collect(),
                 sources,
+                enabled_protocols,
             },
             checking: CheckingConfig {
                 check_url: raw_config.checking.check_url,
@@ -185,27 +170,15 @@ impl Config {
             output: OutputConfig {
                 path: output_path,
                 sort_by_speed: raw_config.output.sort_by_speed,
-                txt: TxtOutputConfig { enabled: raw_config.output.txt.enabled },
-                json: JsonOutputConfig {
-                    enabled: raw_config.output.json.enabled,
-                    include_asn: raw_config.output.json.include_asn,
-                    include_geolocation: raw_config
-                        .output
-                        .json
-                        .include_geolocation,
-                },
+                txt: raw_config.output.txt,
+                json: raw_config.output.json,
             },
         })
     }
 }
 
 pub async fn load_config() -> crate::Result<Arc<Config>> {
-    let raw_config = {
-        let raw_config_path = raw_config::get_config_path();
-        raw_config::read_config(Path::new(&raw_config_path)).await
-    }?;
-
-    let config = Config::from_raw_config(raw_config).await?;
-
-    Ok(Arc::new(config))
+    let raw_config =
+        raw_config::read_config(&raw_config::get_config_path()).await?;
+    Ok(Arc::new(Config::from_raw_config(raw_config).await?))
 }

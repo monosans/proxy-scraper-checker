@@ -14,8 +14,8 @@ use serde::ser::SerializeSeq as _;
 use crate::{
     config::Config,
     ipdb,
-    proxy::{Proxy, ProxyType},
-    utils::is_container,
+    proxy::{Proxy, ProxyAuth, ProxyType, ProxyTypeSet},
+    utils::{is_container, pretty_error},
 };
 
 type IpDb = maxminddb::Reader<maxminddb::Mmap>;
@@ -23,7 +23,13 @@ type IpDb = maxminddb::Reader<maxminddb::Mmap>;
 const WRITE_BUFFER_BYTES: usize = 128 * 1024;
 
 fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
-    a.timeout.unwrap_or(Duration::MAX).cmp(&b.timeout.unwrap_or(Duration::MAX))
+    a.timeout
+        .unwrap_or(Duration::MAX)
+        .cmp(&b.timeout.unwrap_or(Duration::MAX))
+        .then_with(move || a.protocol.cmp(&b.protocol))
+        .then_with(move || a.host.cmp(&b.host))
+        .then_with(move || a.port.cmp(&b.port))
+        .then_with(move || a.auth.cmp(&b.auth))
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -32,12 +38,14 @@ enum HostSortKey {
     Name(compact_str::CompactString),
 }
 
-fn natural_sort_key(proxy: &Proxy) -> (ProxyType, HostSortKey, u16) {
+fn natural_sort_key(
+    proxy: &Proxy,
+) -> (ProxyType, HostSortKey, u16, Option<Box<ProxyAuth>>) {
     let host = proxy.host.parse::<Ipv4Addr>().map_or_else(
         move |_| HostSortKey::Name(proxy.host.clone()),
         |ip| HostSortKey::Ipv4(ip.octets()),
     );
-    (proxy.protocol, host, proxy.port)
+    (proxy.protocol, host, proxy.port, proxy.auth.clone())
 }
 
 fn keep_english_name(names: &mut maxminddb::geoip2::Names<'_>) {
@@ -126,24 +134,41 @@ impl serde::Serialize for ProxyListJson<'_> {
     }
 }
 
-fn write_json_file(
+async fn remove_dir(path: &Path) -> crate::Result<()> {
+    match tokio::fs::remove_dir_all(path).await {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e).wrap_err_with(move || {
+            compact_str::format_compact!(
+                "failed to remove directory: {}",
+                path.display()
+            )
+        }),
+    }
+}
+
+fn tmp_path(path: &Path) -> PathBuf {
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    PathBuf::from(tmp)
+}
+
+fn stage_json_file(
     path: &Path,
     pretty: bool,
     list: &ProxyListJson<'_>,
 ) -> crate::Result<()> {
-    let file = std::fs::File::create(path).wrap_err_with(move || {
-        compact_str::format_compact!(
-            "failed to create file: {}",
-            path.display()
-        )
+    let tmp = tmp_path(path);
+    let file = std::fs::File::create(&tmp).wrap_err_with(|| {
+        compact_str::format_compact!("failed to create file: {}", tmp.display())
     })?;
     let mut writer =
         std::io::BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
 
-    let failed = move || {
+    let failed = || {
         compact_str::format_compact!(
             "failed to write to file: {}",
-            path.display()
+            tmp.display()
         )
     };
 
@@ -157,11 +182,21 @@ fn write_json_file(
     writer.flush().wrap_err_with(failed)
 }
 
+async fn commit(from: &Path, to: &Path) -> crate::Result<()> {
+    tokio::fs::rename(from, to).await.wrap_err_with(move || {
+        compact_str::format_compact!(
+            "failed to rename {} to {}",
+            from.display(),
+            to.display()
+        )
+    })
+}
+
 fn write_proxy_list_to_file<'a, I>(
     path: &Path,
     proxies: I,
     include_protocol: bool,
-    buf: &mut Vec<u8>,
+    buf: &mut String,
 ) -> crate::Result<()>
 where
     I: IntoIterator<Item = &'a Proxy>,
@@ -173,8 +208,8 @@ where
         )
     })?;
 
-    let write = move |file: &mut std::fs::File, buf: &[u8]| {
-        file.write_all(buf).wrap_err_with(move || {
+    let write = move |file: &mut std::fs::File, buf: &str| {
+        file.write_all(buf.as_bytes()).wrap_err_with(move || {
             compact_str::format_compact!(
                 "failed to write to file: {}",
                 path.display()
@@ -188,7 +223,7 @@ where
         if first {
             first = false;
         } else {
-            buf.push(b'\n');
+            buf.push('\n');
         }
         proxy.write_to(buf, include_protocol);
 
@@ -206,106 +241,151 @@ where
     Ok(())
 }
 
-pub struct UseIpDb {
-    pub asn: bool,
-    pub geo: bool,
+async fn open_ipdb(db_type: ipdb::DbType, enabled: bool) -> Option<Arc<IpDb>> {
+    if !enabled {
+        return None;
+    }
+    match db_type.open_mmap().await {
+        Ok(db) => Some(Arc::new(db)),
+        Err(e) => {
+            tracing::warn!(
+                "{} data will be missing from the output: {}",
+                db_type.name(),
+                pretty_error(&e)
+            );
+            None
+        }
+    }
+}
+
+#[expect(
+    clippy::rc_buffer,
+    reason = "Arc<[Proxy]> would copy every proxy out of the Vec"
+)]
+async fn stage_json(
+    proxies: &Arc<Vec<Proxy>>,
+    config: &Config,
+    paths: &[(PathBuf, bool); 2],
+) -> crate::Result<()> {
+    let (asn_db, geo_db) = tokio::join!(
+        open_ipdb(ipdb::DbType::Asn, config.asn_enabled()),
+        open_ipdb(ipdb::DbType::Geo, config.geolocation_enabled()),
+    );
+
+    let tasks = paths.each_ref().map(|entry| {
+        let proxies = Arc::clone(proxies);
+        let asn_db = asn_db.clone();
+        let geo_db = geo_db.clone();
+        let (path, pretty) = (entry.0.clone(), entry.1);
+        tokio::task::spawn_blocking(move || {
+            let list = ProxyListJson {
+                proxies: &proxies,
+                asn_db: asn_db.as_deref(),
+                geo_db: geo_db.as_deref(),
+            };
+            stage_json_file(&path, pretty, &list)
+        })
+    });
+
+    for task in tasks {
+        task.await??;
+    }
+
+    Ok(())
+}
+
+#[expect(
+    clippy::rc_buffer,
+    reason = "Arc<[Proxy]> would copy every proxy out of the Vec"
+)]
+async fn stage_txt(
+    proxies: Arc<Vec<Proxy>>,
+    enabled_protocols: ProxyTypeSet,
+    staging_path: PathBuf,
+) -> crate::Result<()> {
+    remove_dir(&staging_path).await?;
+    tokio::fs::create_dir_all(&staging_path).await.wrap_err_with(|| {
+        compact_str::format_compact!(
+            "failed to create directory: {}",
+            staging_path.display()
+        )
+    })?;
+
+    tokio::task::spawn_blocking(move || {
+        let mut buf = String::with_capacity(WRITE_BUFFER_BYTES);
+
+        write_proxy_list_to_file(
+            &staging_path.join("all.txt"),
+            proxies.iter(),
+            true,
+            &mut buf,
+        )?;
+
+        for proto in enabled_protocols.iter() {
+            let mut file_path = staging_path.join(proto.as_str_lowercase());
+            file_path.set_extension("txt");
+            write_proxy_list_to_file(
+                &file_path,
+                proxies.iter().filter(move |p| p.protocol == proto),
+                false,
+                &mut buf,
+            )?;
+        }
+
+        crate::Result::Ok(())
+    })
+    .await?
 }
 
 pub async fn save_proxies(
     config: Arc<Config>,
     mut proxies: Vec<Proxy>,
-    use_ipdb: UseIpDb,
 ) -> crate::Result<()> {
     if config.output.sort_by_speed {
         proxies.sort_unstable_by(compare_timeout);
     } else {
         proxies.sort_by_cached_key(natural_sort_key);
     }
+    let proxies = Arc::new(proxies);
+
+    let json_paths = [
+        (config.output.path.join("proxies.json"), false),
+        (config.output.path.join("proxies_pretty.json"), true),
+    ];
+    let directory_path = config.output.path.join("proxies");
+    let staging_path = tmp_path(&directory_path);
+
+    tokio::try_join!(
+        async {
+            if config.output.json.enabled {
+                stage_json(&proxies, &config, &json_paths).await
+            } else {
+                Ok(())
+            }
+        },
+        async {
+            if config.output.txt.enabled {
+                stage_txt(
+                    Arc::clone(&proxies),
+                    config.scraping.enabled_protocols,
+                    staging_path.clone(),
+                )
+                .await
+            } else {
+                Ok(())
+            }
+        }
+    )?;
 
     if config.output.json.enabled {
-        let (maybe_asn_db, maybe_geo_db) = tokio::try_join!(
-            async move {
-                if use_ipdb.asn {
-                    ipdb::DbType::Asn.open_mmap().await.map(Some)
-                } else {
-                    Ok(None)
-                }
-            },
-            async move {
-                if use_ipdb.geo {
-                    ipdb::DbType::Geo.open_mmap().await.map(Some)
-                } else {
-                    Ok(None)
-                }
-            }
-        )?;
-
-        let json_paths: [(PathBuf, bool); 2] = [
-            (config.output.path.join("proxies.json"), false),
-            (config.output.path.join("proxies_pretty.json"), true),
-        ];
-
-        proxies = tokio::task::spawn_blocking(move || {
-            let list = ProxyListJson {
-                proxies: &proxies,
-                asn_db: maybe_asn_db.as_ref(),
-                geo_db: maybe_geo_db.as_ref(),
-            };
-            for (path, pretty) in &json_paths {
-                write_json_file(path, *pretty, &list)?;
-            }
-            crate::Result::Ok(proxies)
-        })
-        .await??;
+        for (path, _) in &json_paths {
+            commit(&tmp_path(path), path).await?;
+        }
     }
 
     if config.output.txt.enabled {
-        let directory_path = config.output.path.join("proxies");
-        match tokio::fs::remove_dir_all(&directory_path).await {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(e).wrap_err_with(|| {
-                compact_str::format_compact!(
-                    "failed to remove directory: {}",
-                    directory_path.display()
-                )
-            }),
-        }?;
-        tokio::fs::create_dir_all(&directory_path).await.wrap_err_with(
-            || {
-                compact_str::format_compact!(
-                    "failed to create directory: {}",
-                    directory_path.display()
-                )
-            },
-        )?;
-
-        let enabled_protocols = config.scraping.enabled_protocols;
-        tokio::task::spawn_blocking(move || {
-            let mut buf = Vec::with_capacity(WRITE_BUFFER_BYTES);
-
-            write_proxy_list_to_file(
-                &directory_path.join("all.txt"),
-                proxies.iter(),
-                true,
-                &mut buf,
-            )?;
-
-            for proto in enabled_protocols.iter() {
-                let mut file_path =
-                    directory_path.join(proto.as_str_lowercase());
-                file_path.set_extension("txt");
-                write_proxy_list_to_file(
-                    &file_path,
-                    proxies.iter().filter(move |p| p.protocol == proto),
-                    false,
-                    &mut buf,
-                )?;
-            }
-
-            crate::Result::Ok(())
-        })
-        .await??;
+        remove_dir(&directory_path).await?;
+        commit(&staging_path, &directory_path).await?;
     }
 
     let path = std::path::absolute(&config.output.path)
@@ -320,4 +400,65 @@ pub async fn save_proxies(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use compact_str::CompactString;
+
+    use super::{Proxy, ProxyType, compare_timeout, natural_sort_key};
+
+    fn proxy(host: &str, port: u16, timeout: Option<Duration>) -> Proxy {
+        Proxy {
+            protocol: ProxyType::Http,
+            host: CompactString::new(host),
+            port,
+            auth: None,
+            timeout,
+            exit_ip: None,
+        }
+    }
+
+    fn sorted_naturally(mut proxies: Vec<Proxy>) -> Vec<CompactString> {
+        proxies.sort_by_cached_key(natural_sort_key);
+        proxies.iter().map(|p| p.to_compact_string(false)).collect()
+    }
+
+    #[test]
+    fn addresses_sort_numerically_not_lexicographically() {
+        assert_eq!(
+            sorted_naturally(vec![
+                proxy("1.2.3.10", 80, None),
+                proxy("1.2.3.9", 8080, None),
+                proxy("1.2.3.9", 80, None),
+            ]),
+            ["1.2.3.9:80", "1.2.3.9:8080", "1.2.3.10:80"]
+        );
+    }
+
+    #[test]
+    fn hostnames_sort_after_addresses() {
+        assert_eq!(
+            sorted_naturally(vec![
+                proxy("proxy.example.com", 80, None),
+                proxy("255.255.255.255", 80, None),
+            ]),
+            ["255.255.255.255:80", "proxy.example.com:80"]
+        );
+    }
+
+    #[test]
+    fn speed_order_puts_unchecked_proxies_last() {
+        let mut proxies = [
+            proxy("1.1.1.1", 80, None),
+            proxy("2.2.2.2", 80, Some(Duration::from_millis(900))),
+            proxy("3.3.3.3", 80, Some(Duration::from_millis(100))),
+        ];
+        proxies.sort_unstable_by(compare_timeout);
+
+        let hosts: Vec<_> = proxies.iter().map(|p| p.host.as_str()).collect();
+        assert_eq!(hosts, ["3.3.3.3", "2.2.2.2", "1.1.1.1"]);
+    }
 }

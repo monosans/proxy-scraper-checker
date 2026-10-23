@@ -50,11 +50,6 @@ rustls = { version = "=0.23.46", default-features = false, features = [
 ] }
 serde = "=1.0.229"
 serde_json = "=1.0.154"
-smallvec = { version = "=1.16.4", features = [
-  "const_generics",
-  "union",
-], optional = true }
-strum = { version = "=0.28.0", features = ["derive"], optional = true }
 tikv-jemallocator = { version = "=0.7.0", default-features = false, optional = true }
 tokio = { version = "=1.54.1", features = [
   "fs",
@@ -113,14 +108,7 @@ mimalloc_v2_no_thp = ["mimalloc_v2", "mimalloc/no_thp"]
 mimalloc_v3 = ["__mimalloc"]
 mimalloc_v3_no_thp = ["mimalloc_v3", "mimalloc/no_thp"]
 tokio-multi-thread = ["tokio/rt-multi-thread"]
-tui = [
-  "dep:crossterm",
-  "dep:futures",
-  "dep:ratatui",
-  "dep:smallvec",
-  "dep:strum",
-  "dep:tui-logger",
-]
+tui = ["dep:crossterm", "dep:futures", "dep:ratatui", "dep:tui-logger"]
 
 [profile.release]
 strip = true

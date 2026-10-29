@@ -21,7 +21,7 @@ repos:
           - --fix=lf
       - id: trailing-whitespace
   - repo: https://github.com/tombi-toml/tombi-pre-commit
-    rev: b92a6526b182617e157a91c82c378e24bd36c30d # frozen: v1.9.5
+    rev: b3f6e09de51290a21d6c7b05b4f5cbe6cfe65b4f # frozen: v1.9.6
     hooks:
       - id: tombi-format
         exclude: ^.*Cargo.lock$

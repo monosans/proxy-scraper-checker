@@ -155,10 +155,14 @@ async fn remove_dir(path: &Path) -> crate::Result<()> {
     }
 }
 
+fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut path = path.as_os_str().to_owned();
+    path.push(suffix);
+    PathBuf::from(path)
+}
+
 fn tmp_path(path: &Path) -> PathBuf {
-    let mut tmp = path.as_os_str().to_owned();
-    tmp.push(".tmp");
-    PathBuf::from(tmp)
+    with_suffix(path, ".tmp")
 }
 
 fn stage_json_file(
@@ -190,14 +194,55 @@ fn stage_json_file(
     writer.flush().wrap_err_with(failed)
 }
 
-async fn commit(from: &Path, to: &Path) -> crate::Result<()> {
-    tokio::fs::rename(from, to).await.wrap_err_with(move || {
-        compact_str::format_compact!(
-            "failed to rename {} to {}",
-            from.display(),
-            to.display()
-        )
-    })
+fn rename_failed(from: &Path, to: &Path) -> compact_str::CompactString {
+    compact_str::format_compact!(
+        "failed to rename {} to {}",
+        from.display(),
+        to.display()
+    )
+}
+
+async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
+    match tokio::fs::rename(from, to).await {
+        Ok(()) => Ok(()),
+        // Windows refuses to replace a file that a reader holds open, though
+        // it usually allows overwriting it. Unlike a rename, that isn't atomic,
+        // so it is only the fallback.
+        Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+            tokio::fs::copy(from, to).await.wrap_err_with(|| {
+                compact_str::format_compact!(
+                    "failed to copy {} to {}",
+                    from.display(),
+                    to.display()
+                )
+            })?;
+            tokio::fs::remove_file(from).await.wrap_err_with(move || {
+                compact_str::format_compact!(
+                    "failed to remove file: {}",
+                    from.display()
+                )
+            })
+        }
+        Err(e) => Err(e).wrap_err_with(move || rename_failed(from, to)),
+    }
+}
+
+// The previous directory is moved aside rather than deleted first: a file
+// held open would otherwise fail the deletion halfway through.
+async fn commit_directory(from: &Path, to: &Path) -> crate::Result<()> {
+    let previous = with_suffix(to, ".old");
+    remove_dir(&previous).await?;
+    match tokio::fs::rename(to, &previous).await {
+        Ok(()) => {}
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+        Err(e) => {
+            return Err(e).wrap_err_with(|| rename_failed(to, &previous));
+        }
+    }
+    tokio::fs::rename(from, to)
+        .await
+        .wrap_err_with(|| rename_failed(from, to))?;
+    remove_dir(&previous).await
 }
 
 fn write_proxy_list_to_file<'a, I>(
@@ -387,13 +432,12 @@ pub async fn save_proxies(
 
     if config.output.json.enabled {
         for (path, _) in &json_paths {
-            commit(&tmp_path(path), path).await?;
+            commit_file(&tmp_path(path), path).await?;
         }
     }
 
     if config.output.txt.enabled {
-        remove_dir(&directory_path).await?;
-        commit(&staging_path, &directory_path).await?;
+        commit_directory(&staging_path, &directory_path).await?;
     }
 
     let path = std::path::absolute(&config.output.path)
@@ -555,6 +599,66 @@ mod tests {
         std::fs::remove_dir_all(directory).unwrap();
     }
 
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn a_reader_holding_the_output_open_does_not_fail_the_save() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+
+        const FILE_SHARE_READ_WRITE: u32 = 1 | 2;
+
+        let directory = temp_directory("held");
+        let path = directory.join("proxies.json");
+        std::fs::write(&path, "stale").unwrap();
+        let reader = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ_WRITE)
+            .open(&path)
+            .unwrap();
+
+        let config = unchecked_config(directory.clone()).await;
+        save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await.unwrap();
+        drop(reader);
+
+        assert!(std::fs::read_to_string(&path).unwrap().contains("1.1.1.1"));
+        assert!(!directory.join("proxies.json.tmp").exists());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn a_held_file_leaves_the_previous_directory_whole() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+
+        const FILE_SHARE_READ: u32 = 1;
+
+        let directory = temp_directory("whole");
+        let proxies = directory.join("proxies");
+        std::fs::create_dir_all(&proxies).unwrap();
+        std::fs::write(proxies.join("all.txt"), "old").unwrap();
+        std::fs::write(proxies.join("http.txt"), "old").unwrap();
+        let reader = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ)
+            .open(proxies.join("http.txt"))
+            .unwrap();
+
+        let config = unchecked_config(directory.clone()).await;
+        let result =
+            save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
+        drop(reader);
+
+        assert!(result.is_err());
+        for name in ["all.txt", "http.txt"] {
+            assert_eq!(
+                std::fs::read_to_string(proxies.join(name)).unwrap(),
+                "old"
+            );
+        }
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
     #[tokio::test]
     async fn failed_staging_keeps_the_previous_output() {
         let directory = temp_directory("keep");
@@ -575,6 +679,7 @@ mod tests {
             );
         }
 
-        std::fs::remove_dir_all(directory).unwrap();
+        // Failing staging leaves the other format's task still writing here.
+        drop(std::fs::remove_dir_all(directory));
     }
 }

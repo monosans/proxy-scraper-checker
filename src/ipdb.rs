@@ -5,7 +5,7 @@ use tokio::io::AsyncWriteExt as _;
 
 #[cfg(feature = "tui")]
 use crate::event::{AppEvent, Event};
-use crate::utils::is_container;
+use crate::utils::{is_container, pretty_error};
 
 const CACHE_DIRECTORY_NAME: &str = "proxy_scraper_checker";
 const STALL_TIMEOUT: Duration = Duration::from_secs(60);
@@ -65,7 +65,9 @@ impl DbType {
     ) -> crate::Result<()> {
         let db_path = self.db_path().await?;
         let mut headers = reqwest::header::HeaderMap::new();
-        if tokio::fs::metadata(&db_path).await.is_ok_and(|m| m.is_file())
+        // The ETag only vouches for a file that still opens; otherwise a
+        // damaged database would be reported as up to date forever.
+        if self.open_mmap().await.is_ok()
             && let Some(etag) = self.read_etag().await?
         {
             headers.insert(reqwest::header::IF_NONE_MATCH, etag);
@@ -121,11 +123,20 @@ impl DbType {
         }
         drop(db_path);
 
-        if let Some(etag_value) = etag {
+        let etag_saved = if let Some(etag_value) = etag {
             self.save_etag(etag_value).await
         } else {
             self.remove_etag().await
+        };
+        // The database itself is in place; this only costs a repeat download.
+        if let Err(e) = etag_saved {
+            tracing::warn!(
+                "{} database will be downloaded again next run: {}",
+                self.name(),
+                pretty_error(&e)
+            );
         }
+        Ok(())
     }
 
     pub async fn open_mmap(
@@ -279,7 +290,57 @@ impl DbType {
 mod tests {
     use std::{future, io};
 
+    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+
     use super::{Duration, within};
+    use crate::{config::tests::test_config, http};
+
+    const LIMIT: Duration = Duration::from_millis(200);
+
+    // Reads the request, sends `reply`, then holds the connection open and
+    // silent, as a stalled server would.
+    async fn stalling_server(reply: &'static str) -> String {
+        let listener =
+            tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0_u8; 1024];
+            assert_ne!(socket.read(&mut request).await.unwrap(), 0);
+            socket.write_all(reply.as_bytes()).await.unwrap();
+            future::pending::<()>().await;
+            drop(socket);
+        });
+        format!("http://{address}/")
+    }
+
+    async fn client() -> reqwest_middleware::ClientWithMiddleware {
+        let config = test_config(|_| {}).await;
+        http::create_reqwest_client(&config).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_server_that_never_answers_is_given_up_on() {
+        let url = stalling_server("").await;
+        let request = client().await.get(url).send();
+        let error = within(LIMIT, request).await.unwrap_err();
+        assert!(error.to_string().starts_with("received no data"));
+    }
+
+    #[tokio::test]
+    async fn a_download_that_stops_midway_is_given_up_on() {
+        let url =
+            stalling_server("HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nabc")
+                .await;
+        let mut response =
+            within(LIMIT, client().await.get(url).send()).await.unwrap();
+
+        let chunk = within(LIMIT, response.chunk()).await.unwrap().unwrap();
+        assert_eq!(chunk.as_ref(), b"abc");
+
+        let error = within(LIMIT, response.chunk()).await.unwrap_err();
+        assert!(error.to_string().starts_with("received no data"));
+    }
 
     #[tokio::test]
     async fn a_result_inside_the_limit_is_passed_on() {

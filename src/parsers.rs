@@ -53,7 +53,7 @@ fn split(span: &str) -> Option<(ProxyMatch<'_>, usize)> {
 
 pub fn proxy_matches(text: &str) -> impl Iterator<Item = ProxyMatch<'_>> {
     let pattern = regex::regex!(
-        r"(?:^|[^0-9A-Za-z])(?:(?i:https?|socks4a?|socks5h?):\/\/)?(?:[0-9A-Za-z]{1,64}:[0-9A-Za-z]{1,64}@)?(?:(?:[0-9A-Za-z](?:[\-0-9A-Za-z]{0,61}[0-9A-Za-z])?\.){0,15}[A-Za-z](?:[\-0-9A-Za-z]{0,61}[0-9A-Za-z])?|(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(?:\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){3})(?:\/(?:1[6-9]|2[0-9]|3[0-2]))?:(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])(?:[^0-9A-Za-z]|$)"
+        r"(?:^|[^0-9A-Za-z])(?:(?i:https?|socks4a?|socks5h?):\/\/)?(?:[0-9A-Za-z]{1,64}:[0-9A-Za-z]{1,64}@)?(?:(?:[0-9A-Za-z](?:[\-0-9A-Za-z]{0,61}[0-9A-Za-z])?\.){1,15}[A-Za-z](?:[\-0-9A-Za-z]{0,61}[0-9A-Za-z])?|[A-Za-z](?:[\-A-Za-z]{0,61}[A-Za-z])?|(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(?:\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){3})(?:\/(?:1[6-9]|2[0-9]|3[0-2]))?:(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])(?:[^0-9A-Za-z]|$)"
     );
     let mut start = 0;
 
@@ -186,11 +186,17 @@ mod tests {
             ["eu1.proxy.example.com:3128"]
         );
         assert_eq!(
-            endpoints(
-                "my-proxy.example.com:80 1proxy.example.com:80 node1:8080"
-            ),
-            ["my-proxy.example.com:80", "1proxy.example.com:80", "node1:8080"]
+            endpoints("my-proxy.example.com:80 1proxy.example.com:80"),
+            ["my-proxy.example.com:80", "1proxy.example.com:80"]
         );
+        assert_eq!(endpoints("localhost:8080"), ["localhost:8080"]);
+    }
+
+    #[test]
+    fn digits_in_a_bare_word_do_not_make_it_a_host() {
+        assert!(matches_nothing("sha256:1234"));
+        assert!(matches_nothing("user1:12345"));
+        assert!(matches_nothing("2024-01-15T12:34:56Z"));
     }
 
     #[test]

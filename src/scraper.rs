@@ -261,3 +261,86 @@ async fn scrape_one(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use compact_str::CompactString;
+
+    use super::{Proxy, scrape_all};
+    use crate::{
+        config::tests::{temp_directory, test_config},
+        http::create_reqwest_client,
+        raw_config::SourceConfig,
+    };
+
+    async fn scrape(name: &str, text: &str, limit: usize) -> Vec<Proxy> {
+        let directory = temp_directory(name);
+        let path = directory.join("source.txt");
+        std::fs::write(&path, text).unwrap();
+
+        let config = std::sync::Arc::new(
+            test_config(|raw| {
+                raw.scraping.max_proxies_per_source = limit;
+                raw.scraping.http.enabled = true;
+                raw.scraping.http.urls =
+                    vec![SourceConfig::Simple(path.to_str().unwrap().into())];
+                raw.scraping.socks4.enabled = false;
+                raw.scraping.socks5.enabled = true;
+                raw.scraping.socks5.urls = Vec::new();
+            })
+            .await,
+        );
+        let client = create_reqwest_client(&config).await.unwrap();
+
+        let proxies = scrape_all(
+            config,
+            client,
+            tokio_util::sync::CancellationToken::new(),
+            #[cfg(feature = "tui")]
+            tokio::sync::mpsc::unbounded_channel().0,
+        )
+        .await
+        .unwrap();
+
+        std::fs::remove_dir_all(directory).unwrap();
+        proxies
+    }
+
+    fn sorted(proxies: &[Proxy]) -> Vec<CompactString> {
+        let mut lines: Vec<_> =
+            proxies.iter().map(|p| p.to_compact_string(true)).collect();
+        lines.sort_unstable();
+        lines
+    }
+
+    #[tokio::test]
+    async fn the_scheme_in_a_source_overrides_its_section() {
+        let proxies = scrape(
+            "scheme",
+            "1.1.1.1:80 socks5://2.2.2.2:80 socks4://3.3.3.3:80",
+            0,
+        )
+        .await;
+        assert_eq!(
+            sorted(&proxies),
+            ["http://1.1.1.1:80", "socks5://2.2.2.2:80"]
+        );
+    }
+
+    #[tokio::test]
+    async fn cidr_expands_to_hosts_and_keeps_credentials() {
+        let proxies = scrape("cidr", "user:pass@1.1.1.0/30:80", 0).await;
+        assert_eq!(
+            sorted(&proxies),
+            ["http://user:pass@1.1.1.1:80", "http://user:pass@1.1.1.2:80"]
+        );
+    }
+
+    #[tokio::test]
+    async fn limit_counts_unique_proxies_and_cidr_hosts() {
+        let text = "1.1.1.1:80 1.1.1.1:80 2.2.2.2:80";
+        assert_eq!(scrape("limit-at", text, 2).await.len(), 2);
+        assert_eq!(scrape("limit-over", text, 1).await.len(), 0);
+        assert_eq!(scrape("limit-cidr", "1.1.1.0/30:80", 1).await.len(), 0);
+    }
+}

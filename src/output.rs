@@ -66,6 +66,20 @@ fn strip_non_english_names(city: &mut maxminddb::geoip2::City<'_>) {
     }
 }
 
+// A bad record costs one proxy its ASN or geolocation, not the whole save.
+fn lookup<'a, T>(db: &'a IpDb, addr: IpAddr) -> Option<T>
+where
+    T: serde::Deserialize<'a>,
+{
+    match db.lookup(addr).and_then(|entry| entry.decode()) {
+        Ok(record) => record,
+        Err(e) => {
+            tracing::warn!("failed to look up {addr} in IP database: {e}");
+            None
+        }
+    }
+}
+
 #[derive(serde::Serialize)]
 struct ProxyJson<'a> {
     protocol: ProxyType,
@@ -94,27 +108,21 @@ impl serde::Serialize for ProxyListJson<'_> {
         for proxy in self.proxies {
             let exit_ip_addr = proxy.exit_ip.map(IpAddr::V4);
 
-            let asn = match (self.asn_db, exit_ip_addr) {
-                (Some(asn_db), Some(addr)) => asn_db
-                    .lookup(addr)
-                    .and_then(|entry| entry.decode())
-                    .map_err(serde::ser::Error::custom)?,
-                _ => None,
-            };
+            let asn = self
+                .asn_db
+                .zip(exit_ip_addr)
+                .and_then(|(db, addr)| lookup(db, addr));
 
-            let geolocation = match (self.geo_db, exit_ip_addr) {
-                (Some(geo_db), Some(addr)) => geo_db
-                    .lookup(addr)
-                    .and_then(|entry| {
-                        entry.decode::<maxminddb::geoip2::City<'_>>()
-                    })
-                    .map_err(serde::ser::Error::custom)?
-                    .map(|mut city| {
-                        strip_non_english_names(&mut city);
-                        city
-                    }),
-                _ => None,
-            };
+            let geolocation = self
+                .geo_db
+                .zip(exit_ip_addr)
+                .and_then(|(db, addr)| {
+                    lookup::<maxminddb::geoip2::City<'_>>(db, addr)
+                })
+                .map(|mut city| {
+                    strip_non_english_names(&mut city);
+                    city
+                });
 
             seq.serialize_element(&ProxyJson {
                 protocol: proxy.protocol,
@@ -404,11 +412,15 @@ pub async fn save_proxies(
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{path::PathBuf, sync::Arc, time::Duration};
 
     use compact_str::CompactString;
 
-    use super::{Proxy, ProxyType, compare_timeout, natural_sort_key};
+    use super::{
+        Config, Proxy, ProxyAuth, ProxyType, compare_timeout, natural_sort_key,
+        save_proxies,
+    };
+    use crate::config::tests::{temp_directory, test_config};
 
     fn proxy(host: &str, port: u16, timeout: Option<Duration>) -> Proxy {
         Proxy {
@@ -442,10 +454,10 @@ mod tests {
     fn hostnames_sort_after_addresses() {
         assert_eq!(
             sorted_naturally(vec![
-                proxy("proxy.example.com", 80, None),
+                proxy("1proxy.example.com", 80, None),
                 proxy("255.255.255.255", 80, None),
             ]),
-            ["255.255.255.255:80", "proxy.example.com:80"]
+            ["255.255.255.255:80", "1proxy.example.com:80"]
         );
     }
 
@@ -460,5 +472,109 @@ mod tests {
 
         let hosts: Vec<_> = proxies.iter().map(|p| p.host.as_str()).collect();
         assert_eq!(hosts, ["3.3.3.3", "2.2.2.2", "1.1.1.1"]);
+    }
+
+    #[test]
+    fn speed_ties_are_broken_by_identity() {
+        let timeout = Some(Duration::from_secs(1));
+        let mut proxies = [
+            proxy("2.2.2.2", 80, timeout),
+            proxy("1.1.1.1", 8080, timeout),
+            proxy("1.1.1.1", 80, timeout),
+        ];
+        proxies.sort_unstable_by(compare_timeout);
+
+        let order: Vec<_> =
+            proxies.iter().map(|p| p.to_compact_string(false)).collect();
+        assert_eq!(order, ["1.1.1.1:80", "1.1.1.1:8080", "2.2.2.2:80"]);
+    }
+
+    #[test]
+    fn natural_order_breaks_ties_on_credentials() {
+        let mut with_auth = proxy("1.1.1.1", 80, None);
+        with_auth.auth = Some(Box::new(ProxyAuth {
+            username: CompactString::const_new("user"),
+            password: CompactString::const_new("pass"),
+        }));
+
+        assert_eq!(
+            sorted_naturally(vec![with_auth, proxy("1.1.1.1", 80, None)]),
+            ["1.1.1.1:80", "user:pass@1.1.1.1:80"]
+        );
+    }
+
+    async fn unchecked_config(path: PathBuf) -> Arc<Config> {
+        let mut config = test_config(|raw| {
+            raw.checking.check_url = None;
+            raw.output.sort_by_speed = false;
+            raw.scraping.http.enabled = true;
+            raw.scraping.socks4.enabled = false;
+            raw.scraping.socks5.enabled = false;
+        })
+        .await;
+        config.output.path = path;
+        Arc::new(config)
+    }
+
+    #[tokio::test]
+    async fn saving_replaces_the_previous_output() {
+        let directory = temp_directory("replace");
+        let stale = directory.join("proxies").join("socks4.txt");
+        std::fs::create_dir_all(directory.join("proxies")).unwrap();
+        std::fs::write(&stale, "stale").unwrap();
+        std::fs::write(directory.join("proxies.json"), "stale").unwrap();
+
+        let config = unchecked_config(directory.clone()).await;
+        save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await.unwrap();
+
+        assert!(!stale.exists());
+        assert_eq!(
+            std::fs::read_to_string(directory.join("proxies/all.txt")).unwrap(),
+            "http://1.1.1.1:80"
+        );
+        assert_eq!(
+            std::fs::read_to_string(directory.join("proxies/http.txt"))
+                .unwrap(),
+            "1.1.1.1:80"
+        );
+        for name in ["proxies.json", "proxies_pretty.json"] {
+            let json: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(directory.join(name)).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(json.pointer("/0/host").unwrap(), "1.1.1.1");
+        }
+
+        let leftovers = std::fs::read_dir(&directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .filter(|name| name.to_string_lossy().ends_with(".tmp"))
+            .count();
+        assert_eq!(leftovers, 0);
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn failed_staging_keeps_the_previous_output() {
+        let directory = temp_directory("keep");
+        std::fs::create_dir_all(directory.join("proxies")).unwrap();
+        std::fs::write(directory.join("proxies/all.txt"), "old").unwrap();
+        std::fs::write(directory.join("proxies.json"), "old").unwrap();
+        std::fs::create_dir_all(directory.join("proxies.json.tmp")).unwrap();
+
+        let config = unchecked_config(directory.clone()).await;
+        let result =
+            save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
+
+        assert!(result.is_err());
+        for path in ["proxies.json", "proxies/all.txt"] {
+            assert_eq!(
+                std::fs::read_to_string(directory.join(path)).unwrap(),
+                "old"
+            );
+        }
+
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

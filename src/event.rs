@@ -13,6 +13,7 @@ pub enum AppEvent {
     ProxyChecked(ProxyType),
     ProxyWorking(ProxyType),
 
+    InputLost,
     Done,
     Quit,
 }

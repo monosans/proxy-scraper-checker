@@ -69,7 +69,7 @@ pub fn proxy_matches(text: &str) -> impl Iterator<Item = ProxyMatch<'_>> {
                 return Some(proxy_match);
             }
 
-            start = end.max(start.saturating_add(1));
+            start = end;
         }
     })
 }
@@ -185,6 +185,12 @@ mod tests {
             endpoints("eu1.proxy.example.com:3128"),
             ["eu1.proxy.example.com:3128"]
         );
+        assert_eq!(
+            endpoints(
+                "my-proxy.example.com:80 1proxy.example.com:80 node1:8080"
+            ),
+            ["my-proxy.example.com:80", "1proxy.example.com:80", "node1:8080"]
+        );
     }
 
     #[test]
@@ -214,5 +220,6 @@ mod tests {
         assert_eq!(parse_ipv4("<html>not an ip</html>"), None);
         assert_eq!(parse_ipv4(""), None);
         assert_eq!(parse_ipv4("2001:db8::1"), None);
+        assert_eq!(parse_ipv4("1.2.3.4:notaport"), None);
     }
 }

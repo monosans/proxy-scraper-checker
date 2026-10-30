@@ -154,3 +154,84 @@ pub async fn read_config(path: &Path) -> crate::Result<RawConfig> {
         )
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::{RawConfig, SourceConfig};
+    use crate::config::Source;
+
+    const SHIPPED_CONFIG: &str = include_str!("../config.toml");
+
+    fn source(toml: &str) -> Source {
+        #[derive(serde::Deserialize)]
+        struct Wrapper {
+            source: SourceConfig,
+        }
+
+        toml::from_str::<Wrapper>(toml).unwrap().source.into()
+    }
+
+    #[test]
+    fn shipped_config_parses() {
+        let config: RawConfig = toml::from_str(SHIPPED_CONFIG).unwrap();
+        assert_eq!(config.scraping.timeout, Duration::from_secs(10));
+        assert!(config.checking.check_url.is_some());
+    }
+
+    #[test]
+    fn source_can_be_a_bare_url() {
+        let source = source(r#"source = "https://example.com/proxies.txt""#);
+        assert_eq!(source.url, "https://example.com/proxies.txt");
+        assert!(source.basic_auth.is_none());
+        assert!(source.headers.is_none());
+    }
+
+    #[test]
+    fn source_table_needs_only_a_url() {
+        let source = source(r#"source = { url = "proxies.txt" }"#);
+        assert_eq!(source.url, "proxies.txt");
+        assert!(source.basic_auth.is_none());
+        assert!(source.headers.is_none());
+    }
+
+    #[test]
+    fn source_password_is_optional() {
+        let source = source(
+            r#"
+            [source]
+            url = "https://example.com/proxies.txt"
+            basic_auth = { username = "user" }
+            headers = { Authorization = "Bearer token" }
+            "#,
+        );
+        let auth = source.basic_auth.unwrap();
+        assert_eq!(auth.username, "user");
+        assert!(auth.password.is_none());
+        assert_eq!(
+            source
+                .headers
+                .unwrap()
+                .get("Authorization")
+                .map(compact_str::CompactString::as_str),
+            Some("Bearer token")
+        );
+    }
+
+    #[test]
+    fn empty_check_url_disables_checking() {
+        let config: RawConfig = toml::from_str(&SHIPPED_CONFIG.replace(
+            r#"check_url = "https://ipv4.icanhazip.com""#,
+            r#"check_url = """#,
+        ))
+        .unwrap();
+        assert!(config.checking.check_url.is_none());
+    }
+
+    #[test]
+    fn timeouts_must_be_positive() {
+        let config = SHIPPED_CONFIG.replace("timeout = 10.0", "timeout = 0.0");
+        assert!(toml::from_str::<RawConfig>(&config).is_err());
+    }
+}

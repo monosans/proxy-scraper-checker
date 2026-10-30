@@ -1,4 +1,4 @@
-use std::{io, path::PathBuf, time::Duration};
+use std::{future::Future, io, path::PathBuf, time::Duration};
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _, eyre};
 use tokio::io::AsyncWriteExt as _;
@@ -8,6 +8,7 @@ use crate::event::{AppEvent, Event};
 use crate::utils::is_container;
 
 const CACHE_DIRECTORY_NAME: &str = "proxy_scraper_checker";
+const STALL_TIMEOUT: Duration = Duration::from_secs(60);
 
 async fn get_cache_path() -> crate::Result<PathBuf> {
     static CACHE: tokio::sync::OnceCell<PathBuf> =
@@ -28,6 +29,26 @@ async fn get_cache_path() -> crate::Result<PathBuf> {
         })
         .await?
         .clone())
+}
+
+// A database download has no total time limit, however slow the connection,
+// and the checks wait for it. Only a connection that delivers nothing at all
+// for this long is given up on, so a stall can't hang the run.
+async fn within<T, E>(
+    limit: Duration,
+    future: impl Future<Output = Result<T, E>>,
+) -> crate::Result<T>
+where
+    crate::Error: From<E>,
+{
+    let result =
+        tokio::time::timeout(limit, future).await.wrap_err_with(|| {
+            compact_str::format_compact!(
+                "received no data for {} seconds",
+                limit.as_secs()
+            )
+        })?;
+    Ok(result?)
 }
 
 #[derive(Clone, Copy)]
@@ -54,7 +75,8 @@ impl DbType {
             http_client.get(self.url()).headers(headers).timeout(Duration::MAX);
         drop(http_client);
 
-        let response = request.send().await?.error_for_status()?;
+        let response =
+            within(STALL_TIMEOUT, request.send()).await?.error_for_status()?;
 
         let status = response.status();
         if status == reqwest::StatusCode::NOT_MODIFIED {
@@ -186,7 +208,7 @@ impl DbType {
             )
         };
 
-        while let Some(chunk) = response.chunk().await? {
+        while let Some(chunk) = within(STALL_TIMEOUT, response.chunk()).await? {
             writer.write_all(&chunk).await.wrap_err_with(failed_to_write)?;
             #[cfg(feature = "tui")]
             drop(
@@ -250,5 +272,30 @@ impl DbType {
                 )
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{future, io};
+
+    use super::{Duration, within};
+
+    #[tokio::test]
+    async fn a_result_inside_the_limit_is_passed_on() {
+        let ready = future::ready(Ok::<_, io::Error>(1_u8));
+        assert_eq!(within(Duration::from_secs(1), ready).await.unwrap(), 1_u8);
+
+        let failed = future::ready(Err::<(), _>(io::Error::other("failed")));
+        let error = within(Duration::from_secs(1), failed).await.unwrap_err();
+        assert_eq!(error.to_string(), "failed");
+    }
+
+    #[tokio::test]
+    async fn silence_past_the_limit_is_an_error() {
+        let stalled = future::pending::<Result<(), io::Error>>();
+        let error =
+            within(Duration::from_millis(1), stalled).await.unwrap_err();
+        assert_eq!(error.to_string(), "received no data for 0 seconds");
     }
 }

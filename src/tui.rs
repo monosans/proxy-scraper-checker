@@ -73,6 +73,7 @@ struct ProtocolProgress {
 #[derive(Default)]
 struct AppState {
     mode: AppMode,
+    input_lost: bool,
     asn_db: DbProgress,
     geo_db: DbProgress,
     protocols: PerProxyType<ProtocolProgress>,
@@ -160,19 +161,26 @@ async fn crossterm_event_listener(
                             return;
                         }
                     }
-                    Some(Err(_)) => {
+                    Some(Err(e)) => {
+                        tracing::debug!("Failed to read terminal input: {e}");
                         consecutive_errors = consecutive_errors.saturating_add(1);
                         // A terminal that keeps failing to deliver input would
                         // otherwise spin this loop; the run itself carries on.
                         if consecutive_errors >= MAX_INPUT_ERRORS {
-                            return;
+                            break;
                         }
                     }
-                    None => return,
+                    None => break,
                 }
             },
         }
     }
+
+    tracing::warn!(
+        "Terminal input was lost, so the hotkeys no longer work. The program \
+         will exit when the run finishes."
+    );
+    drop(tx.send(Event::App(AppEvent::InputLost)));
 }
 
 fn ratio(done: usize, total: usize) -> f64 {
@@ -522,9 +530,20 @@ fn handle_app_event(app_event: AppEvent, state: &mut AppState) -> bool {
                 &mut state.protocols.get_mut(proxy_type).proxies_working;
             *working = working.saturating_add(1);
         }
+        AppEvent::InputLost => {
+            state.input_lost = true;
+            if matches!(state.mode, AppMode::Done) {
+                state.mode = AppMode::Quit;
+            }
+            redraw_now = true;
+        }
         AppEvent::Done => {
             if matches!(state.mode, AppMode::Running) {
-                state.mode = AppMode::Done;
+                state.mode = if state.input_lost {
+                    AppMode::Quit
+                } else {
+                    AppMode::Done
+                };
             }
             redraw_now = true;
         }
@@ -552,5 +571,144 @@ fn handle_event(
             _ => false,
         },
         Event::App(app_event) => handle_app_event(app_event, state),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crossterm::event::{
+        Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
+    };
+    use tokio_util::sync::CancellationToken;
+    use tui_logger::TuiWidgetState;
+
+    use super::{
+        AppMode, AppState, DbProgress, Event, db_progress, handle_event, ratio,
+    };
+    use crate::{event::AppEvent, proxy::ProxyType};
+
+    const MB: usize = 1024 * 1024;
+
+    fn press(code: KeyCode, modifiers: KeyModifiers) -> Event {
+        Event::Crossterm(CrosstermEvent::Key(KeyEvent::new(code, modifiers)))
+    }
+
+    fn apply(state: &mut AppState, token: &CancellationToken, event: Event) {
+        handle_event(event, state, token, &TuiWidgetState::default());
+    }
+
+    #[test]
+    fn q_stops_the_run_and_then_quits() {
+        let mut state = AppState::default();
+        let token = CancellationToken::new();
+        let q = || press(KeyCode::Char('q'), KeyModifiers::NONE);
+
+        apply(&mut state, &token, q());
+        assert!(matches!(state.mode, AppMode::Done));
+        assert!(token.is_cancelled());
+
+        apply(&mut state, &token, q());
+        assert!(matches!(state.mode, AppMode::Quit));
+    }
+
+    #[test]
+    fn ctrl_c_quits_at_once_but_ctrl_q_does_nothing() {
+        let mut state = AppState::default();
+        let token = CancellationToken::new();
+
+        apply(
+            &mut state,
+            &token,
+            press(KeyCode::Char('q'), KeyModifiers::CONTROL),
+        );
+        assert!(matches!(state.mode, AppMode::Running));
+        assert!(!token.is_cancelled());
+
+        apply(
+            &mut state,
+            &token,
+            press(KeyCode::Char('c'), KeyModifiers::CONTROL),
+        );
+        assert!(matches!(state.mode, AppMode::Quit));
+        assert!(token.is_cancelled());
+    }
+
+    #[test]
+    fn key_release_is_ignored() {
+        let mut state = AppState::default();
+        let token = CancellationToken::new();
+        let mut release = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
+        release.kind = KeyEventKind::Release;
+
+        apply(
+            &mut state,
+            &token,
+            Event::Crossterm(CrosstermEvent::Key(release)),
+        );
+        assert!(matches!(state.mode, AppMode::Running));
+    }
+
+    #[test]
+    fn finishing_never_undoes_a_quit() {
+        let mut state = AppState::default();
+        let token = CancellationToken::new();
+
+        apply(&mut state, &token, Event::App(AppEvent::Quit));
+        apply(&mut state, &token, Event::App(AppEvent::Done));
+        assert!(matches!(state.mode, AppMode::Quit));
+    }
+
+    #[test]
+    fn finishing_waits_for_a_key_only_if_keys_still_work() {
+        let token = CancellationToken::new();
+
+        let mut state = AppState::default();
+        apply(&mut state, &token, Event::App(AppEvent::Done));
+        assert!(matches!(state.mode, AppMode::Done));
+        apply(&mut state, &token, Event::App(AppEvent::InputLost));
+        assert!(matches!(state.mode, AppMode::Quit));
+
+        let mut state = AppState::default();
+        apply(&mut state, &token, Event::App(AppEvent::InputLost));
+        assert!(matches!(state.mode, AppMode::Running));
+        apply(&mut state, &token, Event::App(AppEvent::Done));
+        assert!(matches!(state.mode, AppMode::Quit));
+    }
+
+    #[test]
+    fn proxy_total_only_grows() {
+        let mut state = AppState::default();
+        let token = CancellationToken::new();
+        let total = |amount| {
+            Event::App(AppEvent::TotalProxies(ProxyType::Http, amount))
+        };
+
+        apply(&mut state, &token, total(5));
+        apply(&mut state, &token, total(3));
+        assert_eq!(state.protocols.get(ProxyType::Http).proxies_total, 5);
+    }
+
+    #[test]
+    fn ratio_stays_in_the_range_gauge_accepts() {
+        assert!(ratio(1, 0).abs() < f64::EPSILON);
+        assert!((ratio(11, 10) - 1.0_f64).abs() < f64::EPSILON);
+        assert!((ratio(1, 4) - 0.25_f64).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn db_progress_labels() {
+        let label = |enabled, progress| db_progress(enabled, progress).1;
+        let progress = |finished_ok, downloaded, total| DbProgress {
+            finished_ok,
+            downloaded,
+            total,
+        };
+
+        assert_eq!(label(false, progress(Some(true), 0, 0)), "skipped");
+        assert_eq!(label(true, progress(Some(true), 0, 0)), "ready");
+        assert_eq!(label(true, progress(Some(false), MB, MB)), "failed");
+        assert_eq!(label(true, progress(None, 0, 0)), "waiting");
+        assert_eq!(label(true, progress(None, MB, 0)), "1.0 MB");
+        assert_eq!(label(true, progress(None, MB, 2 * MB)), "1.0/2.0 MB");
     }
 }

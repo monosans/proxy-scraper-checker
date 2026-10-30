@@ -112,9 +112,7 @@ type Result<T> = color_eyre::Result<T>;
 type HashMap<K, V> = rapidhash::RapidHashMap<K, V>;
 type HashSet<T> = rapidhash::RapidHashSet<T>;
 
-fn create_logging_filter(
-    config: &config::Config,
-) -> tracing_subscriber::filter::Targets {
+fn create_logging_filter(debug: bool) -> tracing_subscriber::filter::Targets {
     let base = tracing_subscriber::filter::Targets::new()
         .with_default(tracing::level_filters::LevelFilter::INFO)
         .with_target(
@@ -122,7 +120,7 @@ fn create_logging_filter(
             tracing::level_filters::LevelFilter::OFF,
         );
 
-    if config.debug {
+    if debug {
         base.with_target(
             "proxy_scraper_checker",
             tracing::level_filters::LevelFilter::DEBUG,
@@ -299,18 +297,14 @@ fn watch_signals(
         let token = token.clone();
         #[cfg(feature = "tui")]
         let tx = tx.clone();
+        // Not tied to the token: after ESC cancels the run, the TUI stays open
+        // until it is told to quit, and tokio keeps swallowing the signals.
         tokio::spawn(async move {
-            let quit = || {
+            if stream.recv().await.is_some() {
                 tracing::info!("Received {signal_name} signal, exiting...");
                 token.cancel();
                 #[cfg(feature = "tui")]
                 drop(tx.send(event::Event::App(event::AppEvent::Quit)));
-            };
-
-            tokio::select! {
-                biased;
-                () = token.cancelled() => {},
-                _ = stream.recv() => quit(),
             }
         });
     }
@@ -318,7 +312,7 @@ fn watch_signals(
 
 #[cfg(feature = "tui")]
 async fn run_with_tui(
-    config: Arc<config::Config>,
+    raw_config: raw_config::RawConfig,
     logging_filter: tracing_subscriber::filter::Targets,
 ) -> crate::Result<()> {
     tui_logger::init_logger(tui_logger::LevelFilter::Debug)?;
@@ -326,6 +320,8 @@ async fn run_with_tui(
         .with(logging_filter)
         .with(tui_logger::TuiTracingSubscriberLayer)
         .init();
+
+    let config = Arc::new(config::Config::from_raw_config(raw_config).await?);
 
     let terminal = ratatui::try_init()?;
     let terminal_guard = tui::RatatuiRestoreGuard;
@@ -350,13 +346,15 @@ async fn run_with_tui(
 
 #[cfg(not(feature = "tui"))]
 async fn run_without_tui(
-    config: Arc<config::Config>,
+    raw_config: raw_config::RawConfig,
     logging_filter: tracing_subscriber::filter::Targets,
 ) -> crate::Result<()> {
     tracing_subscriber::registry()
         .with(logging_filter)
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    let config = Arc::new(config::Config::from_raw_config(raw_config).await?);
 
     let token = tokio_util::sync::CancellationToken::new();
 
@@ -380,15 +378,18 @@ async fn main() -> crate::Result<()> {
 
     color_eyre::install()?;
 
-    let config = config::load_config().await?;
-    let logging_filter = create_logging_filter(&config);
+    // Only parsed here: building the Config can log, which needs the subscriber
+    // the debug flag configures.
+    let raw_config =
+        raw_config::read_config(&raw_config::get_config_path()).await?;
+    let logging_filter = create_logging_filter(raw_config.debug);
 
     #[cfg(feature = "tui")]
     {
-        run_with_tui(config, logging_filter).await
+        run_with_tui(raw_config, logging_filter).await
     }
     #[cfg(not(feature = "tui"))]
     {
-        run_without_tui(config, logging_filter).await
+        run_without_tui(raw_config, logging_filter).await
     }
 }

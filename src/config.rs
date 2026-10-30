@@ -13,9 +13,7 @@ use crate::{
 #[derive(serde::Deserialize)]
 pub struct Source {
     pub url: compact_str::CompactString,
-    #[serde(default)]
     pub basic_auth: Option<BasicAuth>,
-    #[serde(default)]
     pub headers:
         Option<HashMap<compact_str::CompactString, compact_str::CompactString>>,
 }
@@ -58,7 +56,6 @@ pub struct OutputConfig {
 }
 
 pub struct Config {
-    pub debug: bool,
     pub scraping: ScrapingConfig,
     pub checking: CheckingConfig,
     pub output: OutputConfig,
@@ -116,7 +113,7 @@ impl Config {
         self.scraping.enabled_protocols.contains(protocol)
     }
 
-    async fn from_raw_config(
+    pub async fn from_raw_config(
         raw_config: raw_config::RawConfig,
     ) -> crate::Result<Self> {
         if !raw_config.output.json.enabled && !raw_config.output.txt.enabled {
@@ -148,7 +145,6 @@ impl Config {
         }
 
         Ok(Self {
-            debug: raw_config.debug,
             scraping: ScrapingConfig {
                 max_proxies_per_source: raw_config
                     .scraping
@@ -177,8 +173,95 @@ impl Config {
     }
 }
 
-pub async fn load_config() -> crate::Result<Arc<Config>> {
-    let raw_config =
-        raw_config::read_config(&raw_config::get_config_path()).await?;
-    Ok(Arc::new(Config::from_raw_config(raw_config).await?))
+#[cfg(test)]
+pub mod tests {
+    use std::path::PathBuf;
+
+    use super::Config;
+    use crate::raw_config::RawConfig;
+
+    pub async fn test_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
+        let mut raw_config: RawConfig =
+            toml::from_str(include_str!("../config.toml")).unwrap();
+        raw_config.output.path = PathBuf::from("target");
+        edit(&mut raw_config);
+        Config::from_raw_config(raw_config).await.unwrap()
+    }
+
+    pub fn temp_directory(name: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "proxy-scraper-checker-{name}-{}",
+            std::process::id()
+        ));
+        drop(std::fs::remove_dir_all(&path));
+        std::fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[tokio::test]
+    async fn at_least_one_output_is_required() {
+        let mut raw_config: RawConfig =
+            toml::from_str(include_str!("../config.toml")).unwrap();
+        raw_config.output.json.enabled = false;
+        raw_config.output.txt.enabled = false;
+        assert!(Config::from_raw_config(raw_config).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn disabled_protocols_get_no_sources() {
+        let config = test_config(|raw| {
+            raw.scraping.http.enabled = true;
+            raw.scraping.socks4.enabled = false;
+            raw.scraping.socks5.enabled = true;
+        })
+        .await;
+
+        assert_eq!(config.scraping.enabled_protocols.iter().count(), 2);
+        assert!(
+            !config
+                .scraping
+                .sources
+                .get(crate::proxy::ProxyType::Http)
+                .is_empty()
+        );
+        assert!(
+            config
+                .scraping
+                .sources
+                .get(crate::proxy::ProxyType::Socks4)
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn exit_ip_data_needs_json_and_checking() {
+        let enabled = |config: &Config| {
+            (
+                config.exit_ip_enabled(),
+                config.asn_enabled(),
+                config.geolocation_enabled(),
+            )
+        };
+
+        let config = test_config(|raw| {
+            raw.output.json.include_asn = true;
+            raw.output.json.include_geolocation = false;
+        })
+        .await;
+        assert_eq!(enabled(&config), (true, true, false));
+
+        let config = test_config(|raw| {
+            raw.output.json.include_asn = true;
+            raw.checking.check_url = None;
+        })
+        .await;
+        assert_eq!(enabled(&config), (false, false, false));
+
+        let config = test_config(|raw| {
+            raw.output.json.enabled = false;
+            raw.output.json.include_geolocation = true;
+        })
+        .await;
+        assert_eq!(enabled(&config), (false, false, false));
+    }
 }

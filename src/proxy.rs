@@ -97,11 +97,6 @@ impl ProxyTypeSet {
             .into_iter()
             .filter(move |&proxy_type| self.contains(proxy_type))
     }
-
-    #[cfg(feature = "tui")]
-    pub const fn len(self) -> usize {
-        self.0.count_ones() as usize
-    }
 }
 
 #[derive(Clone, Copy, Default)]

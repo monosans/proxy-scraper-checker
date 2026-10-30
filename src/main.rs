@@ -245,7 +245,17 @@ async fn main_task(
     if proxies.is_empty() {
         tracing::warn!("No proxies to save - previous results left untouched");
     } else {
+        #[cfg(feature = "tui")]
+        let saved = proxies.len();
+        #[cfg(feature = "tui")]
+        drop(tx.send(event::Event::App(event::AppEvent::Stage(
+            event::Stage::Saving,
+        ))));
+
         output::save_proxies(config, proxies).await?;
+
+        #[cfg(feature = "tui")]
+        drop(tx.send(event::Event::App(event::AppEvent::Saved(saved))));
     }
 
     tracing::info!("Thank you for using proxy-scraper-checker!");
@@ -324,7 +334,7 @@ async fn run_with_tui(
     let config = Arc::new(config::Config::from_raw_config(raw_config).await?);
 
     let terminal = ratatui::try_init()?;
-    let terminal_guard = tui::RatatuiRestoreGuard;
+    let terminal_guard = tui::app::RatatuiRestoreGuard;
 
     let token = tokio_util::sync::CancellationToken::new();
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
@@ -335,7 +345,7 @@ async fn run_with_tui(
     tokio::try_join!(
         main_task(Arc::clone(&config), token.clone(), tx.clone()),
         async move {
-            let result = tui::run(terminal, config, token, tx, rx).await;
+            let result = tui::app::run(terminal, config, token, tx, rx).await;
             drop(terminal_guard);
             result
         }

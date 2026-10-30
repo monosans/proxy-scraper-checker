@@ -6,7 +6,7 @@ use std::{
 use color_eyre::eyre::OptionExt as _;
 
 #[cfg(feature = "tui")]
-use crate::event::{AppEvent, Event};
+use crate::event::{AppEvent, Event, Stage};
 use crate::{config::Config, http, proxy::Proxy, utils::pretty_error};
 
 async fn resolve_check_url(config: &Config) -> Vec<SocketAddr> {
@@ -57,6 +57,8 @@ pub async fn check_all(
         res = prepare => res?,
     };
 
+    #[cfg(feature = "tui")]
+    drop(tx.send(Event::App(AppEvent::Stage(Stage::Checking))));
     #[cfg(not(feature = "tui"))]
     tracing::info!("Started checking {} proxies", proxies.len());
 

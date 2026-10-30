@@ -228,8 +228,11 @@ foreach ($workload in $workloads) {
 
       # See allocator_bench_unix.sh: a run with nothing to write leaves the
       # previous output in place, which proxies_out would otherwise count.
-      Remove-Item -Recurse -Force -ErrorAction SilentlyContinue `
-        'bench-out\proxies', 'bench-out\proxies.json', 'bench-out\proxies_pretty.json'
+      foreach ($previous in 'bench-out\proxies', 'bench-out\proxies.json', 'bench-out\proxies_pretty.json') {
+        if (Test-Path -LiteralPath $previous) {
+          Remove-Item -LiteralPath $previous -Recurse -Force
+        }
+      }
 
       $sw = [System.Diagnostics.Stopwatch]::StartNew()
       $p = [System.Diagnostics.Process]::Start($psi)

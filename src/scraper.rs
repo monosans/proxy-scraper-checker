@@ -136,10 +136,10 @@ async fn fetch_source(
     let mut response = request.send().await?;
     let mut body = Vec::new();
     while let Some(chunk) = response.chunk().await? {
-        body.extend_from_slice(&chunk);
-        if body.len() > max_bytes {
+        if chunk.len() > max_bytes.saturating_sub(body.len()) {
             return Err(eyre!("response is over {max_bytes} bytes - skipped"));
         }
+        body.extend_from_slice(&chunk);
     }
 
     Ok(String::from_utf8(body)

@@ -197,9 +197,10 @@ impl Proxy {
         let mut body = config.exit_ip_enabled().then(Vec::new);
         while let Some(chunk) = response.chunk().await? {
             if let Some(kept) = &mut body {
-                kept.extend_from_slice(&chunk);
-                if kept.len() > MAX_EXIT_IP_BODY {
+                if chunk.len() > MAX_EXIT_IP_BODY.saturating_sub(kept.len()) {
                     body = None;
+                } else {
+                    kept.extend_from_slice(&chunk);
                 }
             }
         }

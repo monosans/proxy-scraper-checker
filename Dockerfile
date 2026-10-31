@@ -69,7 +69,8 @@ ARG \
   UID=1000 \
   GID=1000
 
-RUN (getent group "${GID}" || groupadd --gid "${GID}" app) \
+# UID and GID come from the host and can be anything, 0 and IDs the image uses included.
+RUN groupadd --non-unique --gid "${GID}" app \
   && useradd --gid "${GID}" --no-log-init --create-home --non-unique --uid "${UID}" app \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \
   && chown "${UID}:${GID}" /home/app/.cache/proxy_scraper_checker

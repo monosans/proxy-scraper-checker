@@ -16,7 +16,7 @@ use crate::{
     config::Config,
     ipdb,
     proxy::{PerProxyType, Proxy, ProxyAuth, ProxyType, ProxyTypeSet},
-    utils::{grouped, is_container, plural, pretty_error},
+    utils::{grouped, is_container, keep_both_errors, plural, pretty_error},
 };
 
 type IpDb = maxminddb::Reader<maxminddb::Mmap>;
@@ -228,33 +228,55 @@ async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
     }
 }
 
+// Clears out earlier previous directories and returns a free name for the next
+// one. A directory something still holds is left for a later save to clear,
+// since a reader that stays open across runs must not fail them.
+async fn clear_previous(to: &Path) -> PathBuf {
+    let mut free = None;
+    let mut path = with_suffix(to, ".old");
+    let mut attempt = 1_u32;
+    while tokio::fs::try_exists(&path).await.unwrap_or(false) {
+        if let Err(e) = remove_dir(&path).await {
+            tracing::warn!("{}", pretty_error(&e));
+        } else if free.is_none() {
+            free = Some(path.clone());
+        }
+        path = with_suffix(to, &format_compact!(".old{attempt}"));
+        attempt = attempt.saturating_add(1);
+    }
+    free.unwrap_or(path)
+}
+
 // The previous directory is moved aside rather than deleted first: a file
 // held open would otherwise fail the deletion halfway through, and a commit
 // that fails can still put it back.
 async fn commit_directory(from: &Path, to: &Path) -> crate::Result<()> {
-    let previous = with_suffix(to, ".old");
-    remove_dir(&previous).await?;
-    let moved_aside = match tokio::fs::rename(to, &previous).await {
-        Ok(()) => true,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => false,
-        Err(e) => {
-            return Err(e).wrap_err_with(|| rename_failed(to, &previous));
-        }
+    // With nothing at `to`, an earlier commit was cut short, and what it moved
+    // aside is the last output there is until the new one lands.
+    let previous = if tokio::fs::try_exists(to).await.unwrap_or(true) {
+        let aside = clear_previous(to).await;
+        tokio::fs::rename(to, &aside)
+            .await
+            .wrap_err_with(|| rename_failed(to, &aside))?;
+        Some(aside)
+    } else {
+        None
     };
 
     if let Err(e) = tokio::fs::rename(from, to).await {
-        if moved_aside
-            && let Err(restore_error) = tokio::fs::rename(&previous, to).await
+        let mut failed = rename_failed(from, to);
+        if let Some(previous) = &previous
+            && let Err(restore_error) = tokio::fs::rename(previous, to).await
         {
-            tracing::warn!("{}: {restore_error}", rename_failed(&previous, to));
+            failed = format_compact!(
+                "{failed}; the previous output is in {}: {restore_error}",
+                previous.display()
+            );
         }
-        return Err(e).wrap_err_with(|| rename_failed(from, to));
+        return Err(e).wrap_err(failed);
     }
 
-    // The new output is in place, and the next save retries this.
-    if let Err(e) = remove_dir(&previous).await {
-        tracing::warn!("{}", pretty_error(&e));
-    }
+    drop(clear_previous(to).await);
     Ok(())
 }
 
@@ -453,12 +475,17 @@ pub async fn save_proxies(
     let mut committed = Ok(());
     if config.output.json.enabled {
         for (path, _) in &json_paths {
-            committed = committed.and(commit_file(&tmp_path(path), path).await);
+            committed = keep_both_errors(
+                committed,
+                commit_file(&tmp_path(path), path).await,
+            );
         }
     }
     if config.output.txt.enabled {
-        committed = committed
-            .and(commit_directory(&staging_path, &directory_path).await);
+        committed = keep_both_errors(
+            committed,
+            commit_directory(&staging_path, &directory_path).await,
+        );
     }
     committed?;
 
@@ -815,6 +842,76 @@ mod tests {
             "old"
         );
         assert!(!directory.join("proxies.old").exists());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_commit_cut_short_keeps_what_it_moved_aside() {
+        let directory = temp_directory("cut-short");
+        let proxies = directory.join("proxies");
+        let staged = directory.join("proxies.tmp");
+        let aside = directory.join("proxies.old");
+        std::fs::create_dir_all(&aside).unwrap();
+        std::fs::write(aside.join("all.txt"), "old").unwrap();
+
+        let result = commit_directory(&staged, &proxies).await;
+
+        drop(result.unwrap_err());
+        assert_eq!(
+            std::fs::read_to_string(aside.join("all.txt")).unwrap(),
+            "old"
+        );
+
+        std::fs::create_dir_all(&staged).unwrap();
+        std::fs::write(staged.join("all.txt"), "new").unwrap();
+        commit_directory(&staged, &proxies).await.unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
+            "new"
+        );
+        assert!(!aside.exists());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn a_held_previous_directory_does_not_fail_the_next_saves() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+
+        const FILE_SHARE_READ: u32 = 1;
+
+        let directory = temp_directory("held-old");
+        let proxies = directory.join("proxies");
+        let held = directory.join("proxies.old");
+        std::fs::create_dir_all(&proxies).unwrap();
+        std::fs::create_dir_all(&held).unwrap();
+        std::fs::write(proxies.join("all.txt"), "old").unwrap();
+        std::fs::write(held.join("all.txt"), "older").unwrap();
+        let reader = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ)
+            .open(held.join("all.txt"))
+            .unwrap();
+
+        let config = unchecked_config(directory.clone()).await;
+        save_proxies(Arc::clone(&config), vec![proxy("1.1.1.1", 80, None)])
+            .await
+            .unwrap();
+        save_proxies(Arc::clone(&config), vec![proxy("2.2.2.2", 80, None)])
+            .await
+            .unwrap();
+        assert_eq!(
+            std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
+            "http://2.2.2.2:80"
+        );
+
+        drop(reader);
+        save_proxies(config, vec![proxy("3.3.3.3", 80, None)]).await.unwrap();
+        assert!(!held.exists());
+        assert!(!directory.join("proxies.old1").exists());
 
         std::fs::remove_dir_all(directory).unwrap();
     }

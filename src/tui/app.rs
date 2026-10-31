@@ -1,6 +1,6 @@
 #![expect(clippy::wildcard_enum_match_arm)]
 
-use std::{sync::Arc, time::Duration};
+use std::{mem::ManuallyDrop, sync::Arc, time::Duration};
 
 use compact_str::CompactString;
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyModifiers};
@@ -21,16 +21,19 @@ use crate::{
 pub const TICKS_PER_SECOND: u64 = 4;
 const TICK: Duration =
     Duration::from_millis(1000_u64.div_euclid(TICKS_PER_SECOND));
-// A speed measured over less than this swings too much to be worth showing.
-const MIN_TICKS_FOR_SPEED: u64 = 3 * TICKS_PER_SECOND;
+// Until the first checks time out, only the quick ones have finished: with the
+// default 10 s timeout, the time left starts out about five times too long.
+const MIN_TICKS_FOR_SPEED: u64 = 15 * TICKS_PER_SECOND;
 const MAX_INPUT_ERRORS: u8 = 8;
 pub const FASTEST_KEPT: usize = 8;
 
 pub struct RatatuiRestoreGuard;
 
 impl Drop for RatatuiRestoreGuard {
+    // Not ratatui::restore, which panics if stderr went with the terminal.
     fn drop(&mut self) {
-        ratatui::restore();
+        drop(ratatui::try_restore());
+        drop(crossterm::execute!(std::io::stdout(), crossterm::cursor::Show));
     }
 }
 
@@ -176,12 +179,16 @@ impl State {
 }
 
 pub async fn run(
-    mut terminal: ratatui::DefaultTerminal,
+    terminal: ratatui::DefaultTerminal,
     config: Arc<Config>,
     token: tokio_util::sync::CancellationToken,
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
     mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
 ) -> crate::Result<()> {
+    // Dropping it panics if stderr went with the terminal, and it only shows
+    // the cursor, which RatatuiRestoreGuard does.
+    let mut terminal = ManuallyDrop::new(terminal);
+
     tokio::spawn(tick_event_listener(tx.clone()));
     tokio::spawn(crossterm_event_listener(tx));
 
@@ -586,16 +593,19 @@ mod tests {
             stage: Stage::Checking,
             ticks: 10 * TICKS_PER_SECOND,
             checking_since: 10 * TICKS_PER_SECOND,
-            proxies_checked: 500,
+            proxies_checked: 1_500,
             ..State::default()
         };
         state.protocols.get_mut(ProxyType::Http).proxies_total = 2_000;
 
         assert_eq!(state.seconds_left(&config), None);
 
-        state.ticks = 15 * TICKS_PER_SECOND;
+        state.ticks = 24 * TICKS_PER_SECOND;
+        assert_eq!(state.checks_per_second(), None);
+
+        state.ticks = 25 * TICKS_PER_SECOND;
         assert_eq!(state.checks_per_second(), Some(100));
-        assert_eq!(state.seconds_left(&config), Some(15));
+        assert_eq!(state.seconds_left(&config), Some(5));
 
         state.stage = Stage::Saving;
         assert_eq!(state.seconds_left(&config), None);
@@ -606,18 +616,18 @@ mod tests {
         let config = test_config(|_| {}).await;
         let mut state = State {
             stage: Stage::Checking,
-            ticks: 10 * TICKS_PER_SECOND,
-            proxies_checked: 19,
+            ticks: 20 * TICKS_PER_SECOND,
+            proxies_checked: 38,
             ..State::default()
         };
         state.protocols.get_mut(ProxyType::Http).proxies_total = 100;
 
         assert_eq!(state.checks_per_second(), Some(1));
-        assert_eq!(state.seconds_left(&config), Some(43));
+        assert_eq!(state.seconds_left(&config), Some(33));
 
         state.proxies_checked = 5;
         assert_eq!(state.checks_per_second(), None);
-        assert_eq!(state.seconds_left(&config), Some(190));
+        assert_eq!(state.seconds_left(&config), Some(380));
 
         state.proxies_checked = 0;
         assert_eq!(state.seconds_left(&config), None);

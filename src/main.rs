@@ -285,57 +285,121 @@ async fn main_task(
 }
 
 #[cfg(any(unix, windows))]
+fn stop_on_signal<S>(
+    signal_name: &'static str,
+    signal: std::io::Result<S>,
+    stop: impl FnOnce() + Send + 'static,
+) where
+    S: Future<Output = Option<()>> + Send + 'static,
+{
+    let signal = match signal {
+        Ok(signal) => signal,
+        Err(e) => {
+            tracing::warn!(
+                "Failed to listen for {} signal: {}",
+                signal_name,
+                utils::pretty_error(&e.into())
+            );
+            return;
+        }
+    };
+    // Not tied to the token: after ESC cancels the run, the TUI stays open
+    // until it is told to quit, and tokio keeps swallowing the signals.
+    tokio::spawn(async move {
+        if signal.await.is_some() {
+            tracing::info!("Received {signal_name} signal, exiting...");
+            stop();
+        }
+    });
+}
+
+#[cfg(any(unix, windows))]
 fn watch_signals(
     token: &tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: &tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
 ) {
+    let token = token.clone();
+    #[cfg(feature = "tui")]
+    let tx = tx.clone();
+    let stop = move || {
+        token.cancel();
+        #[cfg(feature = "tui")]
+        drop(tx.send(event::Event::App(event::AppEvent::Quit)));
+    };
+
     #[cfg(unix)]
-    let signals = [
-        (
-            "SIGINT",
-            tokio::signal::unix::signal(
-                tokio::signal::unix::SignalKind::interrupt(),
-            ),
-        ),
-        (
-            "SIGTERM",
-            tokio::signal::unix::signal(
-                tokio::signal::unix::SignalKind::terminate(),
-            ),
-        ),
-    ];
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        // Listening would undo nohup, which ignores SIGHUP to keep a run going
+        // and takes it off the terminal to do so.
+        let on_terminal =
+            std::io::stdin().is_terminal() || std::io::stdout().is_terminal();
+        let signals = [
+            ("SIGINT", SignalKind::interrupt(), true),
+            ("SIGTERM", SignalKind::terminate(), true),
+            ("SIGHUP", SignalKind::hangup(), on_terminal),
+        ];
+        for (signal_name, kind, wanted) in signals {
+            if wanted {
+                stop_on_signal(
+                    signal_name,
+                    signal(kind)
+                        .map(|mut signal| async move { signal.recv().await }),
+                    stop.clone(),
+                );
+            }
+        }
+    }
 
     #[cfg(windows)]
-    let signals = [("Ctrl-C", tokio::signal::windows::ctrl_c())];
+    {
+        use tokio::signal::windows::{ctrl_c, ctrl_close};
 
-    for (signal_name, stream) in signals {
-        let mut stream = match stream {
-            Ok(signal) => signal,
-            Err(e) => {
-                tracing::warn!(
-                    "Failed to listen for {} signal: {}",
-                    signal_name,
-                    utils::pretty_error(&e.into())
-                );
-                continue;
-            }
-        };
-        let token = token.clone();
-        #[cfg(feature = "tui")]
-        let tx = tx.clone();
-        // Not tied to the token: after ESC cancels the run, the TUI stays open
-        // until it is told to quit, and tokio keeps swallowing the signals.
-        tokio::spawn(async move {
-            if stream.recv().await.is_some() {
-                tracing::info!("Received {signal_name} signal, exiting...");
-                token.cancel();
-                #[cfg(feature = "tui")]
+        stop_on_signal(
+            "Ctrl-C",
+            ctrl_c().map(|mut signal| async move { signal.recv().await }),
+            stop.clone(),
+        );
+        stop_on_signal(
+            "console close",
+            ctrl_close().map(|mut signal| async move { signal.recv().await }),
+            stop,
+        );
+    }
+}
+
+// Neither side may drop the other mid-way: a run that fails closes the
+// terminal, and a terminal that fails stops the run, which still saves what it
+// found. The TUI gets a task of its own so that a panic in it fails the same
+// way.
+#[cfg(feature = "tui")]
+async fn join_run_and_tui(
+    run: impl Future<Output = crate::Result<compact_str::CompactString>>,
+    tui: impl Future<Output = crate::Result<()>> + Send + 'static,
+    token: tokio_util::sync::CancellationToken,
+    tx: tokio::sync::mpsc::UnboundedSender<event::Event>,
+) -> (crate::Result<compact_str::CompactString>, crate::Result<()>) {
+    let tui = tokio::spawn(tui);
+    tokio::join!(
+        async move {
+            let result = run.await;
+            if result.is_err() {
                 drop(tx.send(event::Event::App(event::AppEvent::Quit)));
             }
-        });
-    }
+            result
+        },
+        async move {
+            let result =
+                tui.await.map_err(Into::into).and_then(|result| result);
+            if result.is_err() {
+                token.cancel();
+            }
+            result
+        }
+    )
 }
 
 #[cfg(feature = "tui")]
@@ -362,34 +426,24 @@ async fn run_with_tui(
 
     let run = main_task(Arc::clone(&config), token.clone(), tx.clone());
     let quit = tx.clone();
+    let tui_token = token.clone();
+    let tui = async move {
+        let result = tui::app::run(terminal, config, tui_token, tx, rx).await;
+        drop(terminal_guard);
+        result
+    };
 
-    // Neither side may drop the other mid-way: a run that fails closes the
-    // terminal, and a terminal that fails stops the run, which still saves
-    // what it found.
-    let (summary, tui_result) = tokio::join!(
-        async move {
-            let result = run.await;
-            if result.is_err() {
-                drop(quit.send(event::Event::App(event::AppEvent::Quit)));
-            }
-            result
-        },
-        async move {
-            let result =
-                tui::app::run(terminal, config, token.clone(), tx, rx).await;
-            drop(terminal_guard);
-            if result.is_err() {
-                token.cancel();
-            }
-            result
+    let (summary, tui_result) = join_run_and_tui(run, tui, token, quit).await;
+
+    match summary {
+        Ok(summary) => {
+            // The alternate screen takes everything with it when it closes, so
+            // this is the only part of the run left in the scrollback.
+            drop(writeln!(std::io::stdout(), "{summary}"));
+            tui_result
         }
-    );
-
-    // The alternate screen takes everything with it when it closes, so this
-    // is the only part of the run left in the scrollback.
-    drop(writeln!(std::io::stdout(), "{}", summary?));
-
-    tui_result
+        Err(e) => utils::keep_both_errors(Err(e), tui_result),
+    }
 }
 
 async fn run_without_tui(
@@ -461,4 +515,73 @@ async fn main() -> crate::Result<()> {
     }
 
     run_without_tui(raw_config, logging_filter).await
+}
+
+#[cfg(test)]
+#[cfg(feature = "tui")]
+mod tests {
+    use color_eyre::eyre::eyre;
+    use compact_str::CompactString;
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio_util::sync::CancellationToken;
+
+    use crate::{
+        event::{AppEvent, Event},
+        join_run_and_tui,
+    };
+
+    #[tokio::test]
+    async fn a_failed_terminal_stops_the_run_and_keeps_its_result() {
+        let token = CancellationToken::new();
+        let stopped = token.clone();
+        let run = async move {
+            stopped.cancelled().await;
+            Ok(CompactString::const_new("saved"))
+        };
+        let tui = async { Err(eyre!("the terminal is gone")) };
+
+        let (summary, tui_result) =
+            join_run_and_tui(run, tui, token, unbounded_channel().0).await;
+
+        assert_eq!(summary.unwrap(), "saved");
+        drop(tui_result.unwrap_err());
+    }
+
+    #[tokio::test]
+    async fn a_panic_in_the_terminal_stops_the_run_and_keeps_its_result() {
+        let token = CancellationToken::new();
+        let stopped = token.clone();
+        let run = async move {
+            stopped.cancelled().await;
+            Ok(CompactString::const_new("saved"))
+        };
+
+        let tui = async {
+            std::hint::black_box(None::<()>).unwrap();
+            Ok(())
+        };
+
+        let (summary, tui_result) =
+            join_run_and_tui(run, tui, token, unbounded_channel().0).await;
+
+        assert_eq!(summary.unwrap(), "saved");
+        drop(tui_result.unwrap_err());
+    }
+
+    #[tokio::test]
+    async fn a_failed_run_closes_the_terminal() {
+        let (tx, mut rx) = unbounded_channel();
+        let run = async { Err(eyre!("the save failed")) };
+        let tui = async move {
+            let event = rx.recv().await;
+            assert!(matches!(event, Some(Event::App(AppEvent::Quit))));
+            Ok(())
+        };
+
+        let (summary, tui_result) =
+            join_run_and_tui(run, tui, CancellationToken::new(), tx).await;
+
+        drop(summary.unwrap_err());
+        tui_result.unwrap();
+    }
 }

@@ -486,7 +486,12 @@ fn header(
     }
 
     let steps_width = line_width(&steps).saturating_add(GAP.len());
-    let right = timing(config, state, width.saturating_sub(steps_width));
+    // Steps that can't fit beside the clock go, and leave their room to it.
+    let beside_steps = width.saturating_sub(steps_width);
+    let mut right = timing(config, state, beside_steps);
+    if line_width(&right) > beside_steps {
+        right = timing(config, state, width);
+    }
     let right_width = line_width(&right);
     let title_width = TITLE.len().saturating_add(GAP.len().saturating_mul(2));
     let mut used = right_width;
@@ -893,7 +898,7 @@ mod tests {
         let mut state = State {
             stage: Stage::Checking,
             ticks: 120 * TICKS_PER_SECOND,
-            checking_since: 110 * TICKS_PER_SECOND,
+            checking_since: 100 * TICKS_PER_SECOND,
             proxies_checked: 12_480,
             ..State::default()
         };
@@ -1158,6 +1163,14 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn the_time_left_stays_when_the_steps_have_gone() {
+        let config = test_config(|_| {}).await;
+        let screen = render(&config, &checking_state(), 28, 19);
+        assert!(!screen.contains("Scrape"), "{screen}");
+        assert!(screen.contains(" left"), "{screen}");
+    }
+
+    #[tokio::test]
     async fn the_keys_use_the_whole_footer() {
         let config = test_config(|_| {}).await;
         let screen = render(&config, &State::default(), 49, 30);
@@ -1226,9 +1239,9 @@ mod tests {
         assert!(screen.contains("12,480 / 40,213"), "{screen}");
         assert!(screen.contains("312"), "{screen}");
         assert!(screen.contains("2.5%"), "{screen}");
-        assert!(screen.contains("1,248 checks/s"), "{screen}");
+        assert!(screen.contains("624 checks/s"), "{screen}");
         assert!(screen.contains("2:00"), "{screen}");
-        assert!(screen.contains("~0:23"), "{screen}");
+        assert!(screen.contains("~0:45"), "{screen}");
     }
 
     #[tokio::test]
@@ -1343,7 +1356,7 @@ mod tests {
         assert!(!screen.contains("40,213"), "{screen}");
         assert!(screen.contains("Working"), "{screen}");
         assert!(screen.contains("2:00"), "{screen}");
-        assert!(screen.contains("~0:23 left"), "{screen}");
+        assert!(screen.contains("~0:45 left"), "{screen}");
         assert!(!screen.contains("checks/s"), "{screen}");
     }
 

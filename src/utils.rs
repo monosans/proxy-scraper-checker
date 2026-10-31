@@ -11,6 +11,21 @@ pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
     result
 }
 
+// For steps that don't stop for each other, when two of them can fail.
+pub fn keep_both_errors(
+    first: crate::Result<()>,
+    second: crate::Result<()>,
+) -> crate::Result<()> {
+    match (first, second) {
+        (Err(first), Err(second)) => Err(color_eyre::eyre::eyre!(
+            "{}; {}",
+            pretty_error(&first),
+            pretty_error(&second)
+        )),
+        (first, second) => first.and(second),
+    }
+}
+
 pub fn grouped(number: usize) -> compact_str::CompactString {
     let mut buffer = itoa::Buffer::new();
     let digits = buffer.format(number);
@@ -69,7 +84,18 @@ pub async fn is_container() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{clock, grouped};
+    use color_eyre::eyre::eyre;
+
+    use super::{clock, grouped, keep_both_errors};
+
+    #[test]
+    fn both_failures_are_kept() {
+        let error = keep_both_errors(Err(eyre!("first")), Err(eyre!("second")));
+        assert_eq!(error.unwrap_err().to_string(), "first; second");
+        drop(keep_both_errors(Ok(()), Err(eyre!("second"))).unwrap_err());
+        drop(keep_both_errors(Err(eyre!("first")), Ok(())).unwrap_err());
+        keep_both_errors(Ok(()), Ok(())).unwrap();
+    }
 
     #[test]
     fn numbers_read_in_groups_of_three() {

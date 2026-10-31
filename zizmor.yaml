@@ -1,7 +1,3 @@
 rules:
   anonymous-definition:
     disable: true
-  template-injection:
-    disable: true
-  undocumented-permissions:
-    disable: true

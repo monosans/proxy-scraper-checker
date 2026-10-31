@@ -7,12 +7,7 @@ use std::{
 
 use color_eyre::eyre::eyre;
 
-use crate::{config::Config, parsers::parse_ipv4};
-
-#[derive(serde::Deserialize)]
-struct HttpbinResponse {
-    origin: compact_str::CompactString,
-}
+use crate::{config::Config, parsers::parse_exit_ip};
 
 #[repr(u8)]
 #[derive(
@@ -200,13 +195,7 @@ impl Proxy {
             let text = response.text().await?;
             self.timeout = Some(start.elapsed());
 
-            self.exit_ip = if let Ok(httpbin) =
-                serde_json::from_str::<HttpbinResponse>(&text)
-            {
-                parse_ipv4(&httpbin.origin)
-            } else {
-                parse_ipv4(&text)
-            };
+            self.exit_ip = parse_exit_ip(&text);
         } else {
             while response.chunk().await?.is_some() {}
             self.timeout = Some(start.elapsed());
@@ -268,11 +257,49 @@ impl Hash for Proxy {
 
 #[cfg(test)]
 mod tests {
-    use std::net::Ipv4Addr;
+    use std::net::{Ipv4Addr, SocketAddr};
 
-    use compact_str::CompactString;
+    use compact_str::{CompactString, ToCompactString as _};
 
     use super::{Duration, Proxy, ProxyAuth, ProxyType, ProxyTypeSet};
+    use crate::{
+        config::tests::test_config,
+        http::{
+            TlsProfile, build_rustls_config,
+            tests::{serve, serve_then_stall},
+        },
+        raw_config::RawConfig,
+    };
+
+    const EXIT_IP_REPLY: &str = "HTTP/1.1 200 OK\r\nContent-Length: \
+                                 8\r\nConnection: close\r\n\r\n5.6.7.8\n";
+    const FAILED_REPLY: &str = "HTTP/1.1 502 Bad Gateway\r\nContent-Length: \
+                                0\r\nConnection: close\r\n\r\n";
+    const STALLED_REPLY: &str =
+        "HTTP/1.1 200 OK\r\nContent-Length: 8\r\n\r\n5.6";
+
+    async fn check(
+        address: SocketAddr,
+        edit: impl FnOnce(&mut RawConfig),
+    ) -> (reqwest::Result<()>, Proxy) {
+        let config = test_config(|raw| {
+            raw.checking.check_url =
+                Some("http://check.test/".parse().unwrap());
+            raw.checking.timeout = Duration::from_millis(300);
+            edit(raw);
+        })
+        .await;
+        let mut proxy = Proxy {
+            protocol: ProxyType::Http,
+            host: address.ip().to_compact_string(),
+            port: address.port(),
+            auth: None,
+            timeout: None,
+            exit_ip: None,
+        };
+        let tls = build_rustls_config(TlsProfile::Checking).await.unwrap();
+        (proxy.check(&config, &[], tls).await, proxy)
+    }
 
     fn proxy(auth: Option<ProxyAuth>) -> Proxy {
         Proxy {
@@ -290,6 +317,41 @@ mod tests {
             username: CompactString::const_new("user"),
             password: CompactString::const_new("pass"),
         }
+    }
+
+    #[tokio::test]
+    async fn a_working_proxy_gets_its_time_and_exit_ip() {
+        let (address, _) = serve(vec![EXIT_IP_REPLY]).await;
+        let (result, proxy) = check(address, |_| {}).await;
+        result.unwrap();
+        assert!(proxy.timeout.is_some());
+        assert_eq!(proxy.exit_ip, Some(Ipv4Addr::new(5, 6, 7, 8)));
+    }
+
+    #[tokio::test]
+    async fn without_json_output_the_body_is_only_read_through() {
+        let (address, _) = serve(vec![EXIT_IP_REPLY]).await;
+        let (result, proxy) =
+            check(address, |raw| raw.output.json.enabled = false).await;
+        result.unwrap();
+        assert!(proxy.timeout.is_some());
+        assert_eq!(proxy.exit_ip, None);
+    }
+
+    #[tokio::test]
+    async fn an_error_status_fails_the_check() {
+        let (address, _) = serve(vec![FAILED_REPLY]).await;
+        let (result, proxy) = check(address, |_| {}).await;
+        assert!(result.is_err());
+        assert!(proxy.timeout.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_proxy_that_stalls_after_connecting_fails_the_check() {
+        let address = serve_then_stall(STALLED_REPLY).await;
+        let (result, proxy) = check(address, |_| {}).await;
+        assert!(result.is_err());
+        assert!(proxy.timeout.is_none());
     }
 
     #[test]

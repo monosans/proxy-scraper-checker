@@ -11,6 +11,7 @@ use crate::{
 };
 
 #[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Source {
     pub url: compact_str::CompactString,
     pub basic_auth: Option<BasicAuth>,
@@ -78,12 +79,18 @@ async fn get_output_path(
     Ok(output_path)
 }
 
+// Left for what isn't a check: the event loop, the terminal, DNS, the output.
+const RESERVED_FILE_DESCRIPTORS: usize = 16;
+
 fn get_max_concurrent_checks(raw_config: &raw_config::RawConfig) -> usize {
     let requested = raw_config.checking.max_concurrent_checks.get();
     let Ok(limit) = rlimit::increase_nofile_limit(u64::MAX) else {
         return requested;
     };
-    let limit = usize::try_from(limit).unwrap_or(usize::MAX).max(1);
+    let limit = usize::try_from(limit)
+        .unwrap_or(usize::MAX)
+        .saturating_sub(RESERVED_FILE_DESCRIPTORS)
+        .max(1);
 
     if requested > limit {
         tracing::warn!(

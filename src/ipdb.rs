@@ -51,6 +51,23 @@ where
     Ok(result?)
 }
 
+async fn open_reader(
+    path: PathBuf,
+) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
+    tokio::task::spawn_blocking(move || {
+        #[expect(clippy::undocumented_unsafe_blocks)]
+        unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(
+            move || {
+                compact_str::format_compact!(
+                    "failed to open IP database: {}",
+                    path.display()
+                )
+            },
+        )
+    })
+    .await?
+}
+
 #[derive(Clone, Copy)]
 pub enum DbType {
     Asn,
@@ -64,6 +81,11 @@ impl DbType {
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> crate::Result<()> {
         let db_path = self.db_path().await?;
+
+        // Left by a download that was cut short. Nothing else would remove it
+        // if the database turns out to be up to date.
+        drop(tokio::fs::remove_file(self.tmp_path().await?).await);
+
         let mut headers = reqwest::header::HeaderMap::new();
         // The ETag only vouches for a file that still opens; otherwise a
         // damaged database would be reported as up to date forever.
@@ -142,19 +164,7 @@ impl DbType {
     pub async fn open_mmap(
         self,
     ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
-        let path = self.db_path().await?;
-        tokio::task::spawn_blocking(move || {
-            #[expect(clippy::undocumented_unsafe_blocks)]
-            unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(
-                move || {
-                    compact_str::format_compact!(
-                        "failed to open IP database: {}",
-                        path.display()
-                    )
-                },
-            )
-        })
-        .await?
+        open_reader(self.db_path().await?).await
     }
 
     pub const fn name(self) -> &'static str {
@@ -184,6 +194,12 @@ impl DbType {
         Ok(cache_path)
     }
 
+    async fn tmp_path(self) -> crate::Result<PathBuf> {
+        let mut db_path = self.db_path().await?;
+        db_path.set_extension("mmdb.tmp");
+        Ok(db_path)
+    }
+
     async fn etag_path(self) -> crate::Result<PathBuf> {
         let mut db_path = self.db_path().await?;
         db_path.set_extension("mmdb.etag");
@@ -202,7 +218,7 @@ impl DbType {
         ))));
 
         let db_path = self.db_path().await?;
-        let tmp_path = db_path.with_extension("mmdb.tmp");
+        let tmp_path = self.tmp_path().await?;
         let file =
             tokio::fs::File::create(&tmp_path).await.wrap_err_with(|| {
                 compact_str::format_compact!(
@@ -236,6 +252,9 @@ impl DbType {
         writer.flush().await.wrap_err_with(failed_to_write)?;
         drop(writer);
 
+        // A body that isn't a database must not replace one that works.
+        drop(open_reader(tmp_path.clone()).await?);
+
         tokio::fs::rename(&tmp_path, &db_path).await.wrap_err_with(|| {
             compact_str::format_compact!(
                 "failed to rename {} to {}",
@@ -259,12 +278,15 @@ impl DbType {
         self,
     ) -> crate::Result<Option<reqwest::header::HeaderValue>> {
         let path = self.etag_path().await?;
-        match tokio::fs::read_to_string(&path).await {
-            Ok(text) => Ok(text.parse().ok()),
+        match tokio::fs::read(&path).await {
+            // Unreadable contents only mean downloading the database again.
+            Ok(bytes) => {
+                Ok(reqwest::header::HeaderValue::from_bytes(&bytes).ok())
+            }
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(e).wrap_err_with(move || {
                 compact_str::format_compact!(
-                    "failed to read file to string: {}",
+                    "failed to read file: {}",
                     path.display()
                 )
             }),
@@ -290,33 +312,32 @@ impl DbType {
 mod tests {
     use std::{future, io};
 
-    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
-
-    use super::{Duration, within};
-    use crate::{config::tests::test_config, http};
+    use super::{Duration, open_reader, within};
+    use crate::{
+        config::tests::{temp_directory, test_config},
+        http::{self, tests::serve_then_stall},
+    };
 
     const LIMIT: Duration = Duration::from_millis(200);
 
-    // Reads the request, sends `reply`, then holds the connection open and
-    // silent, as a stalled server would.
     async fn stalling_server(reply: &'static str) -> String {
-        let listener =
-            tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.unwrap();
-            let mut request = [0_u8; 1024];
-            assert_ne!(socket.read(&mut request).await.unwrap(), 0);
-            socket.write_all(reply.as_bytes()).await.unwrap();
-            future::pending::<()>().await;
-            drop(socket);
-        });
-        format!("http://{address}/")
+        format!("http://{}/", serve_then_stall(reply).await)
     }
 
     async fn client() -> reqwest_middleware::ClientWithMiddleware {
         let config = test_config(|_| {}).await;
         http::create_reqwest_client(&config).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_file_that_is_no_database_does_not_open() {
+        let directory = temp_directory("garbage");
+        let path = directory.join("database.mmdb");
+        std::fs::write(&path, "<html>not a database</html>").unwrap();
+
+        drop(open_reader(path).await.unwrap_err());
+
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[tokio::test]

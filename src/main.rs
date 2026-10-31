@@ -62,6 +62,8 @@ mod scraper;
 mod tui;
 mod utils;
 
+#[cfg(feature = "tui")]
+use std::io::IsTerminal as _;
 use std::sync::Arc;
 
 use tracing_subscriber::{
@@ -354,7 +356,6 @@ async fn run_with_tui(
     Ok(())
 }
 
-#[cfg(not(feature = "tui"))]
 async fn run_without_tui(
     raw_config: raw_config::RawConfig,
     logging_filter: tracing_subscriber::filter::Targets,
@@ -368,10 +369,24 @@ async fn run_without_tui(
 
     let token = tokio_util::sync::CancellationToken::new();
 
-    #[cfg(any(unix, windows))]
-    watch_signals(&token);
+    // The events have no reader here, so sending them just fails.
+    #[cfg(feature = "tui")]
+    let tx = tokio::sync::mpsc::unbounded_channel().0;
 
-    main_task(config, token).await
+    #[cfg(any(unix, windows))]
+    watch_signals(
+        &token,
+        #[cfg(feature = "tui")]
+        &tx,
+    );
+
+    main_task(
+        config,
+        token,
+        #[cfg(feature = "tui")]
+        tx,
+    )
+    .await
 }
 
 #[cfg_attr(
@@ -394,12 +409,11 @@ async fn main() -> crate::Result<()> {
         raw_config::read_config(&raw_config::get_config_path()).await?;
     let logging_filter = create_logging_filter(raw_config.debug);
 
+    // Under cron or with the output redirected there is nothing to draw on.
     #[cfg(feature = "tui")]
-    {
-        run_with_tui(raw_config, logging_filter).await
+    if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+        return run_with_tui(raw_config, logging_filter).await;
     }
-    #[cfg(not(feature = "tui"))]
-    {
-        run_without_tui(raw_config, logging_filter).await
-    }
+
+    run_without_tui(raw_config, logging_filter).await
 }

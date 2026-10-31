@@ -74,7 +74,7 @@ pub fn proxy_matches(text: &str) -> impl Iterator<Item = ProxyMatch<'_>> {
     })
 }
 
-pub fn parse_ipv4(mut s: &str) -> Option<std::net::Ipv4Addr> {
+fn parse_ipv4(mut s: &str) -> Option<std::net::Ipv4Addr> {
     s = s.trim();
     let host = if let Some((host, port)) = s.rsplit_once(':') {
         if port.parse::<u16>().is_ok() { host } else { s }
@@ -85,13 +85,26 @@ pub fn parse_ipv4(mut s: &str) -> Option<std::net::Ipv4Addr> {
     host.parse().ok()
 }
 
+#[derive(serde::Deserialize)]
+struct HttpbinResponse {
+    origin: compact_str::CompactString,
+}
+
+pub fn parse_exit_ip(body: &str) -> Option<std::net::Ipv4Addr> {
+    match serde_json::from_str::<HttpbinResponse>(body) {
+        // A proxy that reveals its client turns this into "client, exit".
+        Ok(httpbin) => httpbin.origin.rsplit(',').next().and_then(parse_ipv4),
+        Err(_) => parse_ipv4(body),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::net::Ipv4Addr;
 
     use compact_str::{CompactString, format_compact};
 
-    use super::{parse_ipv4, proxy_matches};
+    use super::{parse_exit_ip, parse_ipv4, proxy_matches};
 
     fn endpoints(text: &str) -> Vec<CompactString> {
         proxy_matches(text)
@@ -227,5 +240,18 @@ mod tests {
         assert_eq!(parse_ipv4(""), None);
         assert_eq!(parse_ipv4("2001:db8::1"), None);
         assert_eq!(parse_ipv4("1.2.3.4:notaport"), None);
+    }
+
+    #[test]
+    fn exit_ip_comes_from_either_body_shape() {
+        let expected = Some(Ipv4Addr::new(1, 2, 3, 4));
+        assert_eq!(parse_exit_ip("1.2.3.4\n"), expected);
+        assert_eq!(parse_exit_ip(r#"{"origin": "1.2.3.4"}"#), expected);
+        assert_eq!(
+            parse_exit_ip(r#"{"origin": "9.9.9.9, 1.2.3.4"}"#),
+            expected
+        );
+        assert_eq!(parse_exit_ip(r#"{"ip": "1.2.3.4"}"#), None);
+        assert_eq!(parse_exit_ip("<html>hello</html>"), None);
     }
 }

@@ -59,7 +59,6 @@ pub async fn check_all(
 
     #[cfg(feature = "tui")]
     drop(tx.send(Event::App(AppEvent::Stage(Stage::Checking))));
-    #[cfg(not(feature = "tui"))]
     tracing::info!("Started checking {} proxies", proxies.len());
 
     let queue = Arc::new(parking_lot::Mutex::new(proxies));

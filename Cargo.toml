@@ -2,6 +2,8 @@
 name = "proxy-scraper-checker"
 version = "0.1.0"
 edition = "2024"
+description = "Scrapes HTTP, SOCKS4 and SOCKS5 proxies and keeps the ones that work"
+repository = "https://github.com/monosans/proxy-scraper-checker"
 license = "MIT"
 publish = false
 

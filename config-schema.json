@@ -1,5 +1,5 @@
 {
-  "$id": "https://github.com/monosans/proxy-scraper-checker/blob/main/config.toml",
+  "$id": "https://github.com/monosans/proxy-scraper-checker/blob/main/config-schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "proxy-scraper-checker config",
   "type": "object",

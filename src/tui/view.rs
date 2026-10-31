@@ -13,7 +13,7 @@ use crate::{config::Config, event::Stage};
 
 const NAME_WIDTH: usize = 6;
 const SHARE_WIDTH: usize = 6;
-const COLUMN_GAP: usize = 2;
+const GAP: &str = "  ";
 const MIN_BAR_WIDTH: usize = 10;
 const LOG_INDENT: usize = 10;
 const LOG_MIN_WIDTH: u16 = 18;
@@ -51,7 +51,7 @@ const fn error() -> Style {
 }
 
 fn gap() -> Span<'static> {
-    Span::raw(" ".repeat(COLUMN_GAP))
+    Span::raw(GAP)
 }
 
 fn line_width(spans: &[Span<'_>]) -> usize {
@@ -137,12 +137,14 @@ struct Row {
     count: CompactString,
     count_style: Style,
     amount: CompactString,
+    amount_style: Style,
     share: CompactString,
 }
 
 struct Headings {
     count: &'static str,
     amount: &'static str,
+    amount_style: Style,
 }
 
 #[derive(Default)]
@@ -173,13 +175,17 @@ impl Columns {
             any_share |= !row.share.is_empty();
         }
 
-        let fixed: usize =
-            [NAME_WIDTH, columns.count, columns.amount, 3 * COLUMN_GAP]
-                .into_iter()
-                .sum();
+        let fixed: usize = [
+            NAME_WIDTH,
+            columns.count,
+            columns.amount,
+            GAP.len().saturating_mul(3),
+        ]
+        .into_iter()
+        .sum();
         let room = width.saturating_sub(fixed);
         let room_with_share =
-            room.saturating_sub(SHARE_WIDTH.saturating_add(COLUMN_GAP));
+            room.saturating_sub(SHARE_WIDTH.saturating_add(GAP.len()));
 
         columns.share = any_share && room_with_share >= MIN_BAR_WIDTH;
         columns.bar = if columns.share { room_with_share } else { room };
@@ -197,39 +203,37 @@ impl Columns {
         }
         spans.push(gap());
         spans.push(Span::styled(
-            format_compact!("{:>1$}", headings.count, self.count).to_string(),
+            format!("{:>1$}", headings.count, self.count),
             dim(),
         ));
         spans.push(gap());
         spans.push(Span::styled(
-            format_compact!("{:>1$}", headings.amount, self.amount).to_string(),
-            if headings.amount == "Working" { working() } else { dim() },
+            format!("{:>1$}", headings.amount, self.amount),
+            headings.amount_style,
         ));
         Line::from(spans)
     }
 
     fn row(&self, row: &Row) -> Line<'static> {
-        let mut spans = vec![Span::raw(
-            format_compact!("{:<NAME_WIDTH$}", row.name).to_string(),
-        )];
+        let mut spans = vec![Span::raw(format!("{:<NAME_WIDTH$}", row.name))];
         if self.bar != 0 {
             spans.push(gap());
             spans.extend(row.meter.spans(self.bar));
         }
         spans.push(gap());
         spans.push(Span::styled(
-            format_compact!("{:>1$}", row.count, self.count).to_string(),
+            format!("{:>1$}", row.count, self.count),
             row.count_style,
         ));
         spans.push(gap());
         spans.push(Span::styled(
-            format_compact!("{:>1$}", row.amount, self.amount).to_string(),
-            if row.share.is_empty() { Style::new() } else { working() },
+            format!("{:>1$}", row.amount, self.amount),
+            row.amount_style,
         ));
         if self.share {
             spans.push(gap());
             spans.push(Span::styled(
-                format_compact!("{:>SHARE_WIDTH$}", row.share).to_string(),
+                format!("{:>SHARE_WIDTH$}", row.share),
                 dim(),
             ));
         }
@@ -260,6 +264,7 @@ fn protocol_row(
             ),
             count_style: Style::new(),
             amount: grouped(progress.proxies_working),
+            amount_style: working(),
             share: format_compact!("{share:.1}%"),
         }
     } else {
@@ -277,6 +282,7 @@ fn protocol_row(
             ),
             count_style: Style::new(),
             amount: grouped(progress.proxies_total),
+            amount_style: Style::new(),
             share: CompactString::default(),
         }
     }
@@ -311,6 +317,7 @@ fn database_row(name: &'static str, progress: DbProgress) -> Row {
         count,
         count_style,
         amount: CompactString::default(),
+        amount_style: Style::new(),
         share: CompactString::default(),
     }
 }
@@ -343,10 +350,7 @@ fn stepper(config: &Config, state: &State) -> Vec<Span<'static>> {
     let mut spans = Vec::with_capacity(steps.len().saturating_mul(2));
     for (stage, name) in steps {
         if !spans.is_empty() {
-            spans.push(Span::styled(
-                format_compact!(" {TRACK} ").to_string(),
-                dim(),
-            ));
+            spans.push(Span::styled(format!(" {TRACK} "), dim()));
         }
         let style = if finished || stage < state.stage {
             Style::new()
@@ -366,7 +370,7 @@ fn timing(config: &Config, state: &State) -> Vec<Span<'static>> {
         Mode::Done | Mode::Quit => {
             let verb =
                 if state.stopped { "Stopped after" } else { "Finished in" };
-            vec![Span::raw(format_compact!("{verb} {elapsed}").to_string())]
+            vec![Span::raw(format!("{verb} {elapsed}"))]
         }
         Mode::Stopping => vec![
             Span::styled("Stopping", bold()),
@@ -383,9 +387,7 @@ fn timing(config: &Config, state: &State) -> Vec<Span<'static>> {
             spans.push(Span::raw(elapsed.to_string()));
             if let Some(left) = state.seconds_left(config) {
                 spans.push(gap());
-                spans.push(Span::raw(
-                    format_compact!("~{}", clock(left)).to_string(),
-                ));
+                spans.push(Span::raw(format!("~{}", clock(left))));
                 spans.push(Span::styled(" left", dim()));
             }
             spans
@@ -398,8 +400,8 @@ fn header(config: &Config, state: &State, width: usize) -> Line<'static> {
     let steps = stepper(config, state);
 
     let right_width = line_width(&right);
-    let steps_width = line_width(&steps).saturating_add(COLUMN_GAP);
-    let title_width = TITLE.len().saturating_add(COLUMN_GAP);
+    let steps_width = line_width(&steps).saturating_add(GAP.len());
+    let title_width = TITLE.len().saturating_add(GAP.len());
     let mut used = right_width;
 
     let mut left = Vec::new();
@@ -407,7 +409,7 @@ fn header(config: &Config, state: &State, width: usize) -> Line<'static> {
         left.push(Span::styled(TITLE, bold()));
         left.push(gap());
         left.push(gap());
-        used = used.saturating_add(title_width).saturating_add(COLUMN_GAP);
+        used = used.saturating_add(title_width).saturating_add(GAP.len());
     }
     if used.saturating_add(steps_width) <= width {
         used = used.saturating_add(steps_width);
@@ -450,9 +452,13 @@ fn overview(
     let checked =
         config.checking.check_url.is_some() && state.stage >= Stage::Checking;
     let headings = if checked {
-        Headings { count: "Checked", amount: "Working" }
+        Headings {
+            count: "Checked",
+            amount: "Working",
+            amount_style: working(),
+        }
     } else {
-        Headings { count: "Sources", amount: "Found" }
+        Headings { count: "Sources", amount: "Found", amount_style: dim() }
     };
 
     let enabled = config.scraping.enabled_protocols;
@@ -558,7 +564,7 @@ fn footer(
         let entry = [
             gap(),
             Span::styled(key, bold()),
-            Span::styled(format_compact!(" {action}").to_string(), dim()),
+            Span::styled(format!(" {action}"), dim()),
         ];
         let needed = line_width(&spans).saturating_add(line_width(&entry));
         if needed > width {
@@ -571,7 +577,7 @@ fn footer(
     }
 
     let keys_width = line_width(&spans);
-    let url = (keys_width.saturating_add(URL.len()).saturating_add(COLUMN_GAP)
+    let url = (keys_width.saturating_add(URL.len()).saturating_add(GAP.len())
         <= width)
         .then(|| Line::styled(URL, dim()).right_aligned());
     (Line::from(spans), url)

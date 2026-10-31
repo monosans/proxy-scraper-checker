@@ -164,12 +164,12 @@ mod tests {
 
     const SHIPPED_CONFIG: &str = include_str!("../config.toml");
 
-    fn source(toml: &str) -> Source {
-        #[derive(serde::Deserialize)]
-        struct Wrapper {
-            source: SourceConfig,
-        }
+    #[derive(serde::Deserialize)]
+    struct Wrapper {
+        source: SourceConfig,
+    }
 
+    fn source(toml: &str) -> Source {
         toml::from_str::<Wrapper>(toml).unwrap().source.into()
     }
 
@@ -217,6 +217,16 @@ mod tests {
                 .map(compact_str::CompactString::as_str),
             Some("Bearer token")
         );
+    }
+
+    #[test]
+    fn a_mistyped_source_option_is_an_error() {
+        for toml in [
+            r#"source = { url = "a", header = { Authorization = "b" } }"#,
+            r#"source = { url = "a", basic_auth = { user = "b" } }"#,
+        ] {
+            assert!(toml::from_str::<Wrapper>(toml).is_err());
+        }
     }
 
     #[test]

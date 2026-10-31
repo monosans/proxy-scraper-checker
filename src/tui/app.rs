@@ -30,9 +30,13 @@ pub const FASTEST_KEPT: usize = 8;
 pub struct RatatuiRestoreGuard;
 
 impl Drop for RatatuiRestoreGuard {
-    // Not ratatui::restore, which panics if stderr went with the terminal.
+    // Not ratatui::restore, which panics if stderr went with the terminal. The
+    // panic hook has already restored it, and leaving the alternate screen
+    // twice would put the cursor back over the panic report.
     fn drop(&mut self) {
-        drop(ratatui::try_restore());
+        if crossterm::terminal::is_raw_mode_enabled().unwrap_or(true) {
+            drop(ratatui::try_restore());
+        }
         drop(crossterm::execute!(std::io::stdout(), crossterm::cursor::Show));
     }
 }

@@ -304,7 +304,7 @@ fn stop_on_signal<S>(
         }
     };
     // Not tied to the token: after ESC cancels the run, the TUI stays open
-    // until it is told to quit, and tokio keeps swallowing the signals.
+    // until it is told to quit.
     tokio::spawn(async move {
         if signal.await.is_some() {
             tracing::info!("Received {signal_name} signal, exiting...");
@@ -335,8 +335,9 @@ fn watch_signals(
 
         // Listening would undo nohup, which ignores SIGHUP to keep a run going
         // and takes it off the terminal to do so.
-        let on_terminal =
-            std::io::stdin().is_terminal() || std::io::stdout().is_terminal();
+        let on_terminal = std::io::stdin().is_terminal()
+            || std::io::stdout().is_terminal()
+            || std::io::stderr().is_terminal();
         let signals = [
             ("SIGINT", SignalKind::interrupt(), true),
             ("SIGTERM", SignalKind::terminate(), true),
@@ -520,6 +521,8 @@ async fn main() -> crate::Result<()> {
 #[cfg(test)]
 #[cfg(feature = "tui")]
 mod tests {
+    use std::time::Duration;
+
     use color_eyre::eyre::eyre;
     use compact_str::CompactString;
     use tokio::sync::mpsc::unbounded_channel;
@@ -529,6 +532,11 @@ mod tests {
         event::{AppEvent, Event},
         join_run_and_tui,
     };
+
+    // A side that never tells the other would hang the tests rather than fail.
+    async fn within_a_test<T>(future: impl Future<Output = T>) -> T {
+        tokio::time::timeout(Duration::from_secs(5), future).await.unwrap()
+    }
 
     #[tokio::test]
     async fn a_failed_terminal_stops_the_run_and_keeps_its_result() {
@@ -540,8 +548,13 @@ mod tests {
         };
         let tui = async { Err(eyre!("the terminal is gone")) };
 
-        let (summary, tui_result) =
-            join_run_and_tui(run, tui, token, unbounded_channel().0).await;
+        let (summary, tui_result) = within_a_test(join_run_and_tui(
+            run,
+            tui,
+            token,
+            unbounded_channel().0,
+        ))
+        .await;
 
         assert_eq!(summary.unwrap(), "saved");
         drop(tui_result.unwrap_err());
@@ -561,8 +574,13 @@ mod tests {
             Ok(())
         };
 
-        let (summary, tui_result) =
-            join_run_and_tui(run, tui, token, unbounded_channel().0).await;
+        let (summary, tui_result) = within_a_test(join_run_and_tui(
+            run,
+            tui,
+            token,
+            unbounded_channel().0,
+        ))
+        .await;
 
         assert_eq!(summary.unwrap(), "saved");
         drop(tui_result.unwrap_err());
@@ -578,8 +596,13 @@ mod tests {
             Ok(())
         };
 
-        let (summary, tui_result) =
-            join_run_and_tui(run, tui, CancellationToken::new(), tx).await;
+        let (summary, tui_result) = within_a_test(join_run_and_tui(
+            run,
+            tui,
+            CancellationToken::new(),
+            tx,
+        ))
+        .await;
 
         drop(summary.unwrap_err());
         tui_result.unwrap();

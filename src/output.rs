@@ -5,7 +5,7 @@ use std::{
     net::{IpAddr, Ipv4Addr},
     path::{Path, PathBuf},
     sync::Arc,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use color_eyre::eyre::WrapErr as _;
@@ -228,55 +228,73 @@ async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
     }
 }
 
-// Clears out earlier previous directories and returns a free name for the next
-// one. A directory something still holds is left for a later save to clear,
-// since a reader that stays open across runs must not fail them.
-async fn clear_previous(to: &Path) -> PathBuf {
-    let mut free = None;
-    let mut path = with_suffix(to, ".old");
-    let mut attempt = 1_u32;
-    while tokio::fs::try_exists(&path).await.unwrap_or(false) {
-        if let Err(e) = remove_dir(&path).await {
-            tracing::warn!("{}", pretty_error(&e));
-        } else if free.is_none() {
-            free = Some(path.clone());
-        }
-        path = with_suffix(to, &format_compact!(".old{attempt}"));
-        attempt = attempt.saturating_add(1);
+// Whatever something still holds stays for a later save to clear, since a
+// reader that stays open across runs must not fail them.
+async fn clear_previous(previous: &Path) {
+    if let Err(e) = remove_dir(previous).await {
+        tracing::warn!("{}", pretty_error(&e));
     }
-    free.unwrap_or(path)
+}
+
+async fn move_aside(to: &Path, previous: &Path) -> crate::Result<PathBuf> {
+    tokio::fs::create_dir_all(previous).await.wrap_err_with(|| {
+        format_compact!("failed to create directory: {}", previous.display())
+    })?;
+    let stamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let aside = previous.join(format_compact!("{stamp}"));
+    tokio::fs::rename(to, &aside)
+        .await
+        .wrap_err_with(|| rename_failed(to, &aside))?;
+    Ok(aside)
 }
 
 // The previous directory is moved aside rather than deleted first: a file
 // held open would otherwise fail the deletion halfway through, and a commit
-// that fails can still put it back.
+// that fails can still put it back. It goes inside a directory of its own, so
+// that one that can't be deleted yet doesn't get in the next one's way.
 async fn commit_directory(from: &Path, to: &Path) -> crate::Result<()> {
+    let previous = with_suffix(to, ".old");
+
     // With nothing at `to`, an earlier commit was cut short, and what it moved
     // aside is the last output there is until the new one lands.
-    let previous = if tokio::fs::try_exists(to).await.unwrap_or(true) {
-        let aside = clear_previous(to).await;
-        tokio::fs::rename(to, &aside)
-            .await
-            .wrap_err_with(|| rename_failed(to, &aside))?;
-        Some(aside)
-    } else {
+    let nothing_there = matches!(
+        tokio::fs::symlink_metadata(to).await,
+        Err(e) if e.kind() == io::ErrorKind::NotFound
+    );
+    let aside = if nothing_there {
         None
+    } else {
+        clear_previous(&previous).await;
+        match move_aside(to, &previous).await {
+            Ok(aside) => Some(aside),
+            Err(e) => {
+                clear_previous(&previous).await;
+                return Err(e);
+            }
+        }
     };
 
     if let Err(e) = tokio::fs::rename(from, to).await {
         let mut failed = rename_failed(from, to);
-        if let Some(previous) = &previous
-            && let Err(restore_error) = tokio::fs::rename(previous, to).await
-        {
-            failed = format_compact!(
-                "{failed}; the previous output is in {}: {restore_error}",
-                previous.display()
-            );
+        if let Some(aside) = &aside {
+            match tokio::fs::rename(aside, to).await {
+                Ok(()) => clear_previous(&previous).await,
+                Err(restore_error) => {
+                    failed = format_compact!(
+                        "{failed}; the previous output is in {}: \
+                         {restore_error}",
+                        aside.display()
+                    );
+                }
+            }
         }
         return Err(e).wrap_err(failed);
     }
 
-    drop(clear_previous(to).await);
+    clear_previous(&previous).await;
     Ok(())
 }
 
@@ -851,7 +869,8 @@ mod tests {
         let directory = temp_directory("cut-short");
         let proxies = directory.join("proxies");
         let staged = directory.join("proxies.tmp");
-        let aside = directory.join("proxies.old");
+        let previous = directory.join("proxies.old");
+        let aside = previous.join("1");
         std::fs::create_dir_all(&aside).unwrap();
         std::fs::write(aside.join("all.txt"), "old").unwrap();
 
@@ -871,7 +890,76 @@ mod tests {
             std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
             "new"
         );
-        assert!(!aside.exists());
+        assert!(!previous.exists());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_file_where_the_directory_goes_is_replaced_and_cleared() {
+        let directory = temp_directory("file-in-the-way");
+        let proxies = directory.join("proxies");
+        let staged = directory.join("proxies.tmp");
+        std::fs::write(&proxies, "not a directory").unwrap();
+        std::fs::create_dir_all(&staged).unwrap();
+
+        commit_directory(&staged, &proxies).await.unwrap();
+
+        assert!(proxies.is_dir());
+        assert!(!directory.join("proxies.old").exists());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_backup_beside_the_output_is_left_alone() {
+        let directory = temp_directory("backup");
+        let proxies = directory.join("proxies");
+        let staged = directory.join("proxies.tmp");
+        let backup = directory.join("proxies.old1");
+        std::fs::create_dir_all(&proxies).unwrap();
+        std::fs::create_dir_all(&staged).unwrap();
+        std::fs::create_dir_all(&backup).unwrap();
+        std::fs::write(backup.join("mine.txt"), "mine").unwrap();
+
+        commit_directory(&staged, &proxies).await.unwrap();
+
+        assert!(backup.join("mine.txt").is_file());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_dangling_link_where_the_directory_goes_is_replaced() {
+        let directory = temp_directory("dangling");
+        let proxies = directory.join("proxies");
+        let staged = directory.join("proxies.tmp");
+        std::os::unix::fs::symlink(directory.join("gone"), &proxies).unwrap();
+        std::fs::create_dir_all(&staged).unwrap();
+
+        commit_directory(&staged, &proxies).await.unwrap();
+
+        assert!(proxies.is_dir());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn every_failed_commit_is_reported() {
+        let directory = temp_directory("every-failure");
+        std::fs::create_dir_all(directory.join("proxies.json/taken")).unwrap();
+        std::fs::create_dir_all(directory.join("proxies_pretty.json/taken"))
+            .unwrap();
+
+        let config = unchecked_config(directory.clone()).await;
+        let error = save_proxies(config, vec![proxy("1.1.1.1", 80, None)])
+            .await
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("proxies.json.tmp"), "{error}");
+        assert!(error.contains("proxies_pretty.json.tmp"), "{error}");
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -885,7 +973,8 @@ mod tests {
 
         let directory = temp_directory("held-old");
         let proxies = directory.join("proxies");
-        let held = directory.join("proxies.old");
+        let previous = directory.join("proxies.old");
+        let held = previous.join("1");
         std::fs::create_dir_all(&proxies).unwrap();
         std::fs::create_dir_all(&held).unwrap();
         std::fs::write(proxies.join("all.txt"), "old").unwrap();
@@ -910,8 +999,7 @@ mod tests {
 
         drop(reader);
         save_proxies(config, vec![proxy("3.3.3.3", 80, None)]).await.unwrap();
-        assert!(!held.exists());
-        assert!(!directory.join("proxies.old1").exists());
+        assert!(!previous.exists());
 
         std::fs::remove_dir_all(directory).unwrap();
     }

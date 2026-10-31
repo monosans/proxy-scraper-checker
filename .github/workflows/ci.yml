@@ -238,7 +238,7 @@ jobs:
       # `python -m ziglang` with the Python of its own tool environment.
       - if: ${{ matrix.builder == 'zigbuild' }}
         run: |
-          uv tool install "cargo-zigbuild==${CARGO_ZIGBUILD_VERSION}" --with "ziglang==${ZIG_VERSION}"
+          uv tool install --exclude-newer '3 days' "cargo-zigbuild==${CARGO_ZIGBUILD_VERSION}" --with "ziglang==${ZIG_VERSION}"
           echo "CARGO_ZIGBUILD_PYTHON_PATH=$(uv tool dir)/cargo-zigbuild/bin/python" >> "${GITHUB_ENV}"
       # The .<version> suffix links the gnu targets against that glibc: the
       # oldest one Rust supports on the target, so the binaries also start on

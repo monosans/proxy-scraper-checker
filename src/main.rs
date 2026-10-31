@@ -285,12 +285,13 @@ async fn main_task(
 }
 
 #[cfg(any(unix, windows))]
-fn stop_on_signal<S>(
+fn stop_on_signal<S, R>(
     signal_name: &'static str,
     signal: std::io::Result<S>,
     stop: impl FnOnce() + Send + 'static,
 ) where
-    S: Future<Output = Option<()>> + Send + 'static,
+    S: Future<Output = Option<R>> + Send + 'static,
+    R: Send + 'static,
 {
     let signal = match signal {
         Ok(signal) => signal,
@@ -306,9 +307,13 @@ fn stop_on_signal<S>(
     // Not tied to the token: after ESC cancels the run, the TUI stays open
     // until it is told to quit.
     tokio::spawn(async move {
-        if signal.await.is_some() {
+        if let Some(receiver) = signal.await {
             tracing::info!("Received {signal_name} signal, exiting...");
             stop();
+            // With nothing listening, Windows would let a second Ctrl-C kill
+            // the process, which by then is saving what it found.
+            std::future::pending::<()>().await;
+            drop(receiver);
         }
     });
 }
@@ -347,8 +352,9 @@ fn watch_signals(
             if wanted {
                 stop_on_signal(
                     signal_name,
-                    signal(kind)
-                        .map(|mut signal| async move { signal.recv().await }),
+                    signal(kind).map(|mut signal| async move {
+                        signal.recv().await.map(|()| signal)
+                    }),
                     stop.clone(),
                 );
             }
@@ -361,12 +367,16 @@ fn watch_signals(
 
         stop_on_signal(
             "Ctrl-C",
-            ctrl_c().map(|mut signal| async move { signal.recv().await }),
+            ctrl_c().map(|mut signal| async move {
+                signal.recv().await.map(|()| signal)
+            }),
             stop.clone(),
         );
         stop_on_signal(
             "console close",
-            ctrl_close().map(|mut signal| async move { signal.recv().await }),
+            ctrl_close().map(|mut signal| async move {
+                signal.recv().await.map(|()| signal)
+            }),
             stop,
         );
     }

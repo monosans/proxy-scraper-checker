@@ -229,11 +229,28 @@ async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
 }
 
 // Whatever something still holds stays for a later save to clear, since a
-// reader that stays open across runs must not fail them.
+// reader that stays open across runs must not fail them. One at a time, so
+// that it doesn't keep the rest here too.
 async fn clear_previous(previous: &Path) {
-    if let Err(e) = remove_dir(previous).await {
-        tracing::warn!("{}", pretty_error(&e));
+    let Ok(mut entries) = tokio::fs::read_dir(previous).await else {
+        return;
+    };
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let path = entry.path();
+        let removed = if entry.file_type().await.is_ok_and(|kind| kind.is_dir())
+        {
+            remove_dir(&path).await
+        } else {
+            tokio::fs::remove_file(&path).await.wrap_err_with(|| {
+                format_compact!("failed to remove file: {}", path.display())
+            })
+        };
+        if let Err(e) = removed {
+            tracing::warn!("{}", pretty_error(&e));
+        }
     }
+    // It stays only if something in it did, which was just reported.
+    drop(tokio::fs::remove_dir(previous).await);
 }
 
 async fn move_aside(to: &Path, previous: &Path) -> crate::Result<PathBuf> {
@@ -996,6 +1013,7 @@ mod tests {
             std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
             "http://2.2.2.2:80"
         );
+        assert_eq!(std::fs::read_dir(&previous).unwrap().count(), 1);
 
         drop(reader);
         save_proxies(config, vec![proxy("3.3.3.3", 80, None)]).await.unwrap();

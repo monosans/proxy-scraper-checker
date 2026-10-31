@@ -2,6 +2,16 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "branchTopic": "{{{depNameSanitized}}}-{{{newMajor}}}{{#if separateMinorPatch}}{{#if isPatch}}.{{{newMinor}}}{{/if}}{{/if}}{{#if separateMultipleMinor}}{{#if isMinor}}.{{{newMinor}}}{{/if}}{{/if}}.x",
   "configMigration": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Keep CI on the newest Python",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.yml$/"],
+      "matchStrings": ["python-version: \"(?<currentValue>\\d+\\.\\d+)\""],
+      "depNameTemplate": "docker.io/python",
+      "datasourceTemplate": "docker"
+    }
+  ],
   "dependencyDashboard": false,
   "extends": [
     "config:recommended",
@@ -26,6 +36,13 @@
     {
       "description": "Cargo has no cooldown for the transitive dependencies it resolves, so one on the direct dependencies would only delay updates",
       "matchManagers": ["cargo"],
+      "minimumReleaseAge": null
+    },
+    {
+      "description": "A new Python is reviewed by hand. A cooldown would count from the last rebuild of an image tag, which keeps part of the update out of the PR",
+      "matchPackageNames": ["python", "docker.io/python"],
+      "groupName": "python",
+      "automerge": false,
       "minimumReleaseAge": null
     }
   ],

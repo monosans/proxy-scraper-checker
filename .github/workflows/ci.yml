@@ -251,7 +251,8 @@ jobs:
       - run: mkdir dist
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
         shell: bash
-      - run: mv config.toml config-schema.json dist/
+      - run: mv config.toml dist/
+      - run: mv config-schema.json dist/
       - run: mv LICENSE dist/
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:

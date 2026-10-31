@@ -51,7 +51,6 @@ mod checker;
 mod config;
 #[cfg(feature = "tui")]
 mod event;
-mod fs;
 mod http;
 mod ipdb;
 mod output;
@@ -63,7 +62,9 @@ mod scraper;
 mod tui;
 mod utils;
 
-use std::sync::Arc;
+#[cfg(feature = "tui")]
+use std::io::Write as _;
+use std::{io::IsTerminal as _, sync::Arc};
 
 use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
@@ -81,10 +82,31 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+// auto-allocator replaces the system allocator only where that measurably
+// wins, and both replacements also take over malloc for the C dependencies
+// (aws-lc). On glibc and Windows the system allocator had the lowest peak RSS
+// and mimalloc/jemalloc saved no significant CPU. The BSDs ship jemalloc and
+// Android ships Scudo as their libc allocator already.
+
+// macOS: 12-58% lower peak RSS than libmalloc.
 #[cfg(all(feature = "auto-allocator", target_os = "macos"))]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator_auto::Jemalloc =
     tikv_jemallocator_auto::Jemalloc;
+
+// musl: 8-18% less CPU than mallocng when checking. mimalloc rather than
+// jemalloc because jemalloc fixes the page size at build time, and a
+// cross-compiled build assumes 4 KiB pages and aborts on 16/64 KiB kernels
+// (Raspberry Pi 5, Asahi, ppc64le). v2 with no_thp costs 5-25% peak RSS over
+// mallocng; v3 or letting it madvise(MADV_HUGEPAGE) costs up to 60%.
+// mimalloc needs 64-bit atomics, which armv5te lacks.
+#[cfg(all(
+    feature = "auto-allocator",
+    target_env = "musl",
+    target_has_atomic = "64"
+))]
+#[global_allocator]
+static GLOBAL: mimalloc_auto::MiMalloc = mimalloc_auto::MiMalloc;
 
 type Error = color_eyre::Report;
 type Result<T> = color_eyre::Result<T>;
@@ -92,9 +114,7 @@ type Result<T> = color_eyre::Result<T>;
 type HashMap<K, V> = rapidhash::RapidHashMap<K, V>;
 type HashSet<T> = rapidhash::RapidHashSet<T>;
 
-fn create_logging_filter(
-    config: &config::Config,
-) -> tracing_subscriber::filter::Targets {
+fn create_logging_filter(debug: bool) -> tracing_subscriber::filter::Targets {
     let base = tracing_subscriber::filter::Targets::new()
         .with_default(tracing::level_filters::LevelFilter::INFO)
         .with_target(
@@ -102,7 +122,7 @@ fn create_logging_filter(
             tracing::level_filters::LevelFilter::OFF,
         );
 
-    if config.debug {
+    if debug {
         base.with_target(
             "proxy_scraper_checker",
             tracing::level_filters::LevelFilter::DEBUG,
@@ -113,54 +133,77 @@ fn create_logging_filter(
 }
 
 async fn download_ipdb(
-    config: &config::Config,
+    config: Arc<config::Config>,
     http_client: reqwest_middleware::ClientWithMiddleware,
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> crate::Result<output::UseIpDb> {
-    let spawn = move |db_type: ipdb::DbType, enabled: bool| {
-        if enabled {
-            let http_client = http_client.clone();
-            let token = token.clone();
-            #[cfg(feature = "tui")]
-            let tx = tx.clone();
+) {
+    let databases = [
+        (ipdb::DbType::Asn, config.asn_enabled()),
+        (ipdb::DbType::Geo, config.geolocation_enabled()),
+    ];
+    drop(config);
 
-            tokio::spawn(async move {
-                let download = db_type.download(
-                    http_client,
-                    #[cfg(feature = "tui")]
-                    tx,
-                );
+    let mut join_set = tokio::task::JoinSet::new();
 
-                let downloaded_ok = |res: crate::Result<()>| match res {
-                    Ok(()) => true,
-                    Err(e) => {
-                        tracing::warn!(
-                            "failed to download IP database: {}",
-                            utils::pretty_error(&e),
-                        );
-                        false
-                    }
-                };
-
-                tokio::select! {
-                    biased;
-                    res = download => downloaded_ok(res),
-                    () = token.cancelled() => false,
-                }
-            })
-        } else {
-            tokio::spawn(async { false })
+    for (db_type, enabled) in databases {
+        if !enabled {
+            continue;
         }
-    };
 
-    let asn_task = spawn(ipdb::DbType::Asn, config.asn_enabled());
-    let geodb_task = spawn(ipdb::DbType::Geo, config.geolocation_enabled());
-    drop(spawn);
+        let http_client = http_client.clone();
+        let token = token.clone();
+        #[cfg(feature = "tui")]
+        let tx = tx.clone();
 
-    Ok(output::UseIpDb { asn: asn_task.await?, geo: geodb_task.await? })
+        join_set.spawn(async move {
+            let download = db_type.download(
+                http_client,
+                #[cfg(feature = "tui")]
+                tx.clone(),
+            );
+
+            let result = tokio::select! {
+                biased;
+                res = download => res,
+                () = token.cancelled() => Ok(()),
+            };
+
+            if let Err(e) = &result {
+                tracing::warn!(
+                    "failed to download {} database: {}",
+                    db_type.name(),
+                    utils::pretty_error(e),
+                );
+            }
+
+            #[cfg(feature = "tui")]
+            if !token.is_cancelled() {
+                drop(tx.send(event::Event::App(
+                    event::AppEvent::IpDbFinished(db_type, result.is_ok()),
+                )));
+            }
+        });
+    }
+
+    drop(http_client);
+    drop(token);
+    #[cfg(feature = "tui")]
+    drop(tx);
+
+    // A panic here should cost the ASN and geolocation data, not the run:
+    // every real download failure is already logged inside the task, and
+    // save_proxies degrades gracefully when a database is unavailable.
+    while let Some(res) = join_set.join_next().await {
+        if let Err(e) = res {
+            tracing::error!(
+                "IP database task panicked: {}",
+                utils::pretty_error(&e.into())
+            );
+        }
+    }
 }
 
 async fn main_task(
@@ -169,12 +212,15 @@ async fn main_task(
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> crate::Result<()> {
+) -> crate::Result<compact_str::CompactString> {
     let http_client = http::create_reqwest_client(&config).await?;
 
-    let (use_ipdb, mut proxies) = tokio::try_join!(
+    // The databases download while scraping rather than while checking, so
+    // the download does not compete with the checks for bandwidth and skew
+    // their timeouts.
+    let ((), scraped) = tokio::join!(
         download_ipdb(
-            &config,
+            Arc::clone(&config),
             http_client.clone(),
             token.clone(),
             #[cfg(feature = "tui")]
@@ -187,32 +233,89 @@ async fn main_task(
             #[cfg(feature = "tui")]
             tx.clone(),
         ),
-    )?;
+    );
 
-    proxies = checker::check_all(
+    let scraped = scraped?;
+    let found = output::count_by_protocol(&scraped);
+
+    let proxies = checker::check_all(
         Arc::clone(&config),
-        proxies,
+        scraped,
         token.clone(),
         #[cfg(feature = "tui")]
         tx.clone(),
     )
     .await?;
 
-    if proxies.is_empty() && token.is_cancelled() {
-        tracing::warn!(
-            "Stopped before any proxy was checked - previous results left \
-             untouched"
+    let summary = if proxies.is_empty() {
+        let summary = compact_str::CompactString::const_new(
+            "No proxies to save - previous results left untouched",
         );
+        tracing::warn!("{summary}");
+        summary
     } else {
-        output::save_proxies(config, proxies, use_ipdb).await?;
-    }
+        // A stop during the save comes after everything was checked.
+        let stopped = token.is_cancelled();
+        let saved = output::count_by_protocol(&proxies);
+        #[cfg(feature = "tui")]
+        let saved_count = proxies.len();
+        #[cfg(feature = "tui")]
+        drop(tx.send(event::Event::App(event::AppEvent::Stage(
+            event::Stage::Saving,
+        ))));
+
+        let location =
+            output::save_proxies(Arc::clone(&config), proxies).await?;
+
+        #[cfg(feature = "tui")]
+        drop(tx.send(event::Event::App(event::AppEvent::Saved(saved_count))));
+
+        let summary =
+            output::summary(&config, &found, &saved, &location, stopped);
+        tracing::info!("{summary}");
+        summary
+    };
 
     tracing::info!("Thank you for using proxy-scraper-checker!");
 
     #[cfg(feature = "tui")]
     drop(tx.send(event::Event::App(event::AppEvent::Done)));
 
-    Ok(())
+    Ok(summary)
+}
+
+#[cfg(any(unix, windows))]
+fn stop_on_signal<S, R>(
+    signal_name: &'static str,
+    signal: std::io::Result<S>,
+    stop: impl FnOnce() + Send + 'static,
+) where
+    S: Future<Output = Option<R>> + Send + 'static,
+    R: Send + 'static,
+{
+    let signal = match signal {
+        Ok(signal) => signal,
+        Err(e) => {
+            tracing::warn!(
+                "Failed to listen for {} signal: {}",
+                signal_name,
+                utils::pretty_error(&e.into())
+            );
+            return;
+        }
+    };
+    // Not tied to the token: after ESC cancels the run, the TUI stays open
+    // until it is told to quit.
+    tokio::spawn(async move {
+        if let Some(receiver) = signal.await {
+            tracing::info!("Received {signal_name} signal, exiting...");
+            stop();
+            // With nothing listening, Windows would let a second Ctrl-C kill
+            // the process, which by then is saving what it found.
+            std::future::pending::<()>().await;
+            drop(receiver);
+        }
+    });
 }
 
 #[cfg(any(unix, windows))]
@@ -222,60 +325,97 @@ fn watch_signals(
         event::Event,
     >,
 ) {
+    let token = token.clone();
+    #[cfg(feature = "tui")]
+    let tx = tx.clone();
+    let stop = move || {
+        token.cancel();
+        #[cfg(feature = "tui")]
+        drop(tx.send(event::Event::App(event::AppEvent::Quit)));
+    };
+
     #[cfg(unix)]
-    let signals = [
-        (
-            "SIGINT",
-            tokio::signal::unix::signal(
-                tokio::signal::unix::SignalKind::interrupt(),
-            ),
-        ),
-        (
-            "SIGTERM",
-            tokio::signal::unix::signal(
-                tokio::signal::unix::SignalKind::terminate(),
-            ),
-        ),
-    ];
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        // Listening would undo nohup, which ignores SIGHUP to keep a run going
+        // and takes it off the terminal to do so.
+        let on_terminal = std::io::stdin().is_terminal()
+            || std::io::stdout().is_terminal()
+            || std::io::stderr().is_terminal();
+        let signals = [
+            ("SIGINT", SignalKind::interrupt(), true),
+            ("SIGTERM", SignalKind::terminate(), true),
+            ("SIGHUP", SignalKind::hangup(), on_terminal),
+        ];
+        for (signal_name, kind, wanted) in signals {
+            if wanted {
+                stop_on_signal(
+                    signal_name,
+                    signal(kind).map(|mut signal| async move {
+                        signal.recv().await.map(|()| signal)
+                    }),
+                    stop.clone(),
+                );
+            }
+        }
+    }
 
     #[cfg(windows)]
-    let signals = [("Ctrl-C", tokio::signal::windows::ctrl_c())];
+    {
+        use tokio::signal::windows::{ctrl_c, ctrl_close};
 
-    for (signal_name, stream) in signals {
-        let mut stream = match stream {
-            Ok(signal) => signal,
-            Err(e) => {
-                tracing::warn!(
-                    "Failed to listen for {} signal: {}",
-                    signal_name,
-                    utils::pretty_error(&e.into())
-                );
-                continue;
-            }
-        };
-        let token = token.clone();
-        #[cfg(feature = "tui")]
-        let tx = tx.clone();
-        tokio::spawn(async move {
-            let quit = || {
-                tracing::info!("Received {signal_name} signal, exiting...");
-                token.cancel();
-                #[cfg(feature = "tui")]
-                drop(tx.send(event::Event::App(event::AppEvent::Quit)));
-            };
-
-            tokio::select! {
-                biased;
-                () = token.cancelled() => {},
-                _ = stream.recv() => quit(),
-            }
-        });
+        stop_on_signal(
+            "Ctrl-C",
+            ctrl_c().map(|mut signal| async move {
+                signal.recv().await.map(|()| signal)
+            }),
+            stop.clone(),
+        );
+        stop_on_signal(
+            "console close",
+            ctrl_close().map(|mut signal| async move {
+                signal.recv().await.map(|()| signal)
+            }),
+            stop,
+        );
     }
+}
+
+// Neither side may drop the other mid-way: a run that fails closes the
+// terminal, and a terminal that fails stops the run, which still saves what it
+// found. The TUI gets a task of its own so that a panic in it fails the same
+// way.
+#[cfg(feature = "tui")]
+async fn join_run_and_tui(
+    run: impl Future<Output = crate::Result<compact_str::CompactString>>,
+    tui: impl Future<Output = crate::Result<()>> + Send + 'static,
+    token: tokio_util::sync::CancellationToken,
+    tx: tokio::sync::mpsc::UnboundedSender<event::Event>,
+) -> (crate::Result<compact_str::CompactString>, crate::Result<()>) {
+    let tui = tokio::spawn(tui);
+    tokio::join!(
+        async move {
+            let result = run.await;
+            if result.is_err() {
+                drop(tx.send(event::Event::App(event::AppEvent::Quit)));
+            }
+            result
+        },
+        async move {
+            let result =
+                tui.await.map_err(Into::into).and_then(|result| result);
+            if result.is_err() {
+                token.cancel();
+            }
+            result
+        }
+    )
 }
 
 #[cfg(feature = "tui")]
 async fn run_with_tui(
-    config: Arc<config::Config>,
+    raw_config: raw_config::RawConfig,
     logging_filter: tracing_subscriber::filter::Targets,
 ) -> crate::Result<()> {
     tui_logger::init_logger(tui_logger::LevelFilter::Debug)?;
@@ -284,8 +424,10 @@ async fn run_with_tui(
         .with(tui_logger::TuiTracingSubscriberLayer)
         .init();
 
+    let config = Arc::new(config::Config::from_raw_config(raw_config).await?);
+
     let terminal = ratatui::try_init()?;
-    let terminal_guard = tui::RatatuiRestoreGuard;
+    let terminal_guard = tui::app::RatatuiRestoreGuard;
 
     let token = tokio_util::sync::CancellationToken::new();
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
@@ -293,34 +435,68 @@ async fn run_with_tui(
     #[cfg(any(unix, windows))]
     watch_signals(&token, &tx);
 
-    tokio::try_join!(
-        main_task(config, token.clone(), tx.clone()),
-        async move {
-            let result = tui::run(terminal, token, tx, rx).await;
-            drop(terminal_guard);
-            result
-        }
-    )?;
+    let run = main_task(Arc::clone(&config), token.clone(), tx.clone());
+    let quit = tx.clone();
+    let tui_token = token.clone();
+    let tui = async move {
+        let result = tui::app::run(terminal, config, tui_token, tx, rx).await;
+        drop(terminal_guard);
+        result
+    };
 
-    Ok(())
+    let (summary, tui_result) = join_run_and_tui(run, tui, token, quit).await;
+
+    match summary {
+        Ok(summary) => {
+            // The alternate screen takes everything with it when it closes, so
+            // this is the only part of the run left in the scrollback.
+            drop(writeln!(std::io::stdout(), "{summary}"));
+            tui_result
+        }
+        Err(e) => utils::keep_both_errors(Err(e), tui_result),
+    }
 }
 
-#[cfg(not(feature = "tui"))]
 async fn run_without_tui(
-    config: Arc<config::Config>,
+    raw_config: raw_config::RawConfig,
     logging_filter: tracing_subscriber::filter::Targets,
 ) -> crate::Result<()> {
+    // Colors are for people: escape codes only litter log files.
+    let colored = std::io::stdout().is_terminal()
+        && std::env::var_os("NO_COLOR").is_none_or(|value| value.is_empty());
     tracing_subscriber::registry()
         .with(logging_filter)
-        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(colored)
+                .with_target(false),
+        )
         .init();
+
+    let config = Arc::new(config::Config::from_raw_config(raw_config).await?);
 
     let token = tokio_util::sync::CancellationToken::new();
 
-    #[cfg(any(unix, windows))]
-    watch_signals(&token);
+    // The events have no reader here, so sending them just fails.
+    #[cfg(feature = "tui")]
+    let tx = tokio::sync::mpsc::unbounded_channel().0;
 
-    main_task(config, token).await
+    #[cfg(any(unix, windows))]
+    watch_signals(
+        &token,
+        #[cfg(feature = "tui")]
+        &tx,
+    );
+
+    main_task(
+        config,
+        token,
+        #[cfg(feature = "tui")]
+        tx,
+    )
+    .await?;
+
+    Ok(())
 }
 
 #[cfg_attr(
@@ -337,15 +513,108 @@ async fn main() -> crate::Result<()> {
 
     color_eyre::install()?;
 
-    let config = config::load_config().await?;
-    let logging_filter = create_logging_filter(&config);
+    // Only parsed here: building the Config can log, which needs the subscriber
+    // the debug flag configures.
+    let raw_config =
+        raw_config::read_config(&raw_config::get_config_path()).await?;
+    let logging_filter = create_logging_filter(raw_config.debug);
 
+    // Under cron or with the output redirected there is nothing to draw on.
     #[cfg(feature = "tui")]
-    {
-        run_with_tui(config, logging_filter).await
+    if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+        return run_with_tui(raw_config, logging_filter).await;
     }
-    #[cfg(not(feature = "tui"))]
-    {
-        run_without_tui(config, logging_filter).await
+
+    run_without_tui(raw_config, logging_filter).await
+}
+
+#[cfg(test)]
+#[cfg(feature = "tui")]
+mod tests {
+    use std::time::Duration;
+
+    use color_eyre::eyre::eyre;
+    use compact_str::CompactString;
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio_util::sync::CancellationToken;
+
+    use crate::{
+        event::{AppEvent, Event},
+        join_run_and_tui,
+    };
+
+    // A side that never tells the other would hang the tests rather than fail.
+    async fn within_a_test<T>(future: impl Future<Output = T>) -> T {
+        tokio::time::timeout(Duration::from_secs(5), future).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_failed_terminal_stops_the_run_and_keeps_its_result() {
+        let token = CancellationToken::new();
+        let stopped = token.clone();
+        let run = async move {
+            stopped.cancelled().await;
+            Ok(CompactString::const_new("saved"))
+        };
+        let tui = async { Err(eyre!("the terminal is gone")) };
+
+        let (summary, tui_result) = within_a_test(join_run_and_tui(
+            run,
+            tui,
+            token,
+            unbounded_channel().0,
+        ))
+        .await;
+
+        assert_eq!(summary.unwrap(), "saved");
+        drop(tui_result.unwrap_err());
+    }
+
+    #[tokio::test]
+    async fn a_panic_in_the_terminal_stops_the_run_and_keeps_its_result() {
+        let token = CancellationToken::new();
+        let stopped = token.clone();
+        let run = async move {
+            stopped.cancelled().await;
+            Ok(CompactString::const_new("saved"))
+        };
+
+        let tui = async {
+            std::hint::black_box(None::<()>).unwrap();
+            Ok(())
+        };
+
+        let (summary, tui_result) = within_a_test(join_run_and_tui(
+            run,
+            tui,
+            token,
+            unbounded_channel().0,
+        ))
+        .await;
+
+        assert_eq!(summary.unwrap(), "saved");
+        drop(tui_result.unwrap_err());
+    }
+
+    #[tokio::test]
+    async fn a_failed_run_closes_the_terminal() {
+        let (tx, mut rx) = unbounded_channel();
+        let run = async { Err(eyre!("the save failed")) };
+        let tui = async move {
+            let event = rx.recv().await;
+            assert!(matches!(event, Some(Event::App(AppEvent::Quit))));
+            Ok(())
+        };
+
+        let (summary, tui_result) = within_a_test(join_run_and_tui(
+            run,
+            tui,
+            CancellationToken::new(),
+            tx,
+        ))
+        .await;
+
+        drop(summary.unwrap_err());
+        tui_result.unwrap();
     }
 }

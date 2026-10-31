@@ -12,7 +12,7 @@ path = "./out"
 sort_by_speed = true
 
 # proxies/all.txt (with protocol prefix) plus one file per protocol (without).
-# The proxies/ directory is deleted and rewritten on every run.
+# The proxies/ directory is replaced on every run that has something to write.
 # At least one of [output.txt] and [output.json] must stay enabled.
 [output.txt]
 enabled = true
@@ -45,7 +45,8 @@ include_geolocation = true
 # Any other page (https://google.com, say) still proves the proxy works, but leaves
 # exit_ip, asn and geolocation null no matter what is enabled above.
 #
-# Set to "" to skip checking entirely and output everything scraped.
+# Set to "" to skip checking entirely and output everything scraped. The ASN and
+# geolocation databases are then not downloaded.
 check_url = "https://ipv4.icanhazip.com"
 
 # How many proxies to check at once. A run takes roughly
@@ -72,15 +73,18 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 # source is dropped, not truncated. Keep it above 65534 so a /16 CIDR still fits.
 max_proxies_per_source = 100000
 
-# Seconds to fetch one source, connection included. Sources are fetched in parallel and
-# retried twice. Does not limit the ASN and geolocation database downloads.
+# Seconds to fetch one source, connection included. Sources are fetched in parallel, and
+# one that fails to connect or answers 408, 429 or 5xx is retried up to twice. The ASN
+# and geolocation downloads have no such limit: they only give up after a minute without
+# data.
 timeout = 10.0
 
 # Seconds allowed to connect to a source.
 connect_timeout = 5.0
 
-# Fetch sources through this proxy, e.g. "socks5://user:pass@host:port".
-# Has no effect on proxy checking. Leave empty to connect directly.
+# Fetch sources and the ASN and geolocation databases through this proxy, e.g.
+# "socks5://user:pass@host:port". Has no effect on proxy checking. Leave empty to connect
+# directly.
 proxy = ""
 
 # Sent when fetching sources.
@@ -95,6 +99,7 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 # Any text format works, since proxies are pattern-matched out, so HTML and JSON
 # need no cleanup. Recognized forms:
 #   1.2.3.4:8080
+#   proxy.example.com:8080
 #   socks5://1.2.3.4:1080
 #   user:pass@1.2.3.4:8080
 #   1.2.3.0/24:8080          CIDR, /16 to /32, expanded to every host

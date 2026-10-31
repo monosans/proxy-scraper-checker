@@ -1680,8 +1680,6 @@ dependencies = [
  "rustls-platform-verifier",
  "serde",
  "serde_json",
- "smallvec",
- "strum",
  "tikv-jemallocator",
  "tokio",
  "tokio-util",

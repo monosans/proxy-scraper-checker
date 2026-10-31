@@ -223,6 +223,10 @@ fi
     hs_before="$(cat bench-tls-handshakes.txt 2>/dev/null || echo 0)"
   fi
 
+  # A run with nothing to write leaves the previous output in place, so clear
+  # it, or proxies_out would count the files of an earlier workload.
+  rm -rf "$out_dir/proxies" "$out_dir/proxies.json" "$out_dir/proxies_pretty.json"
+
   set +e
   # ALLOC_ENV is deliberately word-split: it carries zero or more VAR=VAL pairs.
   # shellcheck disable=SC2086

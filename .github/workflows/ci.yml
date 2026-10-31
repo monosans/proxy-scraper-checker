@@ -19,6 +19,7 @@ jobs:
       - licenses
       - pre-commit
       - rustfmt
+      - test
       - udeps
     runs-on: ubuntu-26.04
     steps:
@@ -251,6 +252,7 @@ jobs:
       - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
         shell: bash
       - run: mv config.toml dist/
+      - run: mv config-schema.json dist/
       - run: mv LICENSE dist/
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -405,7 +407,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: third-party-licenses
-      - run: mv {out,compose.yaml,config.toml,LICENSE,LICENSE-THIRD-PARTY} dist/
+      - run: mv {out,compose.yaml,config.toml,config-schema.json,LICENSE,LICENSE-THIRD-PARTY} dist/
       - name: Create Dockerfile
         run: |
           cat << 'EOF' > dist/Dockerfile
@@ -583,6 +585,32 @@ jobs:
           components: rustfmt
           cache: false
       - run: cargo +nightly fmt --check
+  test:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - id: tui
+            runner: ubuntu-26.04
+            features: "--features tui"
+          - id: default
+            runner: ubuntu-26.04
+            features: ""
+          # Some of the output tests only exist on Windows.
+          - id: windows
+            runner: windows-2025
+            features: "--features tui"
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+        with:
+          toolchain: beta
+          cache-key: test-${{ matrix.id }}
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo +beta test ${{ matrix.features }} --locked
   udeps:
     runs-on: ubuntu-26.04
     strategy:

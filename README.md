@@ -1,6 +1,6 @@
 # <img src="assets/logo.svg" alt="" width="40" align="top"> proxy-scraper-checker
 
-![TUI Demo](https://github.com/user-attachments/assets/0ac37021-d11c-4f68-b80d-bafdbaeb00bb)
+![The TUI during a run: per-protocol progress, the fastest proxies so far and logs](assets/tui.png)
 
 A proxy scraper and checker written in Rust.
 
@@ -12,7 +12,7 @@ It collects HTTP/SOCKS4/SOCKS5 proxies from any number of sources, verifies each
 - Proxies are pattern-matched out of raw text, HTML or JSON, so any source works untouched. `scheme://user:pass@host:port` and CIDR ranges are understood, from URLs or local files.
 - Every proxy has to fetch a real URL _in full_ to survive, so ones that connect and then stall get dropped. Results are deduplicated across sources.
 - Each working proxy comes with its response time, and with its exit IP when `check_url` returns one. ASN and city-level geolocation are looked up in offline MaxMind databases, so there are no per-proxy API calls.
-- The interactive TUI shows per-protocol progress and logs as the run goes.
+- The interactive TUI follows the run through scraping, checking and saving, with per-protocol results, the fastest proxies so far, speed and time left. It rearranges itself for narrow screens, so it also fits a phone held upright. Without a terminal it prints plain logs, with a progress line every 30 seconds of checking, so it also runs under cron and in Docker.
 - Output is JSON with metadata, plus ready-to-paste plain text lists.
 
 ## Related
@@ -169,6 +169,8 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
    ```bash
    bash <(curl -fsSL 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/termux.sh')
    ```
+
+   Running it again updates the binary and resets `config.toml`.
 
 2. Edit the config in a text editor:
 
@@ -378,6 +380,8 @@ Results land in `./out`; `output.path` is ignored in Docker.
    cargo run --features tui --release --locked
    ```
 
+   Leave out `--features tui` to get plain log output instead of the interactive interface.
+
 The binary lands in `target/release/proxy-scraper-checker` on Linux/macOS, or `target\release\proxy-scraper-checker.exe` on Windows.
 
 </details>
@@ -404,6 +408,16 @@ gh attestation verify <archive> \
 
 The Docker images are attested the same way, and the prebuilt Docker archives pin the image by digest, so `docker compose build` uses exactly the image CI built.
 
+## Keys
+
+| Key                  | Action                                                                |
+| -------------------- | --------------------------------------------------------------------- |
+| `q`, `ESC`           | Stop the run and save the working proxies found so far. Again to quit |
+| `Ctrl-C`             | Stop the run and leave the TUI at once. The save still happens        |
+| `↑`, `PageUp`, `k`   | Scroll the logs up                                                    |
+| `↓`, `PageDown`, `j` | Scroll the logs down                                                  |
+| `End`                | Back to the latest log lines                                          |
+
 ## Output
 
 ```
@@ -418,6 +432,8 @@ out/
 ```
 
 A text line is `host:port`, or `username:password@host:port` for a proxy that needs credentials, with `protocol://` in front of either in `all.txt`.
+
+The JSON files hold an array of entries like this one:
 
 ```json
 {
@@ -446,9 +462,11 @@ A text line is `host:port`, or `username:password@host:port` for a proxy that ne
 
 `timeout` is how long the whole request took, in seconds: connection, request and the complete response. That is also what `sort_by_speed` orders by. `exit_ip` is the address the target site actually saw, so comparing it with `host` spots proxies that forward through somewhere else.
 
-`exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns the exit IP, so pointing it at an ordinary web page leaves all three `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
+`exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns an IPv4 exit address, so pointing it at an ordinary web page leaves all three `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
 
-Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes out the working proxies found so far. If none has been found yet, the previous run's files are left as they were.
+Stopping a run early writes out the working proxies found so far, whether from the [keys](#keys) above or with `Ctrl-C` or `SIGTERM` when there is no TUI. A run that ends with no proxies to write leaves the previous run's files as they were.
+
+With `sort_by_speed = false` the text files list the same proxies in the same order on every run, so committing them to a repository shows a diff only when the list changed.
 
 ## Sponsors
 

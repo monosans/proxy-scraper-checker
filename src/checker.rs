@@ -76,8 +76,12 @@ async fn resolve_check_url(config: &Config) -> Vec<SocketAddr> {
         return Vec::new();
     };
 
+    // Only SOCKS4 uses these, as it can't name a host, and it can't carry IPv6
+    // either. Every other protocol leaves resolving to the proxy.
     let lookup = tokio::task::spawn_blocking(move || {
-        (host.as_str(), port).to_socket_addrs().map(Iterator::collect)
+        (host.as_str(), port)
+            .to_socket_addrs()
+            .map(|addresses| addresses.filter(SocketAddr::is_ipv4).collect())
     });
 
     if let Ok(Ok(addrs)) = lookup.await { addrs } else { Vec::new() }
@@ -252,8 +256,27 @@ mod tests {
 
     use compact_str::CompactString;
 
-    use super::{next_proxy, progress_line};
-    use crate::proxy::{Proxy, ProxyType};
+    use super::{next_proxy, progress_line, resolve_check_url};
+    use crate::{
+        config::tests::test_config,
+        proxy::{Proxy, ProxyType},
+    };
+
+    async fn resolved(check_url: &str) -> Vec<std::net::SocketAddr> {
+        let config = test_config(|raw| {
+            raw.checking.check_url = Some(check_url.parse().unwrap());
+        })
+        .await;
+        resolve_check_url(&config).await
+    }
+
+    #[tokio::test]
+    async fn the_check_url_resolves_to_ipv4_only() {
+        let addresses = resolved("http://localhost/").await;
+        assert_ne!(addresses.len(), 0);
+        assert!(addresses.iter().all(std::net::SocketAddr::is_ipv4));
+        assert_eq!(resolved("http://[::1]/").await.len(), 0);
+    }
 
     #[test]
     fn the_queue_releases_what_was_taken_from_it() {

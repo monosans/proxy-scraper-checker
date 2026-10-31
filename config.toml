@@ -71,12 +71,13 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 [scraping]
 # Discard a source that yields more than this many proxies (0 = no limit). The whole
 # source is dropped, not truncated. Keep it above 65534 so a /16 CIDR still fits.
+# A reply over 1 KiB per proxy allowed here is dropped as well, while it downloads.
 max_proxies_per_source = 100000
 
 # Seconds to fetch one source, connection included. Sources are fetched in parallel, and
-# one that fails to connect or answers 408, 429 or 5xx is retried up to twice. The ASN
-# and geolocation downloads have no such limit: they only give up after a minute without
-# data.
+# one that fails to connect or answers 408, 429, 500, 502, 503 or 504 is retried up to
+# twice. The ASN and geolocation downloads have no such limit: they only give up after a
+# minute without data.
 timeout = 10.0
 
 # Seconds allowed to connect to a source.
@@ -84,7 +85,7 @@ connect_timeout = 5.0
 
 # Fetch sources and the ASN and geolocation databases through this proxy, e.g.
 # "socks5://user:pass@host:port". Has no effect on proxy checking. Leave empty to connect
-# directly.
+# directly, or through the system's proxy settings (such as HTTPS_PROXY) if it has any.
 proxy = ""
 
 # Sent when fetching sources.
@@ -96,8 +97,8 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 #
 # Duplicates are removed across all sources, so overlapping lists are fine.
 #
-# Any text format works, since proxies are pattern-matched out, so HTML and JSON
-# need no cleanup. Recognized forms:
+# Any text format works as long as host and port stay together, since proxies are
+# pattern-matched out, so HTML and JSON need no cleanup. Recognized forms:
 #   1.2.3.4:8080
 #   proxy.example.com:8080
 #   socks5://1.2.3.4:1080

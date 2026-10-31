@@ -422,7 +422,7 @@ jobs:
           USER root
 
           RUN (getent group "${GID}" || groupmod --gid "${GID}" app) \
-            && usermod --uid "${UID}" --gid "${GID}" app
+            && usermod --non-unique --uid "${UID}" --gid "${GID}" app
 
           USER app
           EOF

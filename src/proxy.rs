@@ -9,6 +9,10 @@ use color_eyre::eyre::eyre;
 
 use crate::{config::Config, parsers::parse_exit_ip};
 
+// An exit IP is a few bytes, and with an http:// check_url the proxy itself
+// writes this body, as long as it likes.
+const MAX_EXIT_IP_BODY: usize = 64 * 1024;
+
 #[repr(u8)]
 #[derive(
     Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize,
@@ -190,14 +194,15 @@ impl Proxy {
         let start = Instant::now();
         let mut response = request.send().await?.error_for_status()?;
 
-        if config.exit_ip_enabled() {
-            let text = response.text().await?;
-            self.timeout = Some(start.elapsed());
+        let keep = if config.exit_ip_enabled() { MAX_EXIT_IP_BODY } else { 0 };
+        let mut body = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            body.extend(chunk.iter().take(keep.saturating_sub(body.len())));
+        }
+        self.timeout = Some(start.elapsed());
 
-            self.exit_ip = parse_exit_ip(&text);
-        } else {
-            while response.chunk().await?.is_some() {}
-            self.timeout = Some(start.elapsed());
+        if config.exit_ip_enabled() {
+            self.exit_ip = parse_exit_ip(&String::from_utf8_lossy(&body));
         }
 
         Ok(())
@@ -332,6 +337,21 @@ mod tests {
         let (address, _) = serve(vec![EXIT_IP_REPLY]).await;
         let (result, proxy) =
             check(address, |raw| raw.output.json.enabled = false).await;
+        result.unwrap();
+        assert!(proxy.timeout.is_some());
+        assert_eq!(proxy.exit_ip, None);
+    }
+
+    #[tokio::test]
+    async fn a_huge_reply_passes_the_check_without_being_kept() {
+        let body = format!(r#"{{"origin": "5.6.7.8"{}}}"#, " ".repeat(1 << 17));
+        let reply = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: \
+             close\r\n\r\n{body}",
+            body.len()
+        );
+        let (address, _) = serve(vec![reply.leak()]).await;
+        let (result, proxy) = check(address, |_| {}).await;
         result.unwrap();
         assert!(proxy.timeout.is_some());
         assert_eq!(proxy.exit_ip, None);

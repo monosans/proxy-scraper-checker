@@ -125,6 +125,13 @@ impl Config {
             ));
         }
 
+        // Every check builds its own client, so this would fail each of them,
+        // and failed checks are only logged in debug mode.
+        reqwest::header::HeaderValue::from_bytes(
+            raw_config.checking.user_agent.as_bytes(),
+        )
+        .wrap_err("invalid 'checking.user_agent' in config")?;
+
         let output_path = get_output_path(raw_config.output.path).await?;
         let max_concurrent_checks = get_max_concurrent_checks(
             raw_config.checking.max_concurrent_checks,
@@ -208,6 +215,14 @@ pub mod tests {
             toml::from_str(include_str!("../config.toml")).unwrap();
         raw_config.output.json.enabled = false;
         raw_config.output.txt.enabled = false;
+        assert!(Config::from_raw_config(raw_config).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_check_user_agent_that_cannot_be_sent_is_refused() {
+        let mut raw_config: RawConfig =
+            toml::from_str(include_str!("../config.toml")).unwrap();
+        raw_config.checking.user_agent = "a\nb".into();
         assert!(Config::from_raw_config(raw_config).await.is_err());
     }
 

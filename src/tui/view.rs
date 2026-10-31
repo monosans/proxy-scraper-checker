@@ -9,6 +9,7 @@ use ratatui::{
     widgets::Paragraph,
 };
 use tui_logger::{ExtLogRecord, LogFormatter, TuiLoggerWidget, TuiWidgetState};
+use unicode_width::UnicodeWidthChar as _;
 
 use super::app::{DbProgress, FASTEST_KEPT, Mode, ProtocolProgress, State};
 use crate::{
@@ -716,13 +717,17 @@ fn wrap(text: &str, width: usize) -> impl Iterator<Item = &str> {
         if rest.is_empty() {
             return None;
         }
-        let end =
-            rest.char_indices().nth(width).map_or(rest.len(), |(end, _)| {
-                rest.get(..end)
-                    .and_then(|line| line.rfind(' '))
-                    .filter(|&space| space >= end.div_euclid(2))
-                    .map_or(end, |space| space.saturating_add(1))
-            });
+        let mut cells = 0_usize;
+        let overflow = rest.char_indices().find(|&(index, character)| {
+            cells = cells.saturating_add(character.width().unwrap_or(0));
+            cells > width && index > 0
+        });
+        let end = overflow.map_or(rest.len(), |(end, _)| {
+            rest.get(..end)
+                .and_then(|line| line.rfind(' '))
+                .filter(|&space| space >= end.div_euclid(2))
+                .map_or(end, |space| space.saturating_add(1))
+        });
         let (line, tail) = rest.split_at(end);
         rest = tail;
         Some(line)
@@ -984,6 +989,17 @@ mod tests {
 
         let lines: Vec<_> = wrap("abcdefgh", 3).collect();
         assert_eq!(lines, ["abc", "def", "gh"]);
+    }
+
+    #[test]
+    fn wrap_counts_the_cells_a_character_takes() {
+        let lines: Vec<_> =
+            wrap("\u{8def}\u{5f84}\u{8def}\u{5f84}a", 4).collect();
+        assert_eq!(lines, ["\u{8def}\u{5f84}", "\u{8def}\u{5f84}", "a"]);
+
+        // Too narrow for even one of them, and it still has to end.
+        let lines: Vec<_> = wrap("\u{8def}\u{5f84}", 1).collect();
+        assert_eq!(lines, ["\u{8def}", "\u{5f84}"]);
     }
 
     #[test]

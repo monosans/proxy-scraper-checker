@@ -1687,6 +1687,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tui-logger",
+ "unicode-width",
  "url",
  "webpki-roots",
 ]

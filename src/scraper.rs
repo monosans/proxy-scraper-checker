@@ -133,6 +133,11 @@ async fn read_source_file(path: std::path::PathBuf) -> crate::Result<String> {
     })
 }
 
+fn over_limit(config: &Config, proxies: &HashSet<Proxy>) -> bool {
+    let limit = config.scraping.max_proxies_per_source;
+    limit != 0 && proxies.len() > limit
+}
+
 async fn scrape_one(
     config: Arc<Config>,
     http_client: reqwest_middleware::ClientWithMiddleware,
@@ -182,16 +187,22 @@ async fn scrape_one(
                 && let Ok(ipv4_net) =
                     proxy_match.host_cidr.parse::<ipnet::Ipv4Net>()
             {
-                new_proxies.extend(ipv4_net.hosts().map(move |host_ip| {
-                    Proxy {
+                // A remote /1 must reach the limit below before it reaches
+                // the end of the memory, and duplicates don't count towards
+                // it, so the hosts can't simply be cut off at what is left.
+                for host_ip in ipv4_net.hosts() {
+                    new_proxies.insert(Proxy {
                         protocol,
                         host: host_ip.to_compact_string(),
                         port,
                         auth: auth.clone(),
                         timeout: None,
                         exit_ip: None,
+                    });
+                    if over_limit(&config, &new_proxies) {
+                        break;
                     }
-                }));
+                }
             } else {
                 new_proxies.insert(Proxy {
                     protocol,
@@ -205,9 +216,7 @@ async fn scrape_one(
 
             // Checked after inserting, so duplicates and CIDR ranges count as
             // the unique proxies they add.
-            if config.scraping.max_proxies_per_source != 0
-                && new_proxies.len() > config.scraping.max_proxies_per_source
-            {
+            if over_limit(&config, &new_proxies) {
                 tracing::warn!(
                     "{}: too many proxies (> {}) - skipped",
                     source.url,
@@ -353,5 +362,17 @@ mod tests {
         assert_eq!(scrape("limit-at", text, 2).await.len(), 2);
         assert_eq!(scrape("limit-over", text, 1).await.len(), 0);
         assert_eq!(scrape("limit-cidr", "1.1.1.0/30:80", 1).await.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn a_huge_cidr_stops_at_the_limit_instead_of_expanding() {
+        assert_eq!(scrape("limit-huge", "1.0.0.0/1:80", 10).await.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn duplicates_in_a_cidr_do_not_hide_the_hosts_past_the_limit() {
+        let text = "1.1.1.1:80 1.1.1.2:80 1.1.1.0/29:80";
+        assert_eq!(scrape("limit-duplicates", text, 3).await.len(), 0);
+        assert_eq!(scrape("limit-fits", text, 6).await.len(), 6);
     }
 }

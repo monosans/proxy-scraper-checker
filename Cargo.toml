@@ -74,6 +74,7 @@ tracing-subscriber = { version = "=0.3.23", features = ["parking_lot"] }
 tui-logger = { version = "=0.18.3", features = [
   "tracing-support",
 ], optional = true }
+unicode-segmentation = { version = "=1.13.3", optional = true }
 unicode-width = { version = "=0.2.3", optional = true }
 url = "=2.5.8"
 
@@ -116,6 +117,7 @@ tui = [
   "dep:futures",
   "dep:ratatui",
   "dep:tui-logger",
+  "dep:unicode-segmentation",
   "dep:unicode-width",
 ]
 

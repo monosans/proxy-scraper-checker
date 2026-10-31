@@ -9,7 +9,8 @@ use ratatui::{
     widgets::Paragraph,
 };
 use tui_logger::{ExtLogRecord, LogFormatter, TuiLoggerWidget, TuiWidgetState};
-use unicode_width::UnicodeWidthChar as _;
+use unicode_segmentation::UnicodeSegmentation as _;
+use unicode_width::UnicodeWidthStr as _;
 
 use super::app::{DbProgress, FASTEST_KEPT, Mode, ProtocolProgress, State};
 use crate::{
@@ -718,10 +719,11 @@ fn wrap(text: &str, width: usize) -> impl Iterator<Item = &str> {
             return None;
         }
         let mut cells = 0_usize;
-        let overflow = rest.char_indices().find(|&(index, character)| {
-            cells = cells.saturating_add(character.width().unwrap_or(0));
-            cells > width && index > 0
-        });
+        let overflow =
+            rest.grapheme_indices(true).find(|&(index, grapheme)| {
+                cells = cells.saturating_add(grapheme.width());
+                cells > width && index > 0
+            });
         let end = overflow.map_or(rest.len(), |(end, _)| {
             rest.get(..end)
                 .and_then(|line| line.rfind(' '))
@@ -996,6 +998,10 @@ mod tests {
         let lines: Vec<_> =
             wrap("\u{8def}\u{5f84}\u{8def}\u{5f84}a", 4).collect();
         assert_eq!(lines, ["\u{8def}\u{5f84}", "\u{8def}\u{5f84}", "a"]);
+
+        // Two cells together, one each apart.
+        let lines: Vec<_> = wrap("#\u{fe0f}abc", 4).collect();
+        assert_eq!(lines, ["#\u{fe0f}ab", "c"]);
 
         // Too narrow for even one of them, and it still has to end.
         let lines: Vec<_> = wrap("\u{8def}\u{5f84}", 1).collect();

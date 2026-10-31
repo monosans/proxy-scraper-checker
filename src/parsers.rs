@@ -91,6 +91,7 @@ struct HttpbinResponse {
 }
 
 pub fn parse_exit_ip(body: &str) -> Option<std::net::Ipv4Addr> {
+    let body = body.strip_prefix('\u{feff}').unwrap_or(body);
     match serde_json::from_str::<HttpbinResponse>(body) {
         // A proxy that reveals its client turns this into "client, exit".
         Ok(httpbin) => httpbin.origin.rsplit(',').next().and_then(parse_ipv4),
@@ -259,6 +260,7 @@ mod tests {
     fn exit_ip_comes_from_either_body_shape() {
         let expected = Some(Ipv4Addr::new(1, 2, 3, 4));
         assert_eq!(parse_exit_ip("1.2.3.4\n"), expected);
+        assert_eq!(parse_exit_ip("\u{feff}1.2.3.4\n"), expected);
         assert_eq!(parse_exit_ip(r#"{"origin": "1.2.3.4"}"#), expected);
         assert_eq!(
             parse_exit_ip(r#"{"origin": "9.9.9.9, 1.2.3.4"}"#),

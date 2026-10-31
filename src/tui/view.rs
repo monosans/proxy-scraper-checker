@@ -478,15 +478,16 @@ fn header(
     width: usize,
     stacked: bool,
 ) -> Vec<Line<'static>> {
-    let right = timing(config, state, width);
     let steps = stepper(config, state);
 
     if stacked {
+        let right = timing(config, state, width);
         return vec![Line::from(steps), Line::from(right)];
     }
 
-    let right_width = line_width(&right);
     let steps_width = line_width(&steps).saturating_add(GAP.len());
+    let right = timing(config, state, width.saturating_sub(steps_width));
+    let right_width = line_width(&right);
     let title_width = TITLE.len().saturating_add(GAP.len().saturating_mul(2));
     let mut used = right_width;
 
@@ -1145,6 +1146,15 @@ mod tests {
         let screen = render(&config, &state, 100, 24);
         assert!(screen.contains("Scrape"), "{screen}");
         assert!(screen.contains("proxy-scraper-checker  "), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn the_steps_stay_when_the_speed_has_to_go() {
+        let config = test_config(|_| {}).await;
+        let screen = render(&config, &checking_state(), 50, 20);
+        assert!(screen.contains("Scrape"), "{screen}");
+        assert!(screen.contains(" left"), "{screen}");
+        assert!(!screen.contains("checks/s"), "{screen}");
     }
 
     #[tokio::test]

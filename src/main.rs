@@ -254,6 +254,8 @@ async fn main_task(
         tracing::warn!("{summary}");
         summary
     } else {
+        // A stop during the save comes after everything was checked.
+        let stopped = token.is_cancelled();
         let saved = output::count_by_protocol(&proxies);
         #[cfg(feature = "tui")]
         let saved_count = proxies.len();
@@ -268,13 +270,8 @@ async fn main_task(
         #[cfg(feature = "tui")]
         drop(tx.send(event::Event::App(event::AppEvent::Saved(saved_count))));
 
-        let summary = output::summary(
-            &config,
-            &found,
-            &saved,
-            &location,
-            token.is_cancelled(),
-        );
+        let summary =
+            output::summary(&config, &found, &saved, &location, stopped);
         tracing::info!("{summary}");
         summary
     };
@@ -363,20 +360,36 @@ async fn run_with_tui(
     #[cfg(any(unix, windows))]
     watch_signals(&token, &tx);
 
-    let (summary, ()) = tokio::try_join!(
-        main_task(Arc::clone(&config), token.clone(), tx.clone()),
+    let run = main_task(Arc::clone(&config), token.clone(), tx.clone());
+    let quit = tx.clone();
+
+    // Neither side may drop the other mid-way: a run that fails closes the
+    // terminal, and a terminal that fails stops the run, which still saves
+    // what it found.
+    let (summary, tui_result) = tokio::join!(
         async move {
-            let result = tui::app::run(terminal, config, token, tx, rx).await;
+            let result = run.await;
+            if result.is_err() {
+                drop(quit.send(event::Event::App(event::AppEvent::Quit)));
+            }
+            result
+        },
+        async move {
+            let result =
+                tui::app::run(terminal, config, token.clone(), tx, rx).await;
             drop(terminal_guard);
+            if result.is_err() {
+                token.cancel();
+            }
             result
         }
-    )?;
+    );
 
     // The alternate screen takes everything with it when it closes, so this
     // is the only part of the run left in the scrollback.
-    drop(writeln!(std::io::stdout(), "{summary}"));
+    drop(writeln!(std::io::stdout(), "{}", summary?));
 
-    Ok(())
+    tui_result
 }
 
 async fn run_without_tui(

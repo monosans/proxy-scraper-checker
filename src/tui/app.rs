@@ -144,27 +144,34 @@ impl State {
 
     // Averaged over all of checking: each check takes about as long as any
     // other, and a short window would only make the time left jump around.
-    pub fn checks_per_second(&self) -> Option<usize> {
+    fn checking_ticks(&self) -> Option<u64> {
         let ticks = self.ticks.saturating_sub(self.checking_since);
-        if self.stage != Stage::Checking || ticks < MIN_TICKS_FOR_SPEED {
-            return None;
-        }
+        (self.stage == Stage::Checking && ticks >= MIN_TICKS_FOR_SPEED)
+            .then_some(ticks)
+    }
+
+    pub fn checks_per_second(&self) -> Option<usize> {
         let speed = (self.proxies_checked as u64)
             .saturating_mul(TICKS_PER_SECOND)
-            .checked_div(ticks)?;
+            .checked_div(self.checking_ticks()?)?;
         usize::try_from(speed).ok().filter(|&speed| speed != 0)
     }
 
+    // Not from the rounded speed: at 1.9 checks/s that alone would nearly
+    // double the estimate.
     pub fn seconds_left(&self, config: &Config) -> Option<u64> {
-        let speed = self.checks_per_second()?;
+        let ticks = self.checking_ticks()?;
         let total: usize = config
             .scraping
             .enabled_protocols
             .iter()
             .map(|protocol| self.protocols.get(protocol).proxies_total)
             .sum();
-        let left = total.saturating_sub(self.proxies_checked).div_ceil(speed);
-        Some(left as u64)
+        let left = total.saturating_sub(self.proxies_checked) as u64;
+        let checked_ticks =
+            (self.proxies_checked as u64).saturating_mul(TICKS_PER_SECOND);
+        (checked_ticks != 0)
+            .then(|| left.saturating_mul(ticks).div_ceil(checked_ticks))
     }
 }
 
@@ -278,7 +285,9 @@ fn handle_key(
             true
         }
         KeyCode::Esc | KeyCode::Char('q' | 'Q') if !ctrl => {
-            state.stopped |= matches!(state.mode, Mode::Running);
+            // Everything is checked by the time saving starts.
+            state.stopped |= matches!(state.mode, Mode::Running)
+                && state.stage != Stage::Saving;
             state.mode = state.mode.next();
             token.cancel();
             true
@@ -440,6 +449,21 @@ mod tests {
     }
 
     #[test]
+    fn q_while_saving_is_not_a_stopped_run() {
+        let mut state = State { stage: Stage::Saving, ..State::default() };
+        let token = CancellationToken::new();
+
+        apply(
+            &mut state,
+            &token,
+            press(KeyCode::Char('q'), KeyModifiers::NONE),
+        );
+
+        assert!(matches!(state.mode, Mode::Stopping));
+        assert!(!state.stopped);
+    }
+
+    #[test]
     fn ctrl_c_quits_at_once_but_ctrl_q_does_nothing() {
         let mut state = State::default();
         let token = CancellationToken::new();
@@ -574,6 +598,28 @@ mod tests {
         assert_eq!(state.seconds_left(&config), Some(15));
 
         state.stage = Stage::Saving;
+        assert_eq!(state.seconds_left(&config), None);
+    }
+
+    #[tokio::test]
+    async fn time_left_is_not_thrown_off_by_a_low_speed() {
+        let config = test_config(|_| {}).await;
+        let mut state = State {
+            stage: Stage::Checking,
+            ticks: 10 * TICKS_PER_SECOND,
+            proxies_checked: 19,
+            ..State::default()
+        };
+        state.protocols.get_mut(ProxyType::Http).proxies_total = 100;
+
+        assert_eq!(state.checks_per_second(), Some(1));
+        assert_eq!(state.seconds_left(&config), Some(43));
+
+        state.proxies_checked = 5;
+        assert_eq!(state.checks_per_second(), None);
+        assert_eq!(state.seconds_left(&config), Some(190));
+
+        state.proxies_checked = 0;
         assert_eq!(state.seconds_left(&config), None);
     }
 }

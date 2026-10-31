@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{num::NonZero, path::PathBuf, sync::Arc, time::Duration};
 
 use color_eyre::eyre::{WrapErr as _, eyre};
 
@@ -62,14 +62,9 @@ pub struct Config {
     pub output: OutputConfig,
 }
 
-async fn get_output_path(
-    raw_config: &raw_config::RawConfig,
-) -> crate::Result<PathBuf> {
-    let output_path = if is_container().await {
-        "./out".into()
-    } else {
-        raw_config.output.path.clone()
-    };
+async fn get_output_path(configured: PathBuf) -> crate::Result<PathBuf> {
+    let output_path =
+        if is_container().await { "./out".into() } else { configured };
     tokio::fs::create_dir_all(&output_path).await.wrap_err_with(|| {
         compact_str::format_compact!(
             "failed to create directory: {}",
@@ -82,8 +77,8 @@ async fn get_output_path(
 // Left for what isn't a check: the event loop, the terminal, DNS, the output.
 const RESERVED_FILE_DESCRIPTORS: usize = 16;
 
-fn get_max_concurrent_checks(raw_config: &raw_config::RawConfig) -> usize {
-    let requested = raw_config.checking.max_concurrent_checks.get();
+fn get_max_concurrent_checks(requested: NonZero<usize>) -> usize {
+    let requested = requested.get();
     let Ok(limit) = rlimit::increase_nofile_limit(u64::MAX) else {
         return requested;
     };
@@ -130,8 +125,10 @@ impl Config {
             ));
         }
 
-        let output_path = get_output_path(&raw_config).await?;
-        let max_concurrent_checks = get_max_concurrent_checks(&raw_config);
+        let output_path = get_output_path(raw_config.output.path).await?;
+        let max_concurrent_checks = get_max_concurrent_checks(
+            raw_config.checking.max_concurrent_checks,
+        );
 
         let mut sources = PerProxyType::<Vec<Arc<Source>>>::default();
         let mut enabled_protocols = ProxyTypeSet::default();

@@ -229,21 +229,33 @@ async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
 }
 
 // The previous directory is moved aside rather than deleted first: a file
-// held open would otherwise fail the deletion halfway through.
+// held open would otherwise fail the deletion halfway through, and a commit
+// that fails can still put it back.
 async fn commit_directory(from: &Path, to: &Path) -> crate::Result<()> {
     let previous = with_suffix(to, ".old");
     remove_dir(&previous).await?;
-    match tokio::fs::rename(to, &previous).await {
-        Ok(()) => {}
-        Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+    let moved_aside = match tokio::fs::rename(to, &previous).await {
+        Ok(()) => true,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => false,
         Err(e) => {
             return Err(e).wrap_err_with(|| rename_failed(to, &previous));
         }
+    };
+
+    if let Err(e) = tokio::fs::rename(from, to).await {
+        if moved_aside
+            && let Err(restore_error) = tokio::fs::rename(&previous, to).await
+        {
+            tracing::warn!("{}: {restore_error}", rename_failed(&previous, to));
+        }
+        return Err(e).wrap_err_with(|| rename_failed(from, to));
     }
-    tokio::fs::rename(from, to)
-        .await
-        .wrap_err_with(|| rename_failed(from, to))?;
-    remove_dir(&previous).await
+
+    // The new output is in place, and the next save retries this.
+    if let Err(e) = remove_dir(&previous).await {
+        tracing::warn!("{}", pretty_error(&e));
+    }
+    Ok(())
 }
 
 fn write_proxy_list_to_file<'a, I>(
@@ -341,6 +353,9 @@ async fn stage_json(
         })
     });
 
+    drop(asn_db);
+    drop(geo_db);
+
     for task in tasks {
         task.await??;
     }
@@ -432,15 +447,20 @@ pub async fn save_proxies(
         }
     )?;
 
+    drop(proxies);
+
+    // A file held open somewhere must not cost the formats that can be saved.
+    let mut committed = Ok(());
     if config.output.json.enabled {
         for (path, _) in &json_paths {
-            commit_file(&tmp_path(path), path).await?;
+            committed = committed.and(commit_file(&tmp_path(path), path).await);
         }
     }
-
     if config.output.txt.enabled {
-        commit_directory(&staging_path, &directory_path).await?;
+        committed = committed
+            .and(commit_directory(&staging_path, &directory_path).await);
     }
+    committed?;
 
     let path = std::path::absolute(&config.output.path)
         .unwrap_or_else(move |_| config.output.path.clone());
@@ -521,7 +541,7 @@ mod tests {
     use compact_str::CompactString;
 
     use super::{
-        Config, Proxy, ProxyAuth, ProxyType, compare_timeout,
+        Config, Proxy, ProxyAuth, ProxyType, commit_directory, compare_timeout,
         count_by_protocol, natural_sort_key, save_proxies, summary,
     };
     use crate::config::tests::{temp_directory, test_config};
@@ -756,6 +776,45 @@ mod tests {
                 "old"
             );
         }
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn one_failed_commit_does_not_hold_back_the_others() {
+        let directory = temp_directory("partial");
+        std::fs::create_dir_all(directory.join("proxies.json/taken")).unwrap();
+
+        let config = unchecked_config(directory.clone()).await;
+        let result =
+            save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
+
+        drop(result.unwrap_err());
+        assert!(directory.join("proxies_pretty.json").is_file());
+        assert_eq!(
+            std::fs::read_to_string(directory.join("proxies/all.txt")).unwrap(),
+            "http://1.1.1.1:80"
+        );
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_failed_commit_puts_the_previous_directory_back() {
+        let directory = temp_directory("restore");
+        let proxies = directory.join("proxies");
+        std::fs::create_dir_all(&proxies).unwrap();
+        std::fs::write(proxies.join("all.txt"), "old").unwrap();
+
+        let result =
+            commit_directory(&directory.join("missing"), &proxies).await;
+
+        drop(result.unwrap_err());
+        assert_eq!(
+            std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
+            "old"
+        );
+        assert!(!directory.join("proxies.old").exists());
 
         std::fs::remove_dir_all(directory).unwrap();
     }

@@ -53,6 +53,17 @@ fn progress_line(
     line
 }
 
+// Popping alone keeps the memory of every proxy already taken until the last
+// check. Releasing it only when half is unused copies about one proxy per pop.
+fn next_proxy(queue: &parking_lot::Mutex<Vec<Proxy>>) -> Option<Proxy> {
+    let mut queue = queue.lock();
+    let proxy = queue.pop();
+    if queue.len() < queue.capacity().div_euclid(2) {
+        queue.shrink_to_fit();
+    }
+    proxy
+}
+
 async fn resolve_check_url(config: &Config) -> Vec<SocketAddr> {
     let Some((host, port)) =
         config.checking.check_url.as_ref().and_then(|url| {
@@ -136,7 +147,7 @@ pub async fn check_all(
         join_set.spawn(async move {
             let work = async move {
                 loop {
-                    let Some(mut proxy) = queue.lock().pop() else {
+                    let Some(mut proxy) = next_proxy(&queue) else {
                         break;
                     };
                     let check_result = proxy
@@ -239,7 +250,34 @@ pub async fn check_all(
 mod tests {
     use std::time::Duration;
 
-    use super::progress_line;
+    use compact_str::CompactString;
+
+    use super::{next_proxy, progress_line};
+    use crate::proxy::{Proxy, ProxyType};
+
+    #[test]
+    fn the_queue_releases_what_was_taken_from_it() {
+        let proxies = (0_u16..1024)
+            .map(|port| Proxy {
+                protocol: ProxyType::Http,
+                host: CompactString::const_new("1.1.1.1"),
+                port,
+                auth: None,
+                timeout: None,
+                exit_ip: None,
+            })
+            .collect();
+        let queue = parking_lot::Mutex::new(proxies);
+
+        for _ in 0_u16..1000 {
+            assert!(next_proxy(&queue).is_some());
+        }
+        assert_eq!(queue.lock().len(), 24);
+        assert!(queue.lock().capacity() < 64);
+
+        while next_proxy(&queue).is_some() {}
+        assert_eq!(queue.lock().capacity(), 0);
+    }
 
     #[test]
     fn progress_says_how_far_along_and_how_long_is_left() {

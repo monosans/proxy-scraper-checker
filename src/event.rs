@@ -1,3 +1,7 @@
+use std::time::Duration;
+
+use compact_str::CompactString;
+
 use crate::{ipdb, proxy::ProxyType};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
@@ -8,7 +12,6 @@ pub enum Stage {
     Saving,
 }
 
-#[derive(Clone, Copy)]
 pub enum AppEvent {
     Stage(Stage),
 
@@ -21,7 +24,11 @@ pub enum AppEvent {
 
     TotalProxies(ProxyType, usize),
     ProxyChecked(ProxyType),
-    ProxyWorking(ProxyType),
+    ProxyWorking {
+        protocol: ProxyType,
+        address: CompactString,
+        latency: Duration,
+    },
 
     Saved(usize),
     InputLost,

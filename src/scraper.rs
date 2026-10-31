@@ -29,6 +29,14 @@ pub async fn scrape_all(
 ) -> crate::Result<Vec<Proxy>> {
     let proxies = Arc::new(parking_lot::Mutex::new(ScrapedProxies::default()));
 
+    let sources_count: usize = config
+        .scraping
+        .enabled_protocols
+        .iter()
+        .map(|proto| config.scraping.sources.get(proto).len())
+        .sum();
+    tracing::info!("Scraping {sources_count} sources");
+
     let mut join_set = tokio::task::JoinSet::new();
     for proto in config.scraping.enabled_protocols.iter() {
         let sources = config.scraping.sources.get(proto);

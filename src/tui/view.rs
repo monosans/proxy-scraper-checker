@@ -1,27 +1,48 @@
+use std::time::Duration;
+
 use compact_str::{CompactString, ToCompactString as _, format_compact};
 use ratatui::{
     Frame,
-    layout::{Constraint, Layout, Margin, Rect},
+    layout::{Constraint, Layout, Margin},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Paragraph, Sparkline},
+    widgets::Paragraph,
 };
 use tui_logger::{ExtLogRecord, LogFormatter, TuiLoggerWidget, TuiWidgetState};
 
-use super::app::{DbProgress, Mode, ProtocolProgress, State};
-use crate::{config::Config, event::Stage};
+use super::app::{DbProgress, FASTEST_KEPT, Mode, ProtocolProgress, State};
+use crate::{
+    config::Config,
+    event::Stage,
+    utils::{clock, grouped},
+};
 
 const NAME_WIDTH: usize = 6;
 const SHARE_WIDTH: usize = 6;
 const GAP: &str = "  ";
+const SLASH: &str = " / ";
 const MIN_BAR_WIDTH: usize = 10;
 const LOG_INDENT: usize = 10;
+const LOG_INDENT_NARROW: usize = 2;
 const LOG_MIN_WIDTH: u16 = 18;
+// Below this the timestamps go to the messages.
+const LOG_TIME_MIN_WIDTH: usize = 60;
 // Below this the blank lines and the column headings go to the logs.
 const ROOMY_HEIGHT: u16 = 20;
-const CHART_MIN_HEIGHT: u16 = 28;
-const CHART_HEIGHT: u16 = 4;
-const CHART_BARS_HEIGHT: u16 = 2;
+// A phone held upright: too narrow for a bar beside the numbers, but tall
+// enough to give each row a second line for one across the whole screen. The
+// decision rests on the screen alone, so the layout does not flip mid-run as
+// the numbers grow.
+const STACKED_MAX_WIDTH: u16 = 64;
+const STACKED_MIN_HEIGHT: u16 = 24;
+// The fastest proxies only take what the logs can spare, and a list cut down
+// to one or two lines would say nothing.
+const LOGS_MIN_HEIGHT: u16 = 6;
+const FASTEST_MIN_ROWS: u16 = 3;
+const FASTEST_TITLE_AND_GAP: u16 = 2;
+// Any further apart and the eye loses the row between address and latency.
+const FASTEST_MAX_WIDTH: usize = 40;
+const LATENCY_WIDTH: usize = 7;
 const TITLE: &str = "proxy-scraper-checker";
 const URL: &str = "https://github.com/monosans/proxy-scraper-checker";
 
@@ -58,30 +79,8 @@ fn line_width(spans: &[Span<'_>]) -> usize {
     spans.iter().map(Span::width).sum()
 }
 
-fn grouped(number: usize) -> CompactString {
-    let digits = number.to_compact_string();
-    let mut grouped = CompactString::default();
-    for (remaining, digit) in (1..=digits.len()).rev().zip(digits.chars()) {
-        grouped.push(digit);
-        if remaining != 1 && remaining.saturating_sub(1).is_multiple_of(3) {
-            grouped.push(',');
-        }
-    }
-    grouped
-}
-
-fn clock(seconds: u64) -> CompactString {
-    let minutes = seconds.div_euclid(60);
-    let hours = minutes.div_euclid(60);
-    if hours == 0 {
-        format_compact!("{minutes}:{:02}", seconds.rem_euclid(60))
-    } else {
-        format_compact!(
-            "{hours}:{:02}:{:02}",
-            minutes.rem_euclid(60),
-            seconds.rem_euclid(60)
-        )
-    }
+fn fits(spans: &[Span<'_>], entry: &[Span<'_>], width: usize) -> bool {
+    line_width(spans).saturating_add(line_width(entry)) <= width
 }
 
 fn megabytes(bytes: usize) -> f64 {
@@ -134,7 +133,8 @@ impl Meter {
 struct Row {
     name: &'static str,
     meter: Meter,
-    count: CompactString,
+    done: CompactString,
+    total: CompactString,
     count_style: Style,
     amount: CompactString,
     amount_style: Style,
@@ -149,44 +149,80 @@ struct Headings {
 
 #[derive(Default)]
 struct Columns {
+    name: usize,
     bar: usize,
+    bar_below: usize,
     count: usize,
+    total: usize,
+    short: bool,
     amount: usize,
     share: bool,
 }
 
 impl Columns {
     // Numbers keep their full width and the bar takes what is left; on narrow
-    // terminals the percentage goes first, then the bar.
+    // terminals the percentage goes first, then the bar. A stacked layout gives
+    // the bar its own line instead, and the spare room pushes the numbers to
+    // the end of it. If the numbers alone do not fit, the totals go.
     fn fit<'a>(
         width: usize,
         rows: impl Iterator<Item = &'a Row>,
         headings: &Headings,
+        stacked: bool,
     ) -> Self {
         let mut columns = Self {
+            name: NAME_WIDTH,
             count: headings.count.len(),
             amount: headings.amount.len(),
             ..Self::default()
         };
+        // The done part is as wide as the total it is heading for, so the
+        // slashes line up and stay put while it grows.
+        let mut done = 0;
+        let mut alone = columns.count;
+        let mut count_short = columns.count;
         let mut any_share = false;
         for row in rows {
-            columns.count = columns.count.max(row.count.len());
+            if row.total.is_empty() {
+                alone = alone.max(row.done.len());
+            } else {
+                done = done.max(row.done.len()).max(row.total.len());
+                columns.total = columns.total.max(row.total.len());
+            }
+            count_short = count_short.max(row.done.len());
             columns.amount = columns.amount.max(row.amount.len());
             any_share |= !row.share.is_empty();
         }
 
-        let fixed: usize = [
-            NAME_WIDTH,
-            columns.count,
-            columns.amount,
-            GAP.len().saturating_mul(3),
-        ]
-        .into_iter()
-        .sum();
-        let room = width.saturating_sub(fixed);
-        let room_with_share =
-            room.saturating_sub(SHARE_WIDTH.saturating_add(GAP.len()));
+        columns.count = alone.max(
+            done.saturating_add(SLASH.len()).saturating_add(columns.total),
+        );
 
+        let numbers = |count: usize| {
+            [NAME_WIDTH, count, columns.amount, GAP.len().saturating_mul(2)]
+                .into_iter()
+                .sum::<usize>()
+        };
+        columns.short = numbers(columns.count) > width;
+        if columns.short {
+            columns.count = count_short;
+        }
+        let room = width.saturating_sub(numbers(columns.count));
+        let share_width = SHARE_WIDTH.saturating_add(GAP.len());
+
+        if stacked {
+            columns.share = any_share && room >= share_width;
+            columns.name = NAME_WIDTH.saturating_add(if columns.share {
+                room.saturating_sub(share_width)
+            } else {
+                room
+            });
+            columns.bar_below = width;
+            return columns;
+        }
+
+        let room = room.saturating_sub(GAP.len());
+        let room_with_share = room.saturating_sub(share_width);
         columns.share = any_share && room_with_share >= MIN_BAR_WIDTH;
         columns.bar = if columns.share { room_with_share } else { room };
         if columns.bar < MIN_BAR_WIDTH {
@@ -196,7 +232,7 @@ impl Columns {
     }
 
     fn heading(&self, headings: &Headings) -> Line<'static> {
-        let mut spans = vec![Span::raw(" ".repeat(NAME_WIDTH))];
+        let mut spans = vec![Span::raw(" ".repeat(self.name))];
         if self.bar != 0 {
             spans.push(gap());
             spans.push(Span::raw(" ".repeat(self.bar)));
@@ -215,16 +251,13 @@ impl Columns {
     }
 
     fn row(&self, row: &Row) -> Line<'static> {
-        let mut spans = vec![Span::raw(format!("{:<NAME_WIDTH$}", row.name))];
+        let mut spans = vec![Span::raw(format!("{:<1$}", row.name, self.name))];
         if self.bar != 0 {
             spans.push(gap());
             spans.extend(row.meter.spans(self.bar));
         }
         spans.push(gap());
-        spans.push(Span::styled(
-            format!("{:>1$}", row.count, self.count),
-            row.count_style,
-        ));
+        spans.push(Span::styled(self.count_cell(row), row.count_style));
         spans.push(gap());
         spans.push(Span::styled(
             format!("{:>1$}", row.amount, self.amount),
@@ -238,6 +271,26 @@ impl Columns {
             ));
         }
         Line::from(spans)
+    }
+
+    fn count_cell(&self, row: &Row) -> String {
+        if self.short || row.total.is_empty() {
+            return format!("{:>1$}", row.done, self.count);
+        }
+        let done_width =
+            self.count.saturating_sub(self.total).saturating_sub(SLASH.len());
+        format!("{:>done_width$}{SLASH}{:>2$}", row.done, row.total, self.total)
+    }
+
+    fn lines(&self, rows: &[Row]) -> Vec<Line<'static>> {
+        let mut lines = Vec::with_capacity(rows.len().saturating_mul(2));
+        for row in rows {
+            lines.push(self.row(row));
+            if self.bar_below != 0 {
+                lines.push(Line::from(row.meter.spans(self.bar_below)));
+            }
+        }
+        lines
     }
 }
 
@@ -257,11 +310,8 @@ fn protocol_row(
                 total: progress.proxies_total,
                 working: progress.proxies_working,
             },
-            count: format_compact!(
-                "{} / {}",
-                grouped(progress.proxies_checked),
-                grouped(progress.proxies_total)
-            ),
+            done: grouped(progress.proxies_checked),
+            total: grouped(progress.proxies_total),
             count_style: Style::new(),
             amount: grouped(progress.proxies_working),
             amount_style: working(),
@@ -275,11 +325,8 @@ fn protocol_row(
                 total: progress.sources_total,
                 working: 0,
             },
-            count: format_compact!(
-                "{} / {}",
-                progress.sources_scraped,
-                progress.sources_total
-            ),
+            done: progress.sources_scraped.to_compact_string(),
+            total: progress.sources_total.to_compact_string(),
             count_style: Style::new(),
             amount: grouped(progress.proxies_total),
             amount_style: Style::new(),
@@ -289,21 +336,19 @@ fn protocol_row(
 }
 
 fn database_row(name: &'static str, progress: DbProgress) -> Row {
-    let (count, count_style) = match progress.finished_ok {
-        Some(false) => (CompactString::const_new("failed"), warning()),
+    let (done, total, count_style) = match progress.finished_ok {
+        Some(false) => ("failed".into(), CompactString::default(), warning()),
         _ if progress.downloaded == 0 => {
-            (CompactString::const_new("waiting"), dim())
+            ("waiting".into(), CompactString::default(), dim())
         }
         _ if progress.total == 0 => (
             format_compact!("{:.1} MB", megabytes(progress.downloaded)),
+            CompactString::default(),
             Style::new(),
         ),
         _ => (
-            format_compact!(
-                "{:.1} / {:.1} MB",
-                megabytes(progress.downloaded),
-                megabytes(progress.total)
-            ),
+            format_compact!("{:.1}", megabytes(progress.downloaded)),
+            format_compact!("{:.1} MB", megabytes(progress.total)),
             Style::new(),
         ),
     };
@@ -314,7 +359,8 @@ fn database_row(name: &'static str, progress: DbProgress) -> Row {
             total: progress.total,
             working: 0,
         },
-        count,
+        done,
+        total,
         count_style,
         amount: CompactString::default(),
         amount_style: Style::new(),
@@ -364,7 +410,8 @@ fn stepper(config: &Config, state: &State) -> Vec<Span<'static>> {
     spans
 }
 
-fn timing(config: &Config, state: &State) -> Vec<Span<'static>> {
+// The clock always stays; the time left goes after the speed.
+fn timing(config: &Config, state: &State, width: usize) -> Vec<Span<'static>> {
     let elapsed = clock(state.elapsed_seconds());
     match state.mode {
         Mode::Done | Mode::Quit => {
@@ -378,26 +425,44 @@ fn timing(config: &Config, state: &State) -> Vec<Span<'static>> {
             Span::raw(elapsed.to_string()),
         ],
         Mode::Running => {
-            let mut spans = Vec::new();
-            if let Some(rate) = state.checks_per_second() {
-                spans.push(Span::raw(grouped(rate).to_string()));
-                spans.push(Span::styled(" checks/s", dim()));
-                spans.push(gap());
-            }
-            spans.push(Span::raw(elapsed.to_string()));
+            let mut spans = vec![Span::raw(elapsed.to_string())];
             if let Some(left) = state.seconds_left(config) {
-                spans.push(gap());
-                spans.push(Span::raw(format!("~{}", clock(left))));
-                spans.push(Span::styled(" left", dim()));
+                let entry = [
+                    gap(),
+                    Span::raw(format!("~{}", clock(left))),
+                    Span::styled(" left", dim()),
+                ];
+                if fits(&spans, &entry, width) {
+                    spans.extend(entry);
+                }
+            }
+            if let Some(rate) = state.checks_per_second() {
+                let entry = [
+                    Span::raw(grouped(rate).to_string()),
+                    Span::styled(" checks/s", dim()),
+                    gap(),
+                ];
+                if fits(&spans, &entry, width) {
+                    spans.splice(0..0, entry);
+                }
             }
             spans
         }
     }
 }
 
-fn header(config: &Config, state: &State, width: usize) -> Line<'static> {
-    let right = timing(config, state);
+fn header(
+    config: &Config,
+    state: &State,
+    width: usize,
+    stacked: bool,
+) -> Vec<Line<'static>> {
+    let right = timing(config, state, width);
     let steps = stepper(config, state);
+
+    if stacked {
+        return vec![Line::from(steps), Line::from(right)];
+    }
 
     let right_width = line_width(&right);
     let steps_width = line_width(&steps).saturating_add(GAP.len());
@@ -419,28 +484,35 @@ fn header(config: &Config, state: &State, width: usize) -> Line<'static> {
 
     left.push(Span::raw(" ".repeat(width.saturating_sub(used))));
     left.extend(right);
-    Line::from(left)
+    vec![Line::from(left)]
 }
 
-fn outcome(config: &Config, state: &State) -> Option<Line<'static>> {
+// Android paths are long, and this one is what the whole run was for.
+fn outcome(config: &Config, state: &State, width: usize) -> Vec<Line<'static>> {
     if !matches!(state.mode, Mode::Done) {
-        return None;
+        return Vec::new();
     }
-    Some(match state.saved {
-        Some(1) => Line::from(format!(
-            "Saved 1 proxy to {}",
-            config.output.path.display()
-        )),
-        Some(saved) => Line::from(format!(
-            "Saved {} proxies to {}",
-            grouped(saved),
-            config.output.path.display()
-        )),
-        None => Line::styled(
-            "Nothing to save, the previous results were kept",
+    let (text, style) = match state.saved {
+        Some(1) => (
+            format!("Saved 1 proxy to {}", config.output.path.display()),
+            Style::new(),
+        ),
+        Some(saved) => (
+            format!(
+                "Saved {} proxies to {}",
+                grouped(saved),
+                config.output.path.display()
+            ),
+            Style::new(),
+        ),
+        None => (
+            "Nothing to save, the previous results were kept".to_owned(),
             warning(),
         ),
-    })
+    };
+    wrap(&text, width.max(1))
+        .map(|line| Line::styled(line.to_owned(), style))
+        .collect()
 }
 
 fn overview(
@@ -448,6 +520,7 @@ fn overview(
     state: &State,
     width: usize,
     roomy: bool,
+    stacked: bool,
 ) -> Text<'static> {
     let checked =
         config.checking.check_url.is_some() && state.stage >= Stage::Checking;
@@ -480,26 +553,31 @@ fn overview(
         protocols.push(protocol_row("All", all, checked));
     }
     let databases = database_rows(config, state);
-    let columns =
-        Columns::fit(width, protocols.iter().chain(&databases), &headings);
+    let columns = Columns::fit(
+        width,
+        protocols.iter().chain(&databases),
+        &headings,
+        stacked,
+    );
 
-    let mut lines = vec![header(config, state, width)];
+    let mut lines = header(config, state, width, stacked);
     if roomy {
         lines.push(Line::default());
         lines.push(columns.heading(&headings));
     }
-    lines.extend(protocols.iter().map(|row| columns.row(row)));
+    lines.extend(columns.lines(&protocols));
     if !databases.is_empty() {
         if roomy {
             lines.push(Line::default());
         }
-        lines.extend(databases.iter().map(|row| columns.row(row)));
+        lines.extend(columns.lines(&databases));
     }
-    if let Some(outcome) = outcome(config, state) {
+    let outcome = outcome(config, state, width);
+    if !outcome.is_empty() {
         if roomy {
             lines.push(Line::default());
         }
-        lines.push(outcome);
+        lines.extend(outcome);
     }
     if roomy {
         lines.push(Line::default());
@@ -507,32 +585,60 @@ fn overview(
     Text::from(lines)
 }
 
-fn render_chart(f: &mut Frame<'_>, area: Rect, state: &State) {
-    let [title_area, bars_area] = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Length(CHART_BARS_HEIGHT),
-    ])
-    .areas(area);
+fn latency(latency: Duration) -> CompactString {
+    let millis = latency.as_millis();
+    if millis < 1000 {
+        format_compact!("{millis} ms")
+    } else {
+        format_compact!("{:.2} s", latency.as_secs_f64())
+    }
+}
 
-    let shown = state
-        .found_per_second
-        .len()
-        .saturating_sub(usize::from(bars_area.width));
-    let found = state.found_per_second.get(shown..).unwrap_or_default();
-    let peak = found.iter().copied().max().unwrap_or_default();
+fn elided(text: &str, width: usize) -> CompactString {
+    if text.chars().count() <= width {
+        return text.into();
+    }
+    let mut elided: CompactString =
+        text.chars().take(width.saturating_sub(1)).collect();
+    elided.push('\u{2026}');
+    elided
+}
 
-    f.render_widget(
-        Line::styled("Working proxies found per second", dim()),
-        title_area,
-    );
-    f.render_widget(
-        Line::styled(format!("peak {peak}"), dim()).right_aligned(),
-        title_area,
-    );
-    f.render_widget(
-        Sparkline::default().data(found).style(working()),
-        bars_area,
-    );
+// A cut-off port would read as a real one, so on narrow screens the protocol
+// goes before any address does.
+fn fastest(state: &State, width: usize, rows: usize) -> Text<'static> {
+    let proxies = state.fastest.iter().take(rows);
+    let longest =
+        proxies.clone().map(|proxy| proxy.address.len()).max().unwrap_or(0);
+    let room = width
+        .min(FASTEST_MAX_WIDTH)
+        .saturating_sub(GAP.len())
+        .saturating_sub(LATENCY_WIDTH);
+    let name_width = NAME_WIDTH.saturating_add(GAP.len());
+    let named = room >= name_width.saturating_add(longest);
+    let room = if named { room.saturating_sub(name_width) } else { room };
+
+    let mut lines = vec![Line::styled("Fastest proxies", dim())];
+    for proxy in proxies {
+        let mut spans = Vec::with_capacity(4);
+        if named {
+            spans.push(Span::raw(format!(
+                "{:<name_width$}",
+                proxy.protocol.as_str_uppercase()
+            )));
+        }
+        spans.push(Span::raw(format!(
+            "{:<room$}",
+            elided(&proxy.address, room)
+        )));
+        spans.push(gap());
+        spans.push(Span::raw(format!(
+            "{:>LATENCY_WIDTH$}",
+            latency(proxy.latency)
+        )));
+        lines.push(Line::from(spans));
+    }
+    Text::from(lines)
 }
 
 fn footer(
@@ -541,10 +647,7 @@ fn footer(
 ) -> (Line<'static>, Option<Line<'static>>) {
     if state.input_lost {
         return (
-            Line::styled(
-                "Keyboard input was lost, the program exits when the run ends",
-                warning(),
-            ),
+            Line::styled("Keyboard input lost, exits after the run", warning()),
             None,
         );
     }
@@ -566,8 +669,7 @@ fn footer(
             Span::styled(key, bold()),
             Span::styled(format!(" {action}"), dim()),
         ];
-        let needed = line_width(&spans).saturating_add(line_width(&entry));
-        if needed > width {
+        if !fits(&spans, &entry, width) {
             break;
         }
         spans.extend(entry);
@@ -619,16 +721,20 @@ impl LogFormatter for LogLine {
 
         // The tracing layer puts a space in front of every message.
         let text = format!("{prefix}{}", evt.msg().trim_start());
+        let timed = width >= LOG_TIME_MIN_WIDTH;
+        let indent = if timed { LOG_INDENT } else { LOG_INDENT_NARROW };
         let mut lines = Vec::new();
         for paragraph in text.lines() {
-            for part in wrap(paragraph, width.saturating_sub(LOG_INDENT)) {
-                let margin = if lines.is_empty() {
+            for part in wrap(paragraph, width.saturating_sub(indent)) {
+                let margin = if !lines.is_empty() {
+                    " ".repeat(indent)
+                } else if timed {
                     format!(
-                        "{:<LOG_INDENT$}",
+                        "{:<indent$}",
                         evt.timestamp.strftime("%H:%M:%S").to_string()
                     )
                 } else {
-                    " ".repeat(LOG_INDENT)
+                    String::new()
                 };
                 lines.push(Line::from(vec![
                     Span::styled(margin, dim()),
@@ -648,17 +754,36 @@ pub fn draw(
 ) {
     let full = f.area();
     let roomy = full.height >= ROOMY_HEIGHT;
+    let stacked =
+        full.width < STACKED_MAX_WIDTH && full.height >= STACKED_MIN_HEIGHT;
     let area = full.inner(Margin::new(1, u16::from(roomy)));
-    let chart_shown = full.height >= CHART_MIN_HEIGHT
-        && state.found_per_second.iter().any(|&found| found != 0);
 
-    let overview = overview(config, state, usize::from(area.width), roomy);
-    let [overview_area, chart_area, logs_area, _, footer_area] =
+    let overview =
+        overview(config, state, usize::from(area.width), roomy, stacked);
+    let overview_height = u16::try_from(overview.height()).unwrap_or(u16::MAX);
+    let fastest_room = area
+        .height
+        .saturating_sub(overview_height)
+        .saturating_sub(u16::from(roomy).saturating_add(1))
+        .saturating_sub(LOGS_MIN_HEIGHT)
+        .saturating_sub(FASTEST_TITLE_AND_GAP);
+    let fastest_rows = if fastest_room < FASTEST_MIN_ROWS {
+        0
+    } else {
+        state.fastest.len().min(FASTEST_KEPT).min(usize::from(fastest_room))
+    };
+    let fastest_height = if fastest_rows == 0 {
+        0
+    } else {
+        u16::try_from(fastest_rows)
+            .unwrap_or(u16::MAX)
+            .saturating_add(FASTEST_TITLE_AND_GAP)
+    };
+
+    let [overview_area, fastest_area, logs_area, _, footer_area] =
         Layout::vertical([
-            Constraint::Length(
-                u16::try_from(overview.height()).unwrap_or(u16::MAX),
-            ),
-            Constraint::Length(if chart_shown { CHART_HEIGHT } else { 0 }),
+            Constraint::Length(overview_height),
+            Constraint::Length(fastest_height),
             Constraint::Fill(1),
             Constraint::Length(u16::from(roomy)),
             Constraint::Length(1),
@@ -666,8 +791,15 @@ pub fn draw(
         .areas(area);
 
     f.render_widget(Paragraph::new(overview), overview_area);
-    if chart_shown {
-        render_chart(f, chart_area, state);
+    if fastest_rows != 0 {
+        f.render_widget(
+            Paragraph::new(fastest(
+                state,
+                usize::from(area.width),
+                fastest_rows,
+            )),
+            fastest_area,
+        );
     }
     f.render_widget(
         TuiLoggerWidget::default()
@@ -685,15 +817,17 @@ pub fn draw(
 
 #[cfg(test)]
 mod tests {
+    use std::{path::PathBuf, time::Duration};
+
     use ratatui::{Terminal, backend::TestBackend, style::Color, text::Span};
     use tui_logger::TuiWidgetState;
 
-    use super::{Meter, clock, database_row, draw, grouped, scale, wrap};
+    use super::{Meter, database_row, draw, latency, scale, wrap};
     use crate::{
         config::{Config, tests::test_config},
         event::Stage,
         proxy::ProxyType,
-        tui::app::{DbProgress, Mode, ProtocolProgress, State},
+        tui::app::{DbProgress, FastProxy, Mode, ProtocolProgress, State},
     };
 
     const MB: usize = 1_000_000;
@@ -749,22 +883,6 @@ mod tests {
     }
 
     #[test]
-    fn numbers_read_in_groups_of_three() {
-        assert_eq!(grouped(0), "0");
-        assert_eq!(grouped(999), "999");
-        assert_eq!(grouped(1000), "1,000");
-        assert_eq!(grouped(12_480), "12,480");
-        assert_eq!(grouped(1_234_567), "1,234,567");
-    }
-
-    #[test]
-    fn durations_grow_an_hours_field_only_when_needed() {
-        assert_eq!(clock(0), "0:00");
-        assert_eq!(clock(134), "2:14");
-        assert_eq!(clock(3_725), "1:02:05");
-    }
-
-    #[test]
     fn scale_survives_nothing_to_measure_and_overshoot() {
         assert_eq!(scale(1, 0, 10), 0);
         assert_eq!(scale(11, 10, 10), 10);
@@ -809,13 +927,16 @@ mod tests {
     #[test]
     fn database_row_says_where_the_download_is() {
         let count = |finished_ok, downloaded, total| {
-            database_row("ASN", DbProgress { finished_ok, downloaded, total })
-                .count
+            let row = database_row(
+                "ASN",
+                DbProgress { finished_ok, downloaded, total },
+            );
+            (row.done, row.total)
         };
-        assert_eq!(count(Some(false), MB, MB), "failed");
-        assert_eq!(count(None, 0, 0), "waiting");
-        assert_eq!(count(None, MB, 0), "1.0 MB");
-        assert_eq!(count(None, MB, 2 * MB), "1.0 / 2.0 MB");
+        assert_eq!(count(Some(false), MB, MB), ("failed".into(), "".into()));
+        assert_eq!(count(None, 0, 0), ("waiting".into(), "".into()));
+        assert_eq!(count(None, MB, 0), ("1.0 MB".into(), "".into()));
+        assert_eq!(count(None, MB, 2 * MB), ("1.0".into(), "2.0 MB".into()));
     }
 
     #[test]
@@ -854,17 +975,92 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_chart_waits_for_something_to_show() {
+    async fn the_counts_line_up_on_the_slash() {
+        let config = test_config(|_| {}).await;
+        let mut state = State { stage: Stage::Checking, ..State::default() };
+        for (protocol, count) in [
+            (ProxyType::Http, 2_714),
+            (ProxyType::Socks4, 330),
+            (ProxyType::Socks5, 8_858),
+        ] {
+            *state.protocols.get_mut(protocol) = ProtocolProgress {
+                proxies_total: count,
+                proxies_checked: count,
+                ..ProtocolProgress::default()
+            };
+        }
+
+        let screen = render(&config, &state, 100, 30);
+        let slashes: Vec<_> =
+            screen.lines().filter_map(|line| line.find(" / ")).collect();
+        assert_eq!(slashes.len(), 4, "{screen}");
+        assert!(slashes.windows(2).all(|pair| pair.first() == pair.last()));
+        assert!(screen.contains("  330 /    330"), "{screen}");
+    }
+
+    #[test]
+    fn latency_reads_in_the_unit_that_suits_it() {
+        assert_eq!(latency(Duration::from_millis(312)), "312 ms");
+        assert_eq!(latency(Duration::from_millis(1_240)), "1.24 s");
+    }
+
+    fn fast(address: &str, millis: u64) -> FastProxy {
+        FastProxy {
+            protocol: ProxyType::Socks5,
+            address: address.into(),
+            latency: Duration::from_millis(millis),
+        }
+    }
+
+    #[tokio::test]
+    async fn the_fastest_proxies_appear_once_there_are_any() {
         let config = test_config(|_| {}).await;
         let mut state = checking_state();
 
-        state.found_per_second = vec![0, 0];
-        let screen = render(&config, &state, 120, 30);
-        assert!(!screen.contains("per second"), "{screen}");
+        let screen = render(&config, &state, 100, 30);
+        assert!(!screen.contains("Fastest"), "{screen}");
 
-        state.found_per_second = vec![0, 7];
-        let screen = render(&config, &state, 120, 30);
-        assert!(screen.contains("peak 7"), "{screen}");
+        state.fastest = vec![fast("103.152.112.162:1080", 312)];
+        let screen = render(&config, &state, 100, 30);
+        assert!(screen.contains("Fastest proxies"), "{screen}");
+        assert!(screen.contains("SOCKS5  103.152.112.162:1080"), "{screen}");
+        assert!(screen.contains("312 ms"), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn the_logs_keep_their_room_on_short_screens() {
+        let config = test_config(|_| {}).await;
+        let state =
+            State { fastest: vec![fast("1.1.1.1:80", 5)], ..checking_state() };
+
+        let screen = render(&config, &state, 100, 20);
+        assert!(!screen.contains("Fastest"), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn a_long_host_gives_way_to_the_latency() {
+        let config = test_config(|_| {}).await;
+        let state = State {
+            fastest: vec![fast(&format!("{}.example:80", "a".repeat(60)), 5)],
+            ..checking_state()
+        };
+
+        let screen = render(&config, &state, 50, 40);
+        assert!(screen.contains("\u{2026}"), "{screen}");
+        assert!(screen.contains("5 ms"), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn a_narrow_screen_drops_the_protocol_before_cutting_an_address() {
+        let config = test_config(|_| {}).await;
+        let state = State {
+            fastest: vec![fast("103.152.112.162:1080", 312)],
+            ..checking_state()
+        };
+
+        let screen = render(&config, &state, 34, 40);
+        assert!(screen.contains("103.152.112.162:1080"), "{screen}");
+        assert!(!screen.contains("SOCKS5  103"), "{screen}");
     }
 
     #[tokio::test]
@@ -959,13 +1155,80 @@ mod tests {
         let config = test_config(|_| {}).await;
         let state = checking_state();
 
-        let screen = render(&config, &state, 50, 30);
+        let screen = render(&config, &state, 50, 20);
         assert!(!screen.contains("2.5%"), "{screen}");
         assert!(screen.contains('\u{2501}'), "{screen}");
 
-        let screen = render(&config, &state, 40, 30);
+        let screen = render(&config, &state, 40, 20);
         assert!(!screen.contains('\u{2501}'), "{screen}");
         assert!(screen.contains("12,480 / 40,213"), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn an_upright_phone_gets_bars_across_the_whole_screen() {
+        let config = test_config(|_| {}).await;
+        let mut state = checking_state();
+        state.protocols.get_mut(ProxyType::Http).proxies_checked = 20_107;
+
+        for height in [50, 26] {
+            let screen = render(&config, &state, 50, height);
+            let meter_width = screen
+                .lines()
+                .map(|line| {
+                    line.chars()
+                        .filter(|symbol| {
+                            "\u{2501}\u{257e}\u{2500}".contains(*symbol)
+                        })
+                        .count()
+                })
+                .max();
+            assert_eq!(meter_width, Some(48), "{screen}");
+            assert!(screen.contains("20,107 / 40,213"), "{screen}");
+            assert!(screen.contains("Scrape"), "{screen}");
+            assert!(screen.contains("checks/s"), "{screen}");
+            assert!(screen.contains('~'), "{screen}");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_layout_does_not_depend_on_the_numbers() {
+        let config = test_config(|_| {}).await;
+        let mut state = checking_state();
+        state.protocols.get_mut(ProxyType::Http).proxies_total = 9;
+        state.protocols.get_mut(ProxyType::Http).proxies_checked = 9;
+
+        let screen = render(&config, &state, 63, 30);
+        assert!(screen.contains("Scrape"), "{screen}");
+        assert!(!screen.contains("  \u{2500}"), "{screen}");
+
+        let screen = render(&config, &state, 64, 30);
+        assert!(screen.contains("  \u{2500}"), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn the_narrowest_phones_keep_the_counts_that_matter() {
+        let config = test_config(|_| {}).await;
+        let screen = render(&config, &checking_state(), 30, 40);
+
+        assert!(screen.contains("12,480"), "{screen}");
+        assert!(!screen.contains("40,213"), "{screen}");
+        assert!(screen.contains("Working"), "{screen}");
+        assert!(screen.contains("2:00"), "{screen}");
+        assert!(screen.contains("~0:23 left"), "{screen}");
+        assert!(!screen.contains("checks/s"), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn a_long_output_path_wraps_instead_of_being_cut() {
+        let path = "target/an-output-path-as-long-as-the-ones-on-android";
+        let mut config = test_config(|_| {}).await;
+        config.output.path = PathBuf::from(path);
+        let state =
+            State { mode: Mode::Done, saved: Some(1_517), ..checking_state() };
+
+        let screen = render(&config, &state, 30, 40);
+        let joined = screen.replace(['\n', ' '], "");
+        assert!(joined.contains(path), "{screen}");
     }
 
     #[tokio::test]
@@ -976,6 +1239,7 @@ mod tests {
         let mut done = checking_state();
         done.mode = Mode::Done;
         done.input_lost = true;
+        done.fastest = vec![fast("103.152.112.162:1080", 312)];
 
         for state in [&State::default(), &checking_state(), &stopping, &done] {
             for width in (1..140).step_by(3) {

@@ -45,7 +45,6 @@ impl ProxyType {
         }
     }
 
-    #[cfg(feature = "tui")]
     pub const fn as_str_uppercase(self) -> &'static str {
         match self {
             Self::Http => "HTTP",

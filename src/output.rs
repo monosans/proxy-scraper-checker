@@ -9,13 +9,14 @@ use std::{
 };
 
 use color_eyre::eyre::WrapErr as _;
+use compact_str::{CompactString, format_compact};
 use serde::ser::SerializeSeq as _;
 
 use crate::{
     config::Config,
     ipdb,
-    proxy::{Proxy, ProxyAuth, ProxyType, ProxyTypeSet},
-    utils::{is_container, pretty_error},
+    proxy::{PerProxyType, Proxy, ProxyAuth, ProxyType, ProxyTypeSet},
+    utils::{grouped, is_container, pretty_error},
 };
 
 type IpDb = maxminddb::Reader<maxminddb::Mmap>;
@@ -390,10 +391,11 @@ async fn stage_txt(
     .await?
 }
 
+// Returns where the proxies went, for the summary of the run.
 pub async fn save_proxies(
     config: Arc<Config>,
     mut proxies: Vec<Proxy>,
-) -> crate::Result<()> {
+) -> crate::Result<CompactString> {
     if config.output.sort_by_speed {
         proxies.sort_unstable_by(compare_timeout);
     } else {
@@ -442,16 +444,62 @@ pub async fn save_proxies(
 
     let path = std::path::absolute(&config.output.path)
         .unwrap_or_else(move |_| config.output.path.clone());
-    if is_container().await {
-        tracing::info!(
-            "Proxies have been saved to ./out ({} in container)",
-            path.display()
-        );
+    Ok(if is_container().await {
+        format_compact!("./out ({} in container)", path.display())
     } else {
-        tracing::info!("Proxies have been saved to {}", path.display());
-    }
+        format_compact!("{}", path.display())
+    })
+}
 
-    Ok(())
+pub fn count_by_protocol(proxies: &[Proxy]) -> PerProxyType<usize> {
+    let mut counts = PerProxyType::<usize>::default();
+    for proxy in proxies {
+        let count = counts.get_mut(proxy.protocol);
+        *count = count.saturating_add(1);
+    }
+    counts
+}
+
+pub fn summary(
+    config: &Config,
+    found: &PerProxyType<usize>,
+    saved: &PerProxyType<usize>,
+    location: &str,
+) -> CompactString {
+    let protocols = config.scraping.enabled_protocols;
+    let total = |counts: &PerProxyType<usize>| -> usize {
+        protocols.iter().map(|protocol| *counts.get(protocol)).sum()
+    };
+
+    let saved_total = total(saved);
+    let mut text = if config.checking.check_url.is_some() {
+        format_compact!(
+            "Saved {} of {} proxies to {location}",
+            grouped(saved_total),
+            grouped(total(found))
+        )
+    } else if saved_total == 1 {
+        format_compact!("Saved 1 proxy to {location}")
+    } else {
+        format_compact!("Saved {} proxies to {location}", grouped(saved_total))
+    };
+
+    if protocols.iter().nth(1).is_some() {
+        let breakdown: Vec<_> = protocols
+            .iter()
+            .map(|protocol| {
+                format_compact!(
+                    "{} {}",
+                    protocol.as_str_uppercase(),
+                    grouped(*saved.get(protocol))
+                )
+            })
+            .collect();
+        text.push_str(" (");
+        text.push_str(&breakdown.join(", "));
+        text.push(')');
+    }
+    text
 }
 
 #[cfg(test)]
@@ -461,8 +509,8 @@ mod tests {
     use compact_str::CompactString;
 
     use super::{
-        Config, Proxy, ProxyAuth, ProxyType, compare_timeout, natural_sort_key,
-        save_proxies,
+        Config, Proxy, ProxyAuth, ProxyType, compare_timeout,
+        count_by_protocol, natural_sort_key, save_proxies, summary,
     };
     use crate::config::tests::{temp_directory, test_config};
 
@@ -475,6 +523,42 @@ mod tests {
             timeout,
             exit_ip: None,
         }
+    }
+
+    fn typed(protocol: ProxyType) -> Proxy {
+        Proxy { protocol, ..proxy("1.1.1.1", 80, None) }
+    }
+
+    #[tokio::test]
+    async fn the_summary_counts_what_was_saved_out_of_what_was_found() {
+        let config = test_config(|_| {}).await;
+        let found = count_by_protocol(&[
+            typed(ProxyType::Http),
+            typed(ProxyType::Http),
+            typed(ProxyType::Socks5),
+        ]);
+        let saved = count_by_protocol(&[typed(ProxyType::Http)]);
+
+        assert_eq!(
+            summary(&config, &found, &saved, "./out"),
+            "Saved 1 of 3 proxies to ./out (HTTP 1, SOCKS4 0, SOCKS5 0)"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_summary_drops_what_means_nothing_in_this_run() {
+        let config = test_config(|raw| {
+            raw.checking.check_url = None;
+            raw.scraping.socks4.enabled = false;
+            raw.scraping.socks5.enabled = false;
+        })
+        .await;
+        let saved = count_by_protocol(&[typed(ProxyType::Http)]);
+
+        assert_eq!(
+            summary(&config, &saved, &saved, "./out"),
+            "Saved 1 proxy to ./out"
+        );
     }
 
     fn sorted_naturally(mut proxies: Vec<Proxy>) -> Vec<CompactString> {
@@ -648,7 +732,7 @@ mod tests {
             save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
         drop(reader);
 
-        assert!(result.is_err());
+        drop(result.unwrap_err());
         for name in ["all.txt", "http.txt"] {
             assert_eq!(
                 std::fs::read_to_string(proxies.join(name)).unwrap(),
@@ -671,7 +755,7 @@ mod tests {
         let result =
             save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
 
-        assert!(result.is_err());
+        drop(result.unwrap_err());
         for path in ["proxies.json", "proxies/all.txt"] {
             assert_eq!(
                 std::fs::read_to_string(directory.join(path)).unwrap(),

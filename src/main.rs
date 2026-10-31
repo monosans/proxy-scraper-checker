@@ -63,8 +63,8 @@ mod tui;
 mod utils;
 
 #[cfg(feature = "tui")]
-use std::io::IsTerminal as _;
-use std::sync::Arc;
+use std::io::Write as _;
+use std::{io::IsTerminal as _, sync::Arc};
 
 use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
@@ -212,7 +212,7 @@ async fn main_task(
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> crate::Result<()> {
+) -> crate::Result<compact_str::CompactString> {
     let http_client = http::create_reqwest_client(&config).await?;
 
     // The databases download while scraping rather than while checking, so
@@ -235,37 +235,50 @@ async fn main_task(
         ),
     );
 
+    let scraped = scraped?;
+    let found = output::count_by_protocol(&scraped);
+
     let proxies = checker::check_all(
         Arc::clone(&config),
-        scraped?,
+        scraped,
         token,
         #[cfg(feature = "tui")]
         tx.clone(),
     )
     .await?;
 
-    if proxies.is_empty() {
-        tracing::warn!("No proxies to save - previous results left untouched");
+    let summary = if proxies.is_empty() {
+        let summary = compact_str::CompactString::const_new(
+            "No proxies to save - previous results left untouched",
+        );
+        tracing::warn!("{summary}");
+        summary
     } else {
+        let saved = output::count_by_protocol(&proxies);
         #[cfg(feature = "tui")]
-        let saved = proxies.len();
+        let saved_count = proxies.len();
         #[cfg(feature = "tui")]
         drop(tx.send(event::Event::App(event::AppEvent::Stage(
             event::Stage::Saving,
         ))));
 
-        output::save_proxies(config, proxies).await?;
+        let location =
+            output::save_proxies(Arc::clone(&config), proxies).await?;
 
         #[cfg(feature = "tui")]
-        drop(tx.send(event::Event::App(event::AppEvent::Saved(saved))));
-    }
+        drop(tx.send(event::Event::App(event::AppEvent::Saved(saved_count))));
+
+        let summary = output::summary(&config, &found, &saved, &location);
+        tracing::info!("{summary}");
+        summary
+    };
 
     tracing::info!("Thank you for using proxy-scraper-checker!");
 
     #[cfg(feature = "tui")]
     drop(tx.send(event::Event::App(event::AppEvent::Done)));
 
-    Ok(())
+    Ok(summary)
 }
 
 #[cfg(any(unix, windows))]
@@ -344,7 +357,7 @@ async fn run_with_tui(
     #[cfg(any(unix, windows))]
     watch_signals(&token, &tx);
 
-    tokio::try_join!(
+    let (summary, ()) = tokio::try_join!(
         main_task(Arc::clone(&config), token.clone(), tx.clone()),
         async move {
             let result = tui::app::run(terminal, config, token, tx, rx).await;
@@ -353,6 +366,10 @@ async fn run_with_tui(
         }
     )?;
 
+    // The alternate screen takes everything with it when it closes, so this
+    // is the only part of the run left in the scrollback.
+    drop(writeln!(std::io::stdout(), "{summary}"));
+
     Ok(())
 }
 
@@ -360,9 +377,16 @@ async fn run_without_tui(
     raw_config: raw_config::RawConfig,
     logging_filter: tracing_subscriber::filter::Targets,
 ) -> crate::Result<()> {
+    // Colors are for people: escape codes only litter log files.
+    let colored = std::io::stdout().is_terminal()
+        && std::env::var_os("NO_COLOR").is_none_or(|value| value.is_empty());
     tracing_subscriber::registry()
         .with(logging_filter)
-        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(colored)
+                .with_target(false),
+        )
         .init();
 
     let config = Arc::new(config::Config::from_raw_config(raw_config).await?);
@@ -386,7 +410,9 @@ async fn run_without_tui(
         #[cfg(feature = "tui")]
         tx,
     )
-    .await
+    .await?;
+
+    Ok(())
 }
 
 #[cfg_attr(

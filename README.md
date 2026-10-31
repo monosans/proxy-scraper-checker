@@ -1,6 +1,6 @@
 # <img src="assets/logo.svg" alt="" width="40" align="top"> proxy-scraper-checker
 
-![The TUI during a run: per-protocol progress, working proxies per second and logs](assets/tui.png)
+![The TUI during a run: per-protocol progress, the fastest proxies so far and logs](assets/tui.png)
 
 A proxy scraper and checker written in Rust.
 
@@ -12,7 +12,7 @@ It collects HTTP/SOCKS4/SOCKS5 proxies from any number of sources, verifies each
 - Proxies are pattern-matched out of raw text, HTML or JSON, so any source works untouched. `scheme://user:pass@host:port` and CIDR ranges are understood, from URLs or local files.
 - Every proxy has to fetch a real URL _in full_ to survive, so ones that connect and then stall get dropped. Results are deduplicated across sources.
 - Each working proxy comes with its response time, and with its exit IP when `check_url` returns one. ASN and city-level geolocation are looked up in offline MaxMind databases, so there are no per-proxy API calls.
-- The interactive TUI follows the run through scraping, checking and saving, with per-protocol results, speed and time left. Without a terminal it prints plain logs instead, so it also runs under cron.
+- The interactive TUI follows the run through scraping, checking and saving, with per-protocol results, the fastest proxies so far, speed and time left. It rearranges itself for narrow screens, so it also fits a phone held upright. Without a terminal it prints plain logs with a progress line every 30 seconds, so it also runs under cron and in Docker.
 - Output is JSON with metadata, plus ready-to-paste plain text lists.
 
 ## Related

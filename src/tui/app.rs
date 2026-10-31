@@ -2,6 +2,7 @@
 
 use std::{sync::Arc, time::Duration};
 
+use compact_str::CompactString;
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyModifiers};
 use futures::StreamExt as _;
 use tui_logger::{TuiWidgetEvent, TuiWidgetState};
@@ -11,7 +12,7 @@ use crate::{
     config::Config,
     event::{AppEvent, Event, Stage},
     ipdb,
-    proxy::PerProxyType,
+    proxy::{PerProxyType, ProxyType},
 };
 
 const TICK: Duration = Duration::from_millis(100);
@@ -19,6 +20,7 @@ const TICKS_PER_SECOND: u64 = 10;
 // A speed measured over less than this swings too much to be worth showing.
 const MIN_TICKS_FOR_SPEED: u64 = 3 * TICKS_PER_SECOND;
 const MAX_INPUT_ERRORS: u8 = 8;
+pub const FASTEST_KEPT: usize = 8;
 
 pub struct RatatuiRestoreGuard;
 
@@ -84,6 +86,12 @@ impl ProtocolProgress {
     }
 }
 
+pub struct FastProxy {
+    pub protocol: ProxyType,
+    pub address: CompactString,
+    pub latency: Duration,
+}
+
 #[derive(Default)]
 pub struct State {
     pub mode: Mode,
@@ -94,8 +102,7 @@ pub struct State {
     pub ticks: u64,
     pub checking_since: u64,
     pub proxies_checked: usize,
-    pub found_this_second: u64,
-    pub found_per_second: Vec<u64>,
+    pub fastest: Vec<FastProxy>,
     pub asn_db: DbProgress,
     pub geo_db: DbProgress,
     pub protocols: PerProxyType<ProtocolProgress>,
@@ -109,16 +116,20 @@ impl State {
         }
     }
 
-    fn tick(&mut self) {
+    const fn tick(&mut self) {
         if matches!(self.mode, Mode::Done | Mode::Quit) {
             return;
         }
         self.ticks = self.ticks.saturating_add(1);
-        if self.stage == Stage::Checking
-            && self.ticks.is_multiple_of(TICKS_PER_SECOND)
-        {
-            self.found_per_second
-                .push(std::mem::take(&mut self.found_this_second));
+    }
+
+    fn rank(&mut self, proxy: FastProxy) {
+        let place = self
+            .fastest
+            .partition_point(|other| other.latency <= proxy.latency);
+        if place < FASTEST_KEPT {
+            self.fastest.insert(place, proxy);
+            self.fastest.truncate(FASTEST_KEPT);
         }
     }
 
@@ -323,11 +334,11 @@ fn handle_app_event(app_event: AppEvent, state: &mut State) -> bool {
             *checked = checked.saturating_add(1);
             state.proxies_checked = state.proxies_checked.saturating_add(1);
         }
-        AppEvent::ProxyWorking(proxy_type) => {
+        AppEvent::ProxyWorking { protocol, address, latency } => {
             let working =
-                &mut state.protocols.get_mut(proxy_type).proxies_working;
+                &mut state.protocols.get_mut(protocol).proxies_working;
             *working = working.saturating_add(1);
-            state.found_this_second = state.found_this_second.saturating_add(1);
+            state.rank(FastProxy { protocol, address, latency });
         }
         AppEvent::Saved(amount) => {
             state.saved = Some(amount);
@@ -378,13 +389,15 @@ fn handle_event(
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crossterm::event::{
         Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
     };
     use tokio_util::sync::CancellationToken;
     use tui_logger::TuiWidgetState;
 
-    use super::{Event, Mode, State, TICKS_PER_SECOND, handle_event};
+    use super::{Event, FASTEST_KEPT, Mode, State, handle_event};
     use crate::{
         config::tests::test_config,
         event::{AppEvent, Stage},
@@ -506,28 +519,31 @@ mod tests {
     }
 
     #[test]
-    fn working_proxies_are_counted_per_second_of_checking() {
+    fn only_the_fastest_proxies_are_kept_in_order() {
         let mut state = State::default();
         let token = CancellationToken::new();
-        let seconds = |state: &mut State, amount: u64| {
-            for _ in 0..amount * TICKS_PER_SECOND {
-                apply(state, &token, Event::Tick);
-            }
-        };
 
-        seconds(&mut state, 2);
-        assert_eq!(state.found_per_second, [0_u64; 0]);
-
-        apply(&mut state, &token, Event::App(AppEvent::Stage(Stage::Checking)));
-        for _ in 0_u8..3 {
+        for millis in (1..=FASTEST_KEPT as u64 * 2).rev() {
             apply(
                 &mut state,
                 &token,
-                Event::App(AppEvent::ProxyWorking(ProxyType::Http)),
+                Event::App(AppEvent::ProxyWorking {
+                    protocol: ProxyType::Http,
+                    address: "1.1.1.1:80".into(),
+                    latency: Duration::from_millis(millis),
+                }),
             );
         }
-        seconds(&mut state, 2);
-        assert_eq!(state.found_per_second, [3, 0]);
+
+        let kept: Vec<_> =
+            state.fastest.iter().map(|proxy| proxy.latency).collect();
+        let expected: Vec<_> =
+            (1..=FASTEST_KEPT as u64).map(Duration::from_millis).collect();
+        assert_eq!(kept, expected);
+        assert_eq!(
+            state.protocols.get(ProxyType::Http).proxies_working,
+            FASTEST_KEPT * 2
+        );
     }
 
     #[tokio::test]

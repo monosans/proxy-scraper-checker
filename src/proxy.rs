@@ -9,6 +9,10 @@ use color_eyre::eyre::eyre;
 
 use crate::{config::Config, parsers::parse_exit_ip};
 
+// An exit IP is a few bytes, and with an http:// check_url the proxy itself
+// writes this body, as long as it likes.
+const MAX_EXIT_IP_BODY: usize = 64 * 1024;
+
 #[repr(u8)]
 #[derive(
     Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize,
@@ -190,15 +194,20 @@ impl Proxy {
         let start = Instant::now();
         let mut response = request.send().await?.error_for_status()?;
 
-        if config.exit_ip_enabled() {
-            let text = response.text().await?;
-            self.timeout = Some(start.elapsed());
-
-            self.exit_ip = parse_exit_ip(&text);
-        } else {
-            while response.chunk().await?.is_some() {}
-            self.timeout = Some(start.elapsed());
+        let mut body = config.exit_ip_enabled().then(Vec::new);
+        while let Some(chunk) = response.chunk().await? {
+            if let Some(kept) = &mut body {
+                if chunk.len() > MAX_EXIT_IP_BODY.saturating_sub(kept.len()) {
+                    body = None;
+                } else {
+                    kept.extend_from_slice(&chunk);
+                }
+            }
         }
+        self.timeout = Some(start.elapsed());
+
+        self.exit_ip = body
+            .and_then(|body| parse_exit_ip(&String::from_utf8_lossy(&body)));
 
         Ok(())
     }
@@ -260,7 +269,9 @@ mod tests {
 
     use compact_str::{CompactString, ToCompactString as _};
 
-    use super::{Duration, Proxy, ProxyAuth, ProxyType, ProxyTypeSet};
+    use super::{
+        Duration, MAX_EXIT_IP_BODY, Proxy, ProxyAuth, ProxyType, ProxyTypeSet,
+    };
     use crate::{
         config::tests::test_config,
         http::{
@@ -335,6 +346,27 @@ mod tests {
         result.unwrap();
         assert!(proxy.timeout.is_some());
         assert_eq!(proxy.exit_ip, None);
+    }
+
+    #[tokio::test]
+    async fn a_huge_reply_passes_the_check_without_being_kept() {
+        let padding = " ".repeat(MAX_EXIT_IP_BODY.saturating_sub(7));
+        for body in [
+            format!(r#"{{"origin": "5.6.7.8"{padding}}}"#),
+            // Cut at the limit, this would read as 1.2.3.4.
+            format!("{padding}1.2.3.45"),
+        ] {
+            let reply = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: \
+                 close\r\n\r\n{body}",
+                body.len()
+            );
+            let (address, _) = serve(vec![reply.leak()]).await;
+            let (result, proxy) = check(address, |_| {}).await;
+            result.unwrap();
+            assert!(proxy.timeout.is_some());
+            assert_eq!(proxy.exit_ip, None);
+        }
     }
 
     #[tokio::test]

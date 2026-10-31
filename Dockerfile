@@ -70,9 +70,12 @@ ARG \
   GID=1000
 
 RUN (getent group "${GID}" || groupadd --gid "${GID}" app) \
-  && useradd --gid "${GID}" --no-log-init --create-home --uid "${UID}" app \
+  && useradd --gid "${GID}" --no-log-init --create-home --non-unique --uid "${UID}" app \
   && mkdir -p /home/app/.cache/proxy_scraper_checker \
   && chown "${UID}:${GID}" /home/app/.cache/proxy_scraper_checker
+
+# Docker finds the home by UID, and that may belong to a user of the image.
+ENV HOME=/home/app
 
 COPY --link LICENSE* ./
 

@@ -53,7 +53,7 @@ fn split(span: &str) -> Option<(ProxyMatch<'_>, usize)> {
 
 pub fn proxy_matches(text: &str) -> impl Iterator<Item = ProxyMatch<'_>> {
     let pattern = regex::regex!(
-        r"(?:^|[^0-9A-Za-z])(?:(?i:https?|socks4a?|socks5h?):\/\/)?(?:[0-9A-Za-z]{1,64}:[0-9A-Za-z]{1,64}@)?(?:(?:[0-9A-Za-z](?:[\-0-9A-Za-z]{0,61}[0-9A-Za-z])?\.){1,15}[A-Za-z](?:[\-0-9A-Za-z]{0,61}[0-9A-Za-z])?|[A-Za-z](?:[\-A-Za-z]{0,61}[A-Za-z])?|(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(?:\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){3})(?:\/(?:1[6-9]|2[0-9]|3[0-2]))?:(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])(?:[^0-9A-Za-z]|$)"
+        r"(?:^|[^0-9A-Za-z])(?:(?i-u:https?|socks4a?|socks5h?):\/\/)?(?:[0-9A-Za-z]{1,64}:[0-9A-Za-z]{1,64}@)?(?:(?:[0-9A-Za-z](?:[\-0-9A-Za-z]{0,61}[0-9A-Za-z])?\.){1,15}[A-Za-z](?:[\-0-9A-Za-z]{0,61}[0-9A-Za-z])?|[A-Za-z](?:[\-A-Za-z]{0,61}[A-Za-z])?|(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(?:\.(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){3})(?:\/(?:1[6-9]|2[0-9]|3[0-2]))?:(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])(?:[^0-9A-Za-z]|$)"
     );
     let mut start = 0;
 
@@ -91,6 +91,7 @@ struct HttpbinResponse {
 }
 
 pub fn parse_exit_ip(body: &str) -> Option<std::net::Ipv4Addr> {
+    let body = body.strip_prefix('\u{feff}').unwrap_or(body);
     match serde_json::from_str::<HttpbinResponse>(body) {
         // A proxy that reveals its client turns this into "client, exit".
         Ok(httpbin) => httpbin.origin.rsplit(',').next().and_then(parse_ipv4),
@@ -166,6 +167,19 @@ mod tests {
             protocols,
             [Some("http"), Some("socks4a"), Some("SOCKS5H"), None]
         );
+    }
+
+    #[test]
+    fn only_ascii_letters_spell_a_scheme() {
+        for text in [
+            "\u{17f}ocks5://1.2.3.4:80",
+            "http\u{17f}://1.2.3.4:80",
+            "soc\u{212a}s5://1.2.3.4:80",
+        ] {
+            let matches: Vec<_> = proxy_matches(text).collect();
+            assert_eq!(matches.len(), 1, "{text}");
+            assert_eq!(matches.first().unwrap().protocol, None, "{text}");
+        }
     }
 
     #[test]
@@ -246,6 +260,7 @@ mod tests {
     fn exit_ip_comes_from_either_body_shape() {
         let expected = Some(Ipv4Addr::new(1, 2, 3, 4));
         assert_eq!(parse_exit_ip("1.2.3.4\n"), expected);
+        assert_eq!(parse_exit_ip("\u{feff}1.2.3.4\n"), expected);
         assert_eq!(parse_exit_ip(r#"{"origin": "1.2.3.4"}"#), expected);
         assert_eq!(
             parse_exit_ip(r#"{"origin": "9.9.9.9, 1.2.3.4"}"#),

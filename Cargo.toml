@@ -74,6 +74,8 @@ tracing-subscriber = { version = "=0.3.23", features = ["parking_lot"] }
 tui-logger = { version = "=0.18.3", features = [
   "tracing-support",
 ], optional = true }
+unicode-segmentation = { version = "=1.13.3", optional = true }
+unicode-width = { version = "=0.2.3", optional = true }
 url = "=2.5.8"
 
 [target.'cfg(all(target_env = "musl", target_has_atomic = "64"))'.dependencies]
@@ -110,7 +112,14 @@ mimalloc_v2_no_thp = ["mimalloc_v2", "mimalloc/no_thp"]
 mimalloc_v3 = ["__mimalloc"]
 mimalloc_v3_no_thp = ["mimalloc_v3", "mimalloc/no_thp"]
 tokio-multi-thread = ["tokio/rt-multi-thread"]
-tui = ["dep:crossterm", "dep:futures", "dep:ratatui", "dep:tui-logger"]
+tui = [
+  "dep:crossterm",
+  "dep:futures",
+  "dep:ratatui",
+  "dep:tui-logger",
+  "dep:unicode-segmentation",
+  "dep:unicode-width",
+]
 
 [profile.release]
 strip = true

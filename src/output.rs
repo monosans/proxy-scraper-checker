@@ -16,7 +16,7 @@ use crate::{
     config::Config,
     ipdb,
     proxy::{PerProxyType, Proxy, ProxyAuth, ProxyType, ProxyTypeSet},
-    utils::{grouped, is_container, pretty_error},
+    utils::{grouped, is_container, plural, pretty_error},
 };
 
 type IpDb = maxminddb::Reader<maxminddb::Mmap>;
@@ -465,6 +465,7 @@ pub fn summary(
     found: &PerProxyType<usize>,
     saved: &PerProxyType<usize>,
     location: &str,
+    stopped: bool,
 ) -> CompactString {
     let protocols = config.scraping.enabled_protocols;
     let total = |counts: &PerProxyType<usize>| -> usize {
@@ -472,16 +473,27 @@ pub fn summary(
     };
 
     let saved_total = total(saved);
-    let mut text = if config.checking.check_url.is_some() {
+    let found_total = total(found);
+    let mut text = if stopped {
+        // Out of everything found, the rest would read as having failed.
         format_compact!(
-            "Saved {} of {} proxies to {location}",
+            "Saved {} {} found before the stop to {location}",
             grouped(saved_total),
-            grouped(total(found))
+            plural(saved_total, "proxy", "proxies")
         )
-    } else if saved_total == 1 {
-        format_compact!("Saved 1 proxy to {location}")
+    } else if config.checking.check_url.is_some() {
+        format_compact!(
+            "Saved {} of {} {} to {location}",
+            grouped(saved_total),
+            grouped(found_total),
+            plural(found_total, "proxy", "proxies")
+        )
     } else {
-        format_compact!("Saved {} proxies to {location}", grouped(saved_total))
+        format_compact!(
+            "Saved {} {} to {location}",
+            grouped(saved_total),
+            plural(saved_total, "proxy", "proxies")
+        )
     };
 
     if protocols.iter().nth(1).is_some() {
@@ -540,8 +552,13 @@ mod tests {
         let saved = count_by_protocol(&[typed(ProxyType::Http)]);
 
         assert_eq!(
-            summary(&config, &found, &saved, "./out"),
+            summary(&config, &found, &saved, "./out", false),
             "Saved 1 of 3 proxies to ./out (HTTP 1, SOCKS4 0, SOCKS5 0)"
+        );
+        assert_eq!(
+            summary(&config, &found, &saved, "./out", true),
+            "Saved 1 proxy found before the stop to ./out (HTTP 1, SOCKS4 0, \
+             SOCKS5 0)"
         );
     }
 
@@ -556,7 +573,7 @@ mod tests {
         let saved = count_by_protocol(&[typed(ProxyType::Http)]);
 
         assert_eq!(
-            summary(&config, &saved, &saved, "./out"),
+            summary(&config, &saved, &saved, "./out", false),
             "Saved 1 proxy to ./out"
         );
     }

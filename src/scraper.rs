@@ -11,7 +11,7 @@ use crate::{
     config::{Config, Source},
     parsers::proxy_matches,
     proxy::{Proxy, ProxyAuth, ProxyType},
-    utils::pretty_error,
+    utils::{plural, pretty_error},
 };
 
 #[derive(Default)]
@@ -35,7 +35,10 @@ pub async fn scrape_all(
         .iter()
         .map(|proto| config.scraping.sources.get(proto).len())
         .sum();
-    tracing::info!("Scraping {sources_count} sources");
+    tracing::info!(
+        "Scraping {sources_count} {}",
+        plural(sources_count, "source", "sources")
+    );
 
     let mut join_set = tokio::task::JoinSet::new();
     for proto in config.scraping.enabled_protocols.iter() {

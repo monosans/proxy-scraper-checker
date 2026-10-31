@@ -241,7 +241,7 @@ async fn main_task(
     let proxies = checker::check_all(
         Arc::clone(&config),
         scraped,
-        token,
+        token.clone(),
         #[cfg(feature = "tui")]
         tx.clone(),
     )
@@ -268,7 +268,13 @@ async fn main_task(
         #[cfg(feature = "tui")]
         drop(tx.send(event::Event::App(event::AppEvent::Saved(saved_count))));
 
-        let summary = output::summary(&config, &found, &saved, &location);
+        let summary = output::summary(
+            &config,
+            &found,
+            &saved,
+            &location,
+            token.is_cancelled(),
+        );
         tracing::info!("{summary}");
         summary
     };

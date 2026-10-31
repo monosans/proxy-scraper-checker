@@ -36,14 +36,19 @@ const ROOMY_HEIGHT: u16 = 20;
 const STACKED_MAX_WIDTH: u16 = 64;
 const STACKED_MIN_HEIGHT: u16 = 24;
 // The fastest proxies only take what the logs can spare, and a list cut down
-// to one or two lines would say nothing.
+// to one or two lines would say nothing. Once the run is over, they are worth
+// more than the logs are.
 const LOGS_MIN_HEIGHT: u16 = 6;
+const LOGS_MIN_HEIGHT_DONE: u16 = 3;
 const FASTEST_MIN_ROWS: u16 = 3;
 const FASTEST_TITLE_AND_GAP: u16 = 2;
 // Any further apart and the eye loses the row between address and latency.
 const FASTEST_MAX_WIDTH: usize = 40;
 const LATENCY_WIDTH: usize = 7;
 const TITLE: &str = "proxy-scraper-checker";
+// Set aside for the timing as a whole, so the title does not blink as the
+// numbers change width.
+const HEADER_TIMING_WIDTH: usize = 40;
 const URL: &str = "https://github.com/monosans/proxy-scraper-checker";
 
 const FILLED: &str = "\u{2501}";
@@ -135,10 +140,17 @@ struct Row {
     meter: Meter,
     done: CompactString,
     total: CompactString,
+    aligned: bool,
     count_style: Style,
     amount: CompactString,
     amount_style: Style,
     share: CompactString,
+}
+
+impl Row {
+    fn joined_count(&self) -> CompactString {
+        format_compact!("{}{SLASH}{}", self.done, self.total)
+    }
 }
 
 struct Headings {
@@ -185,9 +197,11 @@ impl Columns {
         for row in rows {
             if row.total.is_empty() {
                 alone = alone.max(row.done.len());
-            } else {
+            } else if row.aligned {
                 done = done.max(row.done.len()).max(row.total.len());
                 columns.total = columns.total.max(row.total.len());
+            } else {
+                alone = alone.max(row.joined_count().len());
             }
             count_short = count_short.max(row.done.len());
             columns.amount = columns.amount.max(row.amount.len());
@@ -277,6 +291,9 @@ impl Columns {
         if self.short || row.total.is_empty() {
             return format!("{:>1$}", row.done, self.count);
         }
+        if !row.aligned {
+            return format!("{:>1$}", row.joined_count(), self.count);
+        }
         let done_width =
             self.count.saturating_sub(self.total).saturating_sub(SLASH.len());
         format!("{:>done_width$}{SLASH}{:>2$}", row.done, row.total, self.total)
@@ -312,6 +329,7 @@ fn protocol_row(
             },
             done: grouped(progress.proxies_checked),
             total: grouped(progress.proxies_total),
+            aligned: true,
             count_style: Style::new(),
             amount: grouped(progress.proxies_working),
             amount_style: working(),
@@ -327,6 +345,7 @@ fn protocol_row(
             },
             done: progress.sources_scraped.to_compact_string(),
             total: progress.sources_total.to_compact_string(),
+            aligned: true,
             count_style: Style::new(),
             amount: grouped(progress.proxies_total),
             amount_style: Style::new(),
@@ -347,7 +366,7 @@ fn database_row(name: &'static str, progress: DbProgress) -> Row {
             Style::new(),
         ),
         _ => (
-            format_compact!("{:.1}", megabytes(progress.downloaded)),
+            format_compact!("{:.1} MB", megabytes(progress.downloaded)),
             format_compact!("{:.1} MB", megabytes(progress.total)),
             Style::new(),
         ),
@@ -361,6 +380,8 @@ fn database_row(name: &'static str, progress: DbProgress) -> Row {
         },
         done,
         total,
+        // Megabytes have nothing in common with the counts above them.
+        aligned: false,
         count_style,
         amount: CompactString::default(),
         amount_style: Style::new(),
@@ -466,15 +487,19 @@ fn header(
 
     let right_width = line_width(&right);
     let steps_width = line_width(&steps).saturating_add(GAP.len());
-    let title_width = TITLE.len().saturating_add(GAP.len());
+    let title_width = TITLE.len().saturating_add(GAP.len().saturating_mul(2));
     let mut used = right_width;
 
     let mut left = Vec::new();
-    if used.saturating_add(steps_width).saturating_add(title_width) <= width {
+    if HEADER_TIMING_WIDTH
+        .saturating_add(steps_width)
+        .saturating_add(title_width)
+        <= width
+    {
         left.push(Span::styled(TITLE, bold()));
         left.push(gap());
         left.push(gap());
-        used = used.saturating_add(title_width).saturating_add(GAP.len());
+        used = used.saturating_add(title_width);
     }
     if used.saturating_add(steps_width) <= width {
         used = used.saturating_add(steps_width);
@@ -560,7 +585,10 @@ fn overview(
         stacked,
     );
 
+    // The result comes first: if the screen is too short, the table is what
+    // gets cut.
     let mut lines = header(config, state, width, stacked);
+    lines.extend(outcome(config, state, width));
     if roomy {
         lines.push(Line::default());
         lines.push(columns.heading(&headings));
@@ -571,13 +599,6 @@ fn overview(
             lines.push(Line::default());
         }
         lines.extend(columns.lines(&databases));
-    }
-    let outcome = outcome(config, state, width);
-    if !outcome.is_empty() {
-        if roomy {
-            lines.push(Line::default());
-        }
-        lines.extend(outcome);
     }
     if roomy {
         lines.push(Line::default());
@@ -664,18 +685,16 @@ fn footer(
 
     let mut spans = Vec::with_capacity(keys.len().saturating_mul(4));
     for (key, action) in keys {
-        let entry = [
-            gap(),
-            Span::styled(key, bold()),
-            Span::styled(format!(" {action}"), dim()),
-        ];
+        let mut entry = Vec::with_capacity(3);
+        if !spans.is_empty() {
+            entry.push(gap());
+        }
+        entry.push(Span::styled(key, bold()));
+        entry.push(Span::styled(format!(" {action}"), dim()));
         if !fits(&spans, &entry, width) {
             break;
         }
         spans.extend(entry);
-    }
-    if !spans.is_empty() {
-        spans.remove(0);
     }
 
     let keys_width = line_width(&spans);
@@ -742,6 +761,10 @@ impl LogFormatter for LogLine {
                 ]));
             }
         }
+        // The logger takes one line off this count, unchecked.
+        if lines.is_empty() {
+            lines.push(Line::default());
+        }
         lines
     }
 }
@@ -765,9 +788,15 @@ pub fn draw(
         .height
         .saturating_sub(overview_height)
         .saturating_sub(u16::from(roomy).saturating_add(1))
-        .saturating_sub(LOGS_MIN_HEIGHT)
+        .saturating_sub(if matches!(state.mode, Mode::Done) {
+            LOGS_MIN_HEIGHT_DONE
+        } else {
+            LOGS_MIN_HEIGHT
+        })
         .saturating_sub(FASTEST_TITLE_AND_GAP);
-    let fastest_rows = if fastest_room < FASTEST_MIN_ROWS {
+    // Compact layouts would show it, only for a taller screen to take it back.
+    let fastest_fits = roomy && (stacked || full.width >= STACKED_MAX_WIDTH);
+    let fastest_rows = if !fastest_fits || fastest_room < FASTEST_MIN_ROWS {
         0
     } else {
         state.fastest.len().min(FASTEST_KEPT).min(usize::from(fastest_room))
@@ -827,7 +856,10 @@ mod tests {
         config::{Config, tests::test_config},
         event::Stage,
         proxy::ProxyType,
-        tui::app::{DbProgress, FastProxy, Mode, ProtocolProgress, State},
+        tui::app::{
+            DbProgress, FastProxy, Mode, ProtocolProgress, State,
+            TICKS_PER_SECOND,
+        },
     };
 
     const MB: usize = 1_000_000;
@@ -859,8 +891,8 @@ mod tests {
     fn checking_state() -> State {
         let mut state = State {
             stage: Stage::Checking,
-            ticks: 1200,
-            checking_since: 1100,
+            ticks: 120 * TICKS_PER_SECOND,
+            checking_since: 110 * TICKS_PER_SECOND,
             proxies_checked: 12_480,
             ..State::default()
         };
@@ -936,7 +968,7 @@ mod tests {
         assert_eq!(count(Some(false), MB, MB), ("failed".into(), "".into()));
         assert_eq!(count(None, 0, 0), ("waiting".into(), "".into()));
         assert_eq!(count(None, MB, 0), ("1.0 MB".into(), "".into()));
-        assert_eq!(count(None, MB, 2 * MB), ("1.0".into(), "2.0 MB".into()));
+        assert_eq!(count(None, MB, 2 * MB), ("1.0 MB".into(), "2.0 MB".into()));
     }
 
     #[test]
@@ -998,6 +1030,24 @@ mod tests {
         assert!(screen.contains("  330 /    330"), "{screen}");
     }
 
+    #[tokio::test]
+    async fn megabytes_do_not_widen_the_counts() {
+        let config = test_config(|_| {}).await;
+        let mut state = State::default();
+        *state.protocols.get_mut(ProxyType::Http) = ProtocolProgress {
+            sources_total: 23,
+            sources_scraped: 9,
+            ..ProtocolProgress::default()
+        };
+        state.asn_db =
+            DbProgress { finished_ok: None, downloaded: MB, total: 2 * MB };
+
+        let screen = render(&config, &state, 100, 30);
+        assert!(screen.contains("1.0 MB / 2.0 MB"), "{screen}");
+        assert!(screen.contains("  9 / 23"), "{screen}");
+        assert!(!screen.contains("  9 /  "), "{screen}");
+    }
+
     #[test]
     fn latency_reads_in_the_unit_that_suits_it() {
         assert_eq!(latency(Duration::from_millis(312)), "312 ms");
@@ -1048,6 +1098,75 @@ mod tests {
         let screen = render(&config, &state, 50, 40);
         assert!(screen.contains("\u{2026}"), "{screen}");
         assert!(screen.contains("5 ms"), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn more_height_never_takes_the_fastest_proxies_away() {
+        let config = test_config(|_| {}).await;
+        let state = State {
+            fastest: vec![fast("1.1.1.1:80", 5); 8],
+            ..checking_state()
+        };
+
+        for width in [50, 100] {
+            let shown: Vec<_> = (1..60)
+                .map(|height| {
+                    render(&config, &state, width, height).contains("Fastest")
+                })
+                .collect();
+            assert!(shown.is_sorted(), "{width}: {shown:?}");
+            assert_eq!(shown.last(), Some(&true));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_finished_run_keeps_its_fastest_proxies_on_a_standard_terminal() {
+        let config = test_config(|_| {}).await;
+        let state = State {
+            mode: Mode::Done,
+            saved: Some(8),
+            fastest: vec![fast("1.1.1.1:80", 5); 8],
+            ..checking_state()
+        };
+
+        let screen = render(&config, &state, 80, 24);
+        assert!(screen.contains("Fastest"), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn the_header_keeps_the_steps_and_gives_up_the_title() {
+        let config = test_config(|_| {}).await;
+        let state = checking_state();
+
+        let screen = render(&config, &state, 80, 24);
+        assert!(screen.contains("Scrape"), "{screen}");
+        assert!(!screen.contains("proxy-scraper-checker  "), "{screen}");
+
+        let screen = render(&config, &state, 100, 24);
+        assert!(screen.contains("Scrape"), "{screen}");
+        assert!(screen.contains("proxy-scraper-checker  "), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn the_keys_use_the_whole_footer() {
+        let config = test_config(|_| {}).await;
+        let screen = render(&config, &State::default(), 49, 30);
+        assert!(screen.contains("end latest"), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn a_short_screen_still_says_where_the_results_went() {
+        let path = "/data/data/com.termux/files/home/proxy-scraper-checker/out";
+        let mut config = test_config(|_| {}).await;
+        config.output.path = std::path::PathBuf::from(path);
+        let mut state =
+            State { mode: Mode::Done, saved: Some(1_517), ..checking_state() };
+        state.asn_db.finished_ok = Some(false);
+        state.geo_db.finished_ok = Some(false);
+
+        let screen = render(&config, &state, 30, 24);
+        let joined = screen.replace(['\n', ' '], "");
+        assert!(joined.contains(path), "{screen}");
     }
 
     #[tokio::test]

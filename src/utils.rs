@@ -12,7 +12,8 @@ pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
 }
 
 pub fn grouped(number: usize) -> compact_str::CompactString {
-    let digits = itoa::Buffer::new().format(number).to_owned();
+    let mut buffer = itoa::Buffer::new();
+    let digits = buffer.format(number);
     let mut grouped = compact_str::CompactString::default();
     for (remaining, digit) in (1..=digits.len()).rev().zip(digits.chars()) {
         grouped.push(digit);
@@ -21,6 +22,14 @@ pub fn grouped(number: usize) -> compact_str::CompactString {
         }
     }
     grouped
+}
+
+pub const fn plural(
+    count: usize,
+    one: &'static str,
+    many: &'static str,
+) -> &'static str {
+    if count == 1 { one } else { many }
 }
 
 pub fn clock(seconds: u64) -> compact_str::CompactString {

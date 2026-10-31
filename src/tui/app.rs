@@ -15,8 +15,12 @@ use crate::{
     proxy::{PerProxyType, ProxyType},
 };
 
-const TICK: Duration = Duration::from_millis(100);
-const TICKS_PER_SECOND: u64 = 10;
+// Keys, resizes and stage changes redraw at once, so this only paces the
+// counters. Going faster spins their last digits past reading and has the
+// terminal repaint for nothing, which is what SSH and phones feel.
+pub const TICKS_PER_SECOND: u64 = 4;
+const TICK: Duration =
+    Duration::from_millis(1000_u64.div_euclid(TICKS_PER_SECOND));
 // A speed measured over less than this swings too much to be worth showing.
 const MIN_TICKS_FOR_SPEED: u64 = 3 * TICKS_PER_SECOND;
 const MAX_INPUT_ERRORS: u8 = 8;
@@ -86,6 +90,7 @@ impl ProtocolProgress {
     }
 }
 
+#[derive(Clone)]
 pub struct FastProxy {
     pub protocol: ProxyType,
     pub address: CompactString,
@@ -372,6 +377,8 @@ fn handle_event(
     logger_state: &TuiWidgetState,
 ) -> bool {
     match event {
+        // Still redraws once the run is over: the logger hands over its last
+        // lines from another thread, after the event that ended the run.
         Event::Tick => {
             state.tick();
             true
@@ -397,7 +404,9 @@ mod tests {
     use tokio_util::sync::CancellationToken;
     use tui_logger::TuiWidgetState;
 
-    use super::{Event, FASTEST_KEPT, Mode, State, handle_event};
+    use super::{
+        Event, FASTEST_KEPT, Mode, State, TICKS_PER_SECOND, handle_event,
+    };
     use crate::{
         config::tests::test_config,
         event::{AppEvent, Stage},
@@ -551,8 +560,8 @@ mod tests {
         let config = test_config(|_| {}).await;
         let mut state = State {
             stage: Stage::Checking,
-            ticks: 100,
-            checking_since: 100,
+            ticks: 10 * TICKS_PER_SECOND,
+            checking_since: 10 * TICKS_PER_SECOND,
             proxies_checked: 500,
             ..State::default()
         };
@@ -560,7 +569,7 @@ mod tests {
 
         assert_eq!(state.seconds_left(&config), None);
 
-        state.ticks = 150;
+        state.ticks = 15 * TICKS_PER_SECOND;
         assert_eq!(state.checks_per_second(), Some(100));
         assert_eq!(state.seconds_left(&config), Some(15));
 

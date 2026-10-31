@@ -16,7 +16,7 @@ use crate::{
     config::Config,
     http,
     proxy::Proxy,
-    utils::{clock, grouped, pretty_error},
+    utils::{clock, grouped, plural, pretty_error},
 };
 
 // Checking can take many minutes, and a log that says nothing for that long
@@ -36,9 +36,10 @@ fn progress_line(
     elapsed: Duration,
 ) -> CompactString {
     let mut line = format_compact!(
-        "Checked {} of {} proxies, {} working",
+        "Checked {} of {} {}, {} working",
         grouped(checked),
         grouped(total),
+        plural(total, "proxy", "proxies"),
         grouped(working)
     );
     let left = (total.saturating_sub(checked) as u64)
@@ -102,7 +103,11 @@ pub async fn check_all(
 
     #[cfg(feature = "tui")]
     drop(tx.send(Event::App(AppEvent::Stage(Stage::Checking))));
-    tracing::info!("Started checking {} proxies", grouped(proxies.len()));
+    tracing::info!(
+        "Started checking {} {}",
+        grouped(proxies.len()),
+        plural(proxies.len(), "proxy", "proxies")
+    );
 
     // The TUI shows all of this already, and without it nobody reads the
     // events, so that is what tells the two apart.

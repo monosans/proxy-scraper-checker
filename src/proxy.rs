@@ -205,6 +205,7 @@ impl Proxy {
             }
         }
         self.timeout = Some(start.elapsed());
+        drop(response);
 
         self.exit_ip = body
             .and_then(|body| parse_exit_ip(&String::from_utf8_lossy(&body)));

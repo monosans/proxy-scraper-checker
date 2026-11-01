@@ -113,6 +113,7 @@ async fn fetch_source(
         let path = url
             .to_file_path()
             .unwrap_or_else(move |()| source.url.as_str().into());
+        drop(url);
         return read_source_file(path).await;
     }
 
@@ -142,6 +143,7 @@ async fn fetch_source(
         }
         body.extend_from_slice(&chunk);
     }
+    drop(response);
 
     Ok(String::from_utf8(body)
         .unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned()))

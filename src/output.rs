@@ -237,8 +237,9 @@ async fn clear_previous(previous: &Path) {
     };
     while let Ok(Some(entry)) = entries.next_entry().await {
         let path = entry.path();
-        let removed = if entry.file_type().await.is_ok_and(|kind| kind.is_dir())
-        {
+        let is_dir = entry.file_type().await.is_ok_and(|kind| kind.is_dir());
+        drop(entry);
+        let removed = if is_dir {
             remove_dir(&path).await
         } else {
             tokio::fs::remove_file(&path).await.wrap_err_with(move || {
@@ -311,6 +312,7 @@ async fn commit_directory(from: &Path, to: &Path) -> crate::Result<()> {
         return Err(e).wrap_err(failed);
     }
 
+    drop(aside);
     clear_previous(&previous).await;
     Ok(())
 }
@@ -513,12 +515,15 @@ pub async fn save_proxies(
             );
         }
     }
+    drop(json_paths);
     if config.output.txt.enabled {
         committed = keep_both_errors(
             committed,
             commit_directory(&staging_path, &directory_path).await,
         );
     }
+    drop(directory_path);
+    drop(staging_path);
     committed?;
 
     let path = std::path::absolute(&config.output.path)

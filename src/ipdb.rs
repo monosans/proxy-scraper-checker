@@ -253,7 +253,7 @@ impl DbType {
         drop(writer);
 
         // A body that isn't a database must not replace one that works.
-        drop(open_reader(tmp_path.clone()).await?);
+        open_reader(tmp_path.clone()).await?;
 
         tokio::fs::rename(&tmp_path, &db_path).await.wrap_err_with(|| {
             compact_str::format_compact!(

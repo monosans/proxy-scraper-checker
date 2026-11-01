@@ -307,13 +307,12 @@ fn stop_on_signal<S, R>(
     // Not tied to the token: after ESC cancels the run, the TUI stays open
     // until it is told to quit.
     tokio::spawn(async move {
-        if let Some(receiver) = signal.await {
+        if let Some(_receiver) = signal.await {
             tracing::info!("Received {signal_name} signal, exiting...");
             stop();
             // With nothing listening, Windows would let a second Ctrl-C kill
             // the process, which by then is saving what it found.
             std::future::pending::<()>().await;
-            drop(receiver);
         }
     });
 }

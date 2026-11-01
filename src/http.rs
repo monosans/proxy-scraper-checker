@@ -269,7 +269,6 @@ pub mod tests {
             let mut socket = accept(&listener).await;
             socket.write_all(reply.as_bytes()).await.unwrap();
             future::pending::<()>().await;
-            drop(socket);
         });
         address
     }

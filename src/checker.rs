@@ -263,7 +263,7 @@ mod tests {
     };
 
     async fn resolved(check_url: &str) -> Vec<std::net::SocketAddr> {
-        let config = test_config(|raw| {
+        let config = test_config(move |raw| {
             raw.checking.check_url = Some(check_url.parse().unwrap());
         })
         .await;

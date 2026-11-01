@@ -110,8 +110,9 @@ async fn fetch_source(
 
     if !matches!(url.scheme(), "http" | "https") {
         drop(http_client);
-        let path =
-            url.to_file_path().unwrap_or_else(|()| source.url.as_str().into());
+        let path = url
+            .to_file_path()
+            .unwrap_or_else(move |()| source.url.as_str().into());
         return read_source_file(path).await;
     }
 
@@ -147,7 +148,7 @@ async fn fetch_source(
 }
 
 async fn read_source_file(path: std::path::PathBuf) -> crate::Result<String> {
-    tokio::fs::read_to_string(&path).await.wrap_err_with(|| {
+    tokio::fs::read_to_string(&path).await.wrap_err_with(move || {
         compact_str::format_compact!(
             "failed to read file to string: {}",
             path.display()
@@ -322,7 +323,7 @@ mod tests {
 
     async fn scrape_source(source: &str, limit: usize) -> Vec<Proxy> {
         let config = std::sync::Arc::new(
-            test_config(|raw| {
+            test_config(move |raw| {
                 raw.scraping.max_proxies_per_source = limit;
                 raw.scraping.http.enabled = true;
                 raw.scraping.http.urls =

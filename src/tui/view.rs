@@ -398,7 +398,7 @@ fn database_rows(config: &Config, state: &State) -> Vec<Row> {
         ("Geo", config.geolocation_enabled(), state.geo_db),
     ]
     .into_iter()
-    .filter(|&(_, enabled, progress)| {
+    .filter(move |&(_, enabled, progress)| {
         enabled
             && progress
                 .finished_ok
@@ -544,7 +544,7 @@ fn outcome(config: &Config, state: &State, width: usize) -> Vec<Line<'static>> {
         ),
     };
     wrap(&text, width.max(1))
-        .map(|line| Line::styled(line.to_owned(), style))
+        .map(move |line| Line::styled(line.to_owned(), style))
         .collect()
 }
 
@@ -581,7 +581,7 @@ fn overview(
     if protocols.len() > 1 {
         let all = enabled
             .iter()
-            .map(|protocol| *state.protocols.get(protocol))
+            .map(move |protocol| *state.protocols.get(protocol))
             .fold(ProtocolProgress::default(), ProtocolProgress::plus);
         protocols.push(protocol_row("All", all, checked));
     }
@@ -724,7 +724,7 @@ fn wrap(text: &str, width: usize) -> impl Iterator<Item = &str> {
                 cells = cells.saturating_add(grapheme.width());
                 cells > width && index > 0
             });
-        let end = overflow.map_or(rest.len(), |(end, _)| {
+        let end = overflow.map_or(rest.len(), move |(end, _)| {
             rest.get(..end)
                 .and_then(|line| line.rfind(' '))
                 .filter(move |&space| space >= end.div_euclid(2))
@@ -886,7 +886,7 @@ mod tests {
         let mut terminal =
             Terminal::new(TestBackend::new(width, height)).unwrap();
         terminal
-            .draw(|f| draw(f, config, state, &TuiWidgetState::default()))
+            .draw(move |f| draw(f, config, state, &TuiWidgetState::default()))
             .unwrap();
         let buffer = terminal.backend().buffer();
         buffer

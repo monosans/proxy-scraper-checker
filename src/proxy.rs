@@ -292,7 +292,7 @@ mod tests {
         address: SocketAddr,
         edit: impl FnOnce(&mut RawConfig),
     ) -> (reqwest::Result<()>, Proxy) {
-        let config = test_config(|raw| {
+        let config = test_config(move |raw| {
             raw.checking.check_url =
                 Some("http://check.test/".parse().unwrap());
             raw.checking.timeout = Duration::from_millis(300);

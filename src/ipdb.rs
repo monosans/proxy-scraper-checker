@@ -42,7 +42,7 @@ where
     crate::Error: From<E>,
 {
     let result =
-        tokio::time::timeout(limit, future).await.wrap_err_with(|| {
+        tokio::time::timeout(limit, future).await.wrap_err_with(move || {
             compact_str::format_compact!(
                 "received no data for {} seconds",
                 limit.as_secs()
@@ -56,12 +56,14 @@ async fn open_reader(
 ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
     tokio::task::spawn_blocking(move || {
         #[expect(clippy::undocumented_unsafe_blocks)]
-        unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(|| {
-            compact_str::format_compact!(
-                "failed to open IP database: {}",
-                path.display()
-            )
-        })
+        unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(
+            move || {
+                compact_str::format_compact!(
+                    "failed to open IP database: {}",
+                    path.display()
+                )
+            },
+        )
     })
     .await?
 }
@@ -264,7 +266,7 @@ impl DbType {
 
     async fn save_etag(self, etag: impl AsRef<[u8]>) -> crate::Result<()> {
         let path = self.etag_path().await?;
-        tokio::fs::write(&path, etag).await.wrap_err_with(|| {
+        tokio::fs::write(&path, etag).await.wrap_err_with(move || {
             compact_str::format_compact!(
                 "failed to write to file: {}",
                 path.display()
@@ -282,7 +284,7 @@ impl DbType {
                 Ok(reqwest::header::HeaderValue::from_bytes(&bytes).ok())
             }
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e).wrap_err_with(|| {
+            Err(e) => Err(e).wrap_err_with(move || {
                 compact_str::format_compact!(
                     "failed to read file: {}",
                     path.display()
@@ -296,7 +298,7 @@ impl DbType {
         match tokio::fs::remove_file(&path).await {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(e).wrap_err_with(|| {
+            Err(e) => Err(e).wrap_err_with(move || {
                 compact_str::format_compact!(
                     "failed to remove file: {}",
                     path.display()

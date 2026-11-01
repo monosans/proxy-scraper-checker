@@ -27,10 +27,10 @@ fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
     a.timeout
         .unwrap_or(Duration::MAX)
         .cmp(&b.timeout.unwrap_or(Duration::MAX))
-        .then_with(|| a.protocol.cmp(&b.protocol))
-        .then_with(|| a.host.cmp(&b.host))
-        .then_with(|| a.port.cmp(&b.port))
-        .then_with(|| a.auth.cmp(&b.auth))
+        .then_with(move || a.protocol.cmp(&b.protocol))
+        .then_with(move || a.host.cmp(&b.host))
+        .then_with(move || a.port.cmp(&b.port))
+        .then_with(move || a.auth.cmp(&b.auth))
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -43,7 +43,7 @@ fn natural_sort_key(
     proxy: &Proxy,
 ) -> (ProxyType, HostSortKey, u16, Option<Box<ProxyAuth>>) {
     let host = proxy.host.parse::<Ipv4Addr>().map_or_else(
-        |_| HostSortKey::Name(proxy.host.clone()),
+        move |_| HostSortKey::Name(proxy.host.clone()),
         |ip| HostSortKey::Ipv4(ip.octets()),
     );
     (proxy.protocol, host, proxy.port, proxy.auth.clone())
@@ -147,7 +147,7 @@ async fn remove_dir(path: &Path) -> crate::Result<()> {
     match tokio::fs::remove_dir_all(path).await {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e).wrap_err_with(|| {
+        Err(e) => Err(e).wrap_err_with(move || {
             compact_str::format_compact!(
                 "failed to remove directory: {}",
                 path.display()
@@ -210,21 +210,21 @@ async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
         // it usually allows overwriting it. Unlike a rename, that isn't atomic,
         // so it is only the fallback.
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-            tokio::fs::copy(from, to).await.wrap_err_with(|| {
+            tokio::fs::copy(from, to).await.wrap_err_with(move || {
                 compact_str::format_compact!(
                     "failed to copy {} to {}",
                     from.display(),
                     to.display()
                 )
             })?;
-            tokio::fs::remove_file(from).await.wrap_err_with(|| {
+            tokio::fs::remove_file(from).await.wrap_err_with(move || {
                 compact_str::format_compact!(
                     "failed to remove file: {}",
                     from.display()
                 )
             })
         }
-        Err(e) => Err(e).wrap_err_with(|| rename_failed(from, to)),
+        Err(e) => Err(e).wrap_err_with(move || rename_failed(from, to)),
     }
 }
 
@@ -241,7 +241,7 @@ async fn clear_previous(previous: &Path) {
         {
             remove_dir(&path).await
         } else {
-            tokio::fs::remove_file(&path).await.wrap_err_with(|| {
+            tokio::fs::remove_file(&path).await.wrap_err_with(move || {
                 format_compact!("failed to remove file: {}", path.display())
             })
         };
@@ -254,7 +254,7 @@ async fn clear_previous(previous: &Path) {
 }
 
 async fn move_aside(to: &Path, previous: &Path) -> crate::Result<PathBuf> {
-    tokio::fs::create_dir_all(previous).await.wrap_err_with(|| {
+    tokio::fs::create_dir_all(previous).await.wrap_err_with(move || {
         format_compact!("failed to create directory: {}", previous.display())
     })?;
     let stamp = SystemTime::now()
@@ -324,15 +324,15 @@ fn write_proxy_list_to_file<'a, I>(
 where
     I: IntoIterator<Item = &'a Proxy>,
 {
-    let mut file = std::fs::File::create(path).wrap_err_with(|| {
+    let mut file = std::fs::File::create(path).wrap_err_with(move || {
         compact_str::format_compact!(
             "failed to create file: {}",
             path.display()
         )
     })?;
 
-    let write = |file: &mut std::fs::File, buf: &str| {
-        file.write_all(buf.as_bytes()).wrap_err_with(|| {
+    let write = move |file: &mut std::fs::File, buf: &str| {
+        file.write_all(buf.as_bytes()).wrap_err_with(move || {
             compact_str::format_compact!(
                 "failed to write to file: {}",
                 path.display()
@@ -548,7 +548,7 @@ pub fn summary(
 ) -> CompactString {
     let protocols = config.scraping.enabled_protocols;
     let total = move |counts: &PerProxyType<usize>| -> usize {
-        protocols.iter().map(|protocol| *counts.get(protocol)).sum()
+        protocols.iter().map(move |protocol| *counts.get(protocol)).sum()
     };
 
     let saved_total = total(saved);
@@ -578,7 +578,7 @@ pub fn summary(
     if protocols.iter().nth(1).is_some() {
         let breakdown: Vec<_> = protocols
             .iter()
-            .map(|protocol| {
+            .map(move |protocol| {
                 format_compact!(
                     "{} {}",
                     protocol.as_str_uppercase(),

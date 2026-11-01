@@ -138,7 +138,7 @@ impl State {
     fn rank(&mut self, proxy: FastProxy) {
         let place = self
             .fastest
-            .partition_point(|other| other.latency <= proxy.latency);
+            .partition_point(move |other| other.latency <= proxy.latency);
         if place < FASTEST_KEPT {
             self.fastest.insert(place, proxy);
             self.fastest.truncate(FASTEST_KEPT);
@@ -172,7 +172,7 @@ impl State {
             .scraping
             .enabled_protocols
             .iter()
-            .map(|protocol| self.protocols.get(protocol).proxies_total)
+            .map(move |protocol| self.protocols.get(protocol).proxies_total)
             .sum();
         let left = total.saturating_sub(self.proxies_checked) as u64;
         let checked_ticks =

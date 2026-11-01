@@ -352,16 +352,19 @@ mod tests {
     #[tokio::test]
     async fn a_huge_reply_passes_the_check_without_being_kept() {
         let padding = " ".repeat(MAX_EXIT_IP_BODY.saturating_sub(7));
-        for body in [
+        let bodies = [
             format!(r#"{{"origin": "5.6.7.8"{padding}}}"#),
             // Cut at the limit, this would read as 1.2.3.4.
             format!("{padding}1.2.3.45"),
-        ] {
+        ];
+        drop(padding);
+        for body in bodies {
             let reply = format!(
                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: \
                  close\r\n\r\n{body}",
                 body.len()
             );
+            drop(body);
             let (address, _) = serve(vec![reply.leak()]).await;
             let (result, proxy) = check(address, |_| {}).await;
             result.unwrap();

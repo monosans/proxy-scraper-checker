@@ -86,8 +86,6 @@ impl DbType {
         http_client: reqwest_middleware::ClientWithMiddleware,
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> crate::Result<()> {
-        let db_path = self.db_path().await?;
-
         // Left by a download that was cut short. Nothing else would remove it
         // if the database turns out to be up to date.
         drop(tokio::fs::remove_file(self.tmp_path().await?).await);
@@ -111,6 +109,9 @@ impl DbType {
         let status = response.status();
         if status == reqwest::StatusCode::NOT_MODIFIED {
             drop(response);
+            #[cfg(feature = "tui")]
+            drop(tx);
+            let db_path = self.db_path().await?;
             tracing::info!(
                 "Latest {} database is already cached at {}",
                 self.name(),
@@ -136,7 +137,9 @@ impl DbType {
         )
         .await?;
 
-        if is_container().await {
+        let in_container = is_container().await;
+        let db_path = self.db_path().await?;
+        if in_container {
             tracing::info!(
                 "Downloaded {} database to Docker volume ({} in container)",
                 self.name(),
@@ -223,7 +226,6 @@ impl DbType {
             response.content_length(),
         ))));
 
-        let db_path = self.db_path().await?;
         let tmp_path = self.tmp_path().await?;
         let file =
             tokio::fs::File::create(&tmp_path).await.wrap_err_with(|| {
@@ -261,7 +263,8 @@ impl DbType {
         // A body that isn't a database must not replace one that works.
         open_reader(tmp_path.clone()).await?;
 
-        tokio::fs::rename(&tmp_path, &db_path).await.wrap_err_with(|| {
+        let db_path = self.db_path().await?;
+        tokio::fs::rename(&tmp_path, &db_path).await.wrap_err_with(move || {
             compact_str::format_compact!(
                 "failed to rename {} to {}",
                 tmp_path.display(),
@@ -432,11 +435,12 @@ pub mod tests {
         let url =
             stalling_server("HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nabc")
                 .await;
-        let mut response =
-            within(LIMIT, client().await.get(url).send()).await.unwrap();
+        let request = client().await.get(url).send();
+        let mut response = within(LIMIT, request).await.unwrap();
 
         let chunk = within(LIMIT, response.chunk()).await.unwrap().unwrap();
         assert_eq!(chunk.as_ref(), b"abc");
+        drop(chunk);
 
         let error = within(LIMIT, response.chunk()).await.unwrap_err();
         assert!(error.to_string().starts_with("received no data"));

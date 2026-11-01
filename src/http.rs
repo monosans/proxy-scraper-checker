@@ -140,8 +140,15 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
         next: reqwest_middleware::Next<'_>,
     ) -> reqwest_middleware::Result<reqwest::Response> {
         let mut attempt: u32 = 0;
+        let mut original = Some(req);
         loop {
-            let req = req.try_clone().ok_or_else(|| {
+            // Nothing can come after the last attempt to need a copy for.
+            let req = if attempt < DEFAULT_MAX_RETRIES {
+                original.as_ref().and_then(reqwest::Request::try_clone)
+            } else {
+                original.take()
+            }
+            .ok_or_else(|| {
                 reqwest_middleware::Error::middleware(io::Error::other(
                     "Request object is not cloneable",
                 ))
@@ -267,6 +274,7 @@ pub mod tests {
         let address = listener.local_addr().unwrap();
         tokio::spawn(async move {
             let mut socket = accept(&listener).await;
+            drop(listener);
             socket.write_all(reply.as_bytes()).await.unwrap();
             future::pending::<()>().await;
         });
@@ -277,12 +285,11 @@ pub mod tests {
         address: SocketAddr,
     ) -> reqwest_middleware::Result<reqwest::Response> {
         let config = test_config(|_| {}).await;
-        super::create_reqwest_client(&config)
-            .await
-            .unwrap()
-            .get(format!("http://{address}/"))
-            .send()
-            .await
+        let client = super::create_reqwest_client(&config).await.unwrap();
+        drop(config);
+        let request = client.get(format!("http://{address}/"));
+        drop(client);
+        request.send().await
     }
 
     fn header(name: &'static str, value: &str) -> HeaderMap {
@@ -303,14 +310,14 @@ pub mod tests {
     async fn retries_run_out() {
         let (address, requests) =
             serve(vec![UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, OK]).await;
-        drop(get(address).await.unwrap_err());
+        get(address).await.unwrap_err();
         assert_eq!(requests.load(Ordering::Relaxed), 3);
     }
 
     #[tokio::test]
     async fn a_permanent_failure_is_not_retried() {
         let (address, requests) = serve(vec![NOT_FOUND, OK]).await;
-        drop(get(address).await.unwrap_err());
+        get(address).await.unwrap_err();
         assert_eq!(requests.load(Ordering::Relaxed), 1);
     }
 

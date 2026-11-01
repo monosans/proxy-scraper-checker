@@ -256,6 +256,7 @@ async fn main_task(
     } else {
         // A stop during the save comes after everything was checked.
         let stopped = token.is_cancelled();
+        drop(token);
         let saved = output::count_by_protocol(&proxies);
         #[cfg(feature = "tui")]
         let saved_count = proxies.len();
@@ -563,14 +564,10 @@ mod tests {
             Ok(CompactString::const_new("saved"))
         };
         let tui = async { Err(eyre!("the terminal is gone")) };
+        let tx = unbounded_channel().0;
 
-        let (summary, tui_result) = within_a_test(join_run_and_tui(
-            run,
-            tui,
-            token,
-            unbounded_channel().0,
-        ))
-        .await;
+        let (summary, tui_result) =
+            within_a_test(join_run_and_tui(run, tui, token, tx)).await;
 
         assert_eq!(summary.unwrap(), "saved");
         drop(tui_result.unwrap_err());
@@ -589,14 +586,10 @@ mod tests {
             std::hint::black_box(None::<()>).unwrap();
             Ok(())
         };
+        let tx = unbounded_channel().0;
 
-        let (summary, tui_result) = within_a_test(join_run_and_tui(
-            run,
-            tui,
-            token,
-            unbounded_channel().0,
-        ))
-        .await;
+        let (summary, tui_result) =
+            within_a_test(join_run_and_tui(run, tui, token, tx)).await;
 
         assert_eq!(summary.unwrap(), "saved");
         drop(tui_result.unwrap_err());
@@ -632,8 +625,8 @@ mod tests {
                                9\r\nConnection: close\r\n\r\n192.0.2.1";
 
         let directory = temp_directory("failing-downloads");
-        let source = directory.join("proxies.txt");
         let (working_proxy, _) = serve(vec![EXIT_IP]).await;
+        let source = directory.join("proxies.txt");
         std::fs::write(&source, working_proxy.to_string()).unwrap();
 
         // Each database gets three tries. The source is a file and the check
@@ -702,11 +695,11 @@ mod tests {
         assert!(proxy.pointer("/geolocation").unwrap().is_null());
         drop(proxy);
 
-        let cached = cache::database(7);
         let paths = [
             cache::database_path(ipdb::DbType::Asn).await,
             cache::database_path(ipdb::DbType::Geo).await,
         ];
+        let cached = cache::database(7);
         for path in &paths {
             std::fs::write(path, &cached).unwrap();
         }

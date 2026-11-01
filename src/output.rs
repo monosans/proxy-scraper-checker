@@ -178,7 +178,7 @@ fn stage_json_file(
     let mut writer =
         std::io::BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
 
-    let failed = || {
+    let failed = move || {
         compact_str::format_compact!(
             "failed to write to file: {}",
             tmp.display()
@@ -190,7 +190,7 @@ fn stage_json_file(
     } else {
         serde_json::to_writer(&mut writer, list)
     }
-    .wrap_err_with(failed)?;
+    .wrap_err_with(&failed)?;
 
     writer.flush().wrap_err_with(failed)
 }
@@ -210,6 +210,7 @@ async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
         // it usually allows overwriting it. Unlike a rename, that isn't atomic,
         // so it is only the fallback.
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+            drop(e);
             tokio::fs::copy(from, to).await.wrap_err_with(move || {
                 compact_str::format_compact!(
                     "failed to copy {} to {}",
@@ -236,8 +237,8 @@ async fn clear_previous(previous: &Path) {
         return;
     };
     while let Ok(Some(entry)) = entries.next_entry().await {
-        let path = entry.path();
         let is_dir = entry.file_type().await.is_ok_and(|kind| kind.is_dir());
+        let path = entry.path();
         drop(entry);
         let removed = if is_dir {
             remove_dir(&path).await
@@ -250,6 +251,7 @@ async fn clear_previous(previous: &Path) {
             tracing::warn!("{}", pretty_error(&e));
         }
     }
+    drop(entries);
     // It stays only if something in it did, which was just reported.
     drop(tokio::fs::remove_dir(previous).await);
 }
@@ -274,14 +276,13 @@ async fn move_aside(to: &Path, previous: &Path) -> crate::Result<PathBuf> {
 // that fails can still put it back. It goes inside a directory of its own, so
 // that one that can't be deleted yet doesn't get in the next one's way.
 async fn commit_directory(from: &Path, to: &Path) -> crate::Result<()> {
-    let previous = with_suffix(to, ".old");
-
     // With nothing at `to`, an earlier commit was cut short, and what it moved
     // aside is the last output there is until the new one lands.
     let nothing_there = matches!(
         tokio::fs::symlink_metadata(to).await,
         Err(e) if e.kind() == io::ErrorKind::NotFound
     );
+    let previous = with_suffix(to, ".old");
     let aside = if nothing_there {
         None
     } else {
@@ -297,9 +298,12 @@ async fn commit_directory(from: &Path, to: &Path) -> crate::Result<()> {
 
     if let Err(e) = tokio::fs::rename(from, to).await {
         let mut failed = rename_failed(from, to);
-        if let Some(aside) = &aside {
-            match tokio::fs::rename(aside, to).await {
-                Ok(()) => clear_previous(&previous).await,
+        if let Some(aside) = aside {
+            match tokio::fs::rename(&aside, to).await {
+                Ok(()) => {
+                    drop(aside);
+                    clear_previous(&previous).await;
+                }
                 Err(restore_error) => {
                     failed = format_compact!(
                         "{failed}; the previous output is in {}: \
@@ -474,23 +478,28 @@ pub async fn save_proxies(
     }
     let proxies = Arc::new(proxies);
 
-    let json_paths = [
-        (config.output.path.join("proxies.json"), false),
-        (config.output.path.join("proxies_pretty.json"), true),
-    ];
-    let directory_path = config.output.path.join("proxies");
-    let staging_path = tmp_path(&directory_path);
+    let json_paths = config.output.json.enabled.then(|| {
+        [
+            (config.output.path.join("proxies.json"), false),
+            (config.output.path.join("proxies_pretty.json"), true),
+        ]
+    });
+    let txt_paths = config.output.txt.enabled.then(|| {
+        let directory_path = config.output.path.join("proxies");
+        let staging_path = tmp_path(&directory_path);
+        (directory_path, staging_path)
+    });
 
     tokio::try_join!(
         async {
-            if config.output.json.enabled {
-                stage_json(&proxies, &config, &json_paths).await
+            if let Some(paths) = &json_paths {
+                stage_json(&proxies, &config, paths).await
             } else {
                 Ok(())
             }
         },
         async {
-            if config.output.txt.enabled {
+            if let Some((_, staging_path)) = &txt_paths {
                 stage_txt(
                     Arc::clone(&proxies),
                     config.scraping.enabled_protocols,
@@ -507,23 +516,20 @@ pub async fn save_proxies(
 
     // A file held open somewhere must not cost the formats that can be saved.
     let mut committed = Ok(());
-    if config.output.json.enabled {
-        for (path, _) in &json_paths {
+    if let Some(paths) = json_paths {
+        for (path, _) in paths {
             committed = keep_both_errors(
                 committed,
-                commit_file(&tmp_path(path), path).await,
+                commit_file(&tmp_path(&path), &path).await,
             );
         }
     }
-    drop(json_paths);
-    if config.output.txt.enabled {
+    if let Some((directory_path, staging_path)) = txt_paths {
         committed = keep_both_errors(
             committed,
             commit_directory(&staging_path, &directory_path).await,
         );
     }
-    drop(directory_path);
-    drop(staging_path);
     committed?;
 
     let path = std::path::absolute(&config.output.path)
@@ -774,6 +780,7 @@ mod tests {
         save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await.unwrap();
 
         assert!(!stale.exists());
+        drop(stale);
         assert_eq!(
             std::fs::read_to_string(directory.join("proxies/all.txt")).unwrap(),
             "http://1.1.1.1:80"
@@ -822,6 +829,7 @@ mod tests {
         drop(reader);
 
         assert!(std::fs::read_to_string(&path).unwrap().contains("1.1.1.1"));
+        drop(path);
         assert!(!directory.join("proxies.json.tmp").exists());
 
         std::fs::remove_dir_all(directory).unwrap();
@@ -857,6 +865,7 @@ mod tests {
                 "old"
             );
         }
+        drop(proxies);
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -895,6 +904,7 @@ mod tests {
             std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
             "old"
         );
+        drop(proxies);
         assert!(!directory.join("proxies.old").exists());
 
         std::fs::remove_dir_all(directory).unwrap();
@@ -917,16 +927,20 @@ mod tests {
             std::fs::read_to_string(aside.join("all.txt")).unwrap(),
             "old"
         );
+        drop(aside);
 
         std::fs::create_dir_all(&staged).unwrap();
         std::fs::write(staged.join("all.txt"), "new").unwrap();
         commit_directory(&staged, &proxies).await.unwrap();
+        drop(staged);
 
         assert_eq!(
             std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
             "new"
         );
+        drop(proxies);
         assert!(!previous.exists());
+        drop(previous);
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -940,8 +954,10 @@ mod tests {
         std::fs::create_dir_all(&staged).unwrap();
 
         commit_directory(&staged, &proxies).await.unwrap();
+        drop(staged);
 
         assert!(proxies.is_dir());
+        drop(proxies);
         assert!(!directory.join("proxies.old").exists());
 
         std::fs::remove_dir_all(directory).unwrap();
@@ -959,8 +975,11 @@ mod tests {
         std::fs::write(backup.join("mine.txt"), "mine").unwrap();
 
         commit_directory(&staged, &proxies).await.unwrap();
+        drop(staged);
+        drop(proxies);
 
         assert!(backup.join("mine.txt").is_file());
+        drop(backup);
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -975,8 +994,10 @@ mod tests {
         std::fs::create_dir_all(&staged).unwrap();
 
         commit_directory(&staged, &proxies).await.unwrap();
+        drop(staged);
 
         assert!(proxies.is_dir());
+        drop(proxies);
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -996,6 +1017,7 @@ mod tests {
 
         assert!(error.contains("proxies.json.tmp"), "{error}");
         assert!(error.contains("proxies_pretty.json.tmp"), "{error}");
+        drop(error);
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -1020,6 +1042,7 @@ mod tests {
             .share_mode(FILE_SHARE_READ)
             .open(held.join("all.txt"))
             .unwrap();
+        drop(held);
 
         let config = unchecked_config(directory.clone()).await;
         save_proxies(Arc::clone(&config), vec![proxy("1.1.1.1", 80, None)])
@@ -1032,11 +1055,13 @@ mod tests {
             std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
             "http://2.2.2.2:80"
         );
+        drop(proxies);
         assert_eq!(std::fs::read_dir(&previous).unwrap().count(), 1);
 
         drop(reader);
         save_proxies(config, vec![proxy("3.3.3.3", 80, None)]).await.unwrap();
         assert!(!previous.exists());
+        drop(previous);
 
         std::fs::remove_dir_all(directory).unwrap();
     }

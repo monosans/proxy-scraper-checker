@@ -274,6 +274,7 @@ async fn crossterm_event_listener(
             },
         }
     }
+    drop(reader);
 
     tracing::warn!(
         "Terminal input was lost, so the hotkeys no longer work. The program \

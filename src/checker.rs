@@ -275,6 +275,7 @@ mod tests {
         let addresses = resolved("http://localhost/").await;
         assert_ne!(addresses.len(), 0);
         assert!(addresses.iter().all(std::net::SocketAddr::is_ipv4));
+        drop(addresses);
         assert_eq!(resolved("http://[::1]/").await.len(), 0);
     }
 

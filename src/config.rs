@@ -63,8 +63,12 @@ pub struct Config {
 }
 
 async fn get_output_path(configured: PathBuf) -> crate::Result<PathBuf> {
-    let output_path =
-        if is_container().await { "./out".into() } else { configured };
+    let output_path = if is_container().await {
+        drop(configured);
+        "./out".into()
+    } else {
+        configured
+    };
     tokio::fs::create_dir_all(&output_path).await.wrap_err_with(|| {
         compact_str::format_compact!(
             "failed to create directory: {}",
@@ -268,6 +272,7 @@ pub mod tests {
         })
         .await;
         assert_eq!(enabled(&config), (true, true, false));
+        drop(config);
 
         let config = test_config(|raw| {
             raw.output.json.include_asn = true;
@@ -275,6 +280,7 @@ pub mod tests {
         })
         .await;
         assert_eq!(enabled(&config), (false, false, false));
+        drop(config);
 
         let config = test_config(|raw| {
             raw.output.json.enabled = false;

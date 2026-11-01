@@ -513,6 +513,8 @@ fn header(
         used = used.saturating_add(steps_width);
         left.extend(steps);
         left.push(gap());
+    } else {
+        drop(steps);
     }
 
     left.push(Span::raw(" ".repeat(width.saturating_sub(used))));
@@ -602,6 +604,7 @@ fn overview(
         lines.push(columns.heading(&headings));
     }
     lines.extend(columns.lines(&protocols));
+    drop(protocols);
     if !databases.is_empty() {
         if roomy {
             lines.push(Line::default());
@@ -988,6 +991,7 @@ mod tests {
     fn wrap_prefers_spaces_and_still_breaks_long_words() {
         let lines: Vec<_> = wrap("one two three", 8).collect();
         assert_eq!(lines, ["one two ", "three"]);
+        drop(lines);
 
         let lines: Vec<_> = wrap("abcdefgh", 3).collect();
         assert_eq!(lines, ["abc", "def", "gh"]);
@@ -998,10 +1002,12 @@ mod tests {
         let lines: Vec<_> =
             wrap("\u{8def}\u{5f84}\u{8def}\u{5f84}a", 4).collect();
         assert_eq!(lines, ["\u{8def}\u{5f84}", "\u{8def}\u{5f84}", "a"]);
+        drop(lines);
 
         // Two cells together, one each apart.
         let lines: Vec<_> = wrap("#\u{fe0f}abc", 4).collect();
         assert_eq!(lines, ["#\u{fe0f}ab", "c"]);
+        drop(lines);
 
         // Too narrow for even one of them, and it still has to end.
         let lines: Vec<_> = wrap("\u{8def}\u{5f84}", 1).collect();
@@ -1024,6 +1030,8 @@ mod tests {
         let screen = render(&config, &state, 120, 30);
         assert!(screen.contains("All"), "{screen}");
         assert!(screen.contains("320"), "{screen}");
+        drop(screen);
+        drop(config);
 
         let config = test_config(|raw| {
             raw.scraping.socks4.enabled = false;
@@ -1097,6 +1105,7 @@ mod tests {
 
         let screen = render(&config, &state, 100, 30);
         assert!(!screen.contains("Fastest"), "{screen}");
+        drop(screen);
 
         state.fastest = vec![fast("103.152.112.162:1080", 312)];
         let screen = render(&config, &state, 100, 30);
@@ -1169,6 +1178,7 @@ mod tests {
         let screen = render(&config, &state, 80, 24);
         assert!(screen.contains("Scrape"), "{screen}");
         assert!(!screen.contains("proxy-scraper-checker  "), "{screen}");
+        drop(screen);
 
         let screen = render(&config, &state, 100, 24);
         assert!(screen.contains("Scrape"), "{screen}");
@@ -1302,12 +1312,14 @@ mod tests {
         assert!(screen.contains("Finished in 2:00"), "{screen}");
         assert!(screen.contains("Saved 1,517 proxies to "), "{screen}");
         assert!(screen.contains("q quit"), "{screen}");
+        drop(screen);
 
         state.saved = Some(1);
         state.stopped = true;
         let screen = render(&config, &state, 100, 30);
         assert!(screen.contains("Stopped after 2:00"), "{screen}");
         assert!(screen.contains("Saved 1 proxy to "), "{screen}");
+        drop(screen);
 
         state.saved = None;
         let screen = render(&config, &state, 100, 30);
@@ -1322,6 +1334,7 @@ mod tests {
         let screen = render(&config, &state, 50, 20);
         assert!(!screen.contains("2.5%"), "{screen}");
         assert!(screen.contains('\u{2501}'), "{screen}");
+        drop(screen);
 
         let screen = render(&config, &state, 40, 20);
         assert!(!screen.contains('\u{2501}'), "{screen}");
@@ -1364,6 +1377,7 @@ mod tests {
         let screen = render(&config, &state, 63, 30);
         assert!(screen.contains("Scrape"), "{screen}");
         assert!(!screen.contains("  \u{2500}"), "{screen}");
+        drop(screen);
 
         let screen = render(&config, &state, 64, 30);
         assert!(screen.contains("  \u{2500}"), "{screen}");

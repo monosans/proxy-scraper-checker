@@ -32,8 +32,6 @@ pub async fn scrape_all(
     token: tokio_util::sync::CancellationToken,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> crate::Result<Vec<Proxy>> {
-    let proxies = Arc::new(parking_lot::Mutex::new(ScrapedProxies::default()));
-
     let sources_count: usize = config
         .scraping
         .enabled_protocols
@@ -45,6 +43,7 @@ pub async fn scrape_all(
         plural(sources_count, "source", "sources")
     );
 
+    let proxies = Arc::new(parking_lot::Mutex::new(ScrapedProxies::default()));
     let mut join_set = tokio::task::JoinSet::new();
     for proto in config.scraping.enabled_protocols.iter() {
         let sources = config.scraping.sources.get(proto);
@@ -89,6 +88,7 @@ pub async fn scrape_all(
     while let Some(res) = join_set.join_next().await {
         res??;
     }
+    drop(join_set);
 
     Ok(Arc::into_inner(proxies)
         .ok_or_eyre("failed to unwrap Arc")?
@@ -258,38 +258,40 @@ async fn scrape_one(
 
     drop(source);
 
-    let mut proxies = proxies.lock();
+    let mut scraped = proxies.lock();
 
-    if proxies.proxies.is_empty() {
+    if scraped.proxies.is_empty() {
         #[cfg(feature = "tui")]
         for proxy in &new_proxies {
-            let count = proxies.counts.get_mut(proxy.protocol);
+            let count = scraped.counts.get_mut(proxy.protocol);
             *count = count.saturating_add(1);
         }
 
-        proxies.proxies = new_proxies;
+        scraped.proxies = new_proxies;
     } else {
         // extend() reserves from the iterator's size hint; inserting one at a
         // time does not, and this runs while the shared lock is held.
         #[cfg(feature = "tui")]
-        proxies.proxies.reserve(new_proxies.len());
+        scraped.proxies.reserve(new_proxies.len());
 
         #[cfg(feature = "tui")]
         for proxy in new_proxies {
             let protocol = proxy.protocol;
-            if proxies.proxies.insert(proxy) {
-                let count = proxies.counts.get_mut(protocol);
+            if scraped.proxies.insert(proxy) {
+                let count = scraped.counts.get_mut(protocol);
                 *count = count.saturating_add(1);
             }
         }
 
         #[cfg(not(feature = "tui"))]
-        proxies.proxies.extend(new_proxies);
+        scraped.proxies.extend(new_proxies);
     }
 
     #[cfg(feature = "tui")]
-    let counts = proxies.counts;
+    let counts = scraped.counts;
 
+    drop(scraped);
+    #[cfg(feature = "tui")]
     drop(proxies);
 
     #[cfg(feature = "tui")]
@@ -319,6 +321,7 @@ mod tests {
         let path = directory.join("source.txt");
         std::fs::write(&path, text).unwrap();
         let proxies = scrape_source(path.to_str().unwrap(), limit).await;
+        drop(path);
         std::fs::remove_dir_all(directory).unwrap();
         proxies
     }
@@ -337,13 +340,15 @@ mod tests {
             .await,
         );
         let client = create_reqwest_client(&config).await.unwrap();
+        #[cfg(feature = "tui")]
+        let tx = tokio::sync::mpsc::unbounded_channel().0;
 
         scrape_all(
             config,
             client,
             tokio_util::sync::CancellationToken::new(),
             #[cfg(feature = "tui")]
-            tokio::sync::mpsc::unbounded_channel().0,
+            tx,
         )
         .await
         .unwrap()
@@ -388,11 +393,13 @@ mod tests {
              close\r\n\r\n{body}",
             body.len()
         );
+        drop(body);
         let reply: &'static str = reply.leak();
 
         let (address, _) = serve(vec![reply]).await;
         let url = format!("http://{address}/");
         assert_eq!(scrape_source(&url, 1).await.len(), 0);
+        drop(url);
 
         let (address, _) = serve(vec![reply]).await;
         let url = format!("http://{address}/");

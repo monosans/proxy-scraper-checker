@@ -8,7 +8,6 @@ format_strings = true
 group_imports = "StdExternalCrate"
 hex_literal_case = "Upper"
 imports_granularity = "Crate"
-max_width = 100
 newline_style = "Unix"
 normalize_comments = true
 normalize_doc_attributes = true

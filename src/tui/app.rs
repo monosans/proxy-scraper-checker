@@ -178,7 +178,7 @@ impl State {
         let checked_ticks =
             (self.proxies_checked as u64).saturating_mul(TICKS_PER_SECOND);
         (checked_ticks != 0)
-            .then(|| left.saturating_mul(ticks).div_ceil(checked_ticks))
+            .then(move || left.saturating_mul(ticks).div_ceil(checked_ticks))
     }
 }
 

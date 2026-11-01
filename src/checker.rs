@@ -149,7 +149,7 @@ pub async fn check_all(
         #[cfg(feature = "tui")]
         let tx = tx.clone();
         join_set.spawn(async move {
-            let work = async move {
+            let work = async {
                 loop {
                     let Some(mut proxy) = next_proxy(&queue) else {
                         break;

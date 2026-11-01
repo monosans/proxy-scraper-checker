@@ -147,7 +147,7 @@ async fn fetch_source(
 }
 
 async fn read_source_file(path: std::path::PathBuf) -> crate::Result<String> {
-    tokio::fs::read_to_string(&path).await.wrap_err_with(move || {
+    tokio::fs::read_to_string(&path).await.wrap_err_with(|| {
         compact_str::format_compact!(
             "failed to read file to string: {}",
             path.display()

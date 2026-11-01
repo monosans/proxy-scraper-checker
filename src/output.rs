@@ -27,10 +27,10 @@ fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
     a.timeout
         .unwrap_or(Duration::MAX)
         .cmp(&b.timeout.unwrap_or(Duration::MAX))
-        .then_with(move || a.protocol.cmp(&b.protocol))
-        .then_with(move || a.host.cmp(&b.host))
-        .then_with(move || a.port.cmp(&b.port))
-        .then_with(move || a.auth.cmp(&b.auth))
+        .then_with(|| a.protocol.cmp(&b.protocol))
+        .then_with(|| a.host.cmp(&b.host))
+        .then_with(|| a.port.cmp(&b.port))
+        .then_with(|| a.auth.cmp(&b.auth))
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -43,7 +43,7 @@ fn natural_sort_key(
     proxy: &Proxy,
 ) -> (ProxyType, HostSortKey, u16, Option<Box<ProxyAuth>>) {
     let host = proxy.host.parse::<Ipv4Addr>().map_or_else(
-        move |_| HostSortKey::Name(proxy.host.clone()),
+        |_| HostSortKey::Name(proxy.host.clone()),
         |ip| HostSortKey::Ipv4(ip.octets()),
     );
     (proxy.protocol, host, proxy.port, proxy.auth.clone())
@@ -147,7 +147,7 @@ async fn remove_dir(path: &Path) -> crate::Result<()> {
     match tokio::fs::remove_dir_all(path).await {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e).wrap_err_with(move || {
+        Err(e) => Err(e).wrap_err_with(|| {
             compact_str::format_compact!(
                 "failed to remove directory: {}",
                 path.display()
@@ -217,14 +217,14 @@ async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
                     to.display()
                 )
             })?;
-            tokio::fs::remove_file(from).await.wrap_err_with(move || {
+            tokio::fs::remove_file(from).await.wrap_err_with(|| {
                 compact_str::format_compact!(
                     "failed to remove file: {}",
                     from.display()
                 )
             })
         }
-        Err(e) => Err(e).wrap_err_with(move || rename_failed(from, to)),
+        Err(e) => Err(e).wrap_err_with(|| rename_failed(from, to)),
     }
 }
 
@@ -324,15 +324,15 @@ fn write_proxy_list_to_file<'a, I>(
 where
     I: IntoIterator<Item = &'a Proxy>,
 {
-    let mut file = std::fs::File::create(path).wrap_err_with(move || {
+    let mut file = std::fs::File::create(path).wrap_err_with(|| {
         compact_str::format_compact!(
             "failed to create file: {}",
             path.display()
         )
     })?;
 
-    let write = move |file: &mut std::fs::File, buf: &str| {
-        file.write_all(buf.as_bytes()).wrap_err_with(move || {
+    let write = |file: &mut std::fs::File, buf: &str| {
+        file.write_all(buf.as_bytes()).wrap_err_with(|| {
             compact_str::format_compact!(
                 "failed to write to file: {}",
                 path.display()
@@ -395,7 +395,7 @@ async fn stage_json(
         open_ipdb(ipdb::DbType::Geo, config.geolocation_enabled()),
     );
 
-    let tasks = paths.each_ref().map(|entry| {
+    let tasks = paths.each_ref().map(move |entry| {
         let proxies = Arc::clone(proxies);
         let asn_db = asn_db.clone();
         let geo_db = geo_db.clone();
@@ -409,9 +409,6 @@ async fn stage_json(
             stage_json_file(&path, pretty, &list)
         })
     });
-
-    drop(asn_db);
-    drop(geo_db);
 
     for task in tasks {
         task.await??;
@@ -550,7 +547,7 @@ pub fn summary(
     stopped: bool,
 ) -> CompactString {
     let protocols = config.scraping.enabled_protocols;
-    let total = |counts: &PerProxyType<usize>| -> usize {
+    let total = move |counts: &PerProxyType<usize>| -> usize {
         protocols.iter().map(|protocol| *counts.get(protocol)).sum()
     };
 

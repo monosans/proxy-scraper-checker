@@ -214,7 +214,7 @@ impl Columns {
             done.saturating_add(SLASH.len()).saturating_add(columns.total),
         );
 
-        let numbers = |count: usize| {
+        let numbers = move |count: usize| {
             [NAME_WIDTH, count, columns.amount, GAP.len().saturating_mul(2)]
                 .into_iter()
                 .sum::<usize>()
@@ -570,7 +570,7 @@ fn overview(
     let enabled = config.scraping.enabled_protocols;
     let mut protocols: Vec<_> = enabled
         .iter()
-        .map(|protocol| {
+        .map(move |protocol| {
             protocol_row(
                 protocol.as_str_uppercase(),
                 *state.protocols.get(protocol),
@@ -720,14 +720,14 @@ fn wrap(text: &str, width: usize) -> impl Iterator<Item = &str> {
         }
         let mut cells = 0_usize;
         let overflow =
-            rest.grapheme_indices(true).find(|&(index, grapheme)| {
+            rest.grapheme_indices(true).find(move |&(index, grapheme)| {
                 cells = cells.saturating_add(grapheme.width());
                 cells > width && index > 0
             });
         let end = overflow.map_or(rest.len(), |(end, _)| {
             rest.get(..end)
                 .and_then(|line| line.rfind(' '))
-                .filter(|&space| space >= end.div_euclid(2))
+                .filter(move |&space| space >= end.div_euclid(2))
                 .map_or(end, |space| space.saturating_add(1))
         });
         let (line, tail) = rest.split_at(end);

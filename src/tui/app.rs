@@ -19,8 +19,7 @@ use crate::{
 // counters. Going faster spins their last digits past reading and has the
 // terminal repaint for nothing, which is what SSH and phones feel.
 pub const TICKS_PER_SECOND: u64 = 4;
-const TICK: Duration =
-    Duration::from_millis(1000_u64.div_euclid(TICKS_PER_SECOND));
+const TICK: Duration = Duration::from_millis(1000_u64.div_euclid(TICKS_PER_SECOND));
 // Until the first checks time out, only the quick ones have finished: with the
 // default 10 s timeout, the time left starts out about five times too long.
 const MIN_TICKS_FOR_SPEED: u64 = 15 * TICKS_PER_SECOND;
@@ -78,21 +77,11 @@ pub struct ProtocolProgress {
 impl ProtocolProgress {
     pub const fn plus(self, other: Self) -> Self {
         Self {
-            sources_total: self
-                .sources_total
-                .saturating_add(other.sources_total),
-            sources_scraped: self
-                .sources_scraped
-                .saturating_add(other.sources_scraped),
-            proxies_total: self
-                .proxies_total
-                .saturating_add(other.proxies_total),
-            proxies_checked: self
-                .proxies_checked
-                .saturating_add(other.proxies_checked),
-            proxies_working: self
-                .proxies_working
-                .saturating_add(other.proxies_working),
+            sources_total: self.sources_total.saturating_add(other.sources_total),
+            sources_scraped: self.sources_scraped.saturating_add(other.sources_scraped),
+            proxies_total: self.proxies_total.saturating_add(other.proxies_total),
+            proxies_checked: self.proxies_checked.saturating_add(other.proxies_checked),
+            proxies_working: self.proxies_working.saturating_add(other.proxies_working),
         }
     }
 }
@@ -136,9 +125,7 @@ impl State {
     }
 
     fn rank(&mut self, proxy: FastProxy) {
-        let place = self
-            .fastest
-            .partition_point(move |other| other.latency <= proxy.latency);
+        let place = self.fastest.partition_point(move |other| other.latency <= proxy.latency);
         if place < FASTEST_KEPT {
             self.fastest.insert(place, proxy);
             self.fastest.truncate(FASTEST_KEPT);
@@ -153,8 +140,7 @@ impl State {
     // other, and a short window would only make the time left jump around.
     fn checking_ticks(&self) -> Option<u64> {
         let ticks = self.ticks.saturating_sub(self.checking_since);
-        (self.stage == Stage::Checking && ticks >= MIN_TICKS_FOR_SPEED)
-            .then_some(ticks)
+        (self.stage == Stage::Checking && ticks >= MIN_TICKS_FOR_SPEED).then_some(ticks)
     }
 
     pub fn checks_per_second(&self) -> Option<usize> {
@@ -175,10 +161,8 @@ impl State {
             .map(move |protocol| self.protocols.get(protocol).proxies_total)
             .sum();
         let left = total.saturating_sub(self.proxies_checked) as u64;
-        let checked_ticks =
-            (self.proxies_checked as u64).saturating_mul(TICKS_PER_SECOND);
-        (checked_ticks != 0)
-            .then(move || left.saturating_mul(ticks).div_ceil(checked_ticks))
+        let checked_ticks = (self.proxies_checked as u64).saturating_mul(TICKS_PER_SECOND);
+        (checked_ticks != 0).then(move || left.saturating_mul(ticks).div_ceil(checked_ticks))
     }
 }
 
@@ -199,21 +183,18 @@ pub async fn run(
     let mut app_state = State::default();
     let logger_state = TuiWidgetState::default();
 
-    terminal
-        .draw(|frame| view::draw(frame, &config, &app_state, &logger_state))?;
+    terminal.draw(|frame| view::draw(frame, &config, &app_state, &logger_state))?;
 
     while !matches!(app_state.mode, Mode::Quit) {
         let Some(event) = rx.recv().await else {
             break;
         };
-        let mut redraw =
-            handle_event(event, &mut app_state, &token, &logger_state);
+        let mut redraw = handle_event(event, &mut app_state, &token, &logger_state);
 
         while !matches!(app_state.mode, Mode::Quit)
             && let Ok(event) = rx.try_recv()
         {
-            redraw |=
-                handle_event(event, &mut app_state, &token, &logger_state);
+            redraw |= handle_event(event, &mut app_state, &token, &logger_state);
         }
 
         if redraw {
@@ -242,9 +223,7 @@ async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
     }
 }
 
-async fn crossterm_event_listener(
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) {
+async fn crossterm_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
     let mut reader = crossterm::event::EventStream::new();
     let mut consecutive_errors: u8 = 0;
 
@@ -277,8 +256,8 @@ async fn crossterm_event_listener(
     drop(reader);
 
     tracing::warn!(
-        "Terminal input was lost, so the hotkeys no longer work. The program \
-         will exit when the run finishes."
+        "Terminal input was lost, so the hotkeys no longer work. The program will exit when the \
+         run finishes."
     );
     drop(tx.send(Event::App(AppEvent::InputLost)));
 }
@@ -298,8 +277,7 @@ fn handle_key(
         }
         KeyCode::Esc | KeyCode::Char('q' | 'Q') if !ctrl => {
             // Everything is checked by the time saving starts.
-            state.stopped |= matches!(state.mode, Mode::Running)
-                && state.stage != Stage::Saving;
+            state.stopped |= matches!(state.mode, Mode::Running) && state.stage != Stage::Saving;
             state.mode = state.mode.next();
             token.cancel();
             true
@@ -332,8 +310,7 @@ fn handle_app_event(app_event: AppEvent, state: &mut State) -> bool {
         }
         AppEvent::IpDbTotal(db_type, bytes) => {
             state.db_mut(db_type).total =
-                usize::try_from(bytes.unwrap_or_default())
-                    .unwrap_or(usize::MAX);
+                usize::try_from(bytes.unwrap_or_default()).unwrap_or(usize::MAX);
         }
         AppEvent::IpDbDownloaded(db_type, bytes) => {
             let db = state.db_mut(db_type);
@@ -346,8 +323,7 @@ fn handle_app_event(app_event: AppEvent, state: &mut State) -> bool {
             state.protocols.get_mut(proxy_type).sources_total = amount;
         }
         AppEvent::SourceScraped(proxy_type) => {
-            let scraped =
-                &mut state.protocols.get_mut(proxy_type).sources_scraped;
+            let scraped = &mut state.protocols.get_mut(proxy_type).sources_scraped;
             *scraped = scraped.saturating_add(1);
         }
         AppEvent::TotalProxies(proxy_type, amount) => {
@@ -355,14 +331,12 @@ fn handle_app_event(app_event: AppEvent, state: &mut State) -> bool {
             *total = (*total).max(amount);
         }
         AppEvent::ProxyChecked(proxy_type) => {
-            let checked =
-                &mut state.protocols.get_mut(proxy_type).proxies_checked;
+            let checked = &mut state.protocols.get_mut(proxy_type).proxies_checked;
             *checked = checked.saturating_add(1);
             state.proxies_checked = state.proxies_checked.saturating_add(1);
         }
         AppEvent::ProxyWorking { protocol, address, latency } => {
-            let working =
-                &mut state.protocols.get_mut(protocol).proxies_working;
+            let working = &mut state.protocols.get_mut(protocol).proxies_working;
             *working = working.saturating_add(1);
             state.rank(FastProxy { protocol, address, latency });
         }
@@ -378,8 +352,7 @@ fn handle_app_event(app_event: AppEvent, state: &mut State) -> bool {
         }
         AppEvent::Done => {
             if matches!(state.mode, Mode::Running | Mode::Stopping) {
-                state.mode =
-                    if state.input_lost { Mode::Quit } else { Mode::Done };
+                state.mode = if state.input_lost { Mode::Quit } else { Mode::Done };
             }
             redraw_now = true;
         }
@@ -425,9 +398,7 @@ mod tests {
     use tokio_util::sync::CancellationToken;
     use tui_logger::TuiWidgetState;
 
-    use super::{
-        Event, FASTEST_KEPT, Mode, State, TICKS_PER_SECOND, handle_event,
-    };
+    use super::{Event, FASTEST_KEPT, Mode, State, TICKS_PER_SECOND, handle_event};
     use crate::{
         config::tests::test_config,
         event::{AppEvent, Stage},
@@ -465,11 +436,7 @@ mod tests {
         let mut state = State { stage: Stage::Saving, ..State::default() };
         let token = CancellationToken::new();
 
-        apply(
-            &mut state,
-            &token,
-            press(KeyCode::Char('q'), KeyModifiers::NONE),
-        );
+        apply(&mut state, &token, press(KeyCode::Char('q'), KeyModifiers::NONE));
 
         assert!(matches!(state.mode, Mode::Stopping));
         assert!(!state.stopped);
@@ -480,19 +447,11 @@ mod tests {
         let mut state = State::default();
         let token = CancellationToken::new();
 
-        apply(
-            &mut state,
-            &token,
-            press(KeyCode::Char('q'), KeyModifiers::CONTROL),
-        );
+        apply(&mut state, &token, press(KeyCode::Char('q'), KeyModifiers::CONTROL));
         assert!(matches!(state.mode, Mode::Running));
         assert!(!token.is_cancelled());
 
-        apply(
-            &mut state,
-            &token,
-            press(KeyCode::Char('c'), KeyModifiers::CONTROL),
-        );
+        apply(&mut state, &token, press(KeyCode::Char('c'), KeyModifiers::CONTROL));
         assert!(matches!(state.mode, Mode::Quit));
         assert!(token.is_cancelled());
     }
@@ -504,11 +463,7 @@ mod tests {
         let mut release = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
         release.kind = KeyEventKind::Release;
 
-        apply(
-            &mut state,
-            &token,
-            Event::Crossterm(CrosstermEvent::Key(release)),
-        );
+        apply(&mut state, &token, Event::Crossterm(CrosstermEvent::Key(release)));
         assert!(matches!(state.mode, Mode::Running));
     }
 
@@ -543,9 +498,7 @@ mod tests {
     fn proxy_total_only_grows() {
         let mut state = State::default();
         let token = CancellationToken::new();
-        let total = |amount| {
-            Event::App(AppEvent::TotalProxies(ProxyType::Http, amount))
-        };
+        let total = |amount| Event::App(AppEvent::TotalProxies(ProxyType::Http, amount));
 
         apply(&mut state, &token, total(5));
         apply(&mut state, &token, total(3));
@@ -580,15 +533,10 @@ mod tests {
             );
         }
 
-        let kept: Vec<_> =
-            state.fastest.iter().map(|proxy| proxy.latency).collect();
-        let expected: Vec<_> =
-            (1..=FASTEST_KEPT as u64).map(Duration::from_millis).collect();
+        let kept: Vec<_> = state.fastest.iter().map(|proxy| proxy.latency).collect();
+        let expected: Vec<_> = (1..=FASTEST_KEPT as u64).map(Duration::from_millis).collect();
         assert_eq!(kept, expected);
-        assert_eq!(
-            state.protocols.get(ProxyType::Http).proxies_working,
-            FASTEST_KEPT * 2
-        );
+        assert_eq!(state.protocols.get(ProxyType::Http).proxies_working, FASTEST_KEPT * 2);
     }
 
     #[tokio::test]

@@ -11,25 +11,20 @@ const CACHE_DIRECTORY_NAME: &str = "proxy_scraper_checker";
 const STALL_TIMEOUT: Duration = Duration::from_secs(60);
 
 async fn get_cache_path() -> crate::Result<PathBuf> {
-    static CACHE: tokio::sync::OnceCell<PathBuf> =
-        tokio::sync::OnceCell::const_new();
+    static CACHE: tokio::sync::OnceCell<PathBuf> = tokio::sync::OnceCell::const_new();
 
     Ok(CACHE
         .get_or_try_init(async || -> crate::Result<PathBuf> {
             let parent = dirs::cache_dir();
             // The real databases must not decide what a test sees.
             #[cfg(test)]
-            let parent = parent
-                .map(|_| crate::config::tests::temp_directory("ip-databases"));
+            let parent = parent.map(|_| crate::config::tests::temp_directory("ip-databases"));
 
             let path = parent
                 .ok_or_eyre("failed to get user's cache directory")?
                 .join(CACHE_DIRECTORY_NAME);
             tokio::fs::create_dir_all(&path).await.wrap_err_with(|| {
-                compact_str::format_compact!(
-                    "failed to create directory: {}",
-                    path.display()
-                )
+                compact_str::format_compact!("failed to create directory: {}", path.display())
             })?;
             Ok(path)
         })
@@ -47,29 +42,18 @@ async fn within<T, E>(
 where
     crate::Error: From<E>,
 {
-    let result =
-        tokio::time::timeout(limit, future).await.wrap_err_with(move || {
-            compact_str::format_compact!(
-                "received no data for {} seconds",
-                limit.as_secs()
-            )
-        })?;
+    let result = tokio::time::timeout(limit, future).await.wrap_err_with(move || {
+        compact_str::format_compact!("received no data for {} seconds", limit.as_secs())
+    })?;
     Ok(result?)
 }
 
-async fn open_reader(
-    path: PathBuf,
-) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
+async fn open_reader(path: PathBuf) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
     tokio::task::spawn_blocking(move || {
         #[expect(clippy::undocumented_unsafe_blocks)]
-        unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(
-            move || {
-                compact_str::format_compact!(
-                    "failed to open IP database: {}",
-                    path.display()
-                )
-            },
-        )
+        unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(move || {
+            compact_str::format_compact!("failed to open IP database: {}", path.display())
+        })
     })
     .await?
 }
@@ -99,12 +83,10 @@ impl DbType {
             headers.insert(reqwest::header::IF_NONE_MATCH, etag);
         }
 
-        let request =
-            http_client.get(self.url()).headers(headers).timeout(Duration::MAX);
+        let request = http_client.get(self.url()).headers(headers).timeout(Duration::MAX);
         drop(http_client);
 
-        let response =
-            within(STALL_TIMEOUT, request.send()).await?.error_for_status()?;
+        let response = within(STALL_TIMEOUT, request.send()).await?.error_for_status()?;
 
         let status = response.status();
         if status == reqwest::StatusCode::NOT_MODIFIED {
@@ -121,11 +103,7 @@ impl DbType {
         }
 
         if status != reqwest::StatusCode::OK {
-            return Err(eyre!(
-                "HTTP status error ({}) for url ({})",
-                status,
-                response.url(),
-            ));
+            return Err(eyre!("HTTP status error ({}) for url ({})", status, response.url(),));
         }
 
         let etag = response.headers().get(reqwest::header::ETAG).cloned();
@@ -146,11 +124,7 @@ impl DbType {
                 db_path.display()
             );
         } else {
-            tracing::info!(
-                "Downloaded {} database to {}",
-                self.name(),
-                db_path.display()
-            );
+            tracing::info!("Downloaded {} database to {}", self.name(), db_path.display());
         }
         drop(db_path);
 
@@ -170,9 +144,7 @@ impl DbType {
         Ok(())
     }
 
-    pub async fn open_mmap(
-        self,
-    ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
+    pub async fn open_mmap(self) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
         open_reader(self.db_path().await?).await
     }
 
@@ -221,37 +193,21 @@ impl DbType {
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> crate::Result<()> {
         #[cfg(feature = "tui")]
-        drop(tx.send(Event::App(AppEvent::IpDbTotal(
-            self,
-            response.content_length(),
-        ))));
+        drop(tx.send(Event::App(AppEvent::IpDbTotal(self, response.content_length()))));
 
         let tmp_path = self.tmp_path().await?;
-        let file =
-            tokio::fs::File::create(&tmp_path).await.wrap_err_with(|| {
-                compact_str::format_compact!(
-                    "failed to create file: {}",
-                    tmp_path.display()
-                )
-            })?;
+        let file = tokio::fs::File::create(&tmp_path).await.wrap_err_with(|| {
+            compact_str::format_compact!("failed to create file: {}", tmp_path.display())
+        })?;
         let mut writer = tokio::io::BufWriter::new(file);
 
-        let failed_to_write = || {
-            compact_str::format_compact!(
-                "failed to write to file: {}",
-                tmp_path.display()
-            )
-        };
+        let failed_to_write =
+            || compact_str::format_compact!("failed to write to file: {}", tmp_path.display());
 
         while let Some(chunk) = within(STALL_TIMEOUT, response.chunk()).await? {
             writer.write_all(&chunk).await.wrap_err_with(failed_to_write)?;
             #[cfg(feature = "tui")]
-            drop(
-                tx.send(Event::App(AppEvent::IpDbDownloaded(
-                    self,
-                    chunk.len(),
-                ))),
-            );
+            drop(tx.send(Event::App(AppEvent::IpDbDownloaded(self, chunk.len()))));
         }
         drop(response);
         #[cfg(feature = "tui")]
@@ -276,28 +232,18 @@ impl DbType {
     async fn save_etag(self, etag: impl AsRef<[u8]>) -> crate::Result<()> {
         let path = self.etag_path().await?;
         tokio::fs::write(&path, etag).await.wrap_err_with(move || {
-            compact_str::format_compact!(
-                "failed to write to file: {}",
-                path.display()
-            )
+            compact_str::format_compact!("failed to write to file: {}", path.display())
         })
     }
 
-    async fn read_etag(
-        self,
-    ) -> crate::Result<Option<reqwest::header::HeaderValue>> {
+    async fn read_etag(self) -> crate::Result<Option<reqwest::header::HeaderValue>> {
         let path = self.etag_path().await?;
         match tokio::fs::read(&path).await {
             // Unreadable contents only mean downloading the database again.
-            Ok(bytes) => {
-                Ok(reqwest::header::HeaderValue::from_bytes(&bytes).ok())
-            }
+            Ok(bytes) => Ok(reqwest::header::HeaderValue::from_bytes(&bytes).ok()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(e).wrap_err_with(move || {
-                compact_str::format_compact!(
-                    "failed to read file: {}",
-                    path.display()
-                )
+                compact_str::format_compact!("failed to read file: {}", path.display())
             }),
         }
     }
@@ -308,10 +254,7 @@ impl DbType {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e).wrap_err_with(move || {
-                compact_str::format_compact!(
-                    "failed to remove file: {}",
-                    path.display()
-                )
+                compact_str::format_compact!("failed to remove file: {}", path.display())
             }),
         }
     }
@@ -432,9 +375,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn a_download_that_stops_midway_is_given_up_on() {
-        let url =
-            stalling_server("HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nabc")
-                .await;
+        let url = stalling_server("HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nabc").await;
         let request = client().await.get(url).send();
         let mut response = within(LIMIT, request).await.unwrap();
 
@@ -459,8 +400,7 @@ pub mod tests {
     #[tokio::test]
     async fn silence_past_the_limit_is_an_error() {
         let stalled = future::pending::<Result<(), io::Error>>();
-        let error =
-            within(Duration::from_millis(1), stalled).await.unwrap_err();
+        let error = within(Duration::from_millis(1), stalled).await.unwrap_err();
         assert_eq!(error.to_string(), "received no data for 0 seconds");
     }
 }

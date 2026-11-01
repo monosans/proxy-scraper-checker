@@ -23,15 +23,8 @@
   "lockFileMaintenance": { "enabled": true, "schedule": ["at any time"] },
   "minimumReleaseAge": "3 days",
   "packageRules": [
-    {
-      "matchCurrentVersion": "!/^0/",
-      "matchUpdateTypes": ["minor"],
-      "automerge": true
-    },
-    {
-      "matchUpdateTypes": ["lockFileMaintenance", "patch", "replacement"],
-      "automerge": true
-    },
+    { "matchCurrentVersion": "!/^0/", "matchUpdateTypes": ["minor"], "automerge": true },
+    { "matchUpdateTypes": ["lockFileMaintenance", "patch", "replacement"], "automerge": true },
     { "matchManagers": ["github-actions", "pre-commit"], "automerge": true },
     {
       "description": "Cargo has no cooldown for the transitive dependencies it resolves, so one on the direct dependencies would only delay updates",

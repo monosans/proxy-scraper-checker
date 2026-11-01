@@ -95,10 +95,8 @@ fn megabytes(bytes: usize) -> f64 {
 }
 
 fn scale(part: usize, whole: usize, steps: usize) -> usize {
-    let scaled = (part as u128)
-        .saturating_mul(steps as u128)
-        .checked_div(whole as u128)
-        .unwrap_or_default();
+    let scaled =
+        (part as u128).saturating_mul(steps as u128).checked_div(whole as u128).unwrap_or_default();
     usize::try_from(scaled).unwrap_or(steps).min(steps)
 }
 
@@ -118,9 +116,8 @@ impl Meter {
         let half_cells = scale(self.done, self.total, width.saturating_mul(2));
         let full = half_cells.div_euclid(2);
         let tip = half_cells.rem_euclid(2);
-        let passed = scale(self.working, self.total, width)
-            .max(usize::from(self.working > 0))
-            .min(full);
+        let passed =
+            scale(self.working, self.total, width).max(usize::from(self.working > 0)).min(full);
 
         let mut spans = vec![
             Span::styled(FILLED.repeat(passed), working()),
@@ -210,9 +207,7 @@ impl Columns {
             any_share |= !row.share.is_empty();
         }
 
-        columns.count = alone.max(
-            done.saturating_add(SLASH.len()).saturating_add(columns.total),
-        );
+        columns.count = alone.max(done.saturating_add(SLASH.len()).saturating_add(columns.total));
 
         let numbers = move |count: usize| {
             [NAME_WIDTH, count, columns.amount, GAP.len().saturating_mul(2)]
@@ -254,10 +249,7 @@ impl Columns {
             spans.push(Span::raw(" ".repeat(self.bar)));
         }
         spans.push(gap());
-        spans.push(Span::styled(
-            format!("{:>1$}", headings.count, self.count),
-            dim(),
-        ));
+        spans.push(Span::styled(format!("{:>1$}", headings.count, self.count), dim()));
         spans.push(gap());
         spans.push(Span::styled(
             format!("{:>1$}", headings.amount, self.amount),
@@ -275,16 +267,10 @@ impl Columns {
         spans.push(gap());
         spans.push(Span::styled(self.count_cell(row), row.count_style));
         spans.push(gap());
-        spans.push(Span::styled(
-            format!("{:>1$}", row.amount, self.amount),
-            row.amount_style,
-        ));
+        spans.push(Span::styled(format!("{:>1$}", row.amount, self.amount), row.amount_style));
         if self.share {
             spans.push(gap());
-            spans.push(Span::styled(
-                format!("{:>SHARE_WIDTH$}", row.share),
-                dim(),
-            ));
+            spans.push(Span::styled(format!("{:>SHARE_WIDTH$}", row.share), dim()));
         }
         Line::from(spans)
     }
@@ -296,8 +282,7 @@ impl Columns {
         if !row.aligned {
             return format!("{:>1$}", row.joined_count(), self.count);
         }
-        let done_width =
-            self.count.saturating_sub(self.total).saturating_sub(SLASH.len());
+        let done_width = self.count.saturating_sub(self.total).saturating_sub(SLASH.len());
         format!("{:>done_width$}{SLASH}{:>2$}", row.done, row.total, self.total)
     }
 
@@ -313,14 +298,9 @@ impl Columns {
     }
 }
 
-fn protocol_row(
-    name: &'static str,
-    progress: ProtocolProgress,
-    checked: bool,
-) -> Row {
+fn protocol_row(name: &'static str, progress: ProtocolProgress, checked: bool) -> Row {
     if checked {
-        let share = (progress.proxies_working as f64)
-            / (progress.proxies_checked.max(1) as f64)
+        let share = (progress.proxies_working as f64) / (progress.proxies_checked.max(1) as f64)
             * 100.0_f64;
         Row {
             name,
@@ -359,9 +339,7 @@ fn protocol_row(
 fn database_row(name: &'static str, progress: DbProgress) -> Row {
     let (done, total, count_style) = match progress.finished_ok {
         Some(false) => ("failed".into(), CompactString::default(), warning()),
-        _ if progress.downloaded == 0 => {
-            ("waiting".into(), CompactString::default(), dim())
-        }
+        _ if progress.downloaded == 0 => ("waiting".into(), CompactString::default(), dim()),
         _ if progress.total == 0 => (
             format_compact!("{:.1} MB", megabytes(progress.downloaded)),
             CompactString::default(),
@@ -375,11 +353,7 @@ fn database_row(name: &'static str, progress: DbProgress) -> Row {
     };
     Row {
         name,
-        meter: Meter {
-            done: progress.downloaded,
-            total: progress.total,
-            working: 0,
-        },
+        meter: Meter { done: progress.downloaded, total: progress.total, working: 0 },
         done,
         total,
         // Megabytes have nothing in common with the counts above them.
@@ -399,10 +373,7 @@ fn database_rows(config: &Config, state: &State) -> Vec<Row> {
     ]
     .into_iter()
     .filter(move |&(_, enabled, progress)| {
-        enabled
-            && progress
-                .finished_ok
-                .map_or(matches!(state.mode, Mode::Running), |ok| !ok)
+        enabled && progress.finished_ok.map_or(matches!(state.mode, Mode::Running), |ok| !ok)
     })
     .map(|(name, _, progress)| database_row(name, progress))
     .collect()
@@ -438,33 +409,24 @@ fn timing(config: &Config, state: &State, width: usize) -> Vec<Span<'static>> {
     let elapsed = clock(state.elapsed_seconds());
     match state.mode {
         Mode::Done | Mode::Quit => {
-            let verb =
-                if state.stopped { "Stopped after" } else { "Finished in" };
+            let verb = if state.stopped { "Stopped after" } else { "Finished in" };
             vec![Span::raw(format!("{verb} {elapsed}"))]
         }
-        Mode::Stopping => vec![
-            Span::styled("Stopping", bold()),
-            gap(),
-            Span::raw(elapsed.to_string()),
-        ],
+        Mode::Stopping => {
+            vec![Span::styled("Stopping", bold()), gap(), Span::raw(elapsed.to_string())]
+        }
         Mode::Running => {
             let mut spans = vec![Span::raw(elapsed.to_string())];
             if let Some(left) = state.seconds_left(config) {
-                let entry = [
-                    gap(),
-                    Span::raw(format!("~{}", clock(left))),
-                    Span::styled(" left", dim()),
-                ];
+                let entry =
+                    [gap(), Span::raw(format!("~{}", clock(left))), Span::styled(" left", dim())];
                 if fits(&spans, &entry, width) {
                     spans.extend(entry);
                 }
             }
             if let Some(rate) = state.checks_per_second() {
-                let entry = [
-                    Span::raw(grouped(rate).to_string()),
-                    Span::styled(" checks/s", dim()),
-                    gap(),
-                ];
+                let entry =
+                    [Span::raw(grouped(rate).to_string()), Span::styled(" checks/s", dim()), gap()];
                 if fits(&spans, &entry, width) {
                     spans.splice(0..0, entry);
                 }
@@ -474,12 +436,7 @@ fn timing(config: &Config, state: &State, width: usize) -> Vec<Span<'static>> {
     }
 }
 
-fn header(
-    config: &Config,
-    state: &State,
-    width: usize,
-    stacked: bool,
-) -> Vec<Line<'static>> {
+fn header(config: &Config, state: &State, width: usize, stacked: bool) -> Vec<Line<'static>> {
     let steps = stepper(config, state);
 
     if stacked {
@@ -499,11 +456,7 @@ fn header(
     let mut used = right_width;
 
     let mut left = Vec::new();
-    if HEADER_TIMING_WIDTH
-        .saturating_add(steps_width)
-        .saturating_add(title_width)
-        <= width
-    {
+    if HEADER_TIMING_WIDTH.saturating_add(steps_width).saturating_add(title_width) <= width {
         left.push(Span::styled(TITLE, bold()));
         left.push(gap());
         left.push(gap());
@@ -528,26 +481,14 @@ fn outcome(config: &Config, state: &State, width: usize) -> Vec<Line<'static>> {
         return Vec::new();
     }
     let (text, style) = match state.saved {
-        Some(1) => (
-            format!("Saved 1 proxy to {}", config.output.path.display()),
-            Style::new(),
-        ),
+        Some(1) => (format!("Saved 1 proxy to {}", config.output.path.display()), Style::new()),
         Some(saved) => (
-            format!(
-                "Saved {} proxies to {}",
-                grouped(saved),
-                config.output.path.display()
-            ),
+            format!("Saved {} proxies to {}", grouped(saved), config.output.path.display()),
             Style::new(),
         ),
-        None => (
-            "Nothing to save, the previous results were kept".to_owned(),
-            warning(),
-        ),
+        None => ("Nothing to save, the previous results were kept".to_owned(), warning()),
     };
-    wrap(&text, width.max(1))
-        .map(move |line| Line::styled(line.to_owned(), style))
-        .collect()
+    wrap(&text, width.max(1)).map(move |line| Line::styled(line.to_owned(), style)).collect()
 }
 
 fn overview(
@@ -557,14 +498,9 @@ fn overview(
     roomy: bool,
     stacked: bool,
 ) -> Text<'static> {
-    let checked =
-        config.checking.check_url.is_some() && state.stage >= Stage::Checking;
+    let checked = config.checking.check_url.is_some() && state.stage >= Stage::Checking;
     let headings = if checked {
-        Headings {
-            count: "Checked",
-            amount: "Working",
-            amount_style: working(),
-        }
+        Headings { count: "Checked", amount: "Working", amount_style: working() }
     } else {
         Headings { count: "Sources", amount: "Found", amount_style: dim() }
     };
@@ -573,11 +509,7 @@ fn overview(
     let mut protocols: Vec<_> = enabled
         .iter()
         .map(move |protocol| {
-            protocol_row(
-                protocol.as_str_uppercase(),
-                *state.protocols.get(protocol),
-                checked,
-            )
+            protocol_row(protocol.as_str_uppercase(), *state.protocols.get(protocol), checked)
         })
         .collect();
     if protocols.len() > 1 {
@@ -588,12 +520,7 @@ fn overview(
         protocols.push(protocol_row("All", all, checked));
     }
     let databases = database_rows(config, state);
-    let columns = Columns::fit(
-        width,
-        protocols.iter().chain(&databases),
-        &headings,
-        stacked,
-    );
+    let columns = Columns::fit(width, protocols.iter().chain(&databases), &headings, stacked);
 
     // The result comes first: if the screen is too short, the table is what
     // gets cut.
@@ -630,8 +557,7 @@ fn elided(text: &str, width: usize) -> CompactString {
     if text.chars().count() <= width {
         return text.into();
     }
-    let mut elided: CompactString =
-        text.chars().take(width.saturating_sub(1)).collect();
+    let mut elided: CompactString = text.chars().take(width.saturating_sub(1)).collect();
     elided.push('\u{2026}');
     elided
 }
@@ -640,12 +566,8 @@ fn elided(text: &str, width: usize) -> CompactString {
 // goes before any address does.
 fn fastest(state: &State, width: usize, rows: usize) -> Text<'static> {
     let proxies = state.fastest.iter().take(rows);
-    let longest =
-        proxies.clone().map(|proxy| proxy.address.len()).max().unwrap_or(0);
-    let room = width
-        .min(FASTEST_MAX_WIDTH)
-        .saturating_sub(GAP.len())
-        .saturating_sub(LATENCY_WIDTH);
+    let longest = proxies.clone().map(|proxy| proxy.address.len()).max().unwrap_or(0);
+    let room = width.min(FASTEST_MAX_WIDTH).saturating_sub(GAP.len()).saturating_sub(LATENCY_WIDTH);
     let name_width = NAME_WIDTH.saturating_add(GAP.len());
     let named = room >= name_width.saturating_add(longest);
     let room = if named { room.saturating_sub(name_width) } else { room };
@@ -654,34 +576,19 @@ fn fastest(state: &State, width: usize, rows: usize) -> Text<'static> {
     for proxy in proxies {
         let mut spans = Vec::with_capacity(4);
         if named {
-            spans.push(Span::raw(format!(
-                "{:<name_width$}",
-                proxy.protocol.as_str_uppercase()
-            )));
+            spans.push(Span::raw(format!("{:<name_width$}", proxy.protocol.as_str_uppercase())));
         }
-        spans.push(Span::raw(format!(
-            "{:<room$}",
-            elided(&proxy.address, room)
-        )));
+        spans.push(Span::raw(format!("{:<room$}", elided(&proxy.address, room))));
         spans.push(gap());
-        spans.push(Span::raw(format!(
-            "{:>LATENCY_WIDTH$}",
-            latency(proxy.latency)
-        )));
+        spans.push(Span::raw(format!("{:>LATENCY_WIDTH$}", latency(proxy.latency))));
         lines.push(Line::from(spans));
     }
     Text::from(lines)
 }
 
-fn footer(
-    state: &State,
-    width: usize,
-) -> (Line<'static>, Option<Line<'static>>) {
+fn footer(state: &State, width: usize) -> (Line<'static>, Option<Line<'static>>) {
     if state.input_lost {
-        return (
-            Line::styled("Keyboard input lost, exits after the run", warning()),
-            None,
-        );
+        return (Line::styled("Keyboard input lost, exits after the run", warning()), None);
     }
 
     let mut keys: Vec<(&str, &str)> = Vec::with_capacity(4);
@@ -709,8 +616,7 @@ fn footer(
     }
 
     let keys_width = line_width(&spans);
-    let url = (keys_width.saturating_add(URL.len()).saturating_add(GAP.len())
-        <= width)
+    let url = (keys_width.saturating_add(URL.len()).saturating_add(GAP.len()) <= width)
         .then(|| Line::styled(URL, dim()).right_aligned());
     (Line::from(spans), url)
 }
@@ -722,11 +628,10 @@ fn wrap(text: &str, width: usize) -> impl Iterator<Item = &str> {
             return None;
         }
         let mut cells = 0_usize;
-        let overflow =
-            rest.grapheme_indices(true).find(move |&(index, grapheme)| {
-                cells = cells.saturating_add(grapheme.width());
-                cells > width && index > 0
-            });
+        let overflow = rest.grapheme_indices(true).find(move |&(index, grapheme)| {
+            cells = cells.saturating_add(grapheme.width());
+            cells > width && index > 0
+        });
         let end = overflow.map_or(rest.len(), move |(end, _)| {
             rest.get(..end)
                 .and_then(|line| line.rfind(' '))
@@ -764,10 +669,7 @@ impl LogFormatter for LogLine {
                 let margin = if !lines.is_empty() {
                     " ".repeat(indent)
                 } else if timed {
-                    format!(
-                        "{:<indent$}",
-                        evt.timestamp.strftime("%H:%M:%S").to_string()
-                    )
+                    format!("{:<indent$}", evt.timestamp.strftime("%H:%M:%S").to_string())
                 } else {
                     String::new()
                 };
@@ -785,20 +687,13 @@ impl LogFormatter for LogLine {
     }
 }
 
-pub fn draw(
-    f: &mut Frame<'_>,
-    config: &Config,
-    state: &State,
-    logger_state: &TuiWidgetState,
-) {
+pub fn draw(f: &mut Frame<'_>, config: &Config, state: &State, logger_state: &TuiWidgetState) {
     let full = f.area();
     let roomy = full.height >= ROOMY_HEIGHT;
-    let stacked =
-        full.width < STACKED_MAX_WIDTH && full.height >= STACKED_MIN_HEIGHT;
+    let stacked = full.width < STACKED_MAX_WIDTH && full.height >= STACKED_MIN_HEIGHT;
     let area = full.inner(Margin::new(1, u16::from(roomy)));
 
-    let overview =
-        overview(config, state, usize::from(area.width), roomy, stacked);
+    let overview = overview(config, state, usize::from(area.width), roomy, stacked);
     let overview_height = u16::try_from(overview.height()).unwrap_or(u16::MAX);
     let fastest_room = area
         .height
@@ -820,36 +715,27 @@ pub fn draw(
     let fastest_height = if fastest_rows == 0 {
         0
     } else {
-        u16::try_from(fastest_rows)
-            .unwrap_or(u16::MAX)
-            .saturating_add(FASTEST_TITLE_AND_GAP)
+        u16::try_from(fastest_rows).unwrap_or(u16::MAX).saturating_add(FASTEST_TITLE_AND_GAP)
     };
 
-    let [overview_area, fastest_area, logs_area, _, footer_area] =
-        Layout::vertical([
-            Constraint::Length(overview_height),
-            Constraint::Length(fastest_height),
-            Constraint::Fill(1),
-            Constraint::Length(u16::from(roomy)),
-            Constraint::Length(1),
-        ])
-        .areas(area);
+    let [overview_area, fastest_area, logs_area, _, footer_area] = Layout::vertical([
+        Constraint::Length(overview_height),
+        Constraint::Length(fastest_height),
+        Constraint::Fill(1),
+        Constraint::Length(u16::from(roomy)),
+        Constraint::Length(1),
+    ])
+    .areas(area);
 
     f.render_widget(Paragraph::new(overview), overview_area);
     if fastest_rows != 0 {
         f.render_widget(
-            Paragraph::new(fastest(
-                state,
-                usize::from(area.width),
-                fastest_rows,
-            )),
+            Paragraph::new(fastest(state, usize::from(area.width), fastest_rows)),
             fastest_area,
         );
     }
     f.render_widget(
-        TuiLoggerWidget::default()
-            .formatter(Box::new(LogLine))
-            .state(logger_state),
+        TuiLoggerWidget::default().formatter(Box::new(LogLine)).state(logger_state),
         logs_area,
     );
 
@@ -872,34 +758,19 @@ mod tests {
         config::{Config, tests::test_config},
         event::Stage,
         proxy::ProxyType,
-        tui::app::{
-            DbProgress, FastProxy, Mode, ProtocolProgress, State,
-            TICKS_PER_SECOND,
-        },
+        tui::app::{DbProgress, FastProxy, Mode, ProtocolProgress, State, TICKS_PER_SECOND},
     };
 
     const MB: usize = 1_000_000;
 
-    fn render(
-        config: &Config,
-        state: &State,
-        width: u16,
-        height: u16,
-    ) -> String {
-        let mut terminal =
-            Terminal::new(TestBackend::new(width, height)).unwrap();
-        terminal
-            .draw(move |f| draw(f, config, state, &TuiWidgetState::default()))
-            .unwrap();
+    fn render(config: &Config, state: &State, width: u16, height: u16) -> String {
+        let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        terminal.draw(move |f| draw(f, config, state, &TuiWidgetState::default())).unwrap();
         let buffer = terminal.backend().buffer();
         buffer
             .content()
             .chunks(usize::from(width.max(1)))
-            .map(|row| {
-                row.iter()
-                    .map(ratatui::buffer::Cell::symbol)
-                    .collect::<String>()
-            })
+            .map(|row| row.iter().map(ratatui::buffer::Cell::symbol).collect::<String>())
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -940,14 +811,8 @@ mod tests {
     #[test]
     fn meter_steps_in_half_cells() {
         assert_eq!(text(&meter(0, 8, 0).spans(4)), "\u{2500}".repeat(4));
-        assert_eq!(
-            text(&meter(3, 8, 0).spans(4)),
-            "\u{2501}\u{257e}\u{2500}\u{2500}"
-        );
-        assert_eq!(
-            text(&meter(4, 8, 0).spans(4)),
-            "\u{2501}\u{2501}\u{2500}\u{2500}"
-        );
+        assert_eq!(text(&meter(3, 8, 0).spans(4)), "\u{2501}\u{257e}\u{2500}\u{2500}");
+        assert_eq!(text(&meter(4, 8, 0).spans(4)), "\u{2501}\u{2501}\u{2500}\u{2500}");
     }
 
     #[test]
@@ -975,10 +840,7 @@ mod tests {
     #[test]
     fn database_row_says_where_the_download_is() {
         let count = |finished_ok, downloaded, total| {
-            let row = database_row(
-                "ASN",
-                DbProgress { finished_ok, downloaded, total },
-            );
+            let row = database_row("ASN", DbProgress { finished_ok, downloaded, total });
             (row.done, row.total)
         };
         assert_eq!(count(Some(false), MB, MB), ("failed".into(), "".into()));
@@ -999,8 +861,7 @@ mod tests {
 
     #[test]
     fn wrap_counts_the_cells_a_character_takes() {
-        let lines: Vec<_> =
-            wrap("\u{8def}\u{5f84}\u{8def}\u{5f84}a", 4).collect();
+        let lines: Vec<_> = wrap("\u{8def}\u{5f84}\u{8def}\u{5f84}a", 4).collect();
         assert_eq!(lines, ["\u{8def}\u{5f84}", "\u{8def}\u{5f84}", "a"]);
         drop(lines);
 
@@ -1016,8 +877,7 @@ mod tests {
 
     #[test]
     fn wrap_does_not_strand_a_word_before_a_very_long_one() {
-        let lines: Vec<_> =
-            wrap("warning: https://example.com/path", 24).collect();
+        let lines: Vec<_> = wrap("warning: https://example.com/path", 24).collect();
         assert_eq!(lines, ["warning: https://example", ".com/path"]);
     }
 
@@ -1046,11 +906,9 @@ mod tests {
     async fn the_counts_line_up_on_the_slash() {
         let config = test_config(|_| {}).await;
         let mut state = State { stage: Stage::Checking, ..State::default() };
-        for (protocol, count) in [
-            (ProxyType::Http, 2_714),
-            (ProxyType::Socks4, 330),
-            (ProxyType::Socks5, 8_858),
-        ] {
+        for (protocol, count) in
+            [(ProxyType::Http, 2_714), (ProxyType::Socks4, 330), (ProxyType::Socks5, 8_858)]
+        {
             *state.protocols.get_mut(protocol) = ProtocolProgress {
                 proxies_total: count,
                 proxies_checked: count,
@@ -1059,8 +917,7 @@ mod tests {
         }
 
         let screen = render(&config, &state, 100, 30);
-        let slashes: Vec<_> =
-            screen.lines().filter_map(|line| line.find(" / ")).collect();
+        let slashes: Vec<_> = screen.lines().filter_map(|line| line.find(" / ")).collect();
         assert_eq!(slashes.len(), 4, "{screen}");
         assert!(slashes.windows(2).all(|pair| pair.first() == pair.last()));
         assert!(screen.contains("  330 /    330"), "{screen}");
@@ -1075,8 +932,7 @@ mod tests {
             sources_scraped: 9,
             ..ProtocolProgress::default()
         };
-        state.asn_db =
-            DbProgress { finished_ok: None, downloaded: MB, total: 2 * MB };
+        state.asn_db = DbProgress { finished_ok: None, downloaded: MB, total: 2 * MB };
 
         let screen = render(&config, &state, 100, 30);
         assert!(screen.contains("1.0 MB / 2.0 MB"), "{screen}");
@@ -1117,8 +973,7 @@ mod tests {
     #[tokio::test]
     async fn the_logs_keep_their_room_on_short_screens() {
         let config = test_config(|_| {}).await;
-        let state =
-            State { fastest: vec![fast("1.1.1.1:80", 5)], ..checking_state() };
+        let state = State { fastest: vec![fast("1.1.1.1:80", 5)], ..checking_state() };
 
         let screen = render(&config, &state, 100, 20);
         assert!(!screen.contains("Fastest"), "{screen}");
@@ -1140,16 +995,11 @@ mod tests {
     #[tokio::test]
     async fn more_height_never_takes_the_fastest_proxies_away() {
         let config = test_config(|_| {}).await;
-        let state = State {
-            fastest: vec![fast("1.1.1.1:80", 5); 8],
-            ..checking_state()
-        };
+        let state = State { fastest: vec![fast("1.1.1.1:80", 5); 8], ..checking_state() };
 
         for width in [50, 100] {
             let shown: Vec<_> = (1..60)
-                .map(|height| {
-                    render(&config, &state, width, height).contains("Fastest")
-                })
+                .map(|height| render(&config, &state, width, height).contains("Fastest"))
                 .collect();
             assert!(shown.is_sorted(), "{width}: {shown:?}");
             assert_eq!(shown.last(), Some(&true));
@@ -1214,8 +1064,7 @@ mod tests {
         let path = "/data/data/com.termux/files/home/proxy-scraper-checker/out";
         let mut config = test_config(|_| {}).await;
         config.output.path = std::path::PathBuf::from(path);
-        let mut state =
-            State { mode: Mode::Done, saved: Some(1_517), ..checking_state() };
+        let mut state = State { mode: Mode::Done, saved: Some(1_517), ..checking_state() };
         state.asn_db.finished_ok = Some(false);
         state.geo_db.finished_ok = Some(false);
 
@@ -1227,10 +1076,7 @@ mod tests {
     #[tokio::test]
     async fn a_narrow_screen_drops_the_protocol_before_cutting_an_address() {
         let config = test_config(|_| {}).await;
-        let state = State {
-            fastest: vec![fast("103.152.112.162:1080", 312)],
-            ..checking_state()
-        };
+        let state = State { fastest: vec![fast("103.152.112.162:1080", 312)], ..checking_state() };
 
         let screen = render(&config, &state, 34, 40);
         assert!(screen.contains("103.152.112.162:1080"), "{screen}");
@@ -1353,9 +1199,7 @@ mod tests {
                 .lines()
                 .map(|line| {
                     line.chars()
-                        .filter(|symbol| {
-                            "\u{2501}\u{257e}\u{2500}".contains(*symbol)
-                        })
+                        .filter(|symbol| "\u{2501}\u{257e}\u{2500}".contains(*symbol))
                         .count()
                 })
                 .max();
@@ -1401,8 +1245,7 @@ mod tests {
         let path = "target/an-output-path-as-long-as-the-ones-on-android";
         let mut config = test_config(|_| {}).await;
         config.output.path = PathBuf::from(path);
-        let state =
-            State { mode: Mode::Done, saved: Some(1_517), ..checking_state() };
+        let state = State { mode: Mode::Done, saved: Some(1_517), ..checking_state() };
 
         let screen = render(&config, &state, 30, 40);
         let joined = screen.replace(['\n', ' '], "");

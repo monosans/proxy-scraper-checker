@@ -3,27 +3,39 @@
 # wrappers at API level 21 so the binaries also run on older devices. Once
 # cross-rs/cross#1809 is in the images, CROSS_ANDROID_SDK alone does this.
 [target.aarch64-linux-android]
-pre-build = ["sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"]
+pre-build = [
+  "sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"
+]
 env.passthrough = ["CROSS_ANDROID_SDK=21"]
 
 [target.arm-linux-androideabi]
-pre-build = ["sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"]
+pre-build = [
+  "sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"
+]
 env.passthrough = ["CROSS_ANDROID_SDK=21"]
 
 [target.armv7-linux-androideabi]
-pre-build = ["sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"]
+pre-build = [
+  "sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"
+]
 env.passthrough = ["CROSS_ANDROID_SDK=21"]
 
 [target.i686-linux-android]
-pre-build = ["sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"]
+pre-build = [
+  "sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"
+]
 env.passthrough = ["CROSS_ANDROID_SDK=21"]
 
 [target.thumbv7neon-linux-androideabi]
-pre-build = ["sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"]
+pre-build = [
+  "sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"
+]
 env.passthrough = ["CROSS_ANDROID_SDK=21"]
 
 [target.x86_64-linux-android]
-pre-build = ["sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"]
+pre-build = [
+  "sed -i -E 's/(android(eabi)?)28/\\121/' /android-ndk/bin/*-gcc /android-ndk/bin/*-g++"
+]
 env.passthrough = ["CROSS_ANDROID_SDK=21"]
 
 # cross links x86_64-unknown-netbsd against NetBSD 9.3, whose libc has no

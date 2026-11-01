@@ -39,9 +39,7 @@ enum HostSortKey {
     Name(compact_str::CompactString),
 }
 
-fn natural_sort_key(
-    proxy: &Proxy,
-) -> (ProxyType, HostSortKey, u16, Option<Box<ProxyAuth>>) {
+fn natural_sort_key(proxy: &Proxy) -> (ProxyType, HostSortKey, u16, Option<Box<ProxyAuth>>) {
     let host = proxy.host.parse::<Ipv4Addr>().map_or_else(
         move |_| HostSortKey::Name(proxy.host.clone()),
         |ip| HostSortKey::Ipv4(ip.octets()),
@@ -50,10 +48,7 @@ fn natural_sort_key(
 }
 
 fn keep_english_name(names: &mut maxminddb::geoip2::Names<'_>) {
-    *names = maxminddb::geoip2::Names {
-        english: names.english,
-        ..Default::default()
-    };
+    *names = maxminddb::geoip2::Names { english: names.english, ..Default::default() };
 }
 
 fn strip_non_english_names(city: &mut maxminddb::geoip2::City<'_>) {
@@ -109,17 +104,12 @@ impl serde::Serialize for ProxyListJson<'_> {
         for proxy in self.proxies {
             let exit_ip_addr = proxy.exit_ip.map(IpAddr::V4);
 
-            let asn = self
-                .asn_db
-                .zip(exit_ip_addr)
-                .and_then(|(db, addr)| lookup(db, addr));
+            let asn = self.asn_db.zip(exit_ip_addr).and_then(|(db, addr)| lookup(db, addr));
 
             let geolocation = self
                 .geo_db
                 .zip(exit_ip_addr)
-                .and_then(|(db, addr)| {
-                    lookup::<maxminddb::geoip2::City<'_>>(db, addr)
-                })
+                .and_then(|(db, addr)| lookup::<maxminddb::geoip2::City<'_>>(db, addr))
                 .map(|mut city| {
                     strip_non_english_names(&mut city);
                     city
@@ -131,9 +121,7 @@ impl serde::Serialize for ProxyListJson<'_> {
                 password: proxy.auth.as_ref().map(|a| a.password.as_str()),
                 host: &proxy.host,
                 port: proxy.port,
-                timeout: proxy
-                    .timeout
-                    .map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
+                timeout: proxy.timeout.map(|d| (d.as_secs_f64() * 100.0).round() / 100.0_f64),
                 exit_ip: proxy.exit_ip,
                 asn,
                 geolocation,
@@ -148,10 +136,7 @@ async fn remove_dir(path: &Path) -> crate::Result<()> {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(e).wrap_err_with(move || {
-            compact_str::format_compact!(
-                "failed to remove directory: {}",
-                path.display()
-            )
+            compact_str::format_compact!("failed to remove directory: {}", path.display())
         }),
     }
 }
@@ -166,24 +151,14 @@ fn tmp_path(path: &Path) -> PathBuf {
     with_suffix(path, ".tmp")
 }
 
-fn stage_json_file(
-    path: &Path,
-    pretty: bool,
-    list: &ProxyListJson<'_>,
-) -> crate::Result<()> {
+fn stage_json_file(path: &Path, pretty: bool, list: &ProxyListJson<'_>) -> crate::Result<()> {
     let tmp = tmp_path(path);
     let file = std::fs::File::create(&tmp).wrap_err_with(|| {
         compact_str::format_compact!("failed to create file: {}", tmp.display())
     })?;
-    let mut writer =
-        std::io::BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
+    let mut writer = std::io::BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
 
-    let failed = move || {
-        compact_str::format_compact!(
-            "failed to write to file: {}",
-            tmp.display()
-        )
-    };
+    let failed = move || compact_str::format_compact!("failed to write to file: {}", tmp.display());
 
     if pretty {
         serde_json::to_writer_pretty(&mut writer, list)
@@ -196,11 +171,7 @@ fn stage_json_file(
 }
 
 fn rename_failed(from: &Path, to: &Path) -> compact_str::CompactString {
-    compact_str::format_compact!(
-        "failed to rename {} to {}",
-        from.display(),
-        to.display()
-    )
+    compact_str::format_compact!("failed to rename {} to {}", from.display(), to.display())
 }
 
 async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
@@ -219,10 +190,7 @@ async fn commit_file(from: &Path, to: &Path) -> crate::Result<()> {
                 )
             })?;
             tokio::fs::remove_file(from).await.wrap_err_with(move || {
-                compact_str::format_compact!(
-                    "failed to remove file: {}",
-                    from.display()
-                )
+                compact_str::format_compact!("failed to remove file: {}", from.display())
             })
         }
         Err(e) => Err(e).wrap_err_with(move || rename_failed(from, to)),
@@ -243,9 +211,9 @@ async fn clear_previous(previous: &Path) {
         let removed = if is_dir {
             remove_dir(&path).await
         } else {
-            tokio::fs::remove_file(&path).await.wrap_err_with(move || {
-                format_compact!("failed to remove file: {}", path.display())
-            })
+            tokio::fs::remove_file(&path)
+                .await
+                .wrap_err_with(move || format_compact!("failed to remove file: {}", path.display()))
         };
         if let Err(e) = removed {
             tracing::warn!("{}", pretty_error(&e));
@@ -260,14 +228,10 @@ async fn move_aside(to: &Path, previous: &Path) -> crate::Result<PathBuf> {
     tokio::fs::create_dir_all(previous).await.wrap_err_with(move || {
         format_compact!("failed to create directory: {}", previous.display())
     })?;
-    let stamp = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
+    let stamp =
+        SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos();
     let aside = previous.join(format_compact!("{stamp}"));
-    tokio::fs::rename(to, &aside)
-        .await
-        .wrap_err_with(|| rename_failed(to, &aside))?;
+    tokio::fs::rename(to, &aside).await.wrap_err_with(|| rename_failed(to, &aside))?;
     Ok(aside)
 }
 
@@ -306,8 +270,7 @@ async fn commit_directory(from: &Path, to: &Path) -> crate::Result<()> {
                 }
                 Err(restore_error) => {
                     failed = format_compact!(
-                        "{failed}; the previous output is in {}: \
-                         {restore_error}",
+                        "{failed}; the previous output is in {}: {restore_error}",
                         aside.display()
                     );
                 }
@@ -331,18 +294,12 @@ where
     I: IntoIterator<Item = &'a Proxy>,
 {
     let mut file = std::fs::File::create(path).wrap_err_with(move || {
-        compact_str::format_compact!(
-            "failed to create file: {}",
-            path.display()
-        )
+        compact_str::format_compact!("failed to create file: {}", path.display())
     })?;
 
     let write = move |file: &mut std::fs::File, buf: &str| {
         file.write_all(buf.as_bytes()).wrap_err_with(move || {
-            compact_str::format_compact!(
-                "failed to write to file: {}",
-                path.display()
-            )
+            compact_str::format_compact!("failed to write to file: {}", path.display())
         })
     };
 
@@ -387,10 +344,7 @@ async fn open_ipdb(db_type: ipdb::DbType, enabled: bool) -> Option<Arc<IpDb>> {
     }
 }
 
-#[expect(
-    clippy::rc_buffer,
-    reason = "Arc<[Proxy]> would copy every proxy out of the Vec"
-)]
+#[expect(clippy::rc_buffer, reason = "Arc<[Proxy]> would copy every proxy out of the Vec")]
 async fn stage_json(
     proxies: &Arc<Vec<Proxy>>,
     config: &Config,
@@ -423,10 +377,7 @@ async fn stage_json(
     Ok(())
 }
 
-#[expect(
-    clippy::rc_buffer,
-    reason = "Arc<[Proxy]> would copy every proxy out of the Vec"
-)]
+#[expect(clippy::rc_buffer, reason = "Arc<[Proxy]> would copy every proxy out of the Vec")]
 async fn stage_txt(
     proxies: Arc<Vec<Proxy>>,
     enabled_protocols: ProxyTypeSet,
@@ -434,21 +385,13 @@ async fn stage_txt(
 ) -> crate::Result<()> {
     remove_dir(&staging_path).await?;
     tokio::fs::create_dir_all(&staging_path).await.wrap_err_with(|| {
-        compact_str::format_compact!(
-            "failed to create directory: {}",
-            staging_path.display()
-        )
+        compact_str::format_compact!("failed to create directory: {}", staging_path.display())
     })?;
 
     tokio::task::spawn_blocking(move || {
         let mut buf = String::with_capacity(WRITE_BUFFER_BYTES);
 
-        write_proxy_list_to_file(
-            &staging_path.join("all.txt"),
-            proxies.iter(),
-            true,
-            &mut buf,
-        )?;
+        write_proxy_list_to_file(&staging_path.join("all.txt"), proxies.iter(), true, &mut buf)?;
 
         for proto in enabled_protocols.iter() {
             let mut file_path = staging_path.join(proto.as_str_lowercase());
@@ -518,17 +461,12 @@ pub async fn save_proxies(
     let mut committed = Ok(());
     if let Some(paths) = json_paths {
         for (path, _) in paths {
-            committed = keep_both_errors(
-                committed,
-                commit_file(&tmp_path(&path), &path).await,
-            );
+            committed = keep_both_errors(committed, commit_file(&tmp_path(&path), &path).await);
         }
     }
     if let Some((directory_path, staging_path)) = txt_paths {
-        committed = keep_both_errors(
-            committed,
-            commit_directory(&staging_path, &directory_path).await,
-        );
+        committed =
+            keep_both_errors(committed, commit_directory(&staging_path, &directory_path).await);
     }
     committed?;
 
@@ -590,11 +528,7 @@ pub fn summary(
         let breakdown: Vec<_> = protocols
             .iter()
             .map(move |protocol| {
-                format_compact!(
-                    "{} {}",
-                    protocol.as_str_uppercase(),
-                    grouped(*saved.get(protocol))
-                )
+                format_compact!("{} {}", protocol.as_str_uppercase(), grouped(*saved.get(protocol)))
             })
             .collect();
         text.push_str(" (");
@@ -611,9 +545,8 @@ mod tests {
     use compact_str::CompactString;
 
     use super::{
-        Config, Proxy, ProxyAuth, ProxyListJson, ProxyType, commit_directory,
-        compare_timeout, count_by_protocol, natural_sort_key, save_proxies,
-        summary,
+        Config, Proxy, ProxyAuth, ProxyListJson, ProxyType, commit_directory, compare_timeout,
+        count_by_protocol, natural_sort_key, save_proxies, summary,
     };
     use crate::config::tests::{temp_directory, test_config};
 
@@ -648,8 +581,7 @@ mod tests {
         );
         assert_eq!(
             summary(&config, &found, &saved, "./out", true),
-            "Saved 1 proxy found before the stop to ./out (HTTP 1, SOCKS4 0, \
-             SOCKS5 0)"
+            "Saved 1 proxy found before the stop to ./out (HTTP 1, SOCKS4 0, SOCKS5 0)"
         );
     }
 
@@ -663,10 +595,7 @@ mod tests {
         .await;
         let saved = count_by_protocol(&[typed(ProxyType::Http)]);
 
-        assert_eq!(
-            summary(&config, &saved, &saved, "./out", false),
-            "Saved 1 proxy to ./out"
-        );
+        assert_eq!(summary(&config, &saved, &saved, "./out", false), "Saved 1 proxy to ./out");
     }
 
     fn sorted_naturally(mut proxies: Vec<Proxy>) -> Vec<CompactString> {
@@ -720,8 +649,7 @@ mod tests {
         ];
         proxies.sort_unstable_by(compare_timeout);
 
-        let order: Vec<_> =
-            proxies.iter().map(|p| p.to_compact_string(false)).collect();
+        let order: Vec<_> = proxies.iter().map(|p| p.to_compact_string(false)).collect();
         assert_eq!(order, ["1.1.1.1:80", "1.1.1.1:8080", "2.2.2.2:80"]);
     }
 
@@ -741,12 +669,9 @@ mod tests {
 
     #[test]
     fn without_the_databases_a_proxy_keeps_its_exit_ip() {
-        let proxies = [Proxy {
-            exit_ip: Some(Ipv4Addr::new(5, 6, 7, 8)),
-            ..proxy("1.1.1.1", 80, None)
-        }];
-        let list =
-            ProxyListJson { proxies: &proxies, asn_db: None, geo_db: None };
+        let proxies =
+            [Proxy { exit_ip: Some(Ipv4Addr::new(5, 6, 7, 8)), ..proxy("1.1.1.1", 80, None) }];
+        let list = ProxyListJson { proxies: &proxies, asn_db: None, geo_db: None };
 
         let json = serde_json::to_value(&list).unwrap();
 
@@ -786,15 +711,13 @@ mod tests {
             "http://1.1.1.1:80"
         );
         assert_eq!(
-            std::fs::read_to_string(directory.join("proxies/http.txt"))
-                .unwrap(),
+            std::fs::read_to_string(directory.join("proxies/http.txt")).unwrap(),
             "1.1.1.1:80"
         );
         for name in ["proxies.json", "proxies_pretty.json"] {
-            let json: serde_json::Value = serde_json::from_str(
-                &std::fs::read_to_string(directory.join(name)).unwrap(),
-            )
-            .unwrap();
+            let json: serde_json::Value =
+                serde_json::from_str(&std::fs::read_to_string(directory.join(name)).unwrap())
+                    .unwrap();
             assert_eq!(json.pointer("/0/host").unwrap(), "1.1.1.1");
         }
 
@@ -854,16 +777,12 @@ mod tests {
             .unwrap();
 
         let config = unchecked_config(directory.clone()).await;
-        let result =
-            save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
+        let result = save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
         drop(reader);
 
         drop(result.unwrap_err());
         for name in ["all.txt", "http.txt"] {
-            assert_eq!(
-                std::fs::read_to_string(proxies.join(name)).unwrap(),
-                "old"
-            );
+            assert_eq!(std::fs::read_to_string(proxies.join(name)).unwrap(), "old");
         }
         drop(proxies);
 
@@ -876,8 +795,7 @@ mod tests {
         std::fs::create_dir_all(directory.join("proxies.json/taken")).unwrap();
 
         let config = unchecked_config(directory.clone()).await;
-        let result =
-            save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
+        let result = save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
 
         drop(result.unwrap_err());
         assert!(directory.join("proxies_pretty.json").is_file());
@@ -896,14 +814,10 @@ mod tests {
         std::fs::create_dir_all(&proxies).unwrap();
         std::fs::write(proxies.join("all.txt"), "old").unwrap();
 
-        let result =
-            commit_directory(&directory.join("missing"), &proxies).await;
+        let result = commit_directory(&directory.join("missing"), &proxies).await;
 
         drop(result.unwrap_err());
-        assert_eq!(
-            std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
-            "old"
-        );
+        assert_eq!(std::fs::read_to_string(proxies.join("all.txt")).unwrap(), "old");
         drop(proxies);
         assert!(!directory.join("proxies.old").exists());
 
@@ -923,10 +837,7 @@ mod tests {
         let result = commit_directory(&staged, &proxies).await;
 
         drop(result.unwrap_err());
-        assert_eq!(
-            std::fs::read_to_string(aside.join("all.txt")).unwrap(),
-            "old"
-        );
+        assert_eq!(std::fs::read_to_string(aside.join("all.txt")).unwrap(), "old");
         drop(aside);
 
         std::fs::create_dir_all(&staged).unwrap();
@@ -934,10 +845,7 @@ mod tests {
         commit_directory(&staged, &proxies).await.unwrap();
         drop(staged);
 
-        assert_eq!(
-            std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
-            "new"
-        );
+        assert_eq!(std::fs::read_to_string(proxies.join("all.txt")).unwrap(), "new");
         drop(proxies);
         assert!(!previous.exists());
         drop(previous);
@@ -1006,14 +914,11 @@ mod tests {
     async fn every_failed_commit_is_reported() {
         let directory = temp_directory("every-failure");
         std::fs::create_dir_all(directory.join("proxies.json/taken")).unwrap();
-        std::fs::create_dir_all(directory.join("proxies_pretty.json/taken"))
-            .unwrap();
+        std::fs::create_dir_all(directory.join("proxies_pretty.json/taken")).unwrap();
 
         let config = unchecked_config(directory.clone()).await;
-        let error = save_proxies(config, vec![proxy("1.1.1.1", 80, None)])
-            .await
-            .unwrap_err()
-            .to_string();
+        let error =
+            save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await.unwrap_err().to_string();
 
         assert!(error.contains("proxies.json.tmp"), "{error}");
         assert!(error.contains("proxies_pretty.json.tmp"), "{error}");
@@ -1045,16 +950,9 @@ mod tests {
         drop(held);
 
         let config = unchecked_config(directory.clone()).await;
-        save_proxies(Arc::clone(&config), vec![proxy("1.1.1.1", 80, None)])
-            .await
-            .unwrap();
-        save_proxies(Arc::clone(&config), vec![proxy("2.2.2.2", 80, None)])
-            .await
-            .unwrap();
-        assert_eq!(
-            std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
-            "http://2.2.2.2:80"
-        );
+        save_proxies(Arc::clone(&config), vec![proxy("1.1.1.1", 80, None)]).await.unwrap();
+        save_proxies(Arc::clone(&config), vec![proxy("2.2.2.2", 80, None)]).await.unwrap();
+        assert_eq!(std::fs::read_to_string(proxies.join("all.txt")).unwrap(), "http://2.2.2.2:80");
         drop(proxies);
         assert_eq!(std::fs::read_dir(&previous).unwrap().count(), 1);
 
@@ -1075,15 +973,11 @@ mod tests {
         std::fs::create_dir_all(directory.join("proxies.json.tmp")).unwrap();
 
         let config = unchecked_config(directory.clone()).await;
-        let result =
-            save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
+        let result = save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await;
 
         drop(result.unwrap_err());
         for path in ["proxies.json", "proxies/all.txt"] {
-            assert_eq!(
-                std::fs::read_to_string(directory.join(path)).unwrap(),
-                "old"
-            );
+            assert_eq!(std::fs::read_to_string(directory.join(path)).unwrap(), "old");
         }
 
         // Failing staging leaves the other format's task still writing here.

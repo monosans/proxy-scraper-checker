@@ -66,9 +66,7 @@ mod utils;
 use std::io::Write as _;
 use std::{io::IsTerminal as _, sync::Arc};
 
-use tracing_subscriber::{
-    layer::SubscriberExt as _, util::SubscriberInitExt as _,
-};
+use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
 #[cfg(feature = "dhat")]
 #[global_allocator]
@@ -91,8 +89,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 // macOS: 12-58% lower peak RSS than libmalloc.
 #[cfg(all(feature = "auto-allocator", target_os = "macos"))]
 #[global_allocator]
-static GLOBAL: tikv_jemallocator_auto::Jemalloc =
-    tikv_jemallocator_auto::Jemalloc;
+static GLOBAL: tikv_jemallocator_auto::Jemalloc = tikv_jemallocator_auto::Jemalloc;
 
 // musl: 8-18% less CPU than mallocng when checking. mimalloc rather than
 // jemalloc because jemalloc fixes the page size at build time, and a
@@ -100,11 +97,7 @@ static GLOBAL: tikv_jemallocator_auto::Jemalloc =
 // (Raspberry Pi 5, Asahi, ppc64le). v2 with no_thp costs 5-25% peak RSS over
 // mallocng; v3 or letting it madvise(MADV_HUGEPAGE) costs up to 60%.
 // mimalloc needs 64-bit atomics, which armv5te lacks.
-#[cfg(all(
-    feature = "auto-allocator",
-    target_env = "musl",
-    target_has_atomic = "64"
-))]
+#[cfg(all(feature = "auto-allocator", target_env = "musl", target_has_atomic = "64"))]
 #[global_allocator]
 static GLOBAL: mimalloc_auto::MiMalloc = mimalloc_auto::MiMalloc;
 
@@ -123,10 +116,7 @@ fn create_logging_filter(debug: bool) -> tracing_subscriber::filter::Targets {
         );
 
     if debug {
-        base.with_target(
-            "proxy_scraper_checker",
-            tracing::level_filters::LevelFilter::DEBUG,
-        )
+        base.with_target("proxy_scraper_checker", tracing::level_filters::LevelFilter::DEBUG)
     } else {
         base
     }
@@ -136,9 +126,7 @@ async fn download_ipdb(
     config: Arc<config::Config>,
     http_client: reqwest_middleware::ClientWithMiddleware,
     token: tokio_util::sync::CancellationToken,
-    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
-        event::Event,
-    >,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<event::Event>,
 ) {
     let databases = [
         (ipdb::DbType::Asn, config.asn_enabled()),
@@ -181,9 +169,10 @@ async fn download_ipdb(
 
             #[cfg(feature = "tui")]
             if !token.is_cancelled() {
-                drop(tx.send(event::Event::App(
-                    event::AppEvent::IpDbFinished(db_type, result.is_ok()),
-                )));
+                drop(tx.send(event::Event::App(event::AppEvent::IpDbFinished(
+                    db_type,
+                    result.is_ok(),
+                ))));
             }
         });
     }
@@ -198,10 +187,7 @@ async fn download_ipdb(
     // save_proxies degrades gracefully when a database is unavailable.
     while let Some(res) = join_set.join_next().await {
         if let Err(e) = res {
-            tracing::error!(
-                "IP database task panicked: {}",
-                utils::pretty_error(&e.into())
-            );
+            tracing::error!("IP database task panicked: {}", utils::pretty_error(&e.into()));
         }
     }
 }
@@ -209,9 +195,7 @@ async fn download_ipdb(
 async fn main_task(
     config: Arc<config::Config>,
     token: tokio_util::sync::CancellationToken,
-    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
-        event::Event,
-    >,
+    #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<event::Event>,
 ) -> crate::Result<compact_str::CompactString> {
     let http_client = http::create_reqwest_client(&config).await?;
 
@@ -261,18 +245,14 @@ async fn main_task(
         #[cfg(feature = "tui")]
         let saved_count = proxies.len();
         #[cfg(feature = "tui")]
-        drop(tx.send(event::Event::App(event::AppEvent::Stage(
-            event::Stage::Saving,
-        ))));
+        drop(tx.send(event::Event::App(event::AppEvent::Stage(event::Stage::Saving))));
 
-        let location =
-            output::save_proxies(Arc::clone(&config), proxies).await?;
+        let location = output::save_proxies(Arc::clone(&config), proxies).await?;
 
         #[cfg(feature = "tui")]
         drop(tx.send(event::Event::App(event::AppEvent::Saved(saved_count))));
 
-        let summary =
-            output::summary(&config, &found, &saved, &location, stopped);
+        let summary = output::summary(&config, &found, &saved, &location, stopped);
         tracing::info!("{summary}");
         summary
     };
@@ -321,9 +301,7 @@ fn stop_on_signal<S, R>(
 #[cfg(any(unix, windows))]
 fn watch_signals(
     token: &tokio_util::sync::CancellationToken,
-    #[cfg(feature = "tui")] tx: &tokio::sync::mpsc::UnboundedSender<
-        event::Event,
-    >,
+    #[cfg(feature = "tui")] tx: &tokio::sync::mpsc::UnboundedSender<event::Event>,
 ) {
     let token = token.clone();
     #[cfg(feature = "tui")]
@@ -352,9 +330,8 @@ fn watch_signals(
             if wanted {
                 stop_on_signal(
                     signal_name,
-                    signal(kind).map(|mut signal| async move {
-                        signal.recv().await.map(move |()| signal)
-                    }),
+                    signal(kind)
+                        .map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
                     stop.clone(),
                 );
             }
@@ -367,16 +344,12 @@ fn watch_signals(
 
         stop_on_signal(
             "Ctrl-C",
-            ctrl_c().map(|mut signal| async move {
-                signal.recv().await.map(move |()| signal)
-            }),
+            ctrl_c().map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
             stop.clone(),
         );
         stop_on_signal(
             "console close",
-            ctrl_close().map(|mut signal| async move {
-                signal.recv().await.map(move |()| signal)
-            }),
+            ctrl_close().map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
             stop,
         );
     }
@@ -403,8 +376,7 @@ async fn join_run_and_tui(
             result
         },
         async move {
-            let result =
-                tui.await.map_err(Into::into).and_then(|result| result);
+            let result = tui.await.map_err(Into::into).and_then(|result| result);
             if result.is_err() {
                 token.cancel();
             }
@@ -466,11 +438,7 @@ async fn run_without_tui(
         && std::env::var_os("NO_COLOR").is_none_or(|value| value.is_empty());
     tracing_subscriber::registry()
         .with(logging_filter)
-        .with(
-            tracing_subscriber::fmt::layer()
-                .with_ansi(colored)
-                .with_target(false),
-        )
+        .with(tracing_subscriber::fmt::layer().with_ansi(colored).with_target(false))
         .init();
 
     let config = Arc::new(config::Config::from_raw_config(raw_config).await?);
@@ -499,14 +467,8 @@ async fn run_without_tui(
     Ok(())
 }
 
-#[cfg_attr(
-    feature = "tokio-multi-thread",
-    tokio::main(flavor = "multi_thread")
-)]
-#[cfg_attr(
-    not(feature = "tokio-multi-thread"),
-    tokio::main(flavor = "current_thread")
-)]
+#[cfg_attr(feature = "tokio-multi-thread", tokio::main(flavor = "multi_thread"))]
+#[cfg_attr(not(feature = "tokio-multi-thread"), tokio::main(flavor = "current_thread"))]
 async fn main() -> crate::Result<()> {
     #[cfg(feature = "dhat")]
     let _profiler = dhat::Profiler::new_heap();
@@ -515,8 +477,7 @@ async fn main() -> crate::Result<()> {
 
     // Only parsed here: building the Config can log, which needs the subscriber
     // the debug flag configures.
-    let raw_config =
-        raw_config::read_config(&raw_config::get_config_path()).await?;
+    let raw_config = raw_config::read_config(&raw_config::get_config_path()).await?;
     let logging_filter = create_logging_filter(raw_config.debug);
 
     // Under cron or with the output redirected there is nothing to draw on.
@@ -566,8 +527,7 @@ mod tests {
         let tui = async { Err(eyre!("the terminal is gone")) };
         let tx = unbounded_channel().0;
 
-        let (summary, tui_result) =
-            within_a_test(join_run_and_tui(run, tui, token, tx)).await;
+        let (summary, tui_result) = within_a_test(join_run_and_tui(run, tui, token, tx)).await;
 
         assert_eq!(summary.unwrap(), "saved");
         drop(tui_result.unwrap_err());
@@ -588,8 +548,7 @@ mod tests {
         };
         let tx = unbounded_channel().0;
 
-        let (summary, tui_result) =
-            within_a_test(join_run_and_tui(run, tui, token, tx)).await;
+        let (summary, tui_result) = within_a_test(join_run_and_tui(run, tui, token, tx)).await;
 
         assert_eq!(summary.unwrap(), "saved");
         drop(tui_result.unwrap_err());
@@ -605,13 +564,8 @@ mod tests {
             Ok(())
         };
 
-        let (summary, tui_result) = within_a_test(join_run_and_tui(
-            run,
-            tui,
-            CancellationToken::new(),
-            tx,
-        ))
-        .await;
+        let (summary, tui_result) =
+            within_a_test(join_run_and_tui(run, tui, CancellationToken::new(), tx)).await;
 
         drop(summary.unwrap_err());
         tui_result.unwrap();
@@ -619,10 +573,10 @@ mod tests {
 
     // Returns the proxy that was saved, as it appears in the JSON output.
     async fn run_with_failing_downloads() -> serde_json::Value {
-        const NO_TUNNEL: &str = "HTTP/1.1 502 Bad Gateway\r\nContent-Length: \
-                                 0\r\nConnection: close\r\n\r\n";
-        const EXIT_IP: &str = "HTTP/1.1 200 OK\r\nContent-Length: \
-                               9\r\nConnection: close\r\n\r\n192.0.2.1";
+        const NO_TUNNEL: &str =
+            "HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        const EXIT_IP: &str =
+            "HTTP/1.1 200 OK\r\nContent-Length: 9\r\nConnection: close\r\n\r\n192.0.2.1";
 
         let directory = temp_directory("failing-downloads");
         let (working_proxy, _) = serve(vec![EXIT_IP]).await;
@@ -634,16 +588,13 @@ mod tests {
         let (download_proxy, tries) = serve(vec![NO_TUNNEL; 6]).await;
 
         let mut config = test_config(move |raw| {
-            raw.checking.check_url =
-                Some("http://127.0.0.1:9/".parse().unwrap());
+            raw.checking.check_url = Some("http://127.0.0.1:9/".parse().unwrap());
             raw.output.json.enabled = true;
             raw.output.json.include_asn = true;
             raw.output.json.include_geolocation = true;
-            raw.scraping.proxy =
-                Some(format!("http://{download_proxy}").parse().unwrap());
+            raw.scraping.proxy = Some(format!("http://{download_proxy}").parse().unwrap());
             raw.scraping.http.enabled = true;
-            raw.scraping.http.urls =
-                vec![SourceConfig::Simple(source.to_str().unwrap().into())];
+            raw.scraping.http.urls = vec![SourceConfig::Simple(source.to_str().unwrap().into())];
             raw.scraping.socks4.enabled = false;
             raw.scraping.socks5.enabled = false;
         })
@@ -651,9 +602,7 @@ mod tests {
         config.output.path.clone_from(&directory);
 
         let (tx, mut rx) = unbounded_channel();
-        let summary = main_task(Arc::new(config), CancellationToken::new(), tx)
-            .await
-            .unwrap();
+        let summary = main_task(Arc::new(config), CancellationToken::new(), tx).await.unwrap();
 
         assert!(summary.starts_with("Saved 1 of 1 proxy"), "{summary}");
         drop(summary);
@@ -706,10 +655,7 @@ mod tests {
 
         let proxy = run_with_failing_downloads().await;
         assert_eq!(proxy.pointer("/exit_ip").unwrap(), "192.0.2.1");
-        assert_eq!(
-            proxy.pointer("/asn/autonomous_system_number").unwrap(),
-            7_u32
-        );
+        assert_eq!(proxy.pointer("/asn/autonomous_system_number").unwrap(), 7_u32);
         assert!(proxy.pointer("/geolocation").unwrap().is_object());
         drop(proxy);
         for path in paths {

@@ -663,7 +663,9 @@ mod tests {
             .unwrap();
 
         assert!(summary.starts_with("Saved 1 of 1 proxy"), "{summary}");
+        drop(summary);
         assert_eq!(tries.load(Ordering::Relaxed), 6);
+        drop(tries);
 
         let mut finished = Vec::new();
         while let Ok(event) = rx.try_recv() {
@@ -671,8 +673,10 @@ mod tests {
                 finished.push((db_type.name(), ok));
             }
         }
+        drop(rx);
         finished.sort_unstable();
         assert_eq!(finished, [("ASN", false), ("geolocation", false)]);
+        drop(finished);
 
         assert_eq!(
             std::fs::read_to_string(directory.join("proxies/all.txt")).unwrap(),
@@ -696,6 +700,7 @@ mod tests {
         assert_eq!(proxy.pointer("/exit_ip").unwrap(), "192.0.2.1");
         assert!(proxy.pointer("/asn").unwrap().is_null());
         assert!(proxy.pointer("/geolocation").unwrap().is_null());
+        drop(proxy);
 
         let cached = cache::database(7);
         let paths = [
@@ -713,9 +718,11 @@ mod tests {
             7_u32
         );
         assert!(proxy.pointer("/geolocation").unwrap().is_object());
-        for path in &paths {
+        drop(proxy);
+        for path in paths {
             assert_eq!(std::fs::read(path).unwrap(), cached);
         }
+        drop(cached);
 
         cache::remove().await;
     }

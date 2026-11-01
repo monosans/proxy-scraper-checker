@@ -641,7 +641,7 @@ mod tests {
         // goes through the proxy under test, so only the downloads use this.
         let (download_proxy, tries) = serve(vec![NO_TUNNEL; 6]).await;
 
-        let mut config = test_config(|raw| {
+        let mut config = test_config(move |raw| {
             raw.checking.check_url =
                 Some("http://127.0.0.1:9/".parse().unwrap());
             raw.output.json.enabled = true;

@@ -462,7 +462,7 @@ The JSON files hold an array of entries like this one:
 
 `timeout` is how long the whole request took, in seconds: connection, request and the complete response. That is also what `sort_by_speed` orders by. `exit_ip` is the address the target site actually saw, so comparing it with `host` spots proxies that forward through somewhere else.
 
-`exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns an IPv4 exit address, so pointing it at an ordinary web page leaves all three `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
+`exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns an IPv4 exit address, so pointing it at an ordinary web page leaves all three `null`. A database that fails to download doesn't stop the run: the copy from an earlier run is used, and without one its field stays `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
 
 Stopping a run early writes out the working proxies found so far, whether from the [keys](#keys) above or with `Ctrl-C` or `SIGTERM` when there is no TUI. A run that ends with no proxies to write leaves the previous run's files as they were.
 

@@ -600,13 +600,14 @@ pub fn summary(
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, sync::Arc, time::Duration};
+    use std::{net::Ipv4Addr, path::PathBuf, sync::Arc, time::Duration};
 
     use compact_str::CompactString;
 
     use super::{
-        Config, Proxy, ProxyAuth, ProxyType, commit_directory, compare_timeout,
-        count_by_protocol, natural_sort_key, save_proxies, summary,
+        Config, Proxy, ProxyAuth, ProxyListJson, ProxyType, commit_directory,
+        compare_timeout, count_by_protocol, natural_sort_key, save_proxies,
+        summary,
     };
     use crate::config::tests::{temp_directory, test_config};
 
@@ -730,6 +731,22 @@ mod tests {
             sorted_naturally(vec![with_auth, proxy("1.1.1.1", 80, None)]),
             ["1.1.1.1:80", "user:pass@1.1.1.1:80"]
         );
+    }
+
+    #[test]
+    fn without_the_databases_a_proxy_keeps_its_exit_ip() {
+        let proxies = [Proxy {
+            exit_ip: Some(Ipv4Addr::new(5, 6, 7, 8)),
+            ..proxy("1.1.1.1", 80, None)
+        }];
+        let list =
+            ProxyListJson { proxies: &proxies, asn_db: None, geo_db: None };
+
+        let json = serde_json::to_value(&list).unwrap();
+
+        assert_eq!(json.pointer("/0/exit_ip").unwrap(), "5.6.7.8");
+        assert!(json.pointer("/0/asn").unwrap().is_null());
+        assert!(json.pointer("/0/geolocation").unwrap().is_null());
     }
 
     async fn unchecked_config(path: PathBuf) -> Arc<Config> {

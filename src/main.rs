@@ -531,7 +531,10 @@ async fn main() -> crate::Result<()> {
 #[cfg(test)]
 #[cfg(feature = "tui")]
 mod tests {
-    use std::time::Duration;
+    use std::{
+        sync::{Arc, atomic::Ordering},
+        time::Duration,
+    };
 
     use color_eyre::eyre::eyre;
     use compact_str::CompactString;
@@ -539,8 +542,11 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use crate::{
+        config::tests::{temp_directory, test_config},
         event::{AppEvent, Event},
-        join_run_and_tui,
+        http::tests::serve,
+        join_run_and_tui, main_task,
+        raw_config::SourceConfig,
     };
 
     // A side that never tells the other would hang the tests rather than fail.
@@ -616,5 +622,74 @@ mod tests {
 
         drop(summary.unwrap_err());
         tui_result.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_run_goes_on_when_the_ip_databases_fail_to_download() {
+        const NO_TUNNEL: &str = "HTTP/1.1 502 Bad Gateway\r\nContent-Length: \
+                                 0\r\nConnection: close\r\n\r\n";
+        // In a range no database has a record for, so that a copy cached on
+        // this machine can't fill anything in.
+        const EXIT_IP: &str = "HTTP/1.1 200 OK\r\nContent-Length: \
+                               9\r\nConnection: close\r\n\r\n192.0.2.1";
+
+        let directory = temp_directory("no-databases");
+        let source = directory.join("proxies.txt");
+        let (working_proxy, _) = serve(vec![EXIT_IP]).await;
+        std::fs::write(&source, working_proxy.to_string()).unwrap();
+
+        // Each database gets three tries. The source is a file and the check
+        // goes through the proxy under test, so only the downloads use this.
+        let (download_proxy, tries) = serve(vec![NO_TUNNEL; 6]).await;
+
+        let mut config = test_config(|raw| {
+            raw.checking.check_url =
+                Some("http://127.0.0.1:9/".parse().unwrap());
+            raw.output.json.enabled = true;
+            raw.output.json.include_asn = true;
+            raw.output.json.include_geolocation = true;
+            raw.scraping.proxy =
+                Some(format!("http://{download_proxy}").parse().unwrap());
+            raw.scraping.http.enabled = true;
+            raw.scraping.http.urls =
+                vec![SourceConfig::Simple(source.to_str().unwrap().into())];
+            raw.scraping.socks4.enabled = false;
+            raw.scraping.socks5.enabled = false;
+        })
+        .await;
+        config.output.path.clone_from(&directory);
+
+        let (tx, mut rx) = unbounded_channel();
+        let summary = main_task(Arc::new(config), CancellationToken::new(), tx)
+            .await
+            .unwrap();
+
+        assert!(summary.starts_with("Saved 1 of 1 proxy"), "{summary}");
+        assert_eq!(tries.load(Ordering::Relaxed), 6);
+
+        let mut finished = Vec::new();
+        while let Ok(event) = rx.try_recv() {
+            if let Event::App(AppEvent::IpDbFinished(db_type, ok)) = event {
+                finished.push((db_type.name(), ok));
+            }
+        }
+        finished.sort_unstable();
+        assert_eq!(finished, [("ASN", false), ("geolocation", false)]);
+
+        assert_eq!(
+            std::fs::read_to_string(directory.join("proxies/all.txt")).unwrap(),
+            format!("http://{working_proxy}")
+        );
+        for name in ["proxies.json", "proxies_pretty.json"] {
+            let json: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(directory.join(name)).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(json.pointer("/0/exit_ip").unwrap(), "192.0.2.1");
+            assert!(json.pointer("/0/asn").unwrap().is_null());
+            assert!(json.pointer("/0/geolocation").unwrap().is_null());
+        }
+
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

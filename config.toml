@@ -23,6 +23,9 @@ enabled = true
 
 # The ASN and geolocation databases are GeoLite Data created by MaxMind, available
 # from https://www.maxmind.com, under https://www.maxmind.com/en/geolite2/eula.
+#
+# A failed download doesn't stop the run. The copy from an earlier run is used, and
+# without one the field stays null in the output.
 
 # Network owner of the exit IP. Offline database (~9 MB), downloaded on the first run
 # and again only when a newer one is published. Only works if check_url reveals the

@@ -16,7 +16,13 @@ async fn get_cache_path() -> crate::Result<PathBuf> {
 
     Ok(CACHE
         .get_or_try_init(async || -> crate::Result<PathBuf> {
-            let path = dirs::cache_dir()
+            let parent = dirs::cache_dir();
+            // The real databases must not decide what a test sees.
+            #[cfg(test)]
+            let parent = parent
+                .map(|_| crate::config::tests::temp_directory("ip-databases"));
+
+            let path = parent
                 .ok_or_eyre("failed to get user's cache directory")?
                 .join(CACHE_DIRECTORY_NAME);
             tokio::fs::create_dir_all(&path).await.wrap_err_with(|| {
@@ -309,7 +315,7 @@ impl DbType {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::{future, io};
 
     use super::{Duration, open_reader, within};
@@ -319,6 +325,79 @@ mod tests {
     };
 
     const LIMIT: Duration = Duration::from_millis(200);
+
+    // For the test of a whole run, which only exists with the TUI's events.
+    #[cfg(feature = "tui")]
+    pub mod cache {
+        use std::path::PathBuf;
+
+        use crate::ipdb::{DbType, get_cache_path};
+
+        fn text(value: &str) -> Vec<u8> {
+            let mut encoded = vec![0x40 | u8::try_from(value.len()).unwrap()];
+            encoded.extend_from_slice(value.as_bytes());
+            encoded
+        }
+
+        const fn uint16(value: u8) -> [u8; 2] {
+            [0xA1, value]
+        }
+
+        const fn uint32(value: u8) -> [u8; 2] {
+            [0xC1, value]
+        }
+
+        // The smallest valid database: one node whose both sides lead to the
+        // same record, so every IPv4 address belongs to this autonomous system.
+        pub fn database(autonomous_system: u8) -> Vec<u8> {
+            const MAP_OF_ONE: u8 = 0xE1;
+            const MAP_OF_NINE: u8 = 0xE9;
+            const EMPTY_ARRAY: [u8; 2] = [0x00, 0x04];
+            const UINT64_OF_ONE: [u8; 3] = [0x01, 0x02, 0x01];
+            const FIRST_RECORD: [u8; 3] = [0x00, 0x00, 0x11];
+
+            [
+                FIRST_RECORD.as_slice(),
+                &FIRST_RECORD,
+                &[0; 16],
+                &[MAP_OF_ONE],
+                &text("autonomous_system_number"),
+                &uint32(autonomous_system),
+                b"\xab\xcd\xefMaxMind.com",
+                &[MAP_OF_NINE],
+                &text("binary_format_major_version"),
+                &uint16(2),
+                &text("binary_format_minor_version"),
+                &uint16(0),
+                &text("build_epoch"),
+                &UINT64_OF_ONE,
+                &text("database_type"),
+                &text("Test"),
+                &text("description"),
+                &[MAP_OF_ONE],
+                &text("en"),
+                &text("Test"),
+                &text("ip_version"),
+                &uint16(4),
+                &text("languages"),
+                &EMPTY_ARRAY,
+                &text("node_count"),
+                &uint32(1),
+                &text("record_size"),
+                &uint16(24),
+            ]
+            .concat()
+        }
+
+        pub async fn database_path(db_type: DbType) -> PathBuf {
+            db_type.db_path().await.unwrap()
+        }
+
+        pub async fn remove() {
+            let cache = get_cache_path().await.unwrap();
+            std::fs::remove_dir_all(cache.parent().unwrap()).unwrap();
+        }
+    }
 
     async fn stalling_server(reply: &'static str) -> String {
         format!("http://{}/", serve_then_stall(reply).await)

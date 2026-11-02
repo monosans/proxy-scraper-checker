@@ -159,8 +159,10 @@ pub async fn read_config(path: &Path) -> crate::Result<RawConfig> {
 mod tests {
     use std::time::Duration;
 
-    use super::{RawConfig, SourceConfig};
-    use crate::config::Source;
+    use super::{
+        CONFIG_ENV, RawConfig, SourceConfig, get_config_path, read_config,
+    };
+    use crate::config::{Source, tests::temp_directory};
 
     const SHIPPED_CONFIG: &str = include_str!("../config.toml");
 
@@ -243,5 +245,72 @@ mod tests {
     fn timeouts_must_be_positive() {
         let config = SHIPPED_CONFIG.replace("timeout = 10.0", "timeout = 0.0");
         assert!(toml::from_str::<RawConfig>(&config).is_err());
+    }
+
+    #[test]
+    fn a_check_url_needs_an_http_scheme_and_a_host() {
+        for check_url in ["socks5://1.2.3.4:1080", "http://", "not a url"] {
+            let error = toml::from_str::<RawConfig>(&SHIPPED_CONFIG.replace(
+                r#"check_url = "https://ipv4.icanhazip.com""#,
+                &format!("check_url = {check_url:?}"),
+            ))
+            .err()
+            .unwrap()
+            .to_string();
+            assert!(
+                error.contains(&format!(
+                    "'{check_url}' is not a valid url with one of these \
+                     schemes: http, https"
+                )),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_scraping_proxy_may_also_be_socks() {
+        let config: RawConfig =
+            toml::from_str(&SHIPPED_CONFIG.replace(
+                r#"proxy = """#,
+                r#"proxy = "socks5://127.0.0.1:1080""#,
+            ))
+            .unwrap();
+        assert_eq!(
+            config.scraping.proxy.unwrap().as_str(),
+            "socks5://127.0.0.1:1080"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_config_file_is_read_or_says_why_not() {
+        let directory = temp_directory("config-file");
+        let path = directory.join("config.toml");
+
+        let error = read_config(&path).await.err().unwrap();
+        assert!(
+            error.to_string().starts_with("failed to read file to string: "),
+            "{error}"
+        );
+
+        std::fs::write(&path, "debug = ").unwrap();
+        let error = read_config(&path).await.err().unwrap();
+        assert!(
+            error.to_string().starts_with("failed to parse TOML config file: "),
+            "{error}"
+        );
+
+        std::fs::write(&path, SHIPPED_CONFIG).unwrap();
+        assert!(!read_config(&path).await.unwrap().debug);
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn the_config_is_found_through_the_environment() {
+        assert_eq!(
+            get_config_path(),
+            std::env::var_os(CONFIG_ENV)
+                .map_or_else(|| "config.toml".into(), std::path::PathBuf::from)
+        );
     }
 }

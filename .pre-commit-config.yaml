@@ -25,10 +25,16 @@ repos:
     hooks:
       - id: tombi-format
         exclude: ^.*Cargo.lock$
-  - repo: https://github.com/rbubley/mirrors-prettier
-    rev: 331f33fa4dfbcbca7c3da3620c137fde0faab273 # frozen: v3.9.10
+  - repo: https://github.com/oxc-project/mirrors-oxfmt
+    rev: 1fb54d06ff80b555a6a428d9b12ff0796e67d923 # frozen: v0.74.0
     hooks:
-      - id: prettier
+      - id: oxfmt
+        types_or:
+          - text
+        args:
+          - --no-error-on-unmatched-pattern
+        additional_dependencies:
+          - oxfmt@0.75.0
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     rev: c92afdf2c6ca336aaa8f39e2bd8d48f62dbd8e1f # frozen: v1.31.1
     hooks:

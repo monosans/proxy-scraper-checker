@@ -29,6 +29,7 @@ repos:
     rev: 1fb54d06ff80b555a6a428d9b12ff0796e67d923 # frozen: v0.74.0
     hooks:
       - id: oxfmt
+        language: node
         types_or:
           - text
         args:

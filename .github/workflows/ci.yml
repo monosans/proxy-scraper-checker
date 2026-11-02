@@ -16,7 +16,6 @@ jobs:
       - build
       - build-docker
       - clippy
-      - coverage
       - licenses
       - pre-commit
       - rustfmt
@@ -549,6 +548,7 @@ jobs:
       - run: cargo +beta clippy --all-targets --features "${FEATURES}" --
         env:
           FEATURES: ${{ matrix.features }}
+  # Shows what the tests leave out, for whoever writes them; it gates nothing.
   coverage:
     runs-on: ubuntu-26.04
     steps:

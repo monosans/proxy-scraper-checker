@@ -24,11 +24,7 @@ pub enum AppEvent {
 
     TotalProxies(ProxyType, usize),
     ProxyChecked(ProxyType),
-    ProxyWorking {
-        protocol: ProxyType,
-        address: CompactString,
-        latency: Duration,
-    },
+    ProxyWorking { protocol: ProxyType, address: CompactString, latency: Duration },
 
     Saved(usize),
     InputLost,

@@ -1,9 +1,6 @@
 //! Runs the program the way people do: from a config file, to the end.
 
-#![expect(
-    clippy::tests_outside_test_module,
-    reason = "an integration test is a crate of tests"
-)]
+#![expect(clippy::tests_outside_test_module, reason = "an integration test is a crate of tests")]
 
 use std::{
     path::PathBuf,
@@ -19,10 +16,7 @@ struct Run {
 }
 
 fn directory_for(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "proxy-scraper-checker-cli-{name}-{}",
-        std::process::id()
-    ))
+    std::env::temp_dir().join(format!("proxy-scraper-checker-cli-{name}-{}", std::process::id()))
 }
 
 impl Run {
@@ -98,16 +92,12 @@ urls = []
 
     fn command(&self) -> Command {
         let mut command = Command::new(PROGRAM);
-        command
-            .env(CONFIG_ENV, &self.config)
-            .current_dir(&self.directory)
-            .stdin(Stdio::null());
+        command.env(CONFIG_ENV, &self.config).current_dir(&self.directory).stdin(Stdio::null());
         command
     }
 
     fn saved(&self, file: &str) -> String {
-        std::fs::read_to_string(self.directory.join("out/proxies").join(file))
-            .unwrap()
+        std::fs::read_to_string(self.directory.join("out/proxies").join(file)).unwrap()
     }
 }
 
@@ -123,12 +113,7 @@ fn text(bytes: &[u8]) -> String {
 
 fn succeeded(output: &Output) -> String {
     let stdout = text(&output.stdout);
-    assert!(
-        output.status.success(),
-        "{}\n{stdout}\n{}",
-        output.status,
-        text(&output.stderr)
-    );
+    assert!(output.status.success(), "{}\n{stdout}\n{}", output.status, text(&output.stderr));
     stdout
 }
 
@@ -145,10 +130,7 @@ fn a_run_saves_the_proxies_it_found_and_says_where() {
     let stdout = succeeded(&run.command().output().unwrap());
 
     let out = std::path::absolute(run.directory.join("out")).unwrap();
-    assert!(
-        stdout.contains(&format!("Saved 1 proxy to {}", out.display())),
-        "{stdout}"
-    );
+    assert!(stdout.contains(&format!("Saved 1 proxy to {}", out.display())), "{stdout}");
     drop(out);
     assert!(stdout.contains("Thank you for using"), "{stdout}");
     drop(stdout);
@@ -174,23 +156,15 @@ fn a_config_that_is_missing_or_wrong_is_reported() {
     let run = Run::with_one_proxy("bad-config");
     let missing = run.directory.join("missing.toml");
 
-    let stderr =
-        failed(&run.command().env(CONFIG_ENV, missing).output().unwrap());
+    let stderr = failed(&run.command().env(CONFIG_ENV, missing).output().unwrap());
     assert!(stderr.contains("failed to read file to string"), "{stderr}");
     drop(stderr);
 
     let config = std::fs::read_to_string(&run.config).unwrap();
-    std::fs::write(
-        &run.config,
-        config.replace("enabled = true", "enabled = false"),
-    )
-    .unwrap();
+    std::fs::write(&run.config, config.replace("enabled = true", "enabled = false")).unwrap();
     drop(config);
     let stderr = failed(&run.command().output().unwrap());
-    assert!(
-        stderr.contains("at least one of 'output.json' or 'output.txt'"),
-        "{stderr}"
-    );
+    assert!(stderr.contains("at least one of 'output.json' or 'output.txt'"), "{stderr}");
 }
 
 #[test]
@@ -276,10 +250,7 @@ fn a_stop_signal_ends_the_run_with_what_it_has() {
 
     let printed = lines.try_iter().collect::<Vec<_>>().join("\n");
     assert!(status.success(), "{status}\n{printed}");
-    assert!(
-        printed.contains("Received SIGTERM signal, exiting..."),
-        "{printed}"
-    );
+    assert!(printed.contains("Received SIGTERM signal, exiting..."), "{printed}");
     assert!(printed.contains("No proxies to save"), "{printed}");
 }
 
@@ -326,8 +297,7 @@ impl OnTerminal {
             .spawn()
             .unwrap();
         let mut stdout = child.stdout.take().unwrap();
-        let printed: std::sync::Arc<std::sync::Mutex<Vec<u8>>> =
-            std::sync::Arc::default();
+        let printed: std::sync::Arc<std::sync::Mutex<Vec<u8>>> = std::sync::Arc::default();
         let shared = std::sync::Arc::clone(&printed);
         let reader = std::thread::spawn(move || {
             let mut chunk = [0_u8; 4096];
@@ -351,11 +321,7 @@ impl OnTerminal {
     fn wait_for(&self, shown: &str) {
         let started = std::time::Instant::now();
         while !self.printed().contains(shown) {
-            assert!(
-                started.elapsed() < std::time::Duration::from_secs(30),
-                "{}",
-                self.printed()
-            );
+            assert!(started.elapsed() < std::time::Duration::from_secs(30), "{}", self.printed());
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
     }
@@ -390,10 +356,7 @@ fn the_tui_shows_the_run_and_leaves_its_summary_behind() {
     assert!(status.success(), "{status}\n{printed}");
     // The last thing on the screen once the TUI is gone.
     let summary = printed.lines().rev().find(|line| !line.trim().is_empty());
-    assert!(
-        summary.is_some_and(|line| line.contains("Saved 1 proxy to ")),
-        "{printed}"
-    );
+    assert!(summary.is_some_and(|line| line.contains("Saved 1 proxy to ")), "{printed}");
     drop(printed);
     assert_eq!(run.saved("all.txt"), "http://1.1.1.1:80");
 }

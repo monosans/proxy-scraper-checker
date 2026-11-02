@@ -451,11 +451,7 @@ The JSON files hold an array of entries like this one:
   "geolocation": {
     "country": { "iso_code": "US", "names": { "en": "United States" } },
     "city": { "names": { "en": "Chicago" } },
-    "location": {
-      "latitude": 41.85,
-      "longitude": -87.65,
-      "time_zone": "America/Chicago"
-    }
+    "location": { "latitude": 41.85, "longitude": -87.65, "time_zone": "America/Chicago" }
   }
 }
 ```

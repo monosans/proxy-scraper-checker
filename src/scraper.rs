@@ -26,41 +26,6 @@ struct ScrapedProxies {
     counts: crate::proxy::PerProxyType<usize>,
 }
 
-impl ScrapedProxies {
-    // Runs while the shared lock is held.
-    #[cfg(feature = "tui")]
-    fn add(&mut self, new_proxies: HashSet<Proxy>) {
-        if self.proxies.is_empty() {
-            for proxy in &new_proxies {
-                let count = self.counts.get_mut(proxy.protocol);
-                *count = count.saturating_add(1);
-            }
-            self.proxies = new_proxies;
-            return;
-        }
-
-        // extend() reserves from the iterator's size hint; inserting one at a
-        // time does not.
-        self.proxies.reserve(new_proxies.len());
-        for proxy in new_proxies {
-            let protocol = proxy.protocol;
-            if self.proxies.insert(proxy) {
-                let count = self.counts.get_mut(protocol);
-                *count = count.saturating_add(1);
-            }
-        }
-    }
-
-    #[cfg(not(feature = "tui"))]
-    fn add(&mut self, new_proxies: HashSet<Proxy>) {
-        if self.proxies.is_empty() {
-            self.proxies = new_proxies;
-        } else {
-            self.proxies.extend(new_proxies);
-        }
-    }
-}
-
 pub async fn scrape_all(
     config: Arc<Config>,
     http_client: reqwest_middleware::ClientWithMiddleware,
@@ -276,7 +241,33 @@ async fn scrape_one(
     drop(source);
 
     let mut scraped = proxies.lock();
-    scraped.add(new_proxies);
+
+    if scraped.proxies.is_empty() {
+        #[cfg(feature = "tui")]
+        for proxy in &new_proxies {
+            let count = scraped.counts.get_mut(proxy.protocol);
+            *count = count.saturating_add(1);
+        }
+
+        scraped.proxies = new_proxies;
+    } else {
+        // extend() reserves from the iterator's size hint; inserting one at a
+        // time does not, and this runs while the shared lock is held.
+        #[cfg(feature = "tui")]
+        scraped.proxies.reserve(new_proxies.len());
+
+        #[cfg(feature = "tui")]
+        for proxy in new_proxies {
+            let protocol = proxy.protocol;
+            if scraped.proxies.insert(proxy) {
+                let count = scraped.counts.get_mut(protocol);
+                *count = count.saturating_add(1);
+            }
+        }
+
+        #[cfg(not(feature = "tui"))]
+        scraped.proxies.extend(new_proxies);
+    }
 
     #[cfg(feature = "tui")]
     let counts = scraped.counts;
@@ -400,8 +391,10 @@ mod tests {
         drop(path);
 
         let proxies = scrape_source(url.as_str(), 0).await;
+        drop(url);
 
         assert_eq!(sorted(&proxies), ["http://1.1.1.1:80"]);
+        drop(proxies);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
@@ -419,19 +412,23 @@ mod tests {
 
         let sources = [&empty, &missing, &crowded, &working]
             .map(|path| SourceConfig::Simple(path.to_str().unwrap().into()));
+        drop(working);
         let proxies = scrape_sources(sources.into(), 1).await;
 
         assert_eq!(sorted(&proxies), ["http://3.3.3.3:80"]);
+        drop(proxies);
         let text = logs.text();
+        drop(logs);
         assert!(text.contains("Scraping 4 sources"), "{text}");
         for (path, warning) in [
-            (&empty, "no proxies found"),
-            (&missing, "failed to read file to string: "),
-            (&crowded, "too many proxies (> 1) - skipped"),
+            (empty, "no proxies found"),
+            (missing, "failed to read file to string: "),
+            (crowded, "too many proxies (> 1) - skipped"),
         ] {
             let path = path.to_str().unwrap();
             assert!(text.contains(&format!("{path}: {warning}")), "{text}");
         }
+        drop(text);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
@@ -494,6 +491,7 @@ mod tests {
                 "socks5://4.4.4.4:80"
             ]
         );
+        drop(proxies);
         std::fs::remove_dir_all(directory).unwrap();
 
         // The totals only grow, and end at what was found.
@@ -504,8 +502,8 @@ mod tests {
                 proxy::ProxyType,
             };
 
-            let events: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
-            let of = |protocol: ProxyType| {
+            let events: Vec<_> = std::iter::from_fn(move || rx.try_recv().ok()).collect();
+            let of = move |protocol: ProxyType| {
                 let mut sources = None;
                 let mut scraped = 0_usize;
                 let mut totals = Vec::new();
@@ -532,6 +530,7 @@ mod tests {
             assert_eq!((sources, scraped), (Some(3), 3));
             assert!(totals.is_sorted(), "{totals:?}");
             assert_eq!(totals.last(), Some(&2));
+            drop(totals);
 
             let (sources, scraped, totals) = of(ProxyType::Socks5);
             assert_eq!((sources, scraped), (Some(0), 0));

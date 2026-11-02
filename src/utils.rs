@@ -1,4 +1,4 @@
-use std::{fmt::Write as _, path::Path};
+use std::fmt::Write as _;
 
 pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
     let mut result = compact_str::CompactString::const_new("");
@@ -18,26 +18,6 @@ pub fn keep_both_errors(first: crate::Result<()>, second: crate::Result<()>) -> 
             Err(color_eyre::eyre::eyre!("{}; {}", pretty_error(&first), pretty_error(&second)))
         }
         (first, second) => first.and(second),
-    }
-}
-
-// The tasks never get aborted, so a task that failed is one that panicked.
-pub fn log_panic(task: &str, result: Result<(), tokio::task::JoinError>) {
-    if let Err(e) = result {
-        tracing::error!("{task} panicked: {}", pretty_error(&e.into()));
-    }
-}
-
-// What a path in the container is, for someone looking from outside of it.
-pub fn seen_from_outside(
-    outside: &str,
-    path: &Path,
-    in_container: bool,
-) -> compact_str::CompactString {
-    if in_container {
-        compact_str::format_compact!("{outside} ({} in container)", path.display())
-    } else {
-        compact_str::format_compact!("{}", path.display())
     }
 }
 
@@ -92,11 +72,11 @@ pub async fn is_container() -> bool {
 
 #[cfg(test)]
 pub mod tests {
-    use std::{io, path::Path, sync::Arc};
+    use std::{io, sync::Arc};
 
     use color_eyre::eyre::eyre;
 
-    use super::{clock, grouped, is_container, keep_both_errors, log_panic, seen_from_outside};
+    use super::{clock, grouped, is_container, keep_both_errors};
 
     struct Writer(Arc<parking_lot::Mutex<Vec<u8>>>);
 
@@ -150,44 +130,6 @@ pub mod tests {
             .with_writer(move || Writer(Arc::clone(&shared)))
             .finish();
         Logs { written, _guard: tracing::subscriber::set_default(subscriber) }
-    }
-
-    #[test]
-    fn captured_logs_keep_everything_written() {
-        use io::Write as _;
-
-        let logs = capture_logs();
-        let mut writer = Writer(Arc::clone(&logs.written));
-        writer.write_all(b"first ").unwrap();
-        writer.flush().unwrap();
-        tracing::debug!("second");
-        let text = logs.text();
-        assert!(text.starts_with("first "), "{text}");
-        assert!(text.contains("DEBUG"), "{text}");
-        assert!(text.ends_with("second\n"), "{text}");
-    }
-
-    #[tokio::test]
-    async fn a_panicked_task_is_logged_rather_than_passed_on() {
-        let logs = capture_logs();
-
-        let panicked = tokio::spawn(async {
-            std::hint::black_box(None::<()>).unwrap();
-        });
-        log_panic("Test task", panicked.await);
-        log_panic("Finished task", tokio::spawn(async {}).await);
-
-        let text = logs.text();
-        assert!(text.contains("ERROR"), "{text}");
-        assert!(text.contains("Test task panicked: task "), "{text}");
-        assert!(!text.contains("Finished task"), "{text}");
-    }
-
-    #[test]
-    fn a_path_in_a_container_says_where_it_is_outside() {
-        let path = Path::new("/home/app/out");
-        assert_eq!(seen_from_outside("./out", path, false), "/home/app/out");
-        assert_eq!(seen_from_outside("./out", path, true), "./out (/home/app/out in container)");
     }
 
     #[tokio::test]

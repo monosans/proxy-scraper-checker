@@ -68,7 +68,7 @@ async fn resolve_check_url(config: &Config) -> Vec<SocketAddr> {
     let Some((host, port)) =
         config.checking.check_url.as_ref().and_then(|url| {
             Some((
-                compact_str::CompactString::new(url.host_str()?),
+                CompactString::new(url.host_str()?),
                 url.port_or_known_default()?,
             ))
         })

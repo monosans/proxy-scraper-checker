@@ -1,16 +1,44 @@
+//! Scrapes proxies from the configured sources, checks them concurrently and
+//! saves the working ones.
+
 #![deny(
     warnings,
+    ambiguous_negative_literals,
+    dead_code_pub_in_binary,
+    deprecated_in_future,
     deprecated_safe,
+    deref_into_dyn_supertrait,
+    ffi_unwind_calls,
     future_incompatible,
+    impl_trait_redundant_captures,
     keyword_idents,
     let_underscore,
+    macro_use_extern_crate,
+    meta_variable_misuse,
+    missing_copy_implementations,
+    missing_docs,
+    non_ascii_idents,
     nonstandard_style,
+    raw_borrows_via_references,
+    redundant_imports,
+    redundant_lifetimes,
     refining_impl_trait,
     rust_2018_compatibility,
     rust_2018_idioms,
     rust_2021_compatibility,
     rust_2024_compatibility,
+    single_use_lifetimes,
+    trivial_casts,
+    trivial_numeric_casts,
+    unit_bindings,
+    unsafe_code,
+    unstable_features,
     unused,
+    unused_crate_dependencies,
+    unused_import_braces,
+    unused_lifetimes,
+    unused_qualifications,
+    variant_size_differences,
     clippy::all,
     clippy::pedantic,
     clippy::restriction,
@@ -212,7 +240,7 @@ async fn main_task(
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<
         event::Event,
     >,
-) -> crate::Result<compact_str::CompactString> {
+) -> Result<compact_str::CompactString> {
     let http_client = http::create_reqwest_client(&config).await?;
 
     // The databases download while scraping rather than while checking, so
@@ -388,11 +416,11 @@ fn watch_signals(
 // way.
 #[cfg(feature = "tui")]
 async fn join_run_and_tui(
-    run: impl Future<Output = crate::Result<compact_str::CompactString>>,
-    tui: impl Future<Output = crate::Result<()>> + Send + 'static,
+    run: impl Future<Output = Result<compact_str::CompactString>>,
+    tui: impl Future<Output = Result<()>> + Send + 'static,
     token: tokio_util::sync::CancellationToken,
     tx: tokio::sync::mpsc::UnboundedSender<event::Event>,
-) -> (crate::Result<compact_str::CompactString>, crate::Result<()>) {
+) -> (Result<compact_str::CompactString>, Result<()>) {
     let tui = tokio::spawn(tui);
     tokio::join!(
         async move {
@@ -417,7 +445,7 @@ async fn join_run_and_tui(
 async fn run_with_tui(
     raw_config: raw_config::RawConfig,
     logging_filter: tracing_subscriber::filter::Targets,
-) -> crate::Result<()> {
+) -> Result<()> {
     tui_logger::init_logger(tui_logger::LevelFilter::Debug)?;
     tracing_subscriber::registry()
         .with(logging_filter)
@@ -460,7 +488,7 @@ async fn run_with_tui(
 async fn run_without_tui(
     raw_config: raw_config::RawConfig,
     logging_filter: tracing_subscriber::filter::Targets,
-) -> crate::Result<()> {
+) -> Result<()> {
     // Colors are for people: escape codes only litter log files.
     let colored = std::io::stdout().is_terminal()
         && std::env::var_os("NO_COLOR").is_none_or(|value| value.is_empty());
@@ -507,7 +535,7 @@ async fn run_without_tui(
     not(feature = "tokio-multi-thread"),
     tokio::main(flavor = "current_thread")
 )]
-async fn main() -> crate::Result<()> {
+async fn main() -> Result<()> {
     #[cfg(feature = "dhat")]
     let _profiler = dhat::Profiler::new_heap();
 

@@ -431,7 +431,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_failed_check_is_quiet_outside_debug_mode() {
+    async fn a_failed_check_outside_debug_mode_is_dropped() {
         let config = checking_config(|_| {}).await;
         let proxies = check(
             config,

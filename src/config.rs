@@ -193,9 +193,10 @@ pub mod tests {
     use std::path::PathBuf;
 
     use super::Config;
-    use crate::raw_config::RawConfig;
+    use crate::{raw_config::RawConfig, utils::tests::listen_everywhere};
 
     pub async fn test_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
+        listen_everywhere();
         let mut raw_config: RawConfig =
             toml::from_str(include_str!("../config.toml")).unwrap();
         raw_config.output.path = PathBuf::from("target");

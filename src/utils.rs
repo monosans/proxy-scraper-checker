@@ -83,10 +83,75 @@ pub async fn is_container() -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
+    use std::{io, sync::Arc};
+
     use color_eyre::eyre::eyre;
 
-    use super::{clock, grouped, keep_both_errors};
+    use super::{clock, grouped, is_container, keep_both_errors};
+
+    struct Writer(Arc<parking_lot::Mutex<Vec<u8>>>);
+
+    #[expect(
+        clippy::missing_trait_methods,
+        reason = "the provided methods all go through write"
+    )]
+    impl io::Write for Writer {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.lock().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    // What the code under test logs on this thread, debug messages included,
+    // for as long as this is alive. Tasks of a current-thread runtime run on
+    // it too; blocking ones do not.
+    pub struct Logs {
+        written: Arc<parking_lot::Mutex<Vec<u8>>>,
+        _guard: tracing::dispatcher::DefaultGuard,
+    }
+
+    impl Logs {
+        pub fn text(&self) -> String {
+            String::from_utf8_lossy(&self.written.lock()).into_owned()
+        }
+    }
+
+    // A callsite that no subscriber wants is skipped for good, and one that is
+    // first reached while no test is capturing would be. So something always
+    // wants them all, and then turns them away unless a test captures them.
+    pub fn listen_everywhere() {
+        static LISTENING: std::sync::Once = std::sync::Once::new();
+        LISTENING.call_once(|| {
+            let subscriber = tracing_subscriber::layer::SubscriberExt::with(
+                tracing_subscriber::registry(),
+                tracing_subscriber::filter::filter_fn(|_| false),
+            );
+            tracing::subscriber::set_global_default(subscriber).unwrap();
+        });
+    }
+
+    pub fn capture_logs() -> Logs {
+        listen_everywhere();
+        let written = Arc::new(parking_lot::Mutex::new(Vec::new()));
+        let shared = Arc::clone(&written);
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_ansi(false)
+            .with_writer(move || Writer(Arc::clone(&shared)))
+            .finish();
+        Logs { written, _guard: tracing::subscriber::set_default(subscriber) }
+    }
+
+    #[tokio::test]
+    async fn the_container_check_gives_the_same_answer_every_time() {
+        let first = is_container().await;
+        assert_eq!(is_container().await, first);
+    }
 
     #[test]
     fn both_failures_are_kept() {

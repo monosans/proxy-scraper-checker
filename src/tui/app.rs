@@ -431,8 +431,98 @@ mod tests {
     use crate::{
         config::tests::test_config,
         event::{AppEvent, Stage},
+        ipdb::DbType,
         proxy::ProxyType,
     };
+
+    #[test]
+    fn a_proxy_slower_than_all_the_fastest_is_not_kept() {
+        let mut state = State::default();
+        let token = CancellationToken::new();
+        let working = |millis| {
+            Event::App(AppEvent::ProxyWorking {
+                protocol: ProxyType::Http,
+                address: "1.1.1.1:80".into(),
+                latency: Duration::from_millis(millis),
+            })
+        };
+
+        for millis in 1..=FASTEST_KEPT as u64 {
+            apply(&mut state, &token, working(millis));
+        }
+        apply(&mut state, &token, working(1_000));
+
+        assert_eq!(state.fastest.len(), FASTEST_KEPT);
+        let slowest = state.fastest.last().map(|proxy| proxy.latency);
+        assert_eq!(slowest, Some(Duration::from_millis(FASTEST_KEPT as u64)));
+    }
+
+    #[test]
+    fn the_progress_of_downloads_and_protocols_adds_up() {
+        let mut state = State { ticks: 3, ..State::default() };
+        let token = CancellationToken::new();
+        for event in [
+            AppEvent::IpDbTotal(DbType::Asn, Some(2_000_000)),
+            AppEvent::IpDbDownloaded(DbType::Asn, 500),
+            AppEvent::IpDbDownloaded(DbType::Asn, 500),
+            AppEvent::IpDbTotal(DbType::Geo, None),
+            AppEvent::IpDbFinished(DbType::Geo, false),
+            AppEvent::SourcesTotal(ProxyType::Socks4, 5),
+            AppEvent::SourceScraped(ProxyType::Socks4),
+            AppEvent::SourceScraped(ProxyType::Socks4),
+            AppEvent::Stage(Stage::Checking),
+            AppEvent::ProxyChecked(ProxyType::Socks4),
+            AppEvent::ProxyChecked(ProxyType::Socks5),
+            AppEvent::Saved(7),
+        ] {
+            apply(&mut state, &token, Event::App(event));
+        }
+
+        assert_eq!(
+            (state.asn_db.downloaded, state.asn_db.total),
+            (1_000, 2_000_000)
+        );
+        assert_eq!(state.asn_db.finished_ok, None);
+        assert_eq!(
+            (state.geo_db.total, state.geo_db.finished_ok),
+            (0, Some(false))
+        );
+        let socks4 = state.protocols.get(ProxyType::Socks4);
+        assert_eq!((socks4.sources_total, socks4.sources_scraped), (5, 2));
+        assert_eq!(socks4.proxies_checked, 1);
+        assert_eq!(state.proxies_checked, 2);
+        assert_eq!(state.checking_since, 3);
+        assert!(state.stage == Stage::Checking);
+        assert_eq!(state.saved, Some(7));
+    }
+
+    #[test]
+    fn only_what_changes_the_screen_redraws_it() {
+        let mut state = State::default();
+        let token = CancellationToken::new();
+        let logger_state = TuiWidgetState::default();
+        let mut redraws =
+            |event| handle_event(event, &mut state, &token, &logger_state);
+
+        for code in [
+            KeyCode::Up,
+            KeyCode::PageUp,
+            KeyCode::Char('k'),
+            KeyCode::Down,
+            KeyCode::PageDown,
+            KeyCode::Char('j'),
+            KeyCode::End,
+        ] {
+            assert!(redraws(press(code, KeyModifiers::NONE)));
+        }
+        assert!(redraws(Event::Crossterm(CrosstermEvent::Resize(80, 24))));
+        assert!(!redraws(press(KeyCode::Char('x'), KeyModifiers::NONE)));
+        assert!(!redraws(Event::Crossterm(CrosstermEvent::FocusGained)));
+        assert!(!redraws(Event::App(AppEvent::Saved(1))));
+        assert!(redraws(Event::App(AppEvent::Stage(Stage::Saving))));
+        assert!(matches!(state.mode, Mode::Running));
+        assert!(!token.is_cancelled());
+    }
 
     fn press(code: KeyCode, modifiers: KeyModifiers) -> Event {
         Event::Crossterm(CrosstermEvent::Key(KeyEvent::new(code, modifiers)))

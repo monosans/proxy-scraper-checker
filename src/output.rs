@@ -36,7 +36,7 @@ fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 enum HostSortKey {
     Ipv4([u8; 4]),
-    Name(compact_str::CompactString),
+    Name(CompactString),
 }
 
 fn natural_sort_key(
@@ -175,8 +175,7 @@ fn stage_json_file(
     let file = std::fs::File::create(&tmp).wrap_err_with(|| {
         compact_str::format_compact!("failed to create file: {}", tmp.display())
     })?;
-    let mut writer =
-        std::io::BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
+    let mut writer = io::BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
 
     let failed = move || {
         compact_str::format_compact!(
@@ -195,7 +194,7 @@ fn stage_json_file(
     writer.flush().wrap_err_with(failed)
 }
 
-fn rename_failed(from: &Path, to: &Path) -> compact_str::CompactString {
+fn rename_failed(from: &Path, to: &Path) -> CompactString {
     compact_str::format_compact!(
         "failed to rename {} to {}",
         from.display(),
@@ -606,16 +605,25 @@ pub fn summary(
 
 #[cfg(test)]
 mod tests {
-    use std::{net::Ipv4Addr, path::PathBuf, sync::Arc, time::Duration};
+    use std::{
+        net::{IpAddr, Ipv4Addr},
+        path::PathBuf,
+        sync::Arc,
+        time::Duration,
+    };
 
     use compact_str::CompactString;
 
     use super::{
-        Config, Proxy, ProxyAuth, ProxyListJson, ProxyType, commit_directory,
-        compare_timeout, count_by_protocol, natural_sort_key, save_proxies,
-        summary,
+        Config, Proxy, ProxyAuth, ProxyListJson, ProxyType, WRITE_BUFFER_BYTES,
+        commit_directory, compare_timeout, count_by_protocol, lookup,
+        natural_sort_key, save_proxies, summary, write_proxy_list_to_file,
     };
-    use crate::config::tests::{temp_directory, test_config};
+    use crate::{
+        config::tests::{temp_directory, test_config},
+        ipdb::{self, tests::cache},
+        utils::tests::capture_logs,
+    };
 
     fn proxy(host: &str, port: u16, timeout: Option<Duration>) -> Proxy {
         Proxy {
@@ -737,6 +745,25 @@ mod tests {
             sorted_naturally(vec![with_auth, proxy("1.1.1.1", 80, None)]),
             ["1.1.1.1:80", "user:pass@1.1.1.1:80"]
         );
+    }
+
+    #[test]
+    fn the_json_names_the_credentials_apart() {
+        let proxies = [Proxy {
+            auth: Some(Box::new(ProxyAuth {
+                username: CompactString::const_new("user"),
+                password: CompactString::const_new("pass"),
+            })),
+            ..proxy("1.1.1.1", 80, Some(Duration::from_millis(1_234)))
+        }];
+        let list =
+            ProxyListJson { proxies: &proxies, asn_db: None, geo_db: None };
+
+        let json = serde_json::to_value(&list).unwrap();
+
+        assert_eq!(json.pointer("/0/username").unwrap(), "user");
+        assert_eq!(json.pointer("/0/password").unwrap(), "pass");
+        assert_eq!(json.pointer("/0/timeout").unwrap(), 1.23_f64);
     }
 
     #[test]
@@ -1088,5 +1115,391 @@ mod tests {
 
         // Failing staging leaves the other format's task still writing here.
         drop(std::fs::remove_dir_all(directory));
+    }
+
+    async fn config_in(
+        path: PathBuf,
+        edit: impl FnOnce(&mut crate::raw_config::RawConfig),
+    ) -> Arc<Config> {
+        let mut config = test_config(edit).await;
+        config.output.path = path;
+        Arc::new(config)
+    }
+
+    fn proxies_on_ports(count: u16) -> Vec<Proxy> {
+        (1..=count).map(|port| proxy("255.255.255.255", port, None)).collect()
+    }
+
+    #[test]
+    fn speed_ties_end_on_the_credentials() {
+        let timeout = Some(Duration::from_secs(1));
+        let mut with_auth = proxy("1.1.1.1", 80, timeout);
+        with_auth.auth = Some(Box::new(ProxyAuth {
+            username: CompactString::const_new("user"),
+            password: CompactString::const_new("pass"),
+        }));
+        let mut proxies = [with_auth, proxy("1.1.1.1", 80, timeout)];
+        proxies.sort_unstable_by(compare_timeout);
+
+        let order: Vec<_> =
+            proxies.iter().map(|p| p.to_compact_string(false)).collect();
+        assert_eq!(order, ["1.1.1.1:80", "user:pass@1.1.1.1:80"]);
+    }
+
+    fn exit_at(exit_ip: Ipv4Addr) -> [Proxy; 1] {
+        [Proxy { exit_ip: Some(exit_ip), ..proxy("1.1.1.1", 80, None) }]
+    }
+
+    #[tokio::test]
+    async fn geolocation_names_are_kept_in_english_only() {
+        let _cache = cache::take().await;
+        let path = cache::database_path(ipdb::DbType::Geo).await;
+        std::fs::write(path, cache::city_database()).unwrap();
+        let geo_db = ipdb::DbType::Geo.open_mmap().await.unwrap();
+
+        let proxies = exit_at(Ipv4Addr::new(5, 6, 7, 8));
+        let list = ProxyListJson {
+            proxies: &proxies,
+            asn_db: None,
+            geo_db: Some(&geo_db),
+        };
+        let json = serde_json::to_value(&list).unwrap();
+
+        assert_eq!(
+            json.pointer("/0/geolocation").unwrap(),
+            &serde_json::json!({
+                "city": { "names": { "en": "Munich" } },
+                "subdivisions": [{ "names": { "en": "Bavaria" } }],
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_record_that_does_not_decode_costs_only_its_own_data() {
+        let _cache = cache::take().await;
+        let path = cache::database_path(ipdb::DbType::Asn).await;
+        std::fs::write(path, cache::damaged_database()).unwrap();
+        let asn_db = ipdb::DbType::Asn.open_mmap().await.unwrap();
+        let logs = capture_logs();
+
+        let address = IpAddr::V4(Ipv4Addr::new(5, 6, 7, 8));
+        assert!(
+            lookup::<maxminddb::geoip2::Asn<'_>>(&asn_db, address).is_none()
+        );
+        let text = logs.text();
+        assert!(
+            text.contains("failed to look up 5.6.7.8 in IP database: "),
+            "{text}"
+        );
+
+        let proxies = exit_at(Ipv4Addr::new(5, 6, 7, 8));
+        let list = ProxyListJson {
+            proxies: &proxies,
+            asn_db: Some(&asn_db),
+            geo_db: None,
+        };
+        let json = serde_json::to_value(&list).unwrap();
+        assert!(json.pointer("/0/asn").unwrap().is_null());
+        assert_eq!(json.pointer("/0/exit_ip").unwrap(), "5.6.7.8");
+    }
+
+    #[tokio::test]
+    async fn missing_databases_only_leave_their_data_out() {
+        let _cache = cache::take().await;
+        let logs = capture_logs();
+        let directory = temp_directory("missing-databases");
+        let config = config_in(directory.clone(), |raw| {
+            raw.output.txt.enabled = false;
+        })
+        .await;
+
+        let proxies = exit_at(Ipv4Addr::new(5, 6, 7, 8)).into();
+        save_proxies(config, proxies).await.unwrap();
+
+        let text = logs.text();
+        drop(logs);
+        for name in ["ASN", "geolocation"] {
+            assert!(
+                text.contains(&format!(
+                    "{name} data will be missing from the output: "
+                )),
+                "{text}"
+            );
+        }
+        drop(text);
+        let json: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(directory.join("proxies.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(json.pointer("/0/exit_ip").unwrap(), "5.6.7.8");
+        assert!(json.pointer("/0/asn").unwrap().is_null());
+        drop(json);
+        assert!(!directory.join("proxies").exists());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn without_json_output_only_the_lists_are_saved() {
+        let directory = temp_directory("lists-only");
+        let config =
+            config_in(directory.clone(), |raw| raw.output.json.enabled = false)
+                .await;
+
+        save_proxies(config, vec![proxy("1.1.1.1", 80, None)]).await.unwrap();
+
+        for (name, expected) in [
+            ("all.txt", "http://1.1.1.1:80"),
+            ("http.txt", "1.1.1.1:80"),
+            ("socks4.txt", ""),
+            ("socks5.txt", ""),
+        ] {
+            let path = directory.join("proxies").join(name);
+            assert_eq!(std::fs::read_to_string(path).unwrap(), expected);
+        }
+        assert!(!directory.join("proxies.json").exists());
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn a_long_list_is_written_whole() {
+        let directory = temp_directory("long-list");
+        let path = directory.join("list.txt");
+        let proxies = proxies_on_ports(10_000);
+
+        let mut buf = String::new();
+        write_proxy_list_to_file(&path, &proxies, false, &mut buf).unwrap();
+        assert_eq!(buf, "");
+        drop(buf);
+
+        let expected = proxies
+            .iter()
+            .map(|p| p.to_compact_string(false))
+            .collect::<Vec<_>>()
+            .join("\n");
+        drop(proxies);
+        assert!(expected.len() > WRITE_BUFFER_BYTES);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), expected);
+        drop(expected);
+        drop(path);
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn a_list_file_that_cannot_be_created_is_an_error() {
+        let directory = temp_directory("list-nowhere");
+        let path = directory.join("missing").join("list.txt");
+
+        let error =
+            write_proxy_list_to_file(&path, [], true, &mut String::new())
+                .unwrap_err();
+        drop(path);
+
+        assert!(
+            error.to_string().starts_with("failed to create file: "),
+            "{error}"
+        );
+        drop(error);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_file_where_the_lists_are_staged_fails_the_save() {
+        let directory = temp_directory("staged-file");
+        std::fs::write(directory.join("proxies.tmp"), "in the way").unwrap();
+        let config =
+            config_in(directory.clone(), |raw| raw.output.json.enabled = false)
+                .await;
+
+        let error = save_proxies(config, vec![proxy("1.1.1.1", 80, None)])
+            .await
+            .unwrap_err();
+
+        assert!(
+            error.to_string().starts_with("failed to remove directory: "),
+            "{error}"
+        );
+        drop(error);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_file_where_the_previous_output_goes_fails_only_the_commit() {
+        let directory = temp_directory("previous-file");
+        let proxies = directory.join("proxies");
+        let staged = directory.join("proxies.tmp");
+        std::fs::create_dir_all(&proxies).unwrap();
+        std::fs::write(proxies.join("all.txt"), "old").unwrap();
+        std::fs::create_dir_all(&staged).unwrap();
+        std::fs::write(directory.join("proxies.old"), "in the way").unwrap();
+
+        let error = commit_directory(&staged, &proxies).await.unwrap_err();
+
+        assert!(
+            error.to_string().starts_with("failed to create directory: "),
+            "{error}"
+        );
+        drop(error);
+        assert_eq!(
+            std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
+            "old"
+        );
+        drop(proxies);
+        assert!(staged.is_dir());
+        drop(staged);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    // Only Linux has a device that is always full.
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn a_full_disk_fails_the_save() {
+        let directory = temp_directory("full-disk");
+        std::os::unix::fs::symlink(
+            "/dev/full",
+            directory.join("proxies.json.tmp"),
+        )
+        .unwrap();
+        let config = config_in(directory.clone(), |raw| {
+            raw.output.txt.enabled = false;
+            raw.output.json.include_asn = false;
+            raw.output.json.include_geolocation = false;
+        })
+        .await;
+
+        // Enough to fill the write buffer before the end.
+        let error =
+            save_proxies(config, proxies_on_ports(2_000)).await.unwrap_err();
+
+        assert!(
+            error.to_string().starts_with("failed to write to file: "),
+            "{error}"
+        );
+        drop(error);
+        assert!(!directory.join("proxies.json").exists());
+
+        let error = write_proxy_list_to_file(
+            std::path::Path::new("/dev/full"),
+            &proxies_on_ports(1),
+            true,
+            &mut String::new(),
+        )
+        .unwrap_err();
+        assert_eq!(error.to_string(), "failed to write to file: /dev/full");
+        drop(error);
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    fn set_mode(path: &std::path::Path, mode: u32) {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+            .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_refused_rename_falls_back_on_copying() {
+        let directory = temp_directory("refused-rename");
+        let staging = directory.join("staging");
+        let output = directory.join("output");
+        std::fs::create_dir_all(&staging).unwrap();
+        std::fs::create_dir_all(&output).unwrap();
+        let from = staging.join("proxies.json.tmp");
+        let to = output.join("proxies.json");
+        std::fs::write(&from, "new").unwrap();
+        std::fs::write(&to, "old").unwrap();
+
+        set_mode(&output, 0o555);
+        super::commit_file(&from, &to).await.unwrap();
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "new");
+        assert!(!from.exists());
+
+        std::fs::write(&from, "newer").unwrap();
+        set_mode(&to, 0o444);
+        let error = super::commit_file(&from, &to).await.unwrap_err();
+        assert!(error.to_string().starts_with("failed to copy "), "{error}");
+        drop(error);
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "new");
+        set_mode(&to, 0o644);
+        set_mode(&output, 0o755);
+        drop(output);
+
+        set_mode(&staging, 0o555);
+        let error = super::commit_file(&from, &to).await.unwrap_err();
+        drop(from);
+        assert!(
+            error.to_string().starts_with("failed to remove file: "),
+            "{error}"
+        );
+        drop(error);
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "newer");
+        drop(to);
+        set_mode(&staging, 0o755);
+        drop(staging);
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_previous_output_that_cannot_be_cleared_fails_only_the_commit() {
+        let logs = capture_logs();
+        let directory = temp_directory("uncleared");
+        let proxies = directory.join("proxies");
+        let staged = directory.join("proxies.tmp");
+        let previous = directory.join("proxies.old");
+        std::fs::create_dir_all(&proxies).unwrap();
+        std::fs::write(proxies.join("all.txt"), "old").unwrap();
+        std::fs::create_dir_all(&staged).unwrap();
+        std::fs::create_dir_all(&previous).unwrap();
+        std::fs::write(previous.join("held.txt"), "older").unwrap();
+        set_mode(&previous, 0o555);
+
+        let error = commit_directory(&staged, &proxies).await.unwrap_err();
+
+        set_mode(&previous, 0o755);
+        drop(previous);
+        assert!(error.to_string().starts_with("failed to rename "), "{error}");
+        drop(error);
+        let text = logs.text();
+        drop(logs);
+        assert!(text.contains("failed to remove file: "), "{text}");
+        assert!(text.contains("held.txt"), "{text}");
+        drop(text);
+        assert_eq!(
+            std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
+            "old"
+        );
+        drop(proxies);
+        assert!(staged.is_dir());
+        drop(staged);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn an_output_directory_that_cannot_be_written_fails_the_save() {
+        let directory = temp_directory("read-only-output");
+        let config =
+            config_in(directory.clone(), |raw| raw.output.json.enabled = false)
+                .await;
+        set_mode(&directory, 0o555);
+
+        let error = save_proxies(config, vec![proxy("1.1.1.1", 80, None)])
+            .await
+            .unwrap_err();
+
+        set_mode(&directory, 0o755);
+        assert!(
+            error.to_string().starts_with("failed to create directory: "),
+            "{error}"
+        );
+        drop(error);
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

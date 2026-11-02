@@ -1,4 +1,4 @@
-use std::{future::Future, io, path::PathBuf, time::Duration};
+use std::{io, path::PathBuf, time::Duration};
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _, eyre};
 use tokio::io::AsyncWriteExt as _;
@@ -61,7 +61,7 @@ async fn open_reader(
     path: PathBuf,
 ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
     tokio::task::spawn_blocking(move || {
-        #[expect(clippy::undocumented_unsafe_blocks)]
+        #[expect(unsafe_code, clippy::undocumented_unsafe_blocks)]
         unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(
             move || {
                 compact_str::format_compact!(
@@ -329,12 +329,18 @@ pub mod tests {
 
     const LIMIT: Duration = Duration::from_millis(200);
 
-    // For the test of a whole run, which only exists with the TUI's events.
-    #[cfg(feature = "tui")]
+    // A test process has only the one cache, so the tests that use it take
+    // turns.
     pub mod cache {
         use std::path::PathBuf;
 
+        use tokio::sync::{Mutex, MutexGuard};
+
         use crate::ipdb::{DbType, get_cache_path};
+
+        static TURN: Mutex<()> = Mutex::const_new(());
+
+        const MAP_OF_ONE: u8 = 0xE1;
 
         fn text(value: &str) -> Vec<u8> {
             let mut encoded = vec![0x40 | u8::try_from(value.len()).unwrap()];
@@ -351,9 +357,8 @@ pub mod tests {
         }
 
         // The smallest valid database: one node whose both sides lead to the
-        // same record, so every IPv4 address belongs to this autonomous system.
-        pub fn database(autonomous_system: u8) -> Vec<u8> {
-            const MAP_OF_ONE: u8 = 0xE1;
+        // same record, so every IPv4 address gets it.
+        pub fn database_of(record: &[u8]) -> Vec<u8> {
             const MAP_OF_NINE: u8 = 0xE9;
             const EMPTY_ARRAY: [u8; 2] = [0x00, 0x04];
             const UINT64_OF_ONE: [u8; 3] = [0x01, 0x02, 0x01];
@@ -363,9 +368,7 @@ pub mod tests {
                 FIRST_RECORD.as_slice(),
                 &FIRST_RECORD,
                 &[0; 16],
-                &[MAP_OF_ONE],
-                &text("autonomous_system_number"),
-                &uint32(autonomous_system),
+                record,
                 b"\xab\xcd\xefMaxMind.com",
                 &[MAP_OF_NINE],
                 &text("binary_format_major_version"),
@@ -392,18 +395,85 @@ pub mod tests {
             .concat()
         }
 
+        // Every IPv4 address belongs to this autonomous system. Only the tests
+        // of main.rs, which need the TUI, use it.
+        #[cfg(feature = "tui")]
+        pub fn database(autonomous_system: u8) -> Vec<u8> {
+            database_of(
+                &[
+                    [MAP_OF_ONE].as_slice(),
+                    &text("autonomous_system_number"),
+                    &uint32(autonomous_system),
+                ]
+                .concat(),
+            )
+        }
+
+        // Every IPv4 address is in Munich, which is named in two languages,
+        // and so is its state.
+        pub fn city_database() -> Vec<u8> {
+            const MAP_OF_TWO: u8 = 0xE2;
+            const ARRAY_OF_ONE: [u8; 2] = [0x01, 0x04];
+
+            let names = |german: &str, english: &str| {
+                [
+                    [MAP_OF_ONE].as_slice(),
+                    &text("names"),
+                    &[MAP_OF_TWO],
+                    &text("de"),
+                    &text(german),
+                    &text("en"),
+                    &text(english),
+                ]
+                .concat()
+            };
+            database_of(
+                &[
+                    [MAP_OF_TWO].as_slice(),
+                    &text("city"),
+                    &names("Muenchen", "Munich"),
+                    &text("subdivisions"),
+                    &ARRAY_OF_ONE,
+                    &names("Bayern", "Bavaria"),
+                ]
+                .concat(),
+            )
+        }
+
+        // A record that no ASN can be read from.
+        pub fn damaged_database() -> Vec<u8> {
+            database_of(
+                &[
+                    [MAP_OF_ONE].as_slice(),
+                    &text("autonomous_system_number"),
+                    &text("seven"),
+                ]
+                .concat(),
+            )
+        }
+
+        // Empty, and this test's alone until dropped.
+        pub struct Cache {
+            path: PathBuf,
+            _turn: MutexGuard<'static, ()>,
+        }
+
+        impl Drop for Cache {
+            fn drop(&mut self) {
+                drop(std::fs::remove_dir_all(self.path.parent().unwrap()));
+            }
+        }
+
+        pub async fn take() -> Cache {
+            let turn = TURN.lock().await;
+            let path = get_cache_path().await.unwrap();
+            std::fs::create_dir_all(&path).unwrap();
+            Cache { path, _turn: turn }
+        }
+
         pub async fn database_path(db_type: DbType) -> PathBuf {
             db_type.db_path().await.unwrap()
         }
-
-        pub async fn remove() {
-            let cache = get_cache_path().await.unwrap();
-            std::fs::remove_dir_all(cache.parent().unwrap()).unwrap();
-        }
-    }
-
-    async fn stalling_server(reply: &'static str) -> String {
-        format!("http://{}/", serve_then_stall(reply).await)
     }
 
     async fn client() -> reqwest_middleware::ClientWithMiddleware {
@@ -424,18 +494,18 @@ pub mod tests {
 
     #[tokio::test]
     async fn a_server_that_never_answers_is_given_up_on() {
-        let url = stalling_server("").await;
-        let request = client().await.get(url).send();
+        let (address, _held) = serve_then_stall("").await;
+        let request = client().await.get(format!("http://{address}/")).send();
         let error = within(LIMIT, request).await.unwrap_err();
         assert!(error.to_string().starts_with("received no data"));
     }
 
     #[tokio::test]
     async fn a_download_that_stops_midway_is_given_up_on() {
-        let url =
-            stalling_server("HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nabc")
+        let (address, _held) =
+            serve_then_stall("HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nabc")
                 .await;
-        let request = client().await.get(url).send();
+        let request = client().await.get(format!("http://{address}/")).send();
         let mut response = within(LIMIT, request).await.unwrap();
 
         let chunk = within(LIMIT, response.chunk()).await.unwrap().unwrap();

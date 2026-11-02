@@ -186,16 +186,12 @@ pub mod tests {
         utils::tests::{capture_logs, listen_everywhere},
     };
 
-    async fn test_config_result(edit: impl FnOnce(&mut RawConfig)) -> crate::Result<Config> {
+    pub async fn test_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
         listen_everywhere();
         let mut raw_config: RawConfig = toml::from_str(include_str!("../config.toml")).unwrap();
         raw_config.output.path = PathBuf::from("target");
         edit(&mut raw_config);
-        Config::from_raw_config(raw_config).await
-    }
-
-    pub async fn test_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
-        test_config_result(edit).await.unwrap()
+        Config::from_raw_config(raw_config).await.unwrap()
     }
 
     pub fn temp_directory(name: &str) -> PathBuf {
@@ -227,8 +223,9 @@ pub mod tests {
         let file = directory.join("file");
         std::fs::write(&file, "").unwrap();
 
-        let error =
-            test_config_result(|raw| raw.output.path = file.join("out")).await.err().unwrap();
+        // Not through the config: in a container, it would put the output in
+        // ./out.
+        let error = get_output_path(file.join("out"), false).await.unwrap_err();
         assert!(error.to_string().starts_with("failed to create directory: "), "{error}");
 
         std::fs::remove_dir_all(directory).unwrap();

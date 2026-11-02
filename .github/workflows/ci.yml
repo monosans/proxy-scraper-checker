@@ -211,7 +211,7 @@ jobs:
             builder: zigbuild
           - target: x86_64-unknown-netbsd
             runner: ubuntu-26.04
-            builder: cross
+            builder: zigbuild
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     steps:
@@ -223,8 +223,8 @@ jobs:
           toolchain: beta
           target: ${{ matrix.target }}
           cache: false
-      # cross builds the targets that zig ships no libc for (Android, NetBSD,
-      # Solaris, illumos) and those that zig or cargo-zigbuild fail on, as
+      # cross builds the targets that zig ships no libc for (Android, Solaris,
+      # illumos) and those that zig or cargo-zigbuild fail on, as
       # commented in the matrix.
       - if: ${{ matrix.builder == 'cross' }}
         run: cargo +beta install cross --git https://github.com/cross-rs/cross --locked

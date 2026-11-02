@@ -478,7 +478,9 @@ mod tests {
     impl io::Write for Screen {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             self.drawn.push_str(&String::from_utf8_lossy(buf));
-            if self.refused.is_some_and(|refused| self.drawn.contains(refused))
+            if self
+                .refused
+                .is_some_and(move |refused| self.drawn.contains(refused))
             {
                 return Err(io::Error::other("the terminal is gone"));
             }

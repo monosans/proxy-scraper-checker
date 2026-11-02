@@ -234,12 +234,14 @@ pub mod tests {
         let path = get_output_path(configured.join("out"), true).await.unwrap();
         assert_eq!(path, PathBuf::from("./out"));
         assert!(path.is_dir());
+        drop(path);
         assert!(!configured.join("out").exists());
 
         let path =
             get_output_path(configured.join("out"), false).await.unwrap();
         assert_eq!(path, configured.join("out"));
         assert!(path.is_dir());
+        drop(path);
 
         std::fs::remove_dir_all(configured).unwrap();
     }
@@ -247,16 +249,17 @@ pub mod tests {
     #[tokio::test]
     async fn an_output_path_that_cannot_be_a_directory_is_refused() {
         let directory = temp_directory("output-under-a-file");
-        let file = directory.join("file");
-        std::fs::write(&file, "").unwrap();
+        let out = directory.join("file").join("out");
+        std::fs::write(out.parent().unwrap(), "").unwrap();
 
         // Not through the config: in a container, it would put the output in
         // ./out.
-        let error = get_output_path(file.join("out"), false).await.unwrap_err();
+        let error = get_output_path(out, false).await.unwrap_err();
         assert!(
             error.to_string().starts_with("failed to create directory: "),
             "{error}"
         );
+        drop(error);
 
         std::fs::remove_dir_all(directory).unwrap();
     }

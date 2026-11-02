@@ -157,10 +157,11 @@ impl DbType {
         )
         .await?;
 
+        let in_container = is_container().await;
         let location = seen_from_outside(
             "Docker volume",
             &self.db_path().await?,
-            is_container().await,
+            in_container,
         );
         tracing::info!("Downloaded {} database to {location}", self.name());
         drop(location);
@@ -499,7 +500,8 @@ pub mod tests {
         events: Vec<crate::event::Event>,
     }
 
-    fn reply(head: &str, body: &[u8]) -> Vec<u8> {
+    fn reply(head: &str, body: impl AsRef<[u8]>) -> Vec<u8> {
+        let body = body.as_ref();
         let mut reply = format!(
             "HTTP/1.1 {head}\r\nContent-Length: {}\r\nConnection: \
              close\r\n\r\n",
@@ -548,7 +550,7 @@ pub mod tests {
             result,
             request,
             #[cfg(feature = "tui")]
-            events: std::iter::from_fn(|| rx.try_recv().ok()).collect(),
+            events: std::iter::from_fn(move || rx.try_recv().ok()).collect(),
         }
     }
 
@@ -566,7 +568,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn a_new_database_is_saved_with_its_etag() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let logs = capture_logs();
         let [db_path, etag_path, tmp_path] = paths().await;
         let database = cache::database(7);
@@ -574,9 +576,10 @@ pub mod tests {
         let downloaded =
             download(reply("200 OK\r\nETag: \"v1\"", &database)).await;
 
-        let request = downloaded.request.as_deref().unwrap();
+        let request = downloaded.request.unwrap();
         assert!(request.starts_with("get /asn.mmdb http/1.1\r\n"), "{request}");
         assert!(!request.contains("if-none-match"), "{request}");
+        drop(request);
         assert_eq!(std::fs::read(&db_path).unwrap(), database);
         assert_eq!(std::fs::read(&etag_path).unwrap(), b"\"v1\"");
         assert!(!tmp_path.exists());
@@ -590,7 +593,6 @@ pub mod tests {
             (Some(database.len()), database.len())
         );
         downloaded.result.unwrap();
-        drop(cache);
     }
 
     // The size the download announced, and how much of it arrived.
@@ -630,19 +632,21 @@ pub mod tests {
 
     #[tokio::test]
     async fn an_unchanged_database_is_not_downloaded_again() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let logs = capture_logs();
         let [db_path, etag_path, tmp_path] = paths().await;
         let database = cache::database(7);
         std::fs::write(&db_path, &database).unwrap();
         std::fs::write(&etag_path, "\"v1\"").unwrap();
+        drop(etag_path);
         // Left by a download that was cut short.
         std::fs::write(&tmp_path, "partial").unwrap();
 
         let downloaded = download(reply("304 Not Modified", b"")).await;
 
-        let request = downloaded.request.as_deref().unwrap();
+        let request = downloaded.request.unwrap();
         assert!(request.contains("\r\nif-none-match: \"v1\"\r\n"), "{request}");
+        drop(request);
         assert_eq!(std::fs::read(&db_path).unwrap(), database);
         assert!(!tmp_path.exists());
         let text = logs.text();
@@ -651,12 +655,11 @@ pub mod tests {
             "{text}"
         );
         downloaded.result.unwrap();
-        drop(cache);
     }
 
     #[tokio::test]
     async fn a_damaged_database_is_downloaded_again_whatever_its_etag() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let [db_path, etag_path, _] = paths().await;
         std::fs::write(&db_path, "<html>not a database</html>").unwrap();
         std::fs::write(&etag_path, "\"v1\"").unwrap();
@@ -665,33 +668,34 @@ pub mod tests {
         // Without an ETag, there is nothing to vouch for the new one.
         let downloaded = download(reply("200 OK", &database)).await;
 
-        let request = downloaded.request.as_deref().unwrap();
+        let request = downloaded.request.unwrap();
         assert!(!request.contains("if-none-match"), "{request}");
+        drop(request);
         assert_eq!(std::fs::read(&db_path).unwrap(), database);
         assert!(!etag_path.exists());
         downloaded.result.unwrap();
-        drop(cache);
     }
 
     #[tokio::test]
     async fn an_etag_that_is_no_header_value_is_not_sent() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let [db_path, etag_path, _] = paths().await;
         std::fs::write(&db_path, cache::database(7)).unwrap();
         std::fs::write(&etag_path, "\"v1\"\n\"v2\"").unwrap();
+        drop(etag_path);
 
-        let downloaded = download(reply("200 OK", &cache::database(8))).await;
+        let downloaded = download(reply("200 OK", cache::database(8))).await;
 
-        let request = downloaded.request.as_deref().unwrap();
+        let request = downloaded.request.unwrap();
         assert!(!request.contains("if-none-match"), "{request}");
+        drop(request);
         assert_eq!(std::fs::read(&db_path).unwrap(), cache::database(8));
         downloaded.result.unwrap();
-        drop(cache);
     }
 
     #[tokio::test]
     async fn a_reply_that_is_no_database_leaves_the_cached_one() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let [db_path, ..] = paths().await;
         std::fs::write(&db_path, cache::database(7)).unwrap();
 
@@ -700,54 +704,57 @@ pub mod tests {
 
         let error = error_of(downloaded);
         assert!(error.starts_with("failed to open IP database: "), "{error}");
+        drop(error);
         assert_eq!(std::fs::read(&db_path).unwrap(), cache::database(7));
-        drop(cache);
     }
 
     #[tokio::test]
     async fn only_a_whole_database_counts_as_a_download() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
 
         let error = error_of(download(reply("204 No Content", b"")).await);
         assert!(
             error.starts_with("HTTP status error (204 No Content) for url"),
             "{error}"
         );
+        drop(error);
 
         let error = error_of(download(reply("404 Not Found", b"")).await);
         assert!(error.contains("404 Not Found"), "{error}");
+        drop(error);
 
         assert!(!cache::database_path(DbType::Asn).await.exists());
-        drop(cache);
     }
 
     #[tokio::test]
     async fn an_etag_that_cannot_be_read_stops_the_download() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let [db_path, etag_path, _] = paths().await;
         std::fs::write(&db_path, cache::database(7)).unwrap();
         std::fs::create_dir_all(etag_path.join("in-the-way")).unwrap();
+        drop(etag_path);
 
-        let downloaded = download(reply("200 OK", &cache::database(8))).await;
+        let downloaded = download(reply("200 OK", cache::database(8))).await;
 
         assert!(downloaded.request.is_none());
         let error = error_of(downloaded);
         assert!(error.starts_with("failed to read file: "), "{error}");
+        drop(error);
         assert_eq!(std::fs::read(&db_path).unwrap(), cache::database(7));
-        drop(cache);
     }
 
     #[tokio::test]
     async fn a_lost_etag_only_costs_a_repeat_download() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let logs = capture_logs();
         let [db_path, etag_path, _] = paths().await;
         std::fs::create_dir_all(etag_path.join("in-the-way")).unwrap();
+        drop(etag_path);
 
-        let downloaded =
-            download(reply("200 OK\r\nETag: \"v1\"", &cache::database(7)))
-                .await;
-        downloaded.result.unwrap();
+        download(reply("200 OK\r\nETag: \"v1\"", cache::database(7)))
+            .await
+            .result
+            .unwrap();
         assert_eq!(std::fs::read(&db_path).unwrap(), cache::database(7));
         let text = logs.text();
         assert!(
@@ -757,11 +764,11 @@ pub mod tests {
             ),
             "{text}"
         );
+        drop(text);
 
         // A database that opens would have the ETag read first.
         std::fs::remove_file(&db_path).unwrap();
-        let downloaded = download(reply("200 OK", &cache::database(8))).await;
-        downloaded.result.unwrap();
+        download(reply("200 OK", cache::database(8))).await.result.unwrap();
         assert_eq!(std::fs::read(&db_path).unwrap(), cache::database(8));
         let text = logs.text();
         assert!(
@@ -771,26 +778,26 @@ pub mod tests {
             ),
             "{text}"
         );
-        drop(cache);
     }
 
     #[tokio::test]
     async fn a_database_that_cannot_be_put_in_place_is_an_error() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let [db_path, _, tmp_path] = paths().await;
 
         std::fs::create_dir_all(tmp_path.join("in-the-way")).unwrap();
         let error =
-            error_of(download(reply("200 OK", &cache::database(7))).await);
+            error_of(download(reply("200 OK", cache::database(7))).await);
         assert!(error.starts_with("failed to create file: "), "{error}");
+        drop(error);
         std::fs::remove_dir_all(&tmp_path).unwrap();
+        drop(tmp_path);
 
         std::fs::create_dir_all(db_path.join("in-the-way")).unwrap();
         let error =
-            error_of(download(reply("200 OK", &cache::database(7))).await);
+            error_of(download(reply("200 OK", cache::database(7))).await);
         assert!(error.starts_with("failed to rename "), "{error}");
         assert!(db_path.join("in-the-way").is_dir());
-        drop(cache);
     }
 
     // Only Linux has a device that is always full.
@@ -802,7 +809,7 @@ pub mod tests {
             net::TcpListener,
         };
 
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let [_, _, tmp_path] = paths().await;
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
@@ -810,18 +817,19 @@ pub mod tests {
         // so the device takes its place only once it has.
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.unwrap();
-            let mut request = [0_u8; 1024];
-            assert_ne!(socket.read(&mut request).await.unwrap(), 0);
+            assert_ne!(socket.read(&mut [0_u8; 1024]).await.unwrap(), 0);
             std::os::unix::fs::symlink("/dev/full", tmp_path).unwrap();
-            let body = vec![0_u8; 64 * 1024];
-            socket.write_all(&reply("200 OK", &body)).await.unwrap();
+            socket
+                .write_all(&reply("200 OK", vec![0_u8; 64 * 1024]))
+                .await
+                .unwrap();
         });
 
         let error = download_from(address).await.unwrap_err().to_string();
 
         assert!(error.starts_with("failed to write to file: "), "{error}");
+        drop(error);
         server.await.unwrap();
-        drop(cache);
     }
 
     #[tokio::test]
@@ -834,6 +842,7 @@ pub mod tests {
 
         let error = create_cache_directory(None).await.unwrap_err();
         assert_eq!(error.to_string(), "failed to get user's cache directory");
+        drop(error);
 
         let file = directory.join("file");
         std::fs::write(&file, "").unwrap();
@@ -842,6 +851,7 @@ pub mod tests {
             error.to_string().starts_with("failed to create directory: "),
             "{error}"
         );
+        drop(error);
 
         std::fs::remove_dir_all(directory).unwrap();
     }

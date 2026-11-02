@@ -434,8 +434,10 @@ mod tests {
         drop(path);
 
         let proxies = scrape_source(url.as_str(), 0).await;
+        drop(url);
 
         assert_eq!(sorted(&proxies), ["http://1.1.1.1:80"]);
+        drop(proxies);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
@@ -453,19 +455,23 @@ mod tests {
 
         let sources = [&empty, &missing, &crowded, &working]
             .map(|path| SourceConfig::Simple(path.to_str().unwrap().into()));
+        drop(working);
         let proxies = scrape_sources(sources.into(), 1).await;
 
         assert_eq!(sorted(&proxies), ["http://3.3.3.3:80"]);
+        drop(proxies);
         let text = logs.text();
+        drop(logs);
         assert!(text.contains("Scraping 4 sources"), "{text}");
         for (path, warning) in [
-            (&empty, "no proxies found"),
-            (&missing, "failed to read file to string: "),
-            (&crowded, "too many proxies (> 1) - skipped"),
+            (empty, "no proxies found"),
+            (missing, "failed to read file to string: "),
+            (crowded, "too many proxies (> 1) - skipped"),
         ] {
             let path = path.to_str().unwrap();
             assert!(text.contains(&format!("{path}: {warning}")), "{text}");
         }
+        drop(text);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
@@ -531,6 +537,7 @@ mod tests {
                 "socks5://4.4.4.4:80"
             ]
         );
+        drop(proxies);
         std::fs::remove_dir_all(directory).unwrap();
 
         // The totals only grow, and end at what was found.
@@ -542,8 +549,8 @@ mod tests {
             };
 
             let events: Vec<_> =
-                std::iter::from_fn(|| rx.try_recv().ok()).collect();
-            let of = |protocol: ProxyType| {
+                std::iter::from_fn(move || rx.try_recv().ok()).collect();
+            let of = move |protocol: ProxyType| {
                 let mut sources = None;
                 let mut scraped = 0_usize;
                 let mut totals = Vec::new();
@@ -570,6 +577,7 @@ mod tests {
             assert_eq!((sources, scraped), (Some(3), 3));
             assert!(totals.is_sorted(), "{totals:?}");
             assert_eq!(totals.last(), Some(&2));
+            drop(totals);
 
             let (sources, scraped, totals) = of(ProxyType::Socks5);
             assert_eq!((sources, scraped), (Some(0), 0));

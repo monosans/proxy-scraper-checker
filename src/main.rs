@@ -595,12 +595,12 @@ mod tests {
 
     #[tokio::test]
     async fn only_the_enabled_databases_are_downloaded() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let logs = capture_logs();
         // Three tries for the one database.
         let (download_proxy, tries) = serve(vec![NO_TUNNEL; 3]).await;
         let config = Arc::new(
-            test_config(|raw| {
+            test_config(move |raw| {
                 raw.output.json.include_asn = false;
                 raw.scraping.proxy =
                     Some(format!("http://{download_proxy}").parse().unwrap());
@@ -619,12 +619,15 @@ mod tests {
         .await;
 
         assert_eq!(finished_downloads(&mut rx), [("geolocation", false)]);
+        drop(rx);
         assert_eq!(tries.lock().len(), 3);
         let text = logs.text();
+        drop(logs);
         assert!(
             text.contains("failed to download geolocation database: "),
             "{text}"
         );
+        drop(text);
 
         // Nothing is left to tell about a stopped run.
         let token = CancellationToken::new();
@@ -633,7 +636,6 @@ mod tests {
         download_ipdb(config, client, token, tx).await;
         assert_eq!(finished_downloads(&mut rx), []);
         assert_eq!(tries.lock().len(), 3);
-        drop(cache);
     }
 
     #[tokio::test]
@@ -641,7 +643,7 @@ mod tests {
         let directory = temp_directory("nothing-found");
         let source = directory.join("empty.txt");
         std::fs::write(&source, "no proxies here").unwrap();
-        let mut config = test_config(|raw| {
+        let mut config = test_config(move |raw| {
             raw.output.json.enabled = false;
             raw.scraping.http.enabled = true;
             raw.scraping.http.urls =
@@ -661,14 +663,16 @@ mod tests {
             summary,
             "No proxies to save - previous results left untouched"
         );
+        drop(summary);
         let events: Vec<_> =
-            std::iter::from_fn(|| rx.try_recv().ok()).collect();
+            std::iter::from_fn(move || rx.try_recv().ok()).collect();
         assert!(matches!(events.last(), Some(Event::App(AppEvent::Done))));
         assert!(
             !events
                 .iter()
                 .any(|event| matches!(event, Event::App(AppEvent::Saved(_))))
         );
+        drop(events);
         assert!(!directory.join("proxies").exists());
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -804,7 +808,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_failed_download_falls_back_on_the_cached_ip_databases() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let proxy = run_with_failing_downloads().await;
         assert_eq!(proxy.pointer("/exit_ip").unwrap(), "192.0.2.1");
         assert!(proxy.pointer("/asn").unwrap().is_null());
@@ -831,7 +835,5 @@ mod tests {
         for path in paths {
             assert_eq!(std::fs::read(path).unwrap(), cached);
         }
-        drop(cached);
-        drop(cache);
     }
 }

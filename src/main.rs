@@ -155,7 +155,12 @@ async fn download_ipdb(
     // every real download failure is already logged inside the task, and
     // save_proxies degrades gracefully when a database is unavailable.
     while let Some(res) = join_set.join_next().await {
-        utils::log_panic("IP database task", res);
+        if let Err(e) = res {
+            tracing::error!(
+                "IP database task panicked: {}",
+                utils::pretty_error(&e.into())
+            );
+        }
     }
 }
 
@@ -392,9 +397,7 @@ async fn run_with_tui(
     let quit = tx.clone();
     let tui_token = token.clone();
     let tui = async move {
-        let input = crossterm::event::EventStream::new();
-        let result =
-            tui::app::run(terminal, input, config, tui_token, tx, rx).await;
+        let result = tui::app::run(terminal, config, tui_token, tx, rx).await;
         drop(terminal_guard);
         result
     };

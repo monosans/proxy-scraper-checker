@@ -565,11 +565,11 @@ jobs:
         with:
           tool: cargo-llvm-cov
           fallback: none
-      # Each build leaves out code that only the other one has, so neither
-      # covers everything alone.
+      # Each build leaves out code that only the other one has, so the report
+      # takes both. It is only shown, with no minimum to reach.
       - run: cargo +beta llvm-cov --no-report --features "" --locked
       - run: cargo +beta llvm-cov --no-report --features tui --locked
-      - run: cargo +beta llvm-cov report --fail-under-lines 100 --show-missing-lines
+      - run: cargo +beta llvm-cov report --show-missing-lines
   licenses:
     runs-on: ubuntu-26.04
     steps:

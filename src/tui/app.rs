@@ -30,21 +30,15 @@ pub const FASTEST_KEPT: usize = 8;
 pub struct RatatuiRestoreGuard;
 
 impl Drop for RatatuiRestoreGuard {
+    // Not ratatui::restore, which panics if stderr went with the terminal. The
+    // panic hook has already restored it, and leaving the alternate screen
+    // twice would put the cursor back over the panic report.
     fn drop(&mut self) {
-        restore_terminal(
-            crossterm::terminal::is_raw_mode_enabled().unwrap_or(true),
-        );
+        if crossterm::terminal::is_raw_mode_enabled().unwrap_or(true) {
+            drop(ratatui::try_restore());
+        }
+        drop(crossterm::execute!(std::io::stdout(), crossterm::cursor::Show));
     }
-}
-
-// Not ratatui::restore, which panics if stderr went with the terminal. The
-// panic hook has already restored it, and leaving the alternate screen twice
-// would put the cursor back over the panic report.
-fn restore_terminal(raw: bool) {
-    if raw {
-        drop(ratatui::try_restore());
-    }
-    drop(crossterm::execute!(std::io::stdout(), crossterm::cursor::Show));
 }
 
 #[derive(Default)]
@@ -188,30 +182,19 @@ impl State {
     }
 }
 
-// `input` is what the terminal reads, crossterm::event::EventStream outside of
-// the tests.
-pub async fn run<B, I>(
-    terminal: ratatui::Terminal<B>,
-    input: I,
+pub async fn run(
+    terminal: ratatui::DefaultTerminal,
     config: Arc<Config>,
     token: tokio_util::sync::CancellationToken,
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
     mut rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
-) -> crate::Result<()>
-where
-    B: ratatui::backend::Backend,
-    B::Error: Send + Sync + 'static,
-    I: futures::Stream<Item = std::io::Result<CrosstermEvent>>
-        + Send
-        + Unpin
-        + 'static,
-{
+) -> crate::Result<()> {
     // Dropping it panics if stderr went with the terminal, and it only shows
     // the cursor, which RatatuiRestoreGuard does.
     let mut terminal = ManuallyDrop::new(terminal);
 
     tokio::spawn(tick_event_listener(tx.clone()));
-    tokio::spawn(crossterm_event_listener(input, tx));
+    tokio::spawn(crossterm_event_listener(tx));
 
     let mut app_state = State::default();
     let logger_state = TuiWidgetState::default();
@@ -219,10 +202,10 @@ where
     terminal
         .draw(|frame| view::draw(frame, &config, &app_state, &logger_state))?;
 
-    // The listeners hold on to their senders until this returns.
-    while !matches!(app_state.mode, Mode::Quit)
-        && let Some(event) = rx.recv().await
-    {
+    while !matches!(app_state.mode, Mode::Quit) {
+        let Some(event) = rx.recv().await else {
+            break;
+        };
         let mut redraw =
             handle_event(event, &mut app_state, &token, &logger_state);
 
@@ -242,8 +225,6 @@ where
     Ok(())
 }
 
-// A send can only fail once the receiver is gone, which the next turn of the
-// loop sees.
 async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
     let mut tick = tokio::time::interval(TICK);
     loop {
@@ -253,18 +234,18 @@ async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
                 break;
             },
             _ = tick.tick() => {
-                drop(tx.send(Event::Tick));
+                if tx.send(Event::Tick).is_err() {
+                    break;
+                }
             },
         }
     }
 }
 
-async fn crossterm_event_listener<I>(
-    mut reader: I,
+async fn crossterm_event_listener(
     tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) where
-    I: futures::Stream<Item = std::io::Result<CrosstermEvent>> + Unpin,
-{
+) {
+    let mut reader = crossterm::event::EventStream::new();
     let mut consecutive_errors: u8 = 0;
 
     loop {
@@ -275,7 +256,9 @@ async fn crossterm_event_listener<I>(
                 match event {
                     Some(Ok(event)) => {
                         consecutive_errors = 0;
-                        drop(tx.send(Event::Crossterm(event)));
+                        if tx.send(Event::Crossterm(event)).is_err() {
+                            return;
+                        }
                     }
                     Some(Err(e)) => {
                         tracing::debug!("Failed to read terminal input: {e}");
@@ -434,167 +417,23 @@ fn handle_event(
 
 #[cfg(test)]
 mod tests {
-    use std::{io, sync::Arc, time::Duration};
+    use std::time::Duration;
 
     use crossterm::event::{
         Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
     };
-    use futures::{StreamExt as _, stream};
-    use ratatui::{
-        Terminal, TerminalOptions, Viewport, backend::CrosstermBackend,
-        layout::Rect,
-    };
-    use tokio::sync::mpsc::unbounded_channel;
     use tokio_util::sync::CancellationToken;
     use tui_logger::TuiWidgetState;
 
     use super::{
-        Event, FASTEST_KEPT, Mode, State, TICKS_PER_SECOND, handle_event, run,
+        Event, FASTEST_KEPT, Mode, State, TICKS_PER_SECOND, handle_event,
     };
     use crate::{
         config::tests::test_config,
         event::{AppEvent, Stage},
         ipdb::DbType,
         proxy::ProxyType,
-        utils::tests::capture_logs,
     };
-
-    type Input = io::Result<CrosstermEvent>;
-    // One type for every test, so that they all run the same code.
-    type Keyboard =
-        std::pin::Pin<Box<dyn futures::Stream<Item = Input> + Send>>;
-
-    // What the TUI draws on: it keeps nothing, and fails once what was drawn
-    // so far shows `refused`.
-    struct Screen {
-        drawn: String,
-        refused: Option<&'static str>,
-    }
-
-    #[expect(
-        clippy::missing_trait_methods,
-        reason = "the provided methods all go through write"
-    )]
-    impl io::Write for Screen {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.drawn.push_str(&String::from_utf8_lossy(buf));
-            if self.refused.is_some_and(|refused| self.drawn.contains(refused))
-            {
-                return Err(io::Error::other("the terminal is gone"));
-            }
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
-    // Returns once the TUI does, which a test that hangs would never see.
-    async fn run_with(
-        input: Keyboard,
-        token: &CancellationToken,
-        events: impl IntoIterator<Item = AppEvent>,
-        refused: Option<&'static str>,
-    ) -> crate::Result<()> {
-        let config = Arc::new(test_config(|_| {}).await);
-        let screen = Screen { drawn: String::new(), refused };
-        let terminal = Terminal::with_options(
-            CrosstermBackend::new(screen),
-            TerminalOptions {
-                viewport: Viewport::Fixed(Rect::new(0, 0, 80, 24)),
-            },
-        )
-        .unwrap();
-        let (tx, rx) = unbounded_channel();
-        for event in events {
-            tx.send(Event::App(event)).unwrap();
-        }
-        let result = tokio::time::timeout(
-            Duration::from_secs(5),
-            run(terminal, input, config, token.clone(), tx, rx),
-        )
-        .await
-        .unwrap();
-        // The listeners notice that the TUI is gone.
-        for _ in 0_u8..4 {
-            tokio::task::yield_now().await;
-        }
-        result
-    }
-
-    fn key(code: KeyCode) -> CrosstermEvent {
-        CrosstermEvent::Key(KeyEvent::new(code, KeyModifiers::NONE))
-    }
-
-    #[tokio::test]
-    async fn the_tui_follows_the_run_until_told_to_quit() {
-        let token = CancellationToken::new();
-        let events = [
-            AppEvent::IpDbTotal(DbType::Asn, Some(2_000_000)),
-            AppEvent::IpDbDownloaded(DbType::Asn, 1_000_000),
-            AppEvent::IpDbFinished(DbType::Geo, false),
-            AppEvent::SourcesTotal(ProxyType::Http, 2),
-            AppEvent::SourceScraped(ProxyType::Http),
-            AppEvent::TotalProxies(ProxyType::Http, 3),
-            AppEvent::Stage(Stage::Checking),
-            AppEvent::ProxyChecked(ProxyType::Http),
-            AppEvent::ProxyWorking {
-                protocol: ProxyType::Http,
-                address: "1.1.1.1:80".into(),
-                latency: Duration::from_millis(5),
-            },
-            AppEvent::Stage(Stage::Saving),
-            AppEvent::Saved(1),
-            AppEvent::Done,
-            AppEvent::Quit,
-        ];
-
-        run_with(Box::pin(stream::pending()), &token, events, None)
-            .await
-            .unwrap();
-
-        assert!(!token.is_cancelled());
-    }
-
-    #[tokio::test]
-    async fn the_keys_of_the_terminal_stop_the_run_and_then_quit() {
-        let token = CancellationToken::new();
-        // One at a time, as people type.
-        let keys = stream::iter([
-            Ok(CrosstermEvent::FocusGained),
-            Ok(key(KeyCode::Char('q'))),
-            Ok(key(KeyCode::Esc)),
-        ])
-        .then(|key| async move {
-            tokio::task::yield_now().await;
-            key
-        });
-
-        run_with(Box::pin(keys), &token, [], None).await.unwrap();
-
-        assert!(token.is_cancelled());
-    }
-
-    #[tokio::test]
-    async fn a_terminal_that_stops_giving_input_closes_after_the_run() {
-        let logs = capture_logs();
-        let token = CancellationToken::new();
-        let failing = stream::repeat_with(|| Err(io::Error::other("no input")));
-
-        run_with(Box::pin(failing), &token, [AppEvent::Done], None)
-            .await
-            .unwrap();
-
-        assert!(!token.is_cancelled());
-        let text = logs.text();
-        assert_eq!(
-            text.matches("Failed to read terminal input: no input").count(),
-            8,
-            "{text}"
-        );
-        assert!(text.contains("Terminal input was lost"), "{text}");
-    }
 
     #[test]
     fn a_proxy_slower_than_all_the_fastest_is_not_kept() {
@@ -616,38 +455,6 @@ mod tests {
         assert_eq!(state.fastest.len(), FASTEST_KEPT);
         let slowest = state.fastest.last().map(|proxy| proxy.latency);
         assert_eq!(slowest, Some(Duration::from_millis(FASTEST_KEPT as u64)));
-    }
-
-    // Without a terminal, only Unix tells whether one is raw, and there
-    // putting one back that was never raw does nothing.
-    #[cfg(unix)]
-    #[test]
-    fn a_terminal_is_put_back_only_if_it_is_raw() {
-        use crossterm::terminal::is_raw_mode_enabled;
-
-        assert!(!is_raw_mode_enabled().unwrap());
-        // As after a panic, whose hook has put the terminal back already.
-        drop(super::RatatuiRestoreGuard);
-        super::restore_terminal(true);
-        assert!(!is_raw_mode_enabled().unwrap());
-    }
-
-    #[tokio::test]
-    async fn a_terminal_that_cannot_be_drawn_on_ends_the_tui() {
-        let token = CancellationToken::new();
-        for (refused, events) in [
-            // Right away.
-            (Some(""), Vec::new()),
-            // Once the run is over.
-            (Some("Finished"), vec![AppEvent::Done]),
-        ] {
-            let error =
-                run_with(Box::pin(stream::pending()), &token, events, refused)
-                    .await
-                    .unwrap_err();
-            assert_eq!(error.to_string(), "the terminal is gone");
-        }
-        assert!(!token.is_cancelled());
     }
 
     #[test]

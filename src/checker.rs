@@ -16,7 +16,7 @@ use crate::{
     config::Config,
     http,
     proxy::Proxy,
-    utils::{clock, grouped, log_panic, plural, pretty_error},
+    utils::{clock, grouped, plural, pretty_error},
 };
 
 // Checking can take many minutes, and a log that says nothing for that long
@@ -51,18 +51,6 @@ fn progress_line(
         line.push_str(" left");
     }
     line
-}
-
-// The TUI shows all of this already, and without it nobody reads the events,
-// so that is what tells the two apart.
-#[cfg(feature = "tui")]
-fn nobody_watches(tx: &tokio::sync::mpsc::UnboundedSender<Event>) -> bool {
-    tx.is_closed()
-}
-
-#[cfg(not(feature = "tui"))]
-const fn nobody_watches() -> bool {
-    true
 }
 
 // Popping alone keeps the memory of every proxy already taken until the last
@@ -136,10 +124,12 @@ pub async fn check_all(
         plural(proxies.len(), "proxy", "proxies")
     );
 
-    let log_the_progress = nobody_watches(
-        #[cfg(feature = "tui")]
-        &tx,
-    );
+    // The TUI shows all of this already, and without it nobody reads the
+    // events, so that is what tells the two apart.
+    #[cfg(feature = "tui")]
+    let log_the_progress = tx.is_closed();
+    #[cfg(not(feature = "tui"))]
+    let log_the_progress = true;
 
     let total = proxies.len();
     let progress = Arc::new(Progress::default());
@@ -227,10 +217,19 @@ pub async fn check_all(
         tokio::select! {
             biased;
             res = join_set.join_next() => {
-                let Some(res) = res else {
-                    break;
-                };
-                log_panic("Proxy checking task", res);
+                match res {
+                    None => break,
+                    Some(Ok(())) => {}
+                    Some(Err(e)) if e.is_panic() => {
+                        tracing::error!(
+                            "Proxy checking task panicked: {}",
+                            pretty_error(&e.into())
+                        );
+                    }
+                    Some(Err(e)) => {
+                        return Err(e.into());
+                    }
+                }
             }
             _ = report.tick(), if log_the_progress => {
                 tracing::info!(

@@ -94,6 +94,10 @@ mod utils;
 use std::io::Write as _;
 use std::{io::IsTerminal as _, sync::Arc};
 
+// Without the TUI, only its features are used: they leave the trace logs
+// of the dependencies out of the build.
+#[cfg(not(feature = "tui"))]
+use log as _;
 use tracing_subscriber::{
     layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };

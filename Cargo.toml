@@ -78,6 +78,9 @@ unicode-segmentation = { version = "=1.13.3", optional = true }
 unicode-width = { version = "=0.2.3", optional = true }
 url = "=2.5.8"
 
+[dev-dependencies]
+tokio = { version = "=1.54.1", features = ["test-util"] }
+
 [target.'cfg(all(target_env = "musl", target_has_atomic = "64"))'.dependencies]
 mimalloc-auto = { package = "mimalloc", version = "=0.1.52", features = [
   "no_thp",

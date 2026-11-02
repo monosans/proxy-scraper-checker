@@ -62,8 +62,11 @@ pub struct Config {
     pub output: OutputConfig,
 }
 
-async fn get_output_path(configured: PathBuf) -> crate::Result<PathBuf> {
-    let output_path = if is_container().await {
+async fn get_output_path(
+    configured: PathBuf,
+    in_container: bool,
+) -> crate::Result<PathBuf> {
+    let output_path = if in_container {
         drop(configured);
         "./out".into()
     } else {
@@ -81,9 +84,14 @@ async fn get_output_path(configured: PathBuf) -> crate::Result<PathBuf> {
 // Left for what isn't a check: the event loop, the terminal, DNS, the output.
 const RESERVED_FILE_DESCRIPTORS: usize = 16;
 
-fn get_max_concurrent_checks(requested: NonZero<usize>) -> usize {
+// `limit` is what raising the file descriptor limit as far as it goes got, if
+// that worked.
+fn get_max_concurrent_checks(
+    requested: NonZero<usize>,
+    limit: Option<u64>,
+) -> usize {
     let requested = requested.get();
-    let Ok(limit) = rlimit::increase_nofile_limit(u64::MAX) else {
+    let Some(limit) = limit else {
         return requested;
     };
     let limit = usize::try_from(limit)
@@ -136,9 +144,12 @@ impl Config {
         )
         .wrap_err("invalid 'checking.user_agent' in config")?;
 
-        let output_path = get_output_path(raw_config.output.path).await?;
+        let output_path =
+            get_output_path(raw_config.output.path, is_container().await)
+                .await?;
         let max_concurrent_checks = get_max_concurrent_checks(
             raw_config.checking.max_concurrent_checks,
+            rlimit::increase_nofile_limit(u64::MAX).ok(),
         );
 
         let mut sources = PerProxyType::<Vec<Arc<Source>>>::default();
@@ -190,17 +201,27 @@ impl Config {
 
 #[cfg(test)]
 pub mod tests {
-    use std::path::PathBuf;
+    use std::{num::NonZero, path::PathBuf};
 
-    use super::Config;
-    use crate::raw_config::RawConfig;
+    use super::{Config, get_max_concurrent_checks, get_output_path};
+    use crate::{
+        raw_config::RawConfig,
+        utils::tests::{capture_logs, listen_everywhere},
+    };
 
-    pub async fn test_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
+    async fn test_config_result(
+        edit: impl FnOnce(&mut RawConfig),
+    ) -> crate::Result<Config> {
+        listen_everywhere();
         let mut raw_config: RawConfig =
             toml::from_str(include_str!("../config.toml")).unwrap();
         raw_config.output.path = PathBuf::from("target");
         edit(&mut raw_config);
-        Config::from_raw_config(raw_config).await.unwrap()
+        Config::from_raw_config(raw_config).await
+    }
+
+    pub async fn test_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
+        test_config_result(edit).await.unwrap()
     }
 
     pub fn temp_directory(name: &str) -> PathBuf {
@@ -211,6 +232,57 @@ pub mod tests {
         drop(std::fs::remove_dir_all(&path));
         std::fs::create_dir_all(&path).unwrap();
         path
+    }
+
+    #[tokio::test]
+    async fn in_a_container_the_output_goes_to_its_volume() {
+        let configured = temp_directory("configured-output");
+        let path = get_output_path(configured.join("out"), true).await.unwrap();
+        assert_eq!(path, PathBuf::from("./out"));
+        assert!(path.is_dir());
+        assert!(!configured.join("out").exists());
+
+        let path =
+            get_output_path(configured.join("out"), false).await.unwrap();
+        assert_eq!(path, configured.join("out"));
+        assert!(path.is_dir());
+
+        std::fs::remove_dir_all(configured).unwrap();
+    }
+
+    #[tokio::test]
+    async fn an_output_path_that_cannot_be_a_directory_is_refused() {
+        let directory = temp_directory("output-under-a-file");
+        let file = directory.join("file");
+        std::fs::write(&file, "").unwrap();
+
+        let error =
+            test_config_result(|raw| raw.output.path = file.join("out"))
+                .await
+                .err()
+                .unwrap();
+        assert!(
+            error.to_string().starts_with("failed to create directory: "),
+            "{error}"
+        );
+
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn concurrent_checks_stay_within_the_file_descriptor_limit() {
+        let requested = NonZero::new(100).unwrap();
+        let logs = capture_logs();
+
+        assert_eq!(get_max_concurrent_checks(requested, None), 100);
+        assert_eq!(get_max_concurrent_checks(requested, Some(u64::MAX)), 100);
+        assert_eq!(get_max_concurrent_checks(requested, Some(116)), 100);
+        assert!(logs.text().is_empty(), "{}", logs.text());
+
+        assert_eq!(get_max_concurrent_checks(requested, Some(66)), 50);
+        assert!(logs.text().contains("50 will be used"), "{}", logs.text());
+        // Even a limit too low to leave anything still allows one.
+        assert_eq!(get_max_concurrent_checks(requested, Some(3)), 1);
     }
 
     #[tokio::test]

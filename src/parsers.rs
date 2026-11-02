@@ -57,20 +57,12 @@ pub fn proxy_matches(text: &str) -> impl Iterator<Item = ProxyMatch<'_>> {
     );
     let mut start = 0;
 
+    // Whatever the pattern matches, split can take apart.
     std::iter::from_fn(move || {
-        loop {
-            let whole_match = pattern.find_at(text, start)?;
-            let end = whole_match.end();
-
-            if let Some((proxy_match, trailing_len)) =
-                split(whole_match.as_str())
-            {
-                start = end.saturating_sub(trailing_len);
-                return Some(proxy_match);
-            }
-
-            start = end;
-        }
+        let whole_match = pattern.find_at(text, start)?;
+        let (proxy_match, trailing_len) = split(whole_match.as_str())?;
+        start = whole_match.end().saturating_sub(trailing_len);
+        Some(proxy_match)
     })
 }
 

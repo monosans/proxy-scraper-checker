@@ -337,6 +337,7 @@ pub mod tests {
         let (address, requests) = serve(vec![OK]).await;
         let config = test_config(|_| {}).await;
         let client = super::create_reqwest_client(&config).await.unwrap();
+        drop(config);
 
         let error = client
             .post(format!("http://{address}/"))

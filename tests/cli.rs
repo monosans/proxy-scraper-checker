@@ -91,6 +91,7 @@ urls = []
             directory.join("source.txt").to_str().unwrap(),
             directory.join("out").to_str().unwrap(),
         );
+        drop(directory);
         std::fs::write(run.directory.join("source.txt"), "1.1.1.1:80").unwrap();
         run
     }
@@ -148,7 +149,9 @@ fn a_run_saves_the_proxies_it_found_and_says_where() {
         stdout.contains(&format!("Saved 1 proxy to {}", out.display())),
         "{stdout}"
     );
+    drop(out);
     assert!(stdout.contains("Thank you for using"), "{stdout}");
+    drop(stdout);
     assert_eq!(run.saved("all.txt"), "http://1.1.1.1:80");
     assert_eq!(run.saved("http.txt"), "1.1.1.1:80");
 }
@@ -161,6 +164,7 @@ fn an_empty_output_path_means_the_working_directory() {
     let stdout = succeeded(&run.command().output().unwrap());
 
     assert!(stdout.contains("Saved 1 proxy to "), "{stdout}");
+    drop(stdout);
     let saved = run.directory.join("proxies/all.txt");
     assert_eq!(std::fs::read_to_string(saved).unwrap(), "http://1.1.1.1:80");
 }
@@ -170,9 +174,10 @@ fn a_config_that_is_missing_or_wrong_is_reported() {
     let run = Run::with_one_proxy("bad-config");
     let missing = run.directory.join("missing.toml");
 
-    let mut command = run.command();
-    let stderr = failed(&command.env(CONFIG_ENV, &missing).output().unwrap());
+    let stderr =
+        failed(&run.command().env(CONFIG_ENV, missing).output().unwrap());
     assert!(stderr.contains("failed to read file to string"), "{stderr}");
+    drop(stderr);
 
     let config = std::fs::read_to_string(&run.config).unwrap();
     std::fs::write(
@@ -180,6 +185,7 @@ fn a_config_that_is_missing_or_wrong_is_reported() {
         config.replace("enabled = true", "enabled = false"),
     )
     .unwrap();
+    drop(config);
     let stderr = failed(&run.command().output().unwrap());
     assert!(
         stderr.contains("at least one of 'output.json' or 'output.txt'"),
@@ -190,10 +196,8 @@ fn a_config_that_is_missing_or_wrong_is_reported() {
 #[test]
 fn without_a_config_file_the_one_in_the_working_directory_is_used() {
     let run = Run::with_one_proxy("default-config");
-    let mut command = run.command();
-    command.env_remove(CONFIG_ENV);
 
-    succeeded(&command.output().unwrap());
+    succeeded(&run.command().env_remove(CONFIG_ENV).output().unwrap());
 
     assert_eq!(run.saved("all.txt"), "http://1.1.1.1:80");
 }
@@ -267,11 +271,10 @@ fn a_stop_signal_ends_the_run_with_what_it_has() {
         .unwrap();
     assert!(kill.success());
     let status = child.wait().unwrap();
-    reader.join().unwrap();
     drop(source);
+    reader.join().unwrap();
 
-    let printed: Vec<_> = lines.try_iter().collect();
-    let printed = printed.join("\n");
+    let printed = lines.try_iter().collect::<Vec<_>>().join("\n");
     assert!(status.success(), "{status}\n{printed}");
     assert!(
         printed.contains("Received SIGTERM signal, exiting..."),
@@ -391,6 +394,7 @@ fn the_tui_shows_the_run_and_leaves_its_summary_behind() {
         summary.is_some_and(|line| line.contains("Saved 1 proxy to ")),
         "{printed}"
     );
+    drop(printed);
     assert_eq!(run.saved("all.txt"), "http://1.1.1.1:80");
 }
 

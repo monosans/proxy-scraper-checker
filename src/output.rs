@@ -1152,7 +1152,7 @@ mod tests {
 
     #[tokio::test]
     async fn geolocation_names_are_kept_in_english_only() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let path = cache::database_path(ipdb::DbType::Geo).await;
         std::fs::write(path, cache::city_database()).unwrap();
         let geo_db = ipdb::DbType::Geo.open_mmap().await.unwrap();
@@ -1172,13 +1172,11 @@ mod tests {
                 "subdivisions": [{ "names": { "en": "Bavaria" } }],
             })
         );
-        drop(geo_db);
-        drop(cache);
     }
 
     #[tokio::test]
     async fn a_record_that_does_not_decode_costs_only_its_own_data() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let path = cache::database_path(ipdb::DbType::Asn).await;
         std::fs::write(path, cache::damaged_database()).unwrap();
         let asn_db = ipdb::DbType::Asn.open_mmap().await.unwrap();
@@ -1203,13 +1201,11 @@ mod tests {
         let json = serde_json::to_value(&list).unwrap();
         assert!(json.pointer("/0/asn").unwrap().is_null());
         assert_eq!(json.pointer("/0/exit_ip").unwrap(), "5.6.7.8");
-        drop(asn_db);
-        drop(cache);
     }
 
     #[tokio::test]
     async fn missing_databases_only_leave_their_data_out() {
-        let cache = cache::take().await;
+        let _cache = cache::take().await;
         let logs = capture_logs();
         let directory = temp_directory("missing-databases");
         let config = config_in(directory.clone(), |raw| {
@@ -1221,6 +1217,7 @@ mod tests {
         save_proxies(config, proxies).await.unwrap();
 
         let text = logs.text();
+        drop(logs);
         for name in ["ASN", "geolocation"] {
             assert!(
                 text.contains(&format!(
@@ -1229,16 +1226,17 @@ mod tests {
                 "{text}"
             );
         }
+        drop(text);
         let json: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(directory.join("proxies.json")).unwrap(),
         )
         .unwrap();
         assert_eq!(json.pointer("/0/exit_ip").unwrap(), "5.6.7.8");
         assert!(json.pointer("/0/asn").unwrap().is_null());
+        drop(json);
         assert!(!directory.join("proxies").exists());
 
         std::fs::remove_dir_all(directory).unwrap();
-        drop(cache);
     }
 
     #[tokio::test]
@@ -1272,15 +1270,19 @@ mod tests {
 
         let mut buf = String::new();
         write_proxy_list_to_file(&path, &proxies, false, &mut buf).unwrap();
-
-        let expected: Vec<_> =
-            proxies.iter().map(|p| p.to_compact_string(false)).collect();
-        assert!(expected.join("\n").len() > WRITE_BUFFER_BYTES);
-        assert_eq!(
-            std::fs::read_to_string(&path).unwrap(),
-            expected.join("\n")
-        );
         assert_eq!(buf, "");
+        drop(buf);
+
+        let expected = proxies
+            .iter()
+            .map(|p| p.to_compact_string(false))
+            .collect::<Vec<_>>()
+            .join("\n");
+        drop(proxies);
+        assert!(expected.len() > WRITE_BUFFER_BYTES);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), expected);
+        drop(expected);
+        drop(path);
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -1293,11 +1295,13 @@ mod tests {
         let error =
             write_proxy_list_to_file(&path, [], true, &mut String::new())
                 .unwrap_err();
+        drop(path);
 
         assert!(
             error.to_string().starts_with("failed to create file: "),
             "{error}"
         );
+        drop(error);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
@@ -1317,6 +1321,7 @@ mod tests {
             error.to_string().starts_with("failed to remove directory: "),
             "{error}"
         );
+        drop(error);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
@@ -1336,11 +1341,14 @@ mod tests {
             error.to_string().starts_with("failed to create directory: "),
             "{error}"
         );
+        drop(error);
         assert_eq!(
             std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
             "old"
         );
+        drop(proxies);
         assert!(staged.is_dir());
+        drop(staged);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
@@ -1369,6 +1377,7 @@ mod tests {
             error.to_string().starts_with("failed to write to file: "),
             "{error}"
         );
+        drop(error);
         assert!(!directory.join("proxies.json").exists());
 
         let error = write_proxy_list_to_file(
@@ -1379,6 +1388,7 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.to_string(), "failed to write to file: /dev/full");
+        drop(error);
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -1413,18 +1423,24 @@ mod tests {
         set_mode(&to, 0o444);
         let error = super::commit_file(&from, &to).await.unwrap_err();
         assert!(error.to_string().starts_with("failed to copy "), "{error}");
+        drop(error);
         assert_eq!(std::fs::read_to_string(&to).unwrap(), "new");
         set_mode(&to, 0o644);
         set_mode(&output, 0o755);
+        drop(output);
 
         set_mode(&staging, 0o555);
         let error = super::commit_file(&from, &to).await.unwrap_err();
+        drop(from);
         assert!(
             error.to_string().starts_with("failed to remove file: "),
             "{error}"
         );
+        drop(error);
         assert_eq!(std::fs::read_to_string(&to).unwrap(), "newer");
+        drop(to);
         set_mode(&staging, 0o755);
+        drop(staging);
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -1447,15 +1463,21 @@ mod tests {
         let error = commit_directory(&staged, &proxies).await.unwrap_err();
 
         set_mode(&previous, 0o755);
+        drop(previous);
         assert!(error.to_string().starts_with("failed to rename "), "{error}");
+        drop(error);
         let text = logs.text();
+        drop(logs);
         assert!(text.contains("failed to remove file: "), "{text}");
         assert!(text.contains("held.txt"), "{text}");
+        drop(text);
         assert_eq!(
             std::fs::read_to_string(proxies.join("all.txt")).unwrap(),
             "old"
         );
+        drop(proxies);
         assert!(staged.is_dir());
+        drop(staged);
         std::fs::remove_dir_all(directory).unwrap();
     }
 
@@ -1477,6 +1499,7 @@ mod tests {
             error.to_string().starts_with("failed to create directory: "),
             "{error}"
         );
+        drop(error);
         std::fs::remove_dir_all(directory).unwrap();
     }
 }

@@ -291,6 +291,7 @@ mod tests {
             error.to_string().starts_with("failed to read file to string: "),
             "{error}"
         );
+        drop(error);
 
         std::fs::write(&path, "debug = ").unwrap();
         let error = read_config(&path).await.err().unwrap();
@@ -298,9 +299,11 @@ mod tests {
             error.to_string().starts_with("failed to parse TOML config file: "),
             "{error}"
         );
+        drop(error);
 
         std::fs::write(&path, SHIPPED_CONFIG).unwrap();
         assert!(!read_config(&path).await.unwrap().debug);
+        drop(path);
 
         std::fs::remove_dir_all(directory).unwrap();
     }

@@ -394,7 +394,7 @@ mod tests {
             use crate::event::{AppEvent, Event, Stage};
 
             let events: Vec<_> =
-                std::iter::from_fn(|| rx.try_recv().ok()).collect();
+                std::iter::from_fn(move || rx.try_recv().ok()).collect();
             assert!(matches!(
                 events.first(),
                 Some(Event::App(AppEvent::Stage(Stage::Checking)))

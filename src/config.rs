@@ -15,8 +15,7 @@ use crate::{
 pub struct Source {
     pub url: compact_str::CompactString,
     pub basic_auth: Option<BasicAuth>,
-    pub headers:
-        Option<HashMap<compact_str::CompactString, compact_str::CompactString>>,
+    pub headers: Option<HashMap<compact_str::CompactString, compact_str::CompactString>>,
 }
 
 pub struct ScrapingConfig {
@@ -70,10 +69,7 @@ async fn get_output_path(configured: PathBuf) -> crate::Result<PathBuf> {
         configured
     };
     tokio::fs::create_dir_all(&output_path).await.wrap_err_with(|| {
-        compact_str::format_compact!(
-            "failed to create directory: {}",
-            output_path.display()
-        )
+        compact_str::format_compact!("failed to create directory: {}", output_path.display())
     })?;
     Ok(output_path)
 }
@@ -93,8 +89,8 @@ fn get_max_concurrent_checks(requested: NonZero<usize>) -> usize {
 
     if requested > limit {
         tracing::warn!(
-            "max_concurrent_checks config value is too high for your OS. It \
-             will be ignored and {limit} will be used."
+            "max_concurrent_checks config value is too high for your OS. It will be ignored and \
+             {limit} will be used."
         );
         limit
     } else {
@@ -119,27 +115,21 @@ impl Config {
         self.scraping.enabled_protocols.contains(protocol)
     }
 
-    pub async fn from_raw_config(
-        raw_config: raw_config::RawConfig,
-    ) -> crate::Result<Self> {
+    pub async fn from_raw_config(raw_config: raw_config::RawConfig) -> crate::Result<Self> {
         if !raw_config.output.json.enabled && !raw_config.output.txt.enabled {
             return Err(eyre!(
-                "at least one of 'output.json' or 'output.txt' must be \
-                 enabled in config"
+                "at least one of 'output.json' or 'output.txt' must be enabled in config"
             ));
         }
 
         // Every check builds its own client, so this would fail each of them,
         // and failed checks are only logged in debug mode.
-        reqwest::header::HeaderValue::from_bytes(
-            raw_config.checking.user_agent.as_bytes(),
-        )
-        .wrap_err("invalid 'checking.user_agent' in config")?;
+        reqwest::header::HeaderValue::from_bytes(raw_config.checking.user_agent.as_bytes())
+            .wrap_err("invalid 'checking.user_agent' in config")?;
 
         let output_path = get_output_path(raw_config.output.path).await?;
-        let max_concurrent_checks = get_max_concurrent_checks(
-            raw_config.checking.max_concurrent_checks,
-        );
+        let max_concurrent_checks =
+            get_max_concurrent_checks(raw_config.checking.max_concurrent_checks);
 
         let mut sources = PerProxyType::<Vec<Arc<Source>>>::default();
         let mut enabled_protocols = ProxyTypeSet::default();
@@ -150,20 +140,14 @@ impl Config {
         ] {
             if section.enabled {
                 enabled_protocols.insert(proxy_type);
-                *sources.get_mut(proxy_type) = section
-                    .urls
-                    .into_iter()
-                    .map(Into::into)
-                    .map(Arc::new)
-                    .collect();
+                *sources.get_mut(proxy_type) =
+                    section.urls.into_iter().map(Into::into).map(Arc::new).collect();
             }
         }
 
         Ok(Self {
             scraping: ScrapingConfig {
-                max_proxies_per_source: raw_config
-                    .scraping
-                    .max_proxies_per_source,
+                max_proxies_per_source: raw_config.scraping.max_proxies_per_source,
                 timeout: raw_config.scraping.timeout,
                 connect_timeout: raw_config.scraping.connect_timeout,
                 proxy: raw_config.scraping.proxy,
@@ -196,18 +180,15 @@ pub mod tests {
     use crate::raw_config::RawConfig;
 
     pub async fn test_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
-        let mut raw_config: RawConfig =
-            toml::from_str(include_str!("../config.toml")).unwrap();
+        let mut raw_config: RawConfig = toml::from_str(include_str!("../config.toml")).unwrap();
         raw_config.output.path = PathBuf::from("target");
         edit(&mut raw_config);
         Config::from_raw_config(raw_config).await.unwrap()
     }
 
     pub fn temp_directory(name: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!(
-            "proxy-scraper-checker-{name}-{}",
-            std::process::id()
-        ));
+        let path = std::env::temp_dir()
+            .join(format!("proxy-scraper-checker-{name}-{}", std::process::id()));
         drop(std::fs::remove_dir_all(&path));
         std::fs::create_dir_all(&path).unwrap();
         path
@@ -215,8 +196,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn at_least_one_output_is_required() {
-        let mut raw_config: RawConfig =
-            toml::from_str(include_str!("../config.toml")).unwrap();
+        let mut raw_config: RawConfig = toml::from_str(include_str!("../config.toml")).unwrap();
         raw_config.output.json.enabled = false;
         raw_config.output.txt.enabled = false;
         assert!(Config::from_raw_config(raw_config).await.is_err());
@@ -224,8 +204,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn a_check_user_agent_that_cannot_be_sent_is_refused() {
-        let mut raw_config: RawConfig =
-            toml::from_str(include_str!("../config.toml")).unwrap();
+        let mut raw_config: RawConfig = toml::from_str(include_str!("../config.toml")).unwrap();
         raw_config.checking.user_agent = "a\nb".into();
         assert!(Config::from_raw_config(raw_config).await.is_err());
     }
@@ -240,30 +219,14 @@ pub mod tests {
         .await;
 
         assert_eq!(config.scraping.enabled_protocols.iter().count(), 2);
-        assert!(
-            !config
-                .scraping
-                .sources
-                .get(crate::proxy::ProxyType::Http)
-                .is_empty()
-        );
-        assert!(
-            config
-                .scraping
-                .sources
-                .get(crate::proxy::ProxyType::Socks4)
-                .is_empty()
-        );
+        assert!(!config.scraping.sources.get(crate::proxy::ProxyType::Http).is_empty());
+        assert!(config.scraping.sources.get(crate::proxy::ProxyType::Socks4).is_empty());
     }
 
     #[tokio::test]
     async fn exit_ip_data_needs_json_and_checking() {
         let enabled = |config: &Config| {
-            (
-                config.exit_ip_enabled(),
-                config.asn_enabled(),
-                config.geolocation_enabled(),
-            )
+            (config.exit_ip_enabled(), config.asn_enabled(), config.geolocation_enabled())
         };
 
         let config = test_config(|raw| {

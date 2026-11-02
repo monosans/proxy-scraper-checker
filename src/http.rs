@@ -32,9 +32,7 @@ pub enum TlsProfile {
 }
 
 #[cfg_attr(target_os = "android", expect(clippy::unused_async))]
-pub async fn build_rustls_config(
-    profile: TlsProfile,
-) -> crate::Result<rustls::ClientConfig> {
+pub async fn build_rustls_config(profile: TlsProfile) -> crate::Result<rustls::ClientConfig> {
     let mut provider = rustls::crypto::aws_lc_rs::default_provider();
     if matches!(profile, TlsProfile::Checking) {
         provider.kx_groups = vec![
@@ -44,15 +42,12 @@ pub async fn build_rustls_config(
         ];
     }
 
-    let builder =
-        rustls::ClientConfig::builder_with_provider(Arc::new(provider))
-            .with_safe_default_protocol_versions()?;
+    let builder = rustls::ClientConfig::builder_with_provider(Arc::new(provider))
+        .with_safe_default_protocol_versions()?;
 
     #[cfg(not(target_os = "android"))]
     let builder = tokio::task::spawn_blocking(move || {
-        rustls_platform_verifier::BuilderVerifierExt::with_platform_verifier(
-            builder,
-        )
+        rustls_platform_verifier::BuilderVerifierExt::with_platform_verifier(builder)
     })
     .await??;
 
@@ -103,15 +98,11 @@ fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
 }
 
 fn backoff(attempt: u32) -> Duration {
-    INITIAL_RETRY_DELAY
-        .saturating_mul(2_u32.saturating_pow(attempt))
-        .min(MAX_RETRY_DELAY)
+    INITIAL_RETRY_DELAY.saturating_mul(2_u32.saturating_pow(attempt)).min(MAX_RETRY_DELAY)
 }
 
 fn total_backoff() -> Duration {
-    (0..DEFAULT_MAX_RETRIES)
-        .map(backoff)
-        .fold(Duration::ZERO, Duration::saturating_add)
+    (0..DEFAULT_MAX_RETRIES).map(backoff).fold(Duration::ZERO, Duration::saturating_add)
 }
 
 fn calculate_retry_timeout(
@@ -160,10 +151,8 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
                     if status.is_client_error() || status.is_server_error() {
                         if attempt < DEFAULT_MAX_RETRIES
                             && RETRY_STATUSES.contains(&status)
-                            && let Some(delay) = calculate_retry_timeout(
-                                Some(resp.headers()),
-                                attempt,
-                            )
+                            && let Some(delay) =
+                                calculate_retry_timeout(Some(resp.headers()), attempt)
                         {
                             drop(resp);
                             tokio::time::sleep(delay).await;
@@ -177,8 +166,7 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
                 Err(err) => {
                     if attempt < DEFAULT_MAX_RETRIES
                         && err.is_connect()
-                        && let Some(delay) =
-                            calculate_retry_timeout(None, attempt)
+                        && let Some(delay) = calculate_retry_timeout(None, attempt)
                     {
                         drop(err);
                         tokio::time::sleep(delay).await;
@@ -207,9 +195,8 @@ pub async fn create_reqwest_client(
     }
 
     let client = builder.build()?;
-    let client_with_middleware = reqwest_middleware::ClientBuilder::new(client)
-        .with(RetryMiddleware)
-        .build();
+    let client_with_middleware =
+        reqwest_middleware::ClientBuilder::new(client).with(RetryMiddleware).build();
 
     Ok(client_with_middleware)
 }
@@ -235,13 +222,11 @@ pub mod tests {
     use super::{backoff, calculate_retry_timeout, parse_retry_after};
     use crate::config::tests::test_config;
 
-    const OK: &str =
-        "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
-    const UNAVAILABLE: &str =
-        "HTTP/1.1 503 Service Unavailable\r\nRetry-After-Ms: \
-         1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-    const NOT_FOUND: &str = "HTTP/1.1 404 Not Found\r\nContent-Length: \
-                             0\r\nConnection: close\r\n\r\n";
+    const OK: &str = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
+    const UNAVAILABLE: &str = "HTTP/1.1 503 Service Unavailable\r\nRetry-After-Ms: \
+                               1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    const NOT_FOUND: &str =
+        "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 
     async fn accept(listener: &TcpListener) -> TcpStream {
         let (mut socket, _) = listener.accept().await.unwrap();
@@ -251,9 +236,7 @@ pub mod tests {
     }
 
     // Answers one connection per reply, in order.
-    pub async fn serve(
-        replies: Vec<&'static str>,
-    ) -> (SocketAddr, Arc<AtomicUsize>) {
+    pub async fn serve(replies: Vec<&'static str>) -> (SocketAddr, Arc<AtomicUsize>) {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let requests = Arc::new(AtomicUsize::new(0));
@@ -281,9 +264,7 @@ pub mod tests {
         address
     }
 
-    async fn get(
-        address: SocketAddr,
-    ) -> reqwest_middleware::Result<reqwest::Response> {
+    async fn get(address: SocketAddr) -> reqwest_middleware::Result<reqwest::Response> {
         let config = test_config(|_| {}).await;
         let client = super::create_reqwest_client(&config).await.unwrap();
         drop(config);
@@ -308,8 +289,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn retries_run_out() {
-        let (address, requests) =
-            serve(vec![UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, OK]).await;
+        let (address, requests) = serve(vec![UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, OK]).await;
         get(address).await.unwrap_err();
         assert_eq!(requests.load(Ordering::Relaxed), 3);
     }
@@ -327,14 +307,9 @@ pub mod tests {
             parse_retry_after(&header("retry-after-ms", "1500")),
             Some(Duration::from_millis(1500))
         );
-        assert_eq!(
-            parse_retry_after(&header("retry-after", "3")),
-            Some(Duration::from_secs(3))
-        );
+        assert_eq!(parse_retry_after(&header("retry-after", "3")), Some(Duration::from_secs(3)));
 
-        let date = httpdate::fmt_http_date(
-            SystemTime::now() + Duration::from_secs(60),
-        );
+        let date = httpdate::fmt_http_date(SystemTime::now() + Duration::from_secs(60));
         let delay = parse_retry_after(&header("retry-after", &date)).unwrap();
         assert!(delay > Duration::from_secs(50));
 
@@ -348,10 +323,7 @@ pub mod tests {
             calculate_retry_timeout(Some(&header("retry-after", "1")), 0),
             Some(Duration::from_secs(1))
         );
-        assert_eq!(
-            calculate_retry_timeout(Some(&header("retry-after", "3600")), 0),
-            None
-        );
+        assert_eq!(calculate_retry_timeout(Some(&header("retry-after", "3600")), 0), None);
     }
 
     #[test]

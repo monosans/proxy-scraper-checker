@@ -29,12 +29,7 @@ struct Progress {
     working: AtomicUsize,
 }
 
-fn progress_line(
-    checked: usize,
-    total: usize,
-    working: usize,
-    elapsed: Duration,
-) -> CompactString {
+fn progress_line(checked: usize, total: usize, working: usize, elapsed: Duration) -> CompactString {
     let mut line = format_compact!(
         "Checked {} of {} {}, {} working",
         grouped(checked),
@@ -65,14 +60,9 @@ fn next_proxy(queue: &parking_lot::Mutex<Vec<Proxy>>) -> Option<Proxy> {
 }
 
 async fn resolve_check_url(config: &Config) -> Vec<SocketAddr> {
-    let Some((host, port)) =
-        config.checking.check_url.as_ref().and_then(|url| {
-            Some((
-                compact_str::CompactString::new(url.host_str()?),
-                url.port_or_known_default()?,
-            ))
-        })
-    else {
+    let Some((host, port)) = config.checking.check_url.as_ref().and_then(|url| {
+        Some((compact_str::CompactString::new(url.host_str()?), url.port_or_known_default()?))
+    }) else {
         return Vec::new();
     };
 
@@ -97,8 +87,7 @@ pub async fn check_all(
         return Ok(proxies);
     }
 
-    let workers_count =
-        config.checking.max_concurrent_checks.min(proxies.len());
+    let workers_count = config.checking.max_concurrent_checks.min(proxies.len());
     if workers_count == 0 {
         return Ok(Vec::new());
     }
@@ -154,32 +143,23 @@ pub async fn check_all(
                     let Some(mut proxy) = next_proxy(&queue) else {
                         break;
                     };
-                    let check_result = proxy
-                        .check(&config, &check_url_addrs, tls_backend.clone())
-                        .await;
+                    let check_result =
+                        proxy.check(&config, &check_url_addrs, tls_backend.clone()).await;
                     progress.checked.fetch_add(1, Ordering::Relaxed);
                     #[cfg(feature = "tui")]
-                    drop(tx.send(Event::App(AppEvent::ProxyChecked(
-                        proxy.protocol,
-                    ))));
+                    drop(tx.send(Event::App(AppEvent::ProxyChecked(proxy.protocol))));
                     match check_result {
                         Ok(()) => {
                             progress.working.fetch_add(1, Ordering::Relaxed);
                             #[cfg(feature = "tui")]
                             drop(tx.send(Event::App(AppEvent::ProxyWorking {
                                 protocol: proxy.protocol,
-                                address: format_compact!(
-                                    "{}:{}", proxy.host, proxy.port
-                                ),
+                                address: format_compact!("{}:{}", proxy.host, proxy.port),
                                 latency: proxy.timeout.unwrap_or_default(),
                             })));
                             checked_proxies.lock().push(proxy);
                         }
-                        Err(e)
-                            if tracing::event_enabled!(
-                                tracing::Level::DEBUG
-                            ) =>
-                        {
+                        Err(e) if tracing::event_enabled!(tracing::Level::DEBUG) => {
                             tracing::debug!(
                                 "{}: {}",
                                 proxy.to_compact_string(true),
@@ -245,9 +225,7 @@ pub async fn check_all(
         }
     }
 
-    Ok(Arc::into_inner(checked_proxies)
-        .ok_or_eyre("failed to unwrap Arc")?
-        .into_inner())
+    Ok(Arc::into_inner(checked_proxies).ok_or_eyre("failed to unwrap Arc")?.into_inner())
 }
 
 #[cfg(test)]

@@ -12,16 +12,11 @@ pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
 }
 
 // For steps that don't stop for each other, when two of them can fail.
-pub fn keep_both_errors(
-    first: crate::Result<()>,
-    second: crate::Result<()>,
-) -> crate::Result<()> {
+pub fn keep_both_errors(first: crate::Result<()>, second: crate::Result<()>) -> crate::Result<()> {
     match (first, second) {
-        (Err(first), Err(second)) => Err(color_eyre::eyre::eyre!(
-            "{}; {}",
-            pretty_error(&first),
-            pretty_error(&second)
-        )),
+        (Err(first), Err(second)) => {
+            Err(color_eyre::eyre::eyre!("{}; {}", pretty_error(&first), pretty_error(&second)))
+        }
         (first, second) => first.and(second),
     }
 }
@@ -39,11 +34,7 @@ pub fn grouped(number: usize) -> compact_str::CompactString {
     grouped
 }
 
-pub const fn plural(
-    count: usize,
-    one: &'static str,
-    many: &'static str,
-) -> &'static str {
+pub const fn plural(count: usize, one: &'static str, many: &'static str) -> &'static str {
     if count == 1 { one } else { many }
 }
 
@@ -64,15 +55,12 @@ pub fn clock(seconds: u64) -> compact_str::CompactString {
 pub async fn is_container() -> bool {
     #[cfg(target_os = "linux")]
     {
-        static CACHE: tokio::sync::OnceCell<bool> =
-            tokio::sync::OnceCell::const_new();
+        static CACHE: tokio::sync::OnceCell<bool> = tokio::sync::OnceCell::const_new();
 
         *CACHE
             .get_or_init(async || {
                 tokio::fs::try_exists("/.dockerenv").await.unwrap_or(false)
-                    || tokio::fs::try_exists("/run/.containerenv")
-                        .await
-                        .unwrap_or(false)
+                    || tokio::fs::try_exists("/run/.containerenv").await.unwrap_or(false)
             })
             .await
     }

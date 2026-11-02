@@ -362,10 +362,59 @@ mod tests {
 
     #[tokio::test]
     async fn a_proxy_that_stalls_after_connecting_fails_the_check() {
-        let address = serve_then_stall(STALLED_REPLY).await;
+        let (address, _held) = serve_then_stall(STALLED_REPLY).await;
         let (result, proxy) = check(address, |_| {}).await;
         assert!(result.is_err());
         assert!(proxy.timeout.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_proxy_gets_its_credentials_and_only_the_check_url() {
+        let (address, requests) = serve(vec![EXIT_IP_REPLY]).await;
+        let config = test_config(|raw| {
+            raw.checking.check_url = Some("http://check.test/".parse().unwrap());
+        })
+        .await;
+        let mut proxy = Proxy {
+            protocol: ProxyType::Http,
+            host: address.ip().to_compact_string(),
+            port: address.port(),
+            auth: Some(Box::new(auth())),
+            timeout: None,
+            exit_ip: None,
+        };
+        let tls = build_rustls_config(TlsProfile::Checking).await.unwrap();
+
+        proxy.check(&config, &[], tls).await.unwrap();
+
+        let request = requests.lock().pop().unwrap().to_ascii_lowercase();
+        assert!(request.starts_with("get http://check.test/ http/1.1\r\n"), "{request}");
+        // user:pass
+        assert!(request.contains("\r\nproxy-authorization: basic dxnlcjpwyxnz\r\n"), "{request}");
+    }
+
+    #[tokio::test]
+    async fn without_a_check_url_there_is_nothing_to_measure() {
+        let config = test_config(|raw| raw.checking.check_url = None).await;
+        let mut proxy = proxy(None);
+        let tls = build_rustls_config(TlsProfile::Checking).await.unwrap();
+
+        proxy.check(&config, &[], tls).await.unwrap();
+
+        assert!(proxy.timeout.is_none());
+        assert!(proxy.exit_ip.is_none());
+    }
+
+    #[test]
+    fn socks4_resolves_the_host_itself_only_with_addresses_to_use() {
+        for (proxy_type, scheme, without_addresses) in [
+            (ProxyType::Http, "http", "http"),
+            (ProxyType::Socks4, "socks4", "socks4a"),
+            (ProxyType::Socks5, "socks5h", "socks5h"),
+        ] {
+            assert_eq!(proxy_type.as_proxy_url_scheme(false), scheme);
+            assert_eq!(proxy_type.as_proxy_url_scheme(true), without_addresses);
+        }
     }
 
     #[test]

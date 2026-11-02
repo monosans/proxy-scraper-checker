@@ -204,12 +204,8 @@ pub async fn create_reqwest_client(
 #[cfg(test)]
 pub mod tests {
     use std::{
-        future,
         net::SocketAddr,
-        sync::{
-            Arc,
-            atomic::{AtomicUsize, Ordering},
-        },
+        sync::Arc,
         time::{Duration, SystemTime},
     };
 
@@ -217,6 +213,7 @@ pub mod tests {
     use tokio::{
         io::{AsyncReadExt as _, AsyncWriteExt as _},
         net::{TcpListener, TcpStream},
+        sync::oneshot,
     };
 
     use super::{backoff, calculate_retry_timeout, parse_retry_after};
@@ -228,40 +225,56 @@ pub mod tests {
     const NOT_FOUND: &str =
         "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 
-    async fn accept(listener: &TcpListener) -> TcpStream {
+    // The head of each request received, in order.
+    pub type Requests = Arc<parking_lot::Mutex<Vec<String>>>;
+
+    // Reads a request without a body.
+    async fn accept(listener: &TcpListener) -> (TcpStream, String) {
         let (mut socket, _) = listener.accept().await.unwrap();
-        let mut request = [0_u8; 1024];
-        assert_ne!(socket.read(&mut request).await.unwrap(), 0);
-        socket
+        let mut request = Vec::new();
+        while !request.ends_with(b"\r\n\r\n") {
+            let mut chunk = [0_u8; 1024];
+            let read = socket.read(&mut chunk).await.unwrap();
+            assert_ne!(read, 0);
+            request.extend_from_slice(chunk.get(..read).unwrap());
+        }
+        (socket, String::from_utf8(request).unwrap())
     }
 
     // Answers one connection per reply, in order.
-    pub async fn serve(replies: Vec<&'static str>) -> (SocketAddr, Arc<AtomicUsize>) {
+    pub async fn serve<R>(replies: Vec<R>) -> (SocketAddr, Requests)
+    where
+        R: AsRef<[u8]> + Send + 'static,
+    {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
-        let requests = Arc::new(AtomicUsize::new(0));
-        let counter = Arc::clone(&requests);
+        let requests = Requests::default();
+        let received = Arc::clone(&requests);
         tokio::spawn(async move {
             for reply in replies {
-                let mut socket = accept(&listener).await;
-                counter.fetch_add(1, Ordering::Relaxed);
-                socket.write_all(reply.as_bytes()).await.unwrap();
+                let (mut socket, request) = accept(&listener).await;
+                received.lock().push(request);
+                socket.write_all(reply.as_ref()).await.unwrap();
             }
         });
         (address, requests)
     }
 
-    // Sends `reply`, then holds the connection open and silent.
-    pub async fn serve_then_stall(reply: &'static str) -> SocketAddr {
+    // Sends `reply`, then holds the connection open and silent for as long as
+    // the receiver is kept.
+    pub async fn serve_then_stall(
+        reply: &'static str,
+    ) -> (SocketAddr, oneshot::Receiver<TcpStream>) {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
+        let (held, holder) = oneshot::channel();
         tokio::spawn(async move {
-            let mut socket = accept(&listener).await;
+            let (mut socket, _) = accept(&listener).await;
             drop(listener);
             socket.write_all(reply.as_bytes()).await.unwrap();
-            future::pending::<()>().await;
+            drop(held.send(socket));
         });
-        address
+        (address, holder)
     }
 
     async fn get(address: SocketAddr) -> reqwest_middleware::Result<reqwest::Response> {
@@ -284,21 +297,38 @@ pub mod tests {
         let (address, requests) = serve(vec![UNAVAILABLE, OK]).await;
         let response = get(address).await.unwrap();
         assert_eq!(response.text().await.unwrap(), "ok");
-        assert_eq!(requests.load(Ordering::Relaxed), 2);
+        assert_eq!(requests.lock().len(), 2);
     }
 
     #[tokio::test]
     async fn retries_run_out() {
         let (address, requests) = serve(vec![UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, OK]).await;
         get(address).await.unwrap_err();
-        assert_eq!(requests.load(Ordering::Relaxed), 3);
+        assert_eq!(requests.lock().len(), 3);
     }
 
     #[tokio::test]
     async fn a_permanent_failure_is_not_retried() {
         let (address, requests) = serve(vec![NOT_FOUND, OK]).await;
         get(address).await.unwrap_err();
-        assert_eq!(requests.load(Ordering::Relaxed), 1);
+        assert_eq!(requests.lock().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_request_that_cannot_be_repeated_is_refused() {
+        let (address, requests) = serve(vec![OK]).await;
+        let config = test_config(|_| {}).await;
+        let client = super::create_reqwest_client(&config).await.unwrap();
+
+        let error = client
+            .post(format!("http://{address}/"))
+            .body(reqwest::Body::wrap(String::from("streamed")))
+            .send()
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("Request object is not cloneable"), "{error}");
+        assert_eq!(requests.lock().len(), 0);
     }
 
     #[test]

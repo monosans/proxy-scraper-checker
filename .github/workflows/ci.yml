@@ -16,6 +16,7 @@ jobs:
       - build
       - build-docker
       - clippy
+      - coverage
       - licenses
       - pre-commit
       - rustfmt
@@ -548,6 +549,27 @@ jobs:
       - run: cargo +beta clippy --all-targets --features "${FEATURES}" --
         env:
           FEATURES: ${{ matrix.features }}
+  coverage:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+        with:
+          toolchain: beta
+          components: llvm-tools
+          cache-key: coverage
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-llvm-cov
+          fallback: none
+      # Each build leaves out code that only the other one has, so neither
+      # covers everything alone.
+      - run: cargo +beta llvm-cov --no-report --features "" --locked
+      - run: cargo +beta llvm-cov --no-report --features tui --locked
+      - run: cargo +beta llvm-cov report --fail-under-lines 100 --show-missing-lines
   licenses:
     runs-on: ubuntu-26.04
     steps:

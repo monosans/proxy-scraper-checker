@@ -759,6 +759,7 @@ mod tests {
         event::Stage,
         proxy::ProxyType,
         tui::app::{DbProgress, FastProxy, Mode, ProtocolProgress, State, TICKS_PER_SECOND},
+        utils::tests::listen_everywhere,
     };
 
     const MB: usize = 1_000_000;
@@ -1250,6 +1251,49 @@ mod tests {
         let screen = render(&config, &state, 30, 40);
         let joined = screen.replace(['\n', ' '], "");
         assert!(joined.contains(path), "{screen}");
+    }
+
+    #[tokio::test]
+    async fn the_logs_say_how_serious_each_message_is() {
+        use tracing_subscriber::layer::SubscriberExt as _;
+
+        listen_everywhere();
+        tui_logger::set_default_level(tui_logger::LevelFilter::Trace);
+        let logger = tracing_subscriber::registry().with(tui_logger::TuiTracingSubscriberLayer);
+        tracing::subscriber::with_default(logger, || {
+            tracing::error!("disk is full");
+            tracing::warn!("the database will be downloaded again, as it could not be saved");
+            tracing::info!("first line\nsecond line");
+            tracing::debug!("a detail");
+            tracing::info!("");
+        });
+        tui_logger::move_events();
+        let config = test_config(|_| {}).await;
+
+        let screen = render(&config, &State::default(), 100, 40);
+        assert!(screen.contains("error: disk is full"), "{screen}");
+        assert!(screen.contains("warning: the database"), "{screen}");
+        assert!(screen.contains("first line"), "{screen}");
+        assert!(screen.contains("          second line"), "{screen}");
+        assert!(screen.contains("a detail"), "{screen}");
+        // A clock in front of every message.
+        let timed = screen
+            .lines()
+            .filter(|line| {
+                line.get(1..9).is_some_and(|time| {
+                    time.bytes().filter(u8::is_ascii_digit).count() == 6
+                        && time.matches(':').count() == 2
+                })
+            })
+            .count();
+        assert!(timed >= 4, "{screen}");
+        drop(screen);
+
+        // Too narrow for the clock, and the long message wraps.
+        let screen = render(&config, &State::default(), 40, 40);
+        assert!(screen.contains(" error: disk is full"), "{screen}");
+        assert!(screen.contains("\n   downloaded again"), "{screen}");
+        assert!(screen.contains("\n   second line"), "{screen}");
     }
 
     #[tokio::test]

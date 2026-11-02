@@ -26,6 +26,41 @@ struct ScrapedProxies {
     counts: crate::proxy::PerProxyType<usize>,
 }
 
+impl ScrapedProxies {
+    // Runs while the shared lock is held.
+    #[cfg(feature = "tui")]
+    fn add(&mut self, new_proxies: HashSet<Proxy>) {
+        if self.proxies.is_empty() {
+            for proxy in &new_proxies {
+                let count = self.counts.get_mut(proxy.protocol);
+                *count = count.saturating_add(1);
+            }
+            self.proxies = new_proxies;
+            return;
+        }
+
+        // extend() reserves from the iterator's size hint; inserting one at a
+        // time does not.
+        self.proxies.reserve(new_proxies.len());
+        for proxy in new_proxies {
+            let protocol = proxy.protocol;
+            if self.proxies.insert(proxy) {
+                let count = self.counts.get_mut(protocol);
+                *count = count.saturating_add(1);
+            }
+        }
+    }
+
+    #[cfg(not(feature = "tui"))]
+    fn add(&mut self, new_proxies: HashSet<Proxy>) {
+        if self.proxies.is_empty() {
+            self.proxies = new_proxies;
+        } else {
+            self.proxies.extend(new_proxies);
+        }
+    }
+}
+
 pub async fn scrape_all(
     config: Arc<Config>,
     http_client: reqwest_middleware::ClientWithMiddleware,
@@ -241,33 +276,7 @@ async fn scrape_one(
     drop(source);
 
     let mut scraped = proxies.lock();
-
-    if scraped.proxies.is_empty() {
-        #[cfg(feature = "tui")]
-        for proxy in &new_proxies {
-            let count = scraped.counts.get_mut(proxy.protocol);
-            *count = count.saturating_add(1);
-        }
-
-        scraped.proxies = new_proxies;
-    } else {
-        // extend() reserves from the iterator's size hint; inserting one at a
-        // time does not, and this runs while the shared lock is held.
-        #[cfg(feature = "tui")]
-        scraped.proxies.reserve(new_proxies.len());
-
-        #[cfg(feature = "tui")]
-        for proxy in new_proxies {
-            let protocol = proxy.protocol;
-            if scraped.proxies.insert(proxy) {
-                let count = scraped.counts.get_mut(protocol);
-                *count = count.saturating_add(1);
-            }
-        }
-
-        #[cfg(not(feature = "tui"))]
-        scraped.proxies.extend(new_proxies);
-    }
+    scraped.add(new_proxies);
 
     #[cfg(feature = "tui")]
     let counts = scraped.counts;
@@ -286,13 +295,20 @@ async fn scrape_one(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use compact_str::CompactString;
+    use tokio_util::sync::CancellationToken;
 
     use super::{Proxy, scrape_all};
     use crate::{
-        config::tests::{temp_directory, test_config},
+        config::{
+            Source,
+            tests::{temp_directory, test_config},
+        },
         http::{create_reqwest_client, tests::serve},
         raw_config::SourceConfig,
+        utils::tests::capture_logs,
     };
 
     async fn scrape(name: &str, text: &str, limit: usize) -> Vec<Proxy> {
@@ -306,11 +322,15 @@ mod tests {
     }
 
     async fn scrape_source(source: &str, limit: usize) -> Vec<Proxy> {
-        let config = std::sync::Arc::new(
+        scrape_sources(vec![SourceConfig::Simple(source.into())], limit).await
+    }
+
+    async fn scrape_sources(sources: Vec<SourceConfig>, limit: usize) -> Vec<Proxy> {
+        let config = Arc::new(
             test_config(move |raw| {
                 raw.scraping.max_proxies_per_source = limit;
                 raw.scraping.http.enabled = true;
-                raw.scraping.http.urls = vec![SourceConfig::Simple(source.into())];
+                raw.scraping.http.urls = sources;
                 raw.scraping.socks4.enabled = false;
                 raw.scraping.socks5.enabled = true;
                 raw.scraping.socks5.urls = Vec::new();
@@ -324,12 +344,200 @@ mod tests {
         scrape_all(
             config,
             client,
-            tokio_util::sync::CancellationToken::new(),
+            CancellationToken::new(),
             #[cfg(feature = "tui")]
             tx,
         )
         .await
         .unwrap()
+    }
+
+    fn reply(body: &[u8]) -> Vec<u8> {
+        let mut reply = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        )
+        .into_bytes();
+        reply.extend_from_slice(body);
+        reply
+    }
+
+    #[tokio::test]
+    async fn a_source_can_ask_for_credentials_and_headers() {
+        let (address, requests) = serve(vec![reply(b"1.1.1.1:80")]).await;
+        let source: Source = toml::from_str(&format!(
+            r#"
+            url = "http://{address}/list"
+            basic_auth = {{ username = "user", password = "pass" }}
+            headers = {{ X-Api-Key = "secret" }}
+            "#
+        ))
+        .unwrap();
+
+        let proxies = scrape_sources(vec![SourceConfig::Detailed(Box::new(source))], 0).await;
+
+        assert_eq!(sorted(&proxies), ["http://1.1.1.1:80"]);
+        let request = requests.lock().pop().unwrap().to_ascii_lowercase();
+        assert!(request.starts_with("get /list http/1.1\r\n"), "{request}");
+        // user:pass
+        assert!(request.contains("\r\nauthorization: basic dxnlcjpwyxnz\r\n"), "{request}");
+        assert!(request.contains("\r\nx-api-key: secret\r\n"), "{request}");
+    }
+
+    #[tokio::test]
+    async fn a_source_that_is_not_utf8_still_gives_its_proxies() {
+        let (address, _) = serve(vec![reply(b"\xff 1.1.1.1:80 \xfe 2.2.2.2:80")]).await;
+        let proxies = scrape_source(&format!("http://{address}/"), 0).await;
+        assert_eq!(sorted(&proxies), ["http://1.1.1.1:80", "http://2.2.2.2:80"]);
+    }
+
+    #[tokio::test]
+    async fn a_source_can_be_a_file_url() {
+        let directory = temp_directory("file-url");
+        let path = directory.join("source.txt");
+        std::fs::write(&path, "1.1.1.1:80").unwrap();
+        let url = url::Url::from_file_path(&path).unwrap();
+        drop(path);
+
+        let proxies = scrape_source(url.as_str(), 0).await;
+
+        assert_eq!(sorted(&proxies), ["http://1.1.1.1:80"]);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn sources_that_fail_or_have_nothing_only_get_a_warning() {
+        let logs = capture_logs();
+        let directory = temp_directory("failing-sources");
+        let empty = directory.join("empty.txt");
+        std::fs::write(&empty, "no proxies here").unwrap();
+        let missing = directory.join("missing.txt");
+        let crowded = directory.join("crowded.txt");
+        std::fs::write(&crowded, "1.1.1.1:80 2.2.2.2:80").unwrap();
+        let working = directory.join("working.txt");
+        std::fs::write(&working, "3.3.3.3:80").unwrap();
+
+        let sources = [&empty, &missing, &crowded, &working]
+            .map(|path| SourceConfig::Simple(path.to_str().unwrap().into()));
+        let proxies = scrape_sources(sources.into(), 1).await;
+
+        assert_eq!(sorted(&proxies), ["http://3.3.3.3:80"]);
+        let text = logs.text();
+        assert!(text.contains("Scraping 4 sources"), "{text}");
+        for (path, warning) in [
+            (&empty, "no proxies found"),
+            (&missing, "failed to read file to string: "),
+            (&crowded, "too many proxies (> 1) - skipped"),
+        ] {
+            let path = path.to_str().unwrap();
+            assert!(text.contains(&format!("{path}: {warning}")), "{text}");
+        }
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[tokio::test]
+    async fn an_unknown_url_scheme_is_tried_as_a_path() {
+        let logs = capture_logs();
+        let proxies = scrape_source("unknown://source", 0).await;
+        assert!(proxies.is_empty());
+        let text = logs.text();
+        assert!(
+            text.contains("unknown://source: failed to read file to string: unknown://source"),
+            "{text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn every_source_adds_to_one_list_without_duplicates() {
+        let directory = temp_directory("several-sources");
+        let mut sources = Vec::new();
+        for (name, text) in [
+            ("first.txt", "1.1.1.1:80 socks5://2.2.2.2:80"),
+            ("second.txt", "1.1.1.1:80 3.3.3.3:80 socks5://2.2.2.2:80"),
+            ("third.txt", "socks5://4.4.4.4:80"),
+        ] {
+            let path = directory.join(name);
+            std::fs::write(&path, text).unwrap();
+            sources.push(SourceConfig::Simple(path.to_str().unwrap().into()));
+        }
+
+        let config = Arc::new(
+            test_config(move |raw| {
+                raw.scraping.http.enabled = true;
+                raw.scraping.http.urls = sources;
+                raw.scraping.socks4.enabled = false;
+                raw.scraping.socks5.enabled = true;
+                raw.scraping.socks5.urls = Vec::new();
+            })
+            .await,
+        );
+        let client = create_reqwest_client(&config).await.unwrap();
+        #[cfg(feature = "tui")]
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let proxies = scrape_all(
+            config,
+            client,
+            CancellationToken::new(),
+            #[cfg(feature = "tui")]
+            tx,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            sorted(&proxies),
+            [
+                "http://1.1.1.1:80",
+                "http://3.3.3.3:80",
+                "socks5://2.2.2.2:80",
+                "socks5://4.4.4.4:80"
+            ]
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+
+        // The totals only grow, and end at what was found.
+        #[cfg(feature = "tui")]
+        {
+            use crate::{
+                event::{AppEvent, Event},
+                proxy::ProxyType,
+            };
+
+            let events: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
+            let of = |protocol: ProxyType| {
+                let mut sources = None;
+                let mut scraped = 0_usize;
+                let mut totals = Vec::new();
+                for event in &events {
+                    if let Event::App(AppEvent::SourcesTotal(p, count)) = event
+                        && *p == protocol
+                    {
+                        sources = Some(*count);
+                    }
+                    if let Event::App(AppEvent::SourceScraped(p)) = event
+                        && *p == protocol
+                    {
+                        scraped = scraped.saturating_add(1);
+                    }
+                    if let Event::App(AppEvent::TotalProxies(p, count)) = event
+                        && *p == protocol
+                    {
+                        totals.push(*count);
+                    }
+                }
+                (sources, scraped, totals)
+            };
+            let (sources, scraped, totals) = of(ProxyType::Http);
+            assert_eq!((sources, scraped), (Some(3), 3));
+            assert!(totals.is_sorted(), "{totals:?}");
+            assert_eq!(totals.last(), Some(&2));
+
+            let (sources, scraped, totals) = of(ProxyType::Socks5);
+            assert_eq!((sources, scraped), (Some(0), 0));
+            assert!(totals.is_sorted(), "{totals:?}");
+            assert_eq!(totals.last(), Some(&2));
+        }
     }
 
     fn sorted(proxies: &[Proxy]) -> Vec<CompactString> {

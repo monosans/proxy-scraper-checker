@@ -1063,7 +1063,7 @@ mod tests {
     async fn a_short_screen_still_says_where_the_results_went() {
         let path = "/data/data/com.termux/files/home/proxy-scraper-checker/out";
         let mut config = test_config(|_| {}).await;
-        config.output.path = std::path::PathBuf::from(path);
+        config.output.path = PathBuf::from(path);
         let mut state = State { mode: Mode::Done, saved: Some(1_517), ..checking_state() };
         state.asn_db.finished_ok = Some(false);
         state.geo_db.finished_ok = Some(false);

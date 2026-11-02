@@ -1,4 +1,4 @@
-use std::{future::Future, io, path::PathBuf, time::Duration};
+use std::{io, path::PathBuf, time::Duration};
 
 use color_eyre::eyre::{OptionExt as _, WrapErr as _, eyre};
 use tokio::io::AsyncWriteExt as _;
@@ -50,7 +50,7 @@ where
 
 async fn open_reader(path: PathBuf) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
     tokio::task::spawn_blocking(move || {
-        #[expect(clippy::undocumented_unsafe_blocks)]
+        #[expect(unsafe_code, clippy::undocumented_unsafe_blocks)]
         unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(move || {
             compact_str::format_compact!("failed to open IP database: {}", path.display())
         })

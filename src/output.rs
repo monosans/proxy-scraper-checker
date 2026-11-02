@@ -36,7 +36,7 @@ fn compare_timeout(a: &Proxy, b: &Proxy) -> Ordering {
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 enum HostSortKey {
     Ipv4([u8; 4]),
-    Name(compact_str::CompactString),
+    Name(CompactString),
 }
 
 fn natural_sort_key(proxy: &Proxy) -> (ProxyType, HostSortKey, u16, Option<Box<ProxyAuth>>) {
@@ -156,7 +156,7 @@ fn stage_json_file(path: &Path, pretty: bool, list: &ProxyListJson<'_>) -> crate
     let file = std::fs::File::create(&tmp).wrap_err_with(|| {
         compact_str::format_compact!("failed to create file: {}", tmp.display())
     })?;
-    let mut writer = std::io::BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
+    let mut writer = io::BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
 
     let failed = move || compact_str::format_compact!("failed to write to file: {}", tmp.display());
 
@@ -170,7 +170,7 @@ fn stage_json_file(path: &Path, pretty: bool, list: &ProxyListJson<'_>) -> crate
     writer.flush().wrap_err_with(failed)
 }
 
-fn rename_failed(from: &Path, to: &Path) -> compact_str::CompactString {
+fn rename_failed(from: &Path, to: &Path) -> CompactString {
     compact_str::format_compact!("failed to rename {} to {}", from.display(), to.display())
 }
 

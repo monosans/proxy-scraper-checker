@@ -17,10 +17,9 @@ fn split(span: &str) -> Option<(ProxyMatch<'_>, usize)> {
     let trailing_len = after_leading.len().checked_sub(core.len())?;
 
     let (protocol, rest) = match core.find("://") {
-        Some(scheme_end) => (
-            Some(core.get(..scheme_end)?),
-            core.get(scheme_end.checked_add(3)?..)?,
-        ),
+        Some(scheme_end) => {
+            (Some(core.get(..scheme_end)?), core.get(scheme_end.checked_add(3)?..)?)
+        }
         None => (None, core),
     };
 
@@ -45,10 +44,7 @@ fn split(span: &str) -> Option<(ProxyMatch<'_>, usize)> {
         None => host_cidr,
     };
 
-    Some((
-        ProxyMatch { protocol, username, password, host_cidr, host, port },
-        trailing_len,
-    ))
+    Some((ProxyMatch { protocol, username, password, host_cidr, host, port }, trailing_len))
 }
 
 pub fn proxy_matches(text: &str) -> impl Iterator<Item = ProxyMatch<'_>> {
@@ -100,9 +96,7 @@ mod tests {
     use super::{parse_exit_ip, parse_ipv4, proxy_matches};
 
     fn endpoints(text: &str) -> Vec<CompactString> {
-        proxy_matches(text)
-            .map(|m| format_compact!("{}:{}", m.host_cidr, m.port))
-            .collect()
+        proxy_matches(text).map(|m| format_compact!("{}:{}", m.host_cidr, m.port)).collect()
     }
 
     fn matches_nothing(text: &str) -> bool {
@@ -129,10 +123,7 @@ mod tests {
 
     #[test]
     fn adjacent_proxies_share_one_separator() {
-        assert_eq!(
-            endpoints("1.2.3.4:8080 5.6.7.8:1080"),
-            ["1.2.3.4:8080", "5.6.7.8:1080"]
-        );
+        assert_eq!(endpoints("1.2.3.4:8080 5.6.7.8:1080"), ["1.2.3.4:8080", "5.6.7.8:1080"]);
     }
 
     #[test]
@@ -141,33 +132,23 @@ mod tests {
             endpoints("<td>1.2.3.4</td><td>8080</td><td>1.2.3.4:8080</td>"),
             ["1.2.3.4:8080"]
         );
-        assert_eq!(
-            endpoints(r#"{"proxy": "socks5://1.2.3.4:1080"}"#),
-            ["1.2.3.4:1080"]
-        );
+        assert_eq!(endpoints(r#"{"proxy": "socks5://1.2.3.4:1080"}"#), ["1.2.3.4:1080"]);
     }
 
     #[test]
     fn scheme_is_extracted() {
-        let protocols: Vec<_> = proxy_matches(
-            "http://1.1.1.1:80 socks4a://2.2.2.2:80 SOCKS5H://3.3.3.3:80 \
-             4.4.4.4:80",
-        )
-        .map(|m| m.protocol)
-        .collect();
-        assert_eq!(
-            protocols,
-            [Some("http"), Some("socks4a"), Some("SOCKS5H"), None]
-        );
+        let protocols: Vec<_> =
+            proxy_matches("http://1.1.1.1:80 socks4a://2.2.2.2:80 SOCKS5H://3.3.3.3:80 4.4.4.4:80")
+                .map(|m| m.protocol)
+                .collect();
+        assert_eq!(protocols, [Some("http"), Some("socks4a"), Some("SOCKS5H"), None]);
     }
 
     #[test]
     fn only_ascii_letters_spell_a_scheme() {
-        for text in [
-            "\u{17f}ocks5://1.2.3.4:80",
-            "http\u{17f}://1.2.3.4:80",
-            "soc\u{212a}s5://1.2.3.4:80",
-        ] {
+        for text in
+            ["\u{17f}ocks5://1.2.3.4:80", "http\u{17f}://1.2.3.4:80", "soc\u{212a}s5://1.2.3.4:80"]
+        {
             let matches: Vec<_> = proxy_matches(text).collect();
             assert_eq!(matches.len(), 1, "{text}");
             assert_eq!(matches.first().unwrap().protocol, None, "{text}");
@@ -196,14 +177,8 @@ mod tests {
 
     #[test]
     fn hostnames_are_matched() {
-        assert_eq!(
-            endpoints("proxy.example.com:3128"),
-            ["proxy.example.com:3128"]
-        );
-        assert_eq!(
-            endpoints("eu1.proxy.example.com:3128"),
-            ["eu1.proxy.example.com:3128"]
-        );
+        assert_eq!(endpoints("proxy.example.com:3128"), ["proxy.example.com:3128"]);
+        assert_eq!(endpoints("eu1.proxy.example.com:3128"), ["eu1.proxy.example.com:3128"]);
         assert_eq!(
             endpoints("my-proxy.example.com:80 1proxy.example.com:80"),
             ["my-proxy.example.com:80", "1proxy.example.com:80"]
@@ -254,10 +229,7 @@ mod tests {
         assert_eq!(parse_exit_ip("1.2.3.4\n"), expected);
         assert_eq!(parse_exit_ip("\u{feff}1.2.3.4\n"), expected);
         assert_eq!(parse_exit_ip(r#"{"origin": "1.2.3.4"}"#), expected);
-        assert_eq!(
-            parse_exit_ip(r#"{"origin": "9.9.9.9, 1.2.3.4"}"#),
-            expected
-        );
+        assert_eq!(parse_exit_ip(r#"{"origin": "9.9.9.9, 1.2.3.4"}"#), expected);
         assert_eq!(parse_exit_ip(r#"{"ip": "1.2.3.4"}"#), None);
         assert_eq!(parse_exit_ip("<html>hello</html>"), None);
     }

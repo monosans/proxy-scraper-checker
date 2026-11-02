@@ -73,10 +73,7 @@ pub async fn scrape_all(
         .iter()
         .map(|proto| config.scraping.sources.get(proto).len())
         .sum();
-    tracing::info!(
-        "Scraping {sources_count} {}",
-        plural(sources_count, "source", "sources")
-    );
+    tracing::info!("Scraping {sources_count} {}", plural(sources_count, "source", "sources"));
 
     let proxies = Arc::new(parking_lot::Mutex::new(ScrapedProxies::default()));
     let mut join_set = tokio::task::JoinSet::new();
@@ -145,9 +142,7 @@ async fn fetch_source(
 
     if !matches!(url.scheme(), "http" | "https") {
         drop(http_client);
-        let path = url
-            .to_file_path()
-            .unwrap_or_else(move |()| source.url.as_str().into());
+        let path = url.to_file_path().unwrap_or_else(move |()| source.url.as_str().into());
         drop(url);
         return read_source_file(path).await;
     }
@@ -164,11 +159,8 @@ async fn fetch_source(
         }
     }
 
-    let max_bytes = if max_proxies == 0 {
-        usize::MAX
-    } else {
-        max_proxies.saturating_mul(MAX_BYTES_PER_PROXY)
-    };
+    let max_bytes =
+        if max_proxies == 0 { usize::MAX } else { max_proxies.saturating_mul(MAX_BYTES_PER_PROXY) };
 
     let mut response = request.send().await?;
     let mut body = Vec::new();
@@ -186,10 +178,7 @@ async fn fetch_source(
 
 async fn read_source_file(path: std::path::PathBuf) -> crate::Result<String> {
     tokio::fs::read_to_string(&path).await.wrap_err_with(move || {
-        compact_str::format_compact!(
-            "failed to read file to string: {}",
-            path.display()
-        )
+        compact_str::format_compact!("failed to read file to string: {}", path.display())
     })
 }
 
@@ -201,12 +190,8 @@ async fn scrape_one(
     source: Arc<Source>,
     #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
 ) -> crate::Result<()> {
-    let text_result = fetch_source(
-        http_client,
-        &source,
-        config.scraping.max_proxies_per_source,
-    )
-    .await;
+    let text_result =
+        fetch_source(http_client, &source, config.scraping.max_proxies_per_source).await;
 
     #[cfg(feature = "tui")]
     drop(tx.send(Event::App(AppEvent::SourceScraped(proto))));
@@ -244,18 +229,15 @@ async fn scrape_one(
             };
 
             if proxy_match.host_cidr.as_bytes().contains(&b'/')
-                && let Ok(ipv4_net) =
-                    proxy_match.host_cidr.parse::<ipnet::Ipv4Net>()
+                && let Ok(ipv4_net) = proxy_match.host_cidr.parse::<ipnet::Ipv4Net>()
             {
-                new_proxies.extend(ipv4_net.hosts().map(move |host_ip| {
-                    Proxy {
-                        protocol,
-                        host: host_ip.to_compact_string(),
-                        port,
-                        auth: auth.clone(),
-                        timeout: None,
-                        exit_ip: None,
-                    }
+                new_proxies.extend(ipv4_net.hosts().map(move |host_ip| Proxy {
+                    protocol,
+                    host: host_ip.to_compact_string(),
+                    port,
+                    auth: auth.clone(),
+                    timeout: None,
+                    exit_ip: None,
                 }));
             } else {
                 new_proxies.insert(Proxy {
@@ -305,10 +287,7 @@ async fn scrape_one(
 
     #[cfg(feature = "tui")]
     for proto in seen_protocols.iter() {
-        drop(tx.send(Event::App(AppEvent::TotalProxies(
-            proto,
-            *counts.get(proto),
-        ))));
+        drop(tx.send(Event::App(AppEvent::TotalProxies(proto, *counts.get(proto)))));
     }
 
     Ok(())
@@ -346,10 +325,7 @@ mod tests {
         scrape_sources(vec![SourceConfig::Simple(source.into())], limit).await
     }
 
-    async fn scrape_sources(
-        sources: Vec<SourceConfig>,
-        limit: usize,
-    ) -> Vec<Proxy> {
+    async fn scrape_sources(sources: Vec<SourceConfig>, limit: usize) -> Vec<Proxy> {
         let config = Arc::new(
             test_config(move |raw| {
                 raw.scraping.max_proxies_per_source = limit;
@@ -378,8 +354,7 @@ mod tests {
 
     fn reply(body: &[u8]) -> Vec<u8> {
         let mut reply = format!(
-            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: \
-             close\r\n\r\n",
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
             body.len()
         )
         .into_bytes();
@@ -399,30 +374,21 @@ mod tests {
         ))
         .unwrap();
 
-        let proxies =
-            scrape_sources(vec![SourceConfig::Detailed(Box::new(source))], 0)
-                .await;
+        let proxies = scrape_sources(vec![SourceConfig::Detailed(Box::new(source))], 0).await;
 
         assert_eq!(sorted(&proxies), ["http://1.1.1.1:80"]);
         let request = requests.lock().pop().unwrap().to_ascii_lowercase();
         assert!(request.starts_with("get /list http/1.1\r\n"), "{request}");
         // user:pass
-        assert!(
-            request.contains("\r\nauthorization: basic dxnlcjpwyxnz\r\n"),
-            "{request}"
-        );
+        assert!(request.contains("\r\nauthorization: basic dxnlcjpwyxnz\r\n"), "{request}");
         assert!(request.contains("\r\nx-api-key: secret\r\n"), "{request}");
     }
 
     #[tokio::test]
     async fn a_source_that_is_not_utf8_still_gives_its_proxies() {
-        let (address, _) =
-            serve(vec![reply(b"\xff 1.1.1.1:80 \xfe 2.2.2.2:80")]).await;
+        let (address, _) = serve(vec![reply(b"\xff 1.1.1.1:80 \xfe 2.2.2.2:80")]).await;
         let proxies = scrape_source(&format!("http://{address}/"), 0).await;
-        assert_eq!(
-            sorted(&proxies),
-            ["http://1.1.1.1:80", "http://2.2.2.2:80"]
-        );
+        assert_eq!(sorted(&proxies), ["http://1.1.1.1:80", "http://2.2.2.2:80"]);
     }
 
     #[tokio::test]
@@ -476,10 +442,7 @@ mod tests {
         assert!(proxies.is_empty());
         let text = logs.text();
         assert!(
-            text.contains(
-                "unknown://source: failed to read file to string: \
-                 unknown://source"
-            ),
+            text.contains("unknown://source: failed to read file to string: unknown://source"),
             "{text}"
         );
     }
@@ -541,8 +504,7 @@ mod tests {
                 proxy::ProxyType,
             };
 
-            let events: Vec<_> =
-                std::iter::from_fn(|| rx.try_recv().ok()).collect();
+            let events: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
             let of = |protocol: ProxyType| {
                 let mut sources = None;
                 let mut scraped = 0_usize;
@@ -579,42 +541,29 @@ mod tests {
     }
 
     fn sorted(proxies: &[Proxy]) -> Vec<CompactString> {
-        let mut lines: Vec<_> =
-            proxies.iter().map(|p| p.to_compact_string(true)).collect();
+        let mut lines: Vec<_> = proxies.iter().map(|p| p.to_compact_string(true)).collect();
         lines.sort_unstable();
         lines
     }
 
     #[tokio::test]
     async fn the_scheme_in_a_source_overrides_its_section() {
-        let proxies = scrape(
-            "scheme",
-            "1.1.1.1:80 socks5://2.2.2.2:80 socks4://3.3.3.3:80",
-            0,
-        )
-        .await;
-        assert_eq!(
-            sorted(&proxies),
-            ["http://1.1.1.1:80", "socks5://2.2.2.2:80"]
-        );
+        let proxies =
+            scrape("scheme", "1.1.1.1:80 socks5://2.2.2.2:80 socks4://3.3.3.3:80", 0).await;
+        assert_eq!(sorted(&proxies), ["http://1.1.1.1:80", "socks5://2.2.2.2:80"]);
     }
 
     #[tokio::test]
     async fn a_garbled_scheme_does_not_end_the_run() {
-        let proxies =
-            scrape("garbled", "\u{17f}ocks5://1.1.1.1:80 2.2.2.2:80", 0).await;
-        assert_eq!(
-            sorted(&proxies),
-            ["http://1.1.1.1:80", "http://2.2.2.2:80"]
-        );
+        let proxies = scrape("garbled", "\u{17f}ocks5://1.1.1.1:80 2.2.2.2:80", 0).await;
+        assert_eq!(sorted(&proxies), ["http://1.1.1.1:80", "http://2.2.2.2:80"]);
     }
 
     #[tokio::test]
     async fn a_reply_too_big_for_the_limit_is_dropped_while_reading() {
         let body = "1.1.1.1:80\n".repeat(200);
         let reply = format!(
-            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: \
-             close\r\n\r\n{body}",
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
             body.len()
         );
         drop(body);

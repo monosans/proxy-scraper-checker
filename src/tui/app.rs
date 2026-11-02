@@ -19,8 +19,7 @@ use crate::{
 // counters. Going faster spins their last digits past reading and has the
 // terminal repaint for nothing, which is what SSH and phones feel.
 pub const TICKS_PER_SECOND: u64 = 4;
-const TICK: Duration =
-    Duration::from_millis(1000_u64.div_euclid(TICKS_PER_SECOND));
+const TICK: Duration = Duration::from_millis(1000_u64.div_euclid(TICKS_PER_SECOND));
 // Until the first checks time out, only the quick ones have finished: with the
 // default 10 s timeout, the time left starts out about five times too long.
 const MIN_TICKS_FOR_SPEED: u64 = 15 * TICKS_PER_SECOND;
@@ -31,9 +30,7 @@ pub struct RatatuiRestoreGuard;
 
 impl Drop for RatatuiRestoreGuard {
     fn drop(&mut self) {
-        restore_terminal(
-            crossterm::terminal::is_raw_mode_enabled().unwrap_or(true),
-        );
+        restore_terminal(crossterm::terminal::is_raw_mode_enabled().unwrap_or(true));
     }
 }
 
@@ -84,21 +81,11 @@ pub struct ProtocolProgress {
 impl ProtocolProgress {
     pub const fn plus(self, other: Self) -> Self {
         Self {
-            sources_total: self
-                .sources_total
-                .saturating_add(other.sources_total),
-            sources_scraped: self
-                .sources_scraped
-                .saturating_add(other.sources_scraped),
-            proxies_total: self
-                .proxies_total
-                .saturating_add(other.proxies_total),
-            proxies_checked: self
-                .proxies_checked
-                .saturating_add(other.proxies_checked),
-            proxies_working: self
-                .proxies_working
-                .saturating_add(other.proxies_working),
+            sources_total: self.sources_total.saturating_add(other.sources_total),
+            sources_scraped: self.sources_scraped.saturating_add(other.sources_scraped),
+            proxies_total: self.proxies_total.saturating_add(other.proxies_total),
+            proxies_checked: self.proxies_checked.saturating_add(other.proxies_checked),
+            proxies_working: self.proxies_working.saturating_add(other.proxies_working),
         }
     }
 }
@@ -142,9 +129,7 @@ impl State {
     }
 
     fn rank(&mut self, proxy: FastProxy) {
-        let place = self
-            .fastest
-            .partition_point(move |other| other.latency <= proxy.latency);
+        let place = self.fastest.partition_point(move |other| other.latency <= proxy.latency);
         if place < FASTEST_KEPT {
             self.fastest.insert(place, proxy);
             self.fastest.truncate(FASTEST_KEPT);
@@ -159,8 +144,7 @@ impl State {
     // other, and a short window would only make the time left jump around.
     fn checking_ticks(&self) -> Option<u64> {
         let ticks = self.ticks.saturating_sub(self.checking_since);
-        (self.stage == Stage::Checking && ticks >= MIN_TICKS_FOR_SPEED)
-            .then_some(ticks)
+        (self.stage == Stage::Checking && ticks >= MIN_TICKS_FOR_SPEED).then_some(ticks)
     }
 
     pub fn checks_per_second(&self) -> Option<usize> {
@@ -181,10 +165,8 @@ impl State {
             .map(move |protocol| self.protocols.get(protocol).proxies_total)
             .sum();
         let left = total.saturating_sub(self.proxies_checked) as u64;
-        let checked_ticks =
-            (self.proxies_checked as u64).saturating_mul(TICKS_PER_SECOND);
-        (checked_ticks != 0)
-            .then(move || left.saturating_mul(ticks).div_ceil(checked_ticks))
+        let checked_ticks = (self.proxies_checked as u64).saturating_mul(TICKS_PER_SECOND);
+        (checked_ticks != 0).then(move || left.saturating_mul(ticks).div_ceil(checked_ticks))
     }
 }
 
@@ -201,10 +183,7 @@ pub async fn run<B, I>(
 where
     B: ratatui::backend::Backend,
     B::Error: Send + Sync + 'static,
-    I: futures::Stream<Item = std::io::Result<CrosstermEvent>>
-        + Send
-        + Unpin
-        + 'static,
+    I: futures::Stream<Item = std::io::Result<CrosstermEvent>> + Send + Unpin + 'static,
 {
     // Dropping it panics if stderr went with the terminal, and it only shows
     // the cursor, which RatatuiRestoreGuard does.
@@ -216,21 +195,18 @@ where
     let mut app_state = State::default();
     let logger_state = TuiWidgetState::default();
 
-    terminal
-        .draw(|frame| view::draw(frame, &config, &app_state, &logger_state))?;
+    terminal.draw(|frame| view::draw(frame, &config, &app_state, &logger_state))?;
 
     // The listeners hold on to their senders until this returns.
     while !matches!(app_state.mode, Mode::Quit)
         && let Some(event) = rx.recv().await
     {
-        let mut redraw =
-            handle_event(event, &mut app_state, &token, &logger_state);
+        let mut redraw = handle_event(event, &mut app_state, &token, &logger_state);
 
         while !matches!(app_state.mode, Mode::Quit)
             && let Ok(event) = rx.try_recv()
         {
-            redraw |=
-                handle_event(event, &mut app_state, &token, &logger_state);
+            redraw |= handle_event(event, &mut app_state, &token, &logger_state);
         }
 
         if redraw {
@@ -259,10 +235,8 @@ async fn tick_event_listener(tx: tokio::sync::mpsc::UnboundedSender<Event>) {
     }
 }
 
-async fn crossterm_event_listener<I>(
-    mut reader: I,
-    tx: tokio::sync::mpsc::UnboundedSender<Event>,
-) where
+async fn crossterm_event_listener<I>(mut reader: I, tx: tokio::sync::mpsc::UnboundedSender<Event>)
+where
     I: futures::Stream<Item = std::io::Result<CrosstermEvent>> + Unpin,
 {
     let mut consecutive_errors: u8 = 0;
@@ -294,8 +268,8 @@ async fn crossterm_event_listener<I>(
     drop(reader);
 
     tracing::warn!(
-        "Terminal input was lost, so the hotkeys no longer work. The program \
-         will exit when the run finishes."
+        "Terminal input was lost, so the hotkeys no longer work. The program will exit when the \
+         run finishes."
     );
     drop(tx.send(Event::App(AppEvent::InputLost)));
 }
@@ -315,8 +289,7 @@ fn handle_key(
         }
         KeyCode::Esc | KeyCode::Char('q' | 'Q') if !ctrl => {
             // Everything is checked by the time saving starts.
-            state.stopped |= matches!(state.mode, Mode::Running)
-                && state.stage != Stage::Saving;
+            state.stopped |= matches!(state.mode, Mode::Running) && state.stage != Stage::Saving;
             state.mode = state.mode.next();
             token.cancel();
             true
@@ -349,8 +322,7 @@ fn handle_app_event(app_event: AppEvent, state: &mut State) -> bool {
         }
         AppEvent::IpDbTotal(db_type, bytes) => {
             state.db_mut(db_type).total =
-                usize::try_from(bytes.unwrap_or_default())
-                    .unwrap_or(usize::MAX);
+                usize::try_from(bytes.unwrap_or_default()).unwrap_or(usize::MAX);
         }
         AppEvent::IpDbDownloaded(db_type, bytes) => {
             let db = state.db_mut(db_type);
@@ -363,8 +335,7 @@ fn handle_app_event(app_event: AppEvent, state: &mut State) -> bool {
             state.protocols.get_mut(proxy_type).sources_total = amount;
         }
         AppEvent::SourceScraped(proxy_type) => {
-            let scraped =
-                &mut state.protocols.get_mut(proxy_type).sources_scraped;
+            let scraped = &mut state.protocols.get_mut(proxy_type).sources_scraped;
             *scraped = scraped.saturating_add(1);
         }
         AppEvent::TotalProxies(proxy_type, amount) => {
@@ -372,14 +343,12 @@ fn handle_app_event(app_event: AppEvent, state: &mut State) -> bool {
             *total = (*total).max(amount);
         }
         AppEvent::ProxyChecked(proxy_type) => {
-            let checked =
-                &mut state.protocols.get_mut(proxy_type).proxies_checked;
+            let checked = &mut state.protocols.get_mut(proxy_type).proxies_checked;
             *checked = checked.saturating_add(1);
             state.proxies_checked = state.proxies_checked.saturating_add(1);
         }
         AppEvent::ProxyWorking { protocol, address, latency } => {
-            let working =
-                &mut state.protocols.get_mut(protocol).proxies_working;
+            let working = &mut state.protocols.get_mut(protocol).proxies_working;
             *working = working.saturating_add(1);
             state.rank(FastProxy { protocol, address, latency });
         }
@@ -395,8 +364,7 @@ fn handle_app_event(app_event: AppEvent, state: &mut State) -> bool {
         }
         AppEvent::Done => {
             if matches!(state.mode, Mode::Running | Mode::Stopping) {
-                state.mode =
-                    if state.input_lost { Mode::Quit } else { Mode::Done };
+                state.mode = if state.input_lost { Mode::Quit } else { Mode::Done };
             }
             redraw_now = true;
         }
@@ -440,17 +408,12 @@ mod tests {
         Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
     };
     use futures::{StreamExt as _, stream};
-    use ratatui::{
-        Terminal, TerminalOptions, Viewport, backend::CrosstermBackend,
-        layout::Rect,
-    };
+    use ratatui::{Terminal, TerminalOptions, Viewport, backend::CrosstermBackend, layout::Rect};
     use tokio::sync::mpsc::unbounded_channel;
     use tokio_util::sync::CancellationToken;
     use tui_logger::TuiWidgetState;
 
-    use super::{
-        Event, FASTEST_KEPT, Mode, State, TICKS_PER_SECOND, handle_event, run,
-    };
+    use super::{Event, FASTEST_KEPT, Mode, State, TICKS_PER_SECOND, handle_event, run};
     use crate::{
         config::tests::test_config,
         event::{AppEvent, Stage},
@@ -461,8 +424,7 @@ mod tests {
 
     type Input = io::Result<CrosstermEvent>;
     // One type for every test, so that they all run the same code.
-    type Keyboard =
-        std::pin::Pin<Box<dyn futures::Stream<Item = Input> + Send>>;
+    type Keyboard = std::pin::Pin<Box<dyn futures::Stream<Item = Input> + Send>>;
 
     // What the TUI draws on: it keeps nothing, and fails once what was drawn
     // so far shows `refused`.
@@ -471,15 +433,11 @@ mod tests {
         refused: Option<&'static str>,
     }
 
-    #[expect(
-        clippy::missing_trait_methods,
-        reason = "the provided methods all go through write"
-    )]
+    #[expect(clippy::missing_trait_methods, reason = "the provided methods all go through write")]
     impl io::Write for Screen {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             self.drawn.push_str(&String::from_utf8_lossy(buf));
-            if self.refused.is_some_and(|refused| self.drawn.contains(refused))
-            {
+            if self.refused.is_some_and(|refused| self.drawn.contains(refused)) {
                 return Err(io::Error::other("the terminal is gone"));
             }
             Ok(buf.len())
@@ -501,9 +459,7 @@ mod tests {
         let screen = Screen { drawn: String::new(), refused };
         let terminal = Terminal::with_options(
             CrosstermBackend::new(screen),
-            TerminalOptions {
-                viewport: Viewport::Fixed(Rect::new(0, 0, 80, 24)),
-            },
+            TerminalOptions { viewport: Viewport::Fixed(Rect::new(0, 0, 80, 24)) },
         )
         .unwrap();
         let (tx, rx) = unbounded_channel();
@@ -550,9 +506,7 @@ mod tests {
             AppEvent::Quit,
         ];
 
-        run_with(Box::pin(stream::pending()), &token, events, None)
-            .await
-            .unwrap();
+        run_with(Box::pin(stream::pending()), &token, events, None).await.unwrap();
 
         assert!(!token.is_cancelled());
     }
@@ -582,17 +536,11 @@ mod tests {
         let token = CancellationToken::new();
         let failing = stream::repeat_with(|| Err(io::Error::other("no input")));
 
-        run_with(Box::pin(failing), &token, [AppEvent::Done], None)
-            .await
-            .unwrap();
+        run_with(Box::pin(failing), &token, [AppEvent::Done], None).await.unwrap();
 
         assert!(!token.is_cancelled());
         let text = logs.text();
-        assert_eq!(
-            text.matches("Failed to read terminal input: no input").count(),
-            8,
-            "{text}"
-        );
+        assert_eq!(text.matches("Failed to read terminal input: no input").count(), 8, "{text}");
         assert!(text.contains("Terminal input was lost"), "{text}");
     }
 
@@ -642,9 +590,7 @@ mod tests {
             (Some("Finished"), vec![AppEvent::Done]),
         ] {
             let error =
-                run_with(Box::pin(stream::pending()), &token, events, refused)
-                    .await
-                    .unwrap_err();
+                run_with(Box::pin(stream::pending()), &token, events, refused).await.unwrap_err();
             assert_eq!(error.to_string(), "the terminal is gone");
         }
         assert!(!token.is_cancelled());
@@ -671,15 +617,9 @@ mod tests {
             apply(&mut state, &token, Event::App(event));
         }
 
-        assert_eq!(
-            (state.asn_db.downloaded, state.asn_db.total),
-            (1_000, 2_000_000)
-        );
+        assert_eq!((state.asn_db.downloaded, state.asn_db.total), (1_000, 2_000_000));
         assert_eq!(state.asn_db.finished_ok, None);
-        assert_eq!(
-            (state.geo_db.total, state.geo_db.finished_ok),
-            (0, Some(false))
-        );
+        assert_eq!((state.geo_db.total, state.geo_db.finished_ok), (0, Some(false)));
         let socks4 = state.protocols.get(ProxyType::Socks4);
         assert_eq!((socks4.sources_total, socks4.sources_scraped), (5, 2));
         assert_eq!(socks4.proxies_checked, 1);
@@ -694,8 +634,7 @@ mod tests {
         let mut state = State::default();
         let token = CancellationToken::new();
         let logger_state = TuiWidgetState::default();
-        let mut redraws =
-            |event| handle_event(event, &mut state, &token, &logger_state);
+        let mut redraws = |event| handle_event(event, &mut state, &token, &logger_state);
 
         for code in [
             KeyCode::Up,
@@ -748,11 +687,7 @@ mod tests {
         let mut state = State { stage: Stage::Saving, ..State::default() };
         let token = CancellationToken::new();
 
-        apply(
-            &mut state,
-            &token,
-            press(KeyCode::Char('q'), KeyModifiers::NONE),
-        );
+        apply(&mut state, &token, press(KeyCode::Char('q'), KeyModifiers::NONE));
 
         assert!(matches!(state.mode, Mode::Stopping));
         assert!(!state.stopped);
@@ -763,19 +698,11 @@ mod tests {
         let mut state = State::default();
         let token = CancellationToken::new();
 
-        apply(
-            &mut state,
-            &token,
-            press(KeyCode::Char('q'), KeyModifiers::CONTROL),
-        );
+        apply(&mut state, &token, press(KeyCode::Char('q'), KeyModifiers::CONTROL));
         assert!(matches!(state.mode, Mode::Running));
         assert!(!token.is_cancelled());
 
-        apply(
-            &mut state,
-            &token,
-            press(KeyCode::Char('c'), KeyModifiers::CONTROL),
-        );
+        apply(&mut state, &token, press(KeyCode::Char('c'), KeyModifiers::CONTROL));
         assert!(matches!(state.mode, Mode::Quit));
         assert!(token.is_cancelled());
     }
@@ -787,11 +714,7 @@ mod tests {
         let mut release = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
         release.kind = KeyEventKind::Release;
 
-        apply(
-            &mut state,
-            &token,
-            Event::Crossterm(CrosstermEvent::Key(release)),
-        );
+        apply(&mut state, &token, Event::Crossterm(CrosstermEvent::Key(release)));
         assert!(matches!(state.mode, Mode::Running));
     }
 
@@ -826,9 +749,7 @@ mod tests {
     fn proxy_total_only_grows() {
         let mut state = State::default();
         let token = CancellationToken::new();
-        let total = |amount| {
-            Event::App(AppEvent::TotalProxies(ProxyType::Http, amount))
-        };
+        let total = |amount| Event::App(AppEvent::TotalProxies(ProxyType::Http, amount));
 
         apply(&mut state, &token, total(5));
         apply(&mut state, &token, total(3));
@@ -863,15 +784,10 @@ mod tests {
             );
         }
 
-        let kept: Vec<_> =
-            state.fastest.iter().map(|proxy| proxy.latency).collect();
-        let expected: Vec<_> =
-            (1..=FASTEST_KEPT as u64).map(Duration::from_millis).collect();
+        let kept: Vec<_> = state.fastest.iter().map(|proxy| proxy.latency).collect();
+        let expected: Vec<_> = (1..=FASTEST_KEPT as u64).map(Duration::from_millis).collect();
         assert_eq!(kept, expected);
-        assert_eq!(
-            state.protocols.get(ProxyType::Http).proxies_working,
-            FASTEST_KEPT * 2
-        );
+        assert_eq!(state.protocols.get(ProxyType::Http).proxies_working, FASTEST_KEPT * 2);
     }
 
     #[tokio::test]

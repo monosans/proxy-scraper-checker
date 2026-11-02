@@ -35,10 +35,7 @@ where
         return Ok(None);
     }
     match url::Url::parse(&s) {
-        Ok(url)
-            if allowed_schemes.contains(&url.scheme())
-                && url.host_str().is_some() =>
-        {
+        Ok(url) if allowed_schemes.contains(&url.scheme()) && url.host_str().is_some() => {
             Ok(Some(url))
         }
         _ => Err(serde::de::Error::custom(compact_str::format_compact!(
@@ -48,18 +45,14 @@ where
     }
 }
 
-fn validate_proxy_url<'de, D>(
-    deserializer: D,
-) -> Result<Option<url::Url>, D::Error>
+fn validate_proxy_url<'de, D>(deserializer: D) -> Result<Option<url::Url>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     validate_url(deserializer, &["http", "https", "socks4", "socks5"])
 }
 
-fn validate_http_url<'de, D>(
-    deserializer: D,
-) -> Result<Option<url::Url>, D::Error>
+fn validate_http_url<'de, D>(deserializer: D) -> Result<Option<url::Url>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -76,9 +69,7 @@ pub enum SourceConfig {
 impl From<SourceConfig> for Source {
     fn from(source_config: SourceConfig) -> Self {
         match source_config {
-            SourceConfig::Simple(url) => {
-                Self { url, basic_auth: None, headers: None }
-            }
+            SourceConfig::Simple(url) => Self { url, basic_auth: None, headers: None },
             SourceConfig::Detailed(source) => *source,
         }
     }
@@ -135,23 +126,15 @@ pub struct RawConfig {
 }
 
 pub fn get_config_path() -> PathBuf {
-    env::var_os(CONFIG_ENV)
-        .map_or_else(|| PathBuf::from("config.toml"), PathBuf::from)
+    env::var_os(CONFIG_ENV).map_or_else(|| PathBuf::from("config.toml"), PathBuf::from)
 }
 
 pub async fn read_config(path: &Path) -> crate::Result<RawConfig> {
-    let raw_config =
-        tokio::fs::read_to_string(path).await.wrap_err_with(move || {
-            compact_str::format_compact!(
-                "failed to read file to string: {}",
-                path.display()
-            )
-        })?;
+    let raw_config = tokio::fs::read_to_string(path).await.wrap_err_with(move || {
+        compact_str::format_compact!("failed to read file to string: {}", path.display())
+    })?;
     toml::from_str(&raw_config).wrap_err_with(move || {
-        compact_str::format_compact!(
-            "failed to parse TOML config file: {}",
-            path.display()
-        )
+        compact_str::format_compact!("failed to parse TOML config file: {}", path.display())
     })
 }
 
@@ -159,9 +142,7 @@ pub async fn read_config(path: &Path) -> crate::Result<RawConfig> {
 mod tests {
     use std::time::Duration;
 
-    use super::{
-        CONFIG_ENV, RawConfig, SourceConfig, get_config_path, read_config,
-    };
+    use super::{CONFIG_ENV, RawConfig, SourceConfig, get_config_path, read_config};
     use crate::config::{Source, tests::temp_directory};
 
     const SHIPPED_CONFIG: &str = include_str!("../config.toml");
@@ -212,11 +193,7 @@ mod tests {
         assert_eq!(auth.username, "user");
         assert!(auth.password.is_none());
         assert_eq!(
-            source
-                .headers
-                .unwrap()
-                .get("Authorization")
-                .map(compact_str::CompactString::as_str),
+            source.headers.unwrap().get("Authorization").map(compact_str::CompactString::as_str),
             Some("Bearer token")
         );
     }
@@ -233,10 +210,10 @@ mod tests {
 
     #[test]
     fn empty_check_url_disables_checking() {
-        let config: RawConfig = toml::from_str(&SHIPPED_CONFIG.replace(
-            r#"check_url = "https://ipv4.icanhazip.com""#,
-            r#"check_url = """#,
-        ))
+        let config: RawConfig = toml::from_str(
+            &SHIPPED_CONFIG
+                .replace(r#"check_url = "https://ipv4.icanhazip.com""#, r#"check_url = """#),
+        )
         .unwrap();
         assert!(config.checking.check_url.is_none());
     }
@@ -259,8 +236,7 @@ mod tests {
             .to_string();
             assert!(
                 error.contains(&format!(
-                    "'{check_url}' is not a valid url with one of these \
-                     schemes: http, https"
+                    "'{check_url}' is not a valid url with one of these schemes: http, https"
                 )),
                 "{error}"
             );
@@ -269,16 +245,11 @@ mod tests {
 
     #[test]
     fn the_scraping_proxy_may_also_be_socks() {
-        let config: RawConfig =
-            toml::from_str(&SHIPPED_CONFIG.replace(
-                r#"proxy = """#,
-                r#"proxy = "socks5://127.0.0.1:1080""#,
-            ))
-            .unwrap();
-        assert_eq!(
-            config.scraping.proxy.unwrap().as_str(),
-            "socks5://127.0.0.1:1080"
-        );
+        let config: RawConfig = toml::from_str(
+            &SHIPPED_CONFIG.replace(r#"proxy = """#, r#"proxy = "socks5://127.0.0.1:1080""#),
+        )
+        .unwrap();
+        assert_eq!(config.scraping.proxy.unwrap().as_str(), "socks5://127.0.0.1:1080");
     }
 
     #[tokio::test]
@@ -287,17 +258,11 @@ mod tests {
         let path = directory.join("config.toml");
 
         let error = read_config(&path).await.err().unwrap();
-        assert!(
-            error.to_string().starts_with("failed to read file to string: "),
-            "{error}"
-        );
+        assert!(error.to_string().starts_with("failed to read file to string: "), "{error}");
 
         std::fs::write(&path, "debug = ").unwrap();
         let error = read_config(&path).await.err().unwrap();
-        assert!(
-            error.to_string().starts_with("failed to parse TOML config file: "),
-            "{error}"
-        );
+        assert!(error.to_string().starts_with("failed to parse TOML config file: "), "{error}");
 
         std::fs::write(&path, SHIPPED_CONFIG).unwrap();
         assert!(!read_config(&path).await.unwrap().debug);

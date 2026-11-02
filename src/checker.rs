@@ -29,12 +29,7 @@ struct Progress {
     working: AtomicUsize,
 }
 
-fn progress_line(
-    checked: usize,
-    total: usize,
-    working: usize,
-    elapsed: Duration,
-) -> CompactString {
+fn progress_line(checked: usize, total: usize, working: usize, elapsed: Duration) -> CompactString {
     let mut line = format_compact!(
         "Checked {} of {} {}, {} working",
         grouped(checked),
@@ -79,10 +74,7 @@ fn next_proxy(queue: &parking_lot::Mutex<Vec<Proxy>>) -> Option<Proxy> {
 async fn resolve_check_url(config: &Config) -> Vec<SocketAddr> {
     let Some((host, port)) =
         config.checking.check_url.as_ref().and_then(|url| {
-            Some((
-                CompactString::new(url.host_str()?),
-                url.port_or_known_default()?,
-            ))
+            Some((CompactString::new(url.host_str()?), url.port_or_known_default()?))
         })
     else {
         return Vec::new();
@@ -109,8 +101,7 @@ pub async fn check_all(
         return Ok(proxies);
     }
 
-    let workers_count =
-        config.checking.max_concurrent_checks.min(proxies.len());
+    let workers_count = config.checking.max_concurrent_checks.min(proxies.len());
     if workers_count == 0 {
         return Ok(Vec::new());
     }
@@ -164,32 +155,23 @@ pub async fn check_all(
                     let Some(mut proxy) = next_proxy(&queue) else {
                         break;
                     };
-                    let check_result = proxy
-                        .check(&config, &check_url_addrs, tls_backend.clone())
-                        .await;
+                    let check_result =
+                        proxy.check(&config, &check_url_addrs, tls_backend.clone()).await;
                     progress.checked.fetch_add(1, Ordering::Relaxed);
                     #[cfg(feature = "tui")]
-                    drop(tx.send(Event::App(AppEvent::ProxyChecked(
-                        proxy.protocol,
-                    ))));
+                    drop(tx.send(Event::App(AppEvent::ProxyChecked(proxy.protocol))));
                     match check_result {
                         Ok(()) => {
                             progress.working.fetch_add(1, Ordering::Relaxed);
                             #[cfg(feature = "tui")]
                             drop(tx.send(Event::App(AppEvent::ProxyWorking {
                                 protocol: proxy.protocol,
-                                address: format_compact!(
-                                    "{}:{}", proxy.host, proxy.port
-                                ),
+                                address: format_compact!("{}:{}", proxy.host, proxy.port),
                                 latency: proxy.timeout.unwrap_or_default(),
                             })));
                             checked_proxies.lock().push(proxy);
                         }
-                        Err(e)
-                            if tracing::event_enabled!(
-                                tracing::Level::DEBUG
-                            ) =>
-                        {
+                        Err(e) if tracing::event_enabled!(tracing::Level::DEBUG) => {
                             tracing::debug!(
                                 "{}: {}",
                                 proxy.to_compact_string(true),
@@ -246,9 +228,7 @@ pub async fn check_all(
         }
     }
 
-    Ok(Arc::into_inner(checked_proxies)
-        .ok_or_eyre("failed to unwrap Arc")?
-        .into_inner())
+    Ok(Arc::into_inner(checked_proxies).ok_or_eyre("failed to unwrap Arc")?.into_inner())
 }
 
 #[cfg(test)]
@@ -271,8 +251,8 @@ mod tests {
         utils::tests::capture_logs,
     };
 
-    const EXIT_IP_REPLY: &str = "HTTP/1.1 200 OK\r\nContent-Length: \
-                                 9\r\nConnection: close\r\n\r\n192.0.2.1";
+    const EXIT_IP_REPLY: &str =
+        "HTTP/1.1 200 OK\r\nContent-Length: 9\r\nConnection: close\r\n\r\n192.0.2.1";
 
     fn http_proxy(address: SocketAddr) -> Proxy {
         Proxy {
@@ -287,8 +267,7 @@ mod tests {
 
     // Nothing listens there any more, so connecting is refused at once.
     async fn refusing_proxy() -> Proxy {
-        let listener =
-            tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         drop(listener);
         http_proxy(address)
@@ -297,19 +276,14 @@ mod tests {
     async fn checking_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
         test_config(move |raw| {
             // An address, so that nothing waits for DNS.
-            raw.checking.check_url =
-                Some("http://127.0.0.1:9/".parse().unwrap());
+            raw.checking.check_url = Some("http://127.0.0.1:9/".parse().unwrap());
             edit(raw);
         })
         .await
     }
 
     // As when nobody reads the events.
-    async fn check(
-        config: Config,
-        proxies: Vec<Proxy>,
-        token: CancellationToken,
-    ) -> Vec<Proxy> {
+    async fn check(config: Config, proxies: Vec<Proxy>, token: CancellationToken) -> Vec<Proxy> {
         #[cfg(feature = "tui")]
         let tx = tokio::sync::mpsc::unbounded_channel().0;
         check_all(
@@ -333,8 +307,7 @@ mod tests {
         let proxy = refusing_proxy().await;
         let expected = endpoints(std::slice::from_ref(&proxy));
 
-        let proxies =
-            check(config, vec![proxy], CancellationToken::new()).await;
+        let proxies = check(config, vec![proxy], CancellationToken::new()).await;
 
         assert_eq!(endpoints(&proxies), expected);
         assert!(proxies.iter().all(|proxy| proxy.timeout.is_none()));
@@ -394,30 +367,19 @@ mod tests {
         {
             use crate::event::{AppEvent, Event, Stage};
 
-            let events: Vec<_> =
-                std::iter::from_fn(|| rx.try_recv().ok()).collect();
-            assert!(matches!(
-                events.first(),
-                Some(Event::App(AppEvent::Stage(Stage::Checking)))
-            ));
+            let events: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
+            assert!(matches!(events.first(), Some(Event::App(AppEvent::Stage(Stage::Checking)))));
             let checked = events
                 .iter()
                 .filter(|event| {
-                    matches!(
-                        event,
-                        Event::App(AppEvent::ProxyChecked(ProxyType::Http))
-                    )
+                    matches!(event, Event::App(AppEvent::ProxyChecked(ProxyType::Http)))
                 })
                 .count();
             assert_eq!(checked, 2);
             let working: Vec<_> = events
                 .iter()
                 .filter_map(|event| {
-                    if let Event::App(AppEvent::ProxyWorking {
-                        protocol,
-                        address,
-                        latency,
-                    }) = event
+                    if let Event::App(AppEvent::ProxyWorking { protocol, address, latency }) = event
                     {
                         Some((*protocol, address.as_str(), Some(*latency)))
                     } else {
@@ -433,12 +395,7 @@ mod tests {
     #[tokio::test]
     async fn a_failed_check_outside_debug_mode_is_dropped() {
         let config = checking_config(|_| {}).await;
-        let proxies = check(
-            config,
-            vec![refusing_proxy().await],
-            CancellationToken::new(),
-        )
-        .await;
+        let proxies = check(config, vec![refusing_proxy().await], CancellationToken::new()).await;
         assert!(proxies.is_empty());
     }
 
@@ -454,9 +411,7 @@ mod tests {
         })
         .await;
 
-        let proxies =
-            check(config, vec![http_proxy(address)], CancellationToken::new())
-                .await;
+        let proxies = check(config, vec![http_proxy(address)], CancellationToken::new()).await;
 
         assert!(proxies.is_empty());
         let text = logs.text();

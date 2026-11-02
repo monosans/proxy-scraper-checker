@@ -12,16 +12,11 @@ pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
 }
 
 // For steps that don't stop for each other, when two of them can fail.
-pub fn keep_both_errors(
-    first: crate::Result<()>,
-    second: crate::Result<()>,
-) -> crate::Result<()> {
+pub fn keep_both_errors(first: crate::Result<()>, second: crate::Result<()>) -> crate::Result<()> {
     match (first, second) {
-        (Err(first), Err(second)) => Err(color_eyre::eyre::eyre!(
-            "{}; {}",
-            pretty_error(&first),
-            pretty_error(&second)
-        )),
+        (Err(first), Err(second)) => {
+            Err(color_eyre::eyre::eyre!("{}; {}", pretty_error(&first), pretty_error(&second)))
+        }
         (first, second) => first.and(second),
     }
 }
@@ -40,10 +35,7 @@ pub fn seen_from_outside(
     in_container: bool,
 ) -> compact_str::CompactString {
     if in_container {
-        compact_str::format_compact!(
-            "{outside} ({} in container)",
-            path.display()
-        )
+        compact_str::format_compact!("{outside} ({} in container)", path.display())
     } else {
         compact_str::format_compact!("{}", path.display())
     }
@@ -62,11 +54,7 @@ pub fn grouped(number: usize) -> compact_str::CompactString {
     grouped
 }
 
-pub const fn plural(
-    count: usize,
-    one: &'static str,
-    many: &'static str,
-) -> &'static str {
+pub const fn plural(count: usize, one: &'static str, many: &'static str) -> &'static str {
     if count == 1 { one } else { many }
 }
 
@@ -87,15 +75,12 @@ pub fn clock(seconds: u64) -> compact_str::CompactString {
 pub async fn is_container() -> bool {
     #[cfg(target_os = "linux")]
     {
-        static CACHE: tokio::sync::OnceCell<bool> =
-            tokio::sync::OnceCell::const_new();
+        static CACHE: tokio::sync::OnceCell<bool> = tokio::sync::OnceCell::const_new();
 
         *CACHE
             .get_or_init(async || {
                 tokio::fs::try_exists("/.dockerenv").await.unwrap_or(false)
-                    || tokio::fs::try_exists("/run/.containerenv")
-                        .await
-                        .unwrap_or(false)
+                    || tokio::fs::try_exists("/run/.containerenv").await.unwrap_or(false)
             })
             .await
     }
@@ -111,17 +96,11 @@ pub mod tests {
 
     use color_eyre::eyre::eyre;
 
-    use super::{
-        clock, grouped, is_container, keep_both_errors, log_panic,
-        seen_from_outside,
-    };
+    use super::{clock, grouped, is_container, keep_both_errors, log_panic, seen_from_outside};
 
     struct Writer(Arc<parking_lot::Mutex<Vec<u8>>>);
 
-    #[expect(
-        clippy::missing_trait_methods,
-        reason = "the provided methods all go through write"
-    )]
+    #[expect(clippy::missing_trait_methods, reason = "the provided methods all go through write")]
     impl io::Write for Writer {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             self.0.lock().extend_from_slice(buf);
@@ -208,10 +187,7 @@ pub mod tests {
     fn a_path_in_a_container_says_where_it_is_outside() {
         let path = Path::new("/home/app/out");
         assert_eq!(seen_from_outside("./out", path, false), "/home/app/out");
-        assert_eq!(
-            seen_from_outside("./out", path, true),
-            "./out (/home/app/out in container)"
-        );
+        assert_eq!(seen_from_outside("./out", path, true), "./out (/home/app/out in container)");
     }
 
     #[tokio::test]

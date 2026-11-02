@@ -10,32 +10,24 @@ use crate::utils::{is_container, pretty_error, seen_from_outside};
 const CACHE_DIRECTORY_NAME: &str = "proxy_scraper_checker";
 const STALL_TIMEOUT: Duration = Duration::from_secs(60);
 
-async fn create_cache_directory(
-    parent: Option<PathBuf>,
-) -> crate::Result<PathBuf> {
-    let path = parent
-        .ok_or_eyre("failed to get user's cache directory")?
-        .join(CACHE_DIRECTORY_NAME);
+async fn create_cache_directory(parent: Option<PathBuf>) -> crate::Result<PathBuf> {
+    let path =
+        parent.ok_or_eyre("failed to get user's cache directory")?.join(CACHE_DIRECTORY_NAME);
     tokio::fs::create_dir_all(&path).await.wrap_err_with(|| {
-        compact_str::format_compact!(
-            "failed to create directory: {}",
-            path.display()
-        )
+        compact_str::format_compact!("failed to create directory: {}", path.display())
     })?;
     Ok(path)
 }
 
 async fn get_cache_path() -> crate::Result<PathBuf> {
-    static CACHE: tokio::sync::OnceCell<PathBuf> =
-        tokio::sync::OnceCell::const_new();
+    static CACHE: tokio::sync::OnceCell<PathBuf> = tokio::sync::OnceCell::const_new();
 
     Ok(CACHE
         .get_or_try_init(async || {
             let parent = dirs::cache_dir();
             // The real databases must not decide what a test sees.
             #[cfg(test)]
-            let parent = parent
-                .map(|_| crate::config::tests::temp_directory("ip-databases"));
+            let parent = parent.map(|_| crate::config::tests::temp_directory("ip-databases"));
             create_cache_directory(parent).await
         })
         .await?
@@ -52,29 +44,18 @@ async fn within<T, E>(
 where
     crate::Error: From<E>,
 {
-    let result =
-        tokio::time::timeout(limit, future).await.wrap_err_with(move || {
-            compact_str::format_compact!(
-                "received no data for {} seconds",
-                limit.as_secs()
-            )
-        })?;
+    let result = tokio::time::timeout(limit, future).await.wrap_err_with(move || {
+        compact_str::format_compact!("received no data for {} seconds", limit.as_secs())
+    })?;
     Ok(result?)
 }
 
-async fn open_reader(
-    path: PathBuf,
-) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
+async fn open_reader(path: PathBuf) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
     tokio::task::spawn_blocking(move || {
         #[expect(unsafe_code, clippy::undocumented_unsafe_blocks)]
-        unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(
-            move || {
-                compact_str::format_compact!(
-                    "failed to open IP database: {}",
-                    path.display()
-                )
-            },
-        )
+        unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(move || {
+            compact_str::format_compact!("failed to open IP database: {}", path.display())
+        })
     })
     .await?
 }
@@ -119,12 +100,10 @@ impl DbType {
             headers.insert(reqwest::header::IF_NONE_MATCH, etag);
         }
 
-        let request =
-            http_client.get(url).headers(headers).timeout(Duration::MAX);
+        let request = http_client.get(url).headers(headers).timeout(Duration::MAX);
         drop(http_client);
 
-        let response =
-            within(STALL_TIMEOUT, request.send()).await?.error_for_status()?;
+        let response = within(STALL_TIMEOUT, request.send()).await?.error_for_status()?;
 
         let status = response.status();
         if status == reqwest::StatusCode::NOT_MODIFIED {
@@ -141,11 +120,7 @@ impl DbType {
         }
 
         if status != reqwest::StatusCode::OK {
-            return Err(eyre!(
-                "HTTP status error ({}) for url ({})",
-                status,
-                response.url(),
-            ));
+            return Err(eyre!("HTTP status error ({}) for url ({})", status, response.url(),));
         }
 
         let etag = response.headers().get(reqwest::header::ETAG).cloned();
@@ -157,11 +132,8 @@ impl DbType {
         )
         .await?;
 
-        let location = seen_from_outside(
-            "Docker volume",
-            &self.db_path().await?,
-            is_container().await,
-        );
+        let location =
+            seen_from_outside("Docker volume", &self.db_path().await?, is_container().await);
         tracing::info!("Downloaded {} database to {location}", self.name());
         drop(location);
 
@@ -181,9 +153,7 @@ impl DbType {
         Ok(())
     }
 
-    pub async fn open_mmap(
-        self,
-    ) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
+    pub async fn open_mmap(self) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
         open_reader(self.db_path().await?).await
     }
 
@@ -232,37 +202,21 @@ impl DbType {
         #[cfg(feature = "tui")] tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> crate::Result<()> {
         #[cfg(feature = "tui")]
-        drop(tx.send(Event::App(AppEvent::IpDbTotal(
-            self,
-            response.content_length(),
-        ))));
+        drop(tx.send(Event::App(AppEvent::IpDbTotal(self, response.content_length()))));
 
         let tmp_path = self.tmp_path().await?;
-        let file =
-            tokio::fs::File::create(&tmp_path).await.wrap_err_with(|| {
-                compact_str::format_compact!(
-                    "failed to create file: {}",
-                    tmp_path.display()
-                )
-            })?;
+        let file = tokio::fs::File::create(&tmp_path).await.wrap_err_with(|| {
+            compact_str::format_compact!("failed to create file: {}", tmp_path.display())
+        })?;
         let mut writer = tokio::io::BufWriter::new(file);
 
-        let failed_to_write = || {
-            compact_str::format_compact!(
-                "failed to write to file: {}",
-                tmp_path.display()
-            )
-        };
+        let failed_to_write =
+            || compact_str::format_compact!("failed to write to file: {}", tmp_path.display());
 
         while let Some(chunk) = within(STALL_TIMEOUT, response.chunk()).await? {
             writer.write_all(&chunk).await.wrap_err_with(failed_to_write)?;
             #[cfg(feature = "tui")]
-            drop(
-                tx.send(Event::App(AppEvent::IpDbDownloaded(
-                    self,
-                    chunk.len(),
-                ))),
-            );
+            drop(tx.send(Event::App(AppEvent::IpDbDownloaded(self, chunk.len()))));
         }
         drop(response);
         #[cfg(feature = "tui")]
@@ -287,28 +241,18 @@ impl DbType {
     async fn save_etag(self, etag: impl AsRef<[u8]>) -> crate::Result<()> {
         let path = self.etag_path().await?;
         tokio::fs::write(&path, etag).await.wrap_err_with(move || {
-            compact_str::format_compact!(
-                "failed to write to file: {}",
-                path.display()
-            )
+            compact_str::format_compact!("failed to write to file: {}", path.display())
         })
     }
 
-    async fn read_etag(
-        self,
-    ) -> crate::Result<Option<reqwest::header::HeaderValue>> {
+    async fn read_etag(self) -> crate::Result<Option<reqwest::header::HeaderValue>> {
         let path = self.etag_path().await?;
         match tokio::fs::read(&path).await {
             // Unreadable contents only mean downloading the database again.
-            Ok(bytes) => {
-                Ok(reqwest::header::HeaderValue::from_bytes(&bytes).ok())
-            }
+            Ok(bytes) => Ok(reqwest::header::HeaderValue::from_bytes(&bytes).ok()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(e).wrap_err_with(move || {
-                compact_str::format_compact!(
-                    "failed to read file: {}",
-                    path.display()
-                )
+                compact_str::format_compact!("failed to read file: {}", path.display())
             }),
         }
     }
@@ -319,10 +263,7 @@ impl DbType {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e).wrap_err_with(move || {
-                compact_str::format_compact!(
-                    "failed to remove file: {}",
-                    path.display()
-                )
+                compact_str::format_compact!("failed to remove file: {}", path.display())
             }),
         }
     }
@@ -332,9 +273,7 @@ impl DbType {
 pub mod tests {
     use std::{future, io};
 
-    use super::{
-        DbType, Duration, create_cache_directory, open_reader, within,
-    };
+    use super::{DbType, Duration, create_cache_directory, open_reader, within};
     use crate::{
         config::tests::{temp_directory, test_config},
         http::{
@@ -458,12 +397,8 @@ pub mod tests {
         // A record that no ASN can be read from.
         pub fn damaged_database() -> Vec<u8> {
             database_of(
-                &[
-                    [MAP_OF_ONE].as_slice(),
-                    &text("autonomous_system_number"),
-                    &text("seven"),
-                ]
-                .concat(),
+                &[[MAP_OF_ONE].as_slice(), &text("autonomous_system_number"), &text("seven")]
+                    .concat(),
             )
         }
 
@@ -501,8 +436,7 @@ pub mod tests {
 
     fn reply(head: &str, body: &[u8]) -> Vec<u8> {
         let mut reply = format!(
-            "HTTP/1.1 {head}\r\nContent-Length: {}\r\nConnection: \
-             close\r\n\r\n",
+            "HTTP/1.1 {head}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
             body.len()
         )
         .into_bytes();
@@ -571,8 +505,7 @@ pub mod tests {
         let [db_path, etag_path, tmp_path] = paths().await;
         let database = cache::database(7);
 
-        let downloaded =
-            download(reply("200 OK\r\nETag: \"v1\"", &database)).await;
+        let downloaded = download(reply("200 OK\r\nETag: \"v1\"", &database)).await;
 
         let request = downloaded.request.as_deref().unwrap();
         assert!(request.starts_with("get /asn.mmdb http/1.1\r\n"), "{request}");
@@ -585,10 +518,7 @@ pub mod tests {
         assert!(text.contains(&db_path.display().to_string()), "{text}");
 
         #[cfg(feature = "tui")]
-        assert_eq!(
-            progress(&downloaded.events),
-            (Some(database.len()), database.len())
-        );
+        assert_eq!(progress(&downloaded.events), (Some(database.len()), database.len()));
         downloaded.result.unwrap();
         drop(cache);
     }
@@ -601,9 +531,7 @@ pub mod tests {
         let total = events
             .iter()
             .filter_map(|event| {
-                if let Event::App(AppEvent::IpDbTotal(DbType::Asn, bytes)) =
-                    event
-                {
+                if let Event::App(AppEvent::IpDbTotal(DbType::Asn, bytes)) = event {
                     Some(bytes.map(|bytes| usize::try_from(bytes).unwrap()))
                 } else {
                     None
@@ -614,11 +542,7 @@ pub mod tests {
         let received = events
             .iter()
             .filter_map(|event| {
-                if let Event::App(AppEvent::IpDbDownloaded(
-                    DbType::Asn,
-                    bytes,
-                )) = event
-                {
+                if let Event::App(AppEvent::IpDbDownloaded(DbType::Asn, bytes)) = event {
                     Some(*bytes)
                 } else {
                     None
@@ -646,10 +570,7 @@ pub mod tests {
         assert_eq!(std::fs::read(&db_path).unwrap(), database);
         assert!(!tmp_path.exists());
         let text = logs.text();
-        assert!(
-            text.contains("Latest ASN database is already cached at "),
-            "{text}"
-        );
+        assert!(text.contains("Latest ASN database is already cached at "), "{text}");
         downloaded.result.unwrap();
         drop(cache);
     }
@@ -695,8 +616,7 @@ pub mod tests {
         let [db_path, ..] = paths().await;
         std::fs::write(&db_path, cache::database(7)).unwrap();
 
-        let downloaded =
-            download(reply("200 OK", b"<html>not a database</html>")).await;
+        let downloaded = download(reply("200 OK", b"<html>not a database</html>")).await;
 
         let error = error_of(downloaded);
         assert!(error.starts_with("failed to open IP database: "), "{error}");
@@ -709,10 +629,7 @@ pub mod tests {
         let cache = cache::take().await;
 
         let error = error_of(download(reply("204 No Content", b"")).await);
-        assert!(
-            error.starts_with("HTTP status error (204 No Content) for url"),
-            "{error}"
-        );
+        assert!(error.starts_with("HTTP status error (204 No Content) for url"), "{error}");
 
         let error = error_of(download(reply("404 Not Found", b"")).await);
         assert!(error.contains("404 Not Found"), "{error}");
@@ -744,16 +661,13 @@ pub mod tests {
         let [db_path, etag_path, _] = paths().await;
         std::fs::create_dir_all(etag_path.join("in-the-way")).unwrap();
 
-        let downloaded =
-            download(reply("200 OK\r\nETag: \"v1\"", &cache::database(7)))
-                .await;
+        let downloaded = download(reply("200 OK\r\nETag: \"v1\"", &cache::database(7))).await;
         downloaded.result.unwrap();
         assert_eq!(std::fs::read(&db_path).unwrap(), cache::database(7));
         let text = logs.text();
         assert!(
             text.contains(
-                "ASN database will be downloaded again next run: failed to \
-                 write to file: "
+                "ASN database will be downloaded again next run: failed to write to file: "
             ),
             "{text}"
         );
@@ -766,8 +680,7 @@ pub mod tests {
         let text = logs.text();
         assert!(
             text.contains(
-                "ASN database will be downloaded again next run: failed to \
-                 remove file: "
+                "ASN database will be downloaded again next run: failed to remove file: "
             ),
             "{text}"
         );
@@ -780,14 +693,12 @@ pub mod tests {
         let [db_path, _, tmp_path] = paths().await;
 
         std::fs::create_dir_all(tmp_path.join("in-the-way")).unwrap();
-        let error =
-            error_of(download(reply("200 OK", &cache::database(7))).await);
+        let error = error_of(download(reply("200 OK", &cache::database(7))).await);
         assert!(error.starts_with("failed to create file: "), "{error}");
         std::fs::remove_dir_all(&tmp_path).unwrap();
 
         std::fs::create_dir_all(db_path.join("in-the-way")).unwrap();
-        let error =
-            error_of(download(reply("200 OK", &cache::database(7))).await);
+        let error = error_of(download(reply("200 OK", &cache::database(7))).await);
         assert!(error.starts_with("failed to rename "), "{error}");
         assert!(db_path.join("in-the-way").is_dir());
         drop(cache);
@@ -838,10 +749,7 @@ pub mod tests {
         let file = directory.join("file");
         std::fs::write(&file, "").unwrap();
         let error = create_cache_directory(Some(file)).await.unwrap_err();
-        assert!(
-            error.to_string().starts_with("failed to create directory: "),
-            "{error}"
-        );
+        assert!(error.to_string().starts_with("failed to create directory: "), "{error}");
 
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -868,8 +776,7 @@ pub mod tests {
     #[tokio::test]
     async fn a_download_that_stops_midway_is_given_up_on() {
         let (address, _held) =
-            serve_then_stall("HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nabc")
-                .await;
+            serve_then_stall("HTTP/1.1 200 OK\r\nContent-Length: 9\r\n\r\nabc").await;
         let request = client().await.get(format!("http://{address}/")).send();
         let mut response = within(LIMIT, request).await.unwrap();
 
@@ -894,8 +801,7 @@ pub mod tests {
     #[tokio::test]
     async fn silence_past_the_limit_is_an_error() {
         let stalled = future::pending::<Result<(), io::Error>>();
-        let error =
-            within(Duration::from_millis(1), stalled).await.unwrap_err();
+        let error = within(Duration::from_millis(1), stalled).await.unwrap_err();
         assert_eq!(error.to_string(), "received no data for 0 seconds");
     }
 }

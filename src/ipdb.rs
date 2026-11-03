@@ -264,10 +264,15 @@ impl DbType {
 pub mod tests {
     use std::{future, io};
 
-    use super::{Duration, open_reader, within};
+    use super::{DbType, Duration, open_reader, within};
+    #[cfg(feature = "tui")]
+    use crate::event::{AppEvent, Event};
     use crate::{
         config::tests::{temp_directory, test_config},
-        http::{self, tests::serve_then_stall},
+        http::{
+            self,
+            tests::{serve, serve_then_stall},
+        },
     };
 
     const LIMIT: Duration = Duration::from_millis(200);
@@ -418,6 +423,136 @@ pub mod tests {
     async fn client() -> reqwest_middleware::ClientWithMiddleware {
         let config = test_config(|_| {}).await;
         http::create_reqwest_client(&config).await.unwrap()
+    }
+
+    // A response whose body is `body`, as a download gets it.
+    async fn response_with(body: &[u8]) -> reqwest::Response {
+        let head = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        );
+        let (address, _) = serve(vec![[head.as_bytes(), body].concat()]).await;
+        client().await.get(format!("http://{address}/")).send().await.unwrap()
+    }
+
+    async fn save_asn(body: &[u8]) -> crate::Result<()> {
+        let response = response_with(body).await;
+        DbType::Asn
+            .save_db(
+                response,
+                #[cfg(feature = "tui")]
+                tokio::sync::mpsc::unbounded_channel().0,
+            )
+            .await
+    }
+
+    #[tokio::test]
+    async fn a_downloaded_database_takes_the_place_of_the_cached_one() {
+        let _cache = cache::take().await;
+        let path = cache::database_path(DbType::Asn).await;
+        std::fs::write(&path, cache::damaged_database()).unwrap();
+
+        save_asn(&cache::city_database()).await.unwrap();
+
+        assert_eq!(std::fs::read(&path).unwrap(), cache::city_database());
+        assert!(!DbType::Asn.tmp_path().await.unwrap().exists());
+        drop(DbType::Asn.open_mmap().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn a_body_that_is_no_database_leaves_the_cached_one() {
+        let _cache = cache::take().await;
+        let path = cache::database_path(DbType::Asn).await;
+        std::fs::write(&path, cache::city_database()).unwrap();
+
+        let error = save_asn(b"<html>rate limited</html>").await.unwrap_err();
+
+        let tmp_path = DbType::Asn.tmp_path().await.unwrap();
+        assert_eq!(
+            error.to_string(),
+            format!("failed to open IP database: {}", tmp_path.display())
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), cache::city_database());
+    }
+
+    #[tokio::test]
+    async fn a_database_that_cannot_be_put_in_place_is_reported() {
+        let _cache = cache::take().await;
+        let path = cache::database_path(DbType::Asn).await;
+        std::fs::create_dir_all(path.join("in the way")).unwrap();
+
+        let error = save_asn(&cache::city_database()).await.unwrap_err();
+
+        let tmp_path = DbType::Asn.tmp_path().await.unwrap();
+        assert_eq!(
+            error.to_string(),
+            format!("failed to rename {} to {}", tmp_path.display(), path.display())
+        );
+    }
+
+    #[cfg(feature = "tui")]
+    #[tokio::test]
+    async fn a_download_reports_its_size_and_every_chunk() {
+        let _cache = cache::take().await;
+        let body = cache::city_database();
+        let response = response_with(&body).await;
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+        DbType::Geo.save_db(response, tx).await.unwrap();
+
+        let events: Vec<_> = std::iter::from_fn(move || rx.try_recv().ok()).collect();
+        let total = u64::try_from(body.len()).unwrap();
+        assert!(matches!(
+            events.first(),
+            Some(Event::App(AppEvent::IpDbTotal(DbType::Geo, Some(size)))) if *size == total
+        ));
+        let chunks: Vec<_> = events
+            .iter()
+            .skip(1)
+            .filter_map(|event| match *event {
+                Event::App(AppEvent::IpDbDownloaded(DbType::Geo, bytes)) => Some(bytes),
+                Event::Tick | Event::Crossterm(_) | Event::App(_) => None,
+            })
+            .collect();
+        assert_eq!(chunks.len(), events.len().checked_sub(1).unwrap());
+        assert_eq!(chunks.iter().sum::<usize>(), body.len());
+    }
+
+    #[tokio::test]
+    async fn an_etag_is_kept_until_it_is_removed() {
+        let _cache = cache::take().await;
+        assert_eq!(DbType::Geo.read_etag().await.unwrap(), None);
+
+        DbType::Geo.save_etag("\"v1\"").await.unwrap();
+        assert_eq!(DbType::Geo.read_etag().await.unwrap().unwrap(), "\"v1\"");
+        assert_eq!(DbType::Asn.read_etag().await.unwrap(), None);
+
+        DbType::Geo.remove_etag().await.unwrap();
+        assert_eq!(DbType::Geo.read_etag().await.unwrap(), None);
+        DbType::Geo.remove_etag().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn an_etag_that_cannot_be_sent_back_is_ignored() {
+        let _cache = cache::take().await;
+        DbType::Asn.save_etag(b"\"v1\"\n").await.unwrap();
+        assert_eq!(DbType::Asn.read_etag().await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn an_etag_file_taken_by_a_directory_is_an_error() {
+        let _cache = cache::take().await;
+        let path = DbType::Asn.etag_path().await.unwrap();
+        std::fs::create_dir_all(&path).unwrap();
+
+        let error = DbType::Asn.read_etag().await.unwrap_err();
+        assert_eq!(error.to_string(), format!("failed to read file: {}", path.display()));
+
+        let error = DbType::Asn.remove_etag().await.unwrap_err();
+        assert_eq!(error.to_string(), format!("failed to remove file: {}", path.display()));
+
+        let error = DbType::Asn.save_etag("\"v1\"").await.unwrap_err();
+        assert_eq!(error.to_string(), format!("failed to write to file: {}", path.display()));
     }
 
     #[tokio::test]

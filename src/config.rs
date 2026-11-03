@@ -179,7 +179,10 @@ pub mod tests {
     use super::{Config, get_max_concurrent_checks};
     use crate::{
         raw_config::RawConfig,
-        utils::tests::{capture_logs, listen_everywhere},
+        utils::{
+            is_container,
+            tests::{capture_logs, listen_everywhere},
+        },
     };
 
     pub async fn test_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
@@ -215,6 +218,10 @@ pub mod tests {
 
     #[tokio::test]
     async fn an_output_directory_that_cannot_be_made_is_reported() {
+        // A container saves to ./out whatever the config says.
+        if is_container().await {
+            return;
+        }
         let directory = temp_directory("output-under-a-file");
         let file = directory.join("file");
         std::fs::write(&file, "").unwrap();
@@ -230,6 +237,10 @@ pub mod tests {
 
     #[test]
     fn more_checks_than_the_os_has_files_for_are_cut_to_fit() {
+        // With no limit to raise there is nothing to cut to.
+        if rlimit::increase_nofile_limit(u64::MAX).is_err() {
+            return;
+        }
         let logs = capture_logs();
         let limit = get_max_concurrent_checks(NonZero::<usize>::MAX);
         assert!(limit < usize::MAX);

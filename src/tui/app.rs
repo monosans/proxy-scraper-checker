@@ -398,7 +398,9 @@ mod tests {
     use tokio_util::sync::CancellationToken;
     use tui_logger::TuiWidgetState;
 
-    use super::{Event, FASTEST_KEPT, Mode, State, TICKS_PER_SECOND, handle_event};
+    use super::{
+        Event, FASTEST_KEPT, Mode, State, TICK, TICKS_PER_SECOND, handle_event, tick_event_listener,
+    };
     use crate::{
         config::tests::test_config,
         event::{AppEvent, Stage},
@@ -667,5 +669,20 @@ mod tests {
 
         state.proxies_checked = 0;
         assert_eq!(state.seconds_left(&config), None);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn ticks_keep_their_pace_until_nobody_listens() {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let ticks = tokio::spawn(tick_event_listener(tx));
+        let started = tokio::time::Instant::now();
+
+        for tick in 0..TICKS_PER_SECOND {
+            assert!(matches!(rx.recv().await, Some(Event::Tick)));
+            assert_eq!(started.elapsed(), TICK.saturating_mul(u32::try_from(tick).unwrap()));
+        }
+        drop(rx);
+
+        ticks.await.unwrap();
     }
 }

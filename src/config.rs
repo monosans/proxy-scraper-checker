@@ -174,10 +174,13 @@ impl Config {
 
 #[cfg(test)]
 pub mod tests {
-    use std::path::PathBuf;
+    use std::{num::NonZero, path::PathBuf};
 
-    use super::Config;
-    use crate::{raw_config::RawConfig, utils::tests::listen_everywhere};
+    use super::{Config, get_max_concurrent_checks};
+    use crate::{
+        raw_config::RawConfig,
+        utils::tests::{capture_logs, listen_everywhere},
+    };
 
     pub async fn test_config(edit: impl FnOnce(&mut RawConfig)) -> Config {
         listen_everywhere();
@@ -208,6 +211,41 @@ pub mod tests {
         let mut raw_config: RawConfig = toml::from_str(include_str!("../config.toml")).unwrap();
         raw_config.checking.user_agent = "a\nb".into();
         assert!(Config::from_raw_config(raw_config).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn an_output_directory_that_cannot_be_made_is_reported() {
+        let directory = temp_directory("output-under-a-file");
+        let file = directory.join("file");
+        std::fs::write(&file, "").unwrap();
+        let output = file.join("out");
+        let mut raw_config: RawConfig = toml::from_str(include_str!("../config.toml")).unwrap();
+        raw_config.output.path.clone_from(&output);
+
+        let error = Config::from_raw_config(raw_config).await.err().unwrap();
+
+        assert_eq!(error.to_string(), format!("failed to create directory: {}", output.display()));
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn more_checks_than_the_os_has_files_for_are_cut_to_fit() {
+        let logs = capture_logs();
+        let limit = get_max_concurrent_checks(NonZero::<usize>::MAX);
+        assert!(limit < usize::MAX);
+        let text = logs.text();
+        drop(logs);
+        assert!(
+            text.contains(&format!(
+                "max_concurrent_checks config value is too high for your OS. It will be ignored \
+                 and {limit} will be used."
+            )),
+            "{text}"
+        );
+
+        let logs = capture_logs();
+        assert_eq!(get_max_concurrent_checks(NonZero::new(limit).unwrap()), limit);
+        assert_eq!(logs.text(), "");
     }
 
     #[tokio::test]

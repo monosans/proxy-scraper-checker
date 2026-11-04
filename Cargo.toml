@@ -60,7 +60,7 @@ tokio = { version = "=1.54.1", features = [
   "signal",
 ] }
 tokio-util = "=0.7.20"
-toml = { version = "=1.1.8", default-features = false, features = [
+toml = { version = "=1.2.0", default-features = false, features = [
   "parse",
   "serde",
   "std",

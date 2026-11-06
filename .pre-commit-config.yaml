@@ -35,7 +35,7 @@ repos:
         args:
           - --no-error-on-unmatched-pattern
         additional_dependencies:
-          - oxfmt@0.75.0
+          - oxfmt@0.76.0
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     rev: 06a39750ec31860bb44f2acf67182c40016cd1e7 # frozen: v1.32.0
     hooks:

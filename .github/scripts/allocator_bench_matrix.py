@@ -39,17 +39,17 @@ PLATFORMS = [
 # `auto` is the shipped default feature set, so leaving it out would mean never
 # measuring the configuration users actually get.
 #
-# It is knowingly a duplicate: `auto-allocator` wires tikv-jemallocator-auto
-# only under [target.'cfg(target_os = "macos")'.dependencies] (Cargo.toml) and
-# the matching #[global_allocator] in src/main.rs is gated on target_os macos,
-# so off macOS `auto` is the same program as `system`, and on macOS it is the
-# same package and feature set as `jemalloc_override`. It is kept anyway, for a
-# reason: every "vs system" delta in the report compares two jobs on two
-# different runner VMs, while the MAD that sets the noise floor comes from reps
-# inside one job on one machine. The auto-vs-system spread on a non-macOS
-# platform is therefore a direct measurement of the between-job noise the
-# report otherwise has no way to see. Read it first, and distrust any delta
-# that is not comfortably larger than it.
+# It is knowingly a duplicate: `auto-allocator` only wires an allocator for
+# target_os macos (tikv-jemallocator-auto, the same package and features as
+# `jemalloc_override`) and target_env musl (mimalloc-auto: v2 with override and
+# no_thp), and the matching #[global_allocator]s in src/main.rs are gated the
+# same way. On the glibc and Windows platforms `auto` is therefore the same
+# program as `system`. It is kept anyway, for a reason: every "vs system" delta
+# in the report compares two jobs on two different runner VMs, while the MAD
+# that sets the noise floor comes from reps inside one job on one machine. The
+# auto-vs-system spread on those platforms is therefore a direct measurement of
+# the between-job noise the report otherwise has no way to see. Read it first,
+# and distrust any delta that is not comfortably larger than it.
 #
 # The `*_override` rows answer the override question with data rather than
 # reasoning: mimalloc's `override` and jemalloc's
@@ -103,9 +103,8 @@ NOISE_DUPES = [
     ("ubuntu-26.04", "jemalloc_override"),
     ("alpine", "jemalloc_override"),
     ("ubuntu-26.04", "mimalloc_v3"),
-    # Both macOS runners: this is the only platform whose result actually
-    # decides anything, since it is the one place the shipped default is not
-    # the system allocator, and it had no between-job measurement at all.
+    # Both macOS runners: the shipped default is not the system allocator
+    # there, and it had no between-job measurement at all.
     # jemalloc rather than jemalloc_override because
     # `auto` resolves to the same package and features as jemalloc_override
     # there, so the override variant already has a second job to compare with.

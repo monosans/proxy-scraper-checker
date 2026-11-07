@@ -7,16 +7,14 @@ use std::{
 
 use color_eyre::eyre::eyre;
 
-use crate::{
-    config::{Config, HttpbinResponse},
-    parsers::parse_ipv4,
-};
+use crate::{config::Config, parsers::parse_exit_ip};
+
+// An exit IP is a few bytes, and with an http:// check_url the proxy itself
+// writes this body, as long as it likes.
+const MAX_EXIT_IP_BODY: usize = 64 * 1024;
 
 #[repr(u8)]
-#[derive(
-    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize,
-)]
-#[cfg_attr(feature = "tui", derive(strum::EnumCount))]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ProxyType {
     Http = 1 << 0_u8,
@@ -24,59 +22,9 @@ pub enum ProxyType {
     Socks5 = 1 << 2_u8,
 }
 
-impl FromStr for ProxyType {
-    type Err = crate::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.eq_ignore_ascii_case("http") || s.eq_ignore_ascii_case("https") {
-            Ok(Self::Http)
-        } else if s.eq_ignore_ascii_case("socks4")
-            || s.eq_ignore_ascii_case("socks4a")
-        {
-            Ok(Self::Socks4)
-        } else if s.eq_ignore_ascii_case("socks5")
-            || s.eq_ignore_ascii_case("socks5h")
-        {
-            Ok(Self::Socks5)
-        } else {
-            Err(eyre!("failed to convert {s} to ProxyType"))
-        }
-    }
-}
-
-#[derive(Clone, Copy, Default)]
-pub struct ProxyTypeSet(u8);
-
-impl ProxyTypeSet {
-    pub const fn contains(self, proxy_type: ProxyType) -> bool {
-        self.0 & proxy_type as u8 != 0
-    }
-
-    pub const fn insert(&mut self, proxy_type: ProxyType) {
-        self.0 |= proxy_type as u8;
-    }
-
-    pub fn iter(self) -> impl Iterator<Item = ProxyType> {
-        [ProxyType::Http, ProxyType::Socks4, ProxyType::Socks5]
-            .into_iter()
-            .filter(move |&proxy_type| self.contains(proxy_type))
-    }
-}
-
-impl FromIterator<ProxyType> for ProxyTypeSet {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = ProxyType>,
-    {
-        let mut set = Self::default();
-        for proxy_type in iter {
-            set.insert(proxy_type);
-        }
-        set
-    }
-}
-
 impl ProxyType {
+    const ALL: [Self; 3] = [Self::Http, Self::Socks4, Self::Socks5];
+
     const fn as_proxy_url_scheme(self, force_remote_dns: bool) -> &'static str {
         match self {
             Self::Http => "http",
@@ -99,7 +47,6 @@ impl ProxyType {
         }
     }
 
-    #[cfg(feature = "tui")]
     pub const fn as_str_uppercase(self) -> &'static str {
         match self {
             Self::Http => "HTTP",
@@ -109,7 +56,65 @@ impl ProxyType {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+impl FromStr for ProxyType {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.eq_ignore_ascii_case("http") || s.eq_ignore_ascii_case("https") {
+            Ok(Self::Http)
+        } else if s.eq_ignore_ascii_case("socks4") || s.eq_ignore_ascii_case("socks4a") {
+            Ok(Self::Socks4)
+        } else if s.eq_ignore_ascii_case("socks5") || s.eq_ignore_ascii_case("socks5h") {
+            Ok(Self::Socks5)
+        } else {
+            Err(eyre!("failed to convert {s} to ProxyType"))
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct ProxyTypeSet(u8);
+
+impl ProxyTypeSet {
+    pub const fn contains(self, proxy_type: ProxyType) -> bool {
+        self.0 & proxy_type as u8 != 0
+    }
+
+    pub const fn insert(&mut self, proxy_type: ProxyType) {
+        self.0 |= proxy_type as u8;
+    }
+
+    pub fn iter(self) -> impl Iterator<Item = ProxyType> {
+        ProxyType::ALL.into_iter().filter(move |&proxy_type| self.contains(proxy_type))
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct PerProxyType<T> {
+    http: T,
+    socks4: T,
+    socks5: T,
+}
+
+impl<T> PerProxyType<T> {
+    pub const fn get(&self, proxy_type: ProxyType) -> &T {
+        match proxy_type {
+            ProxyType::Http => &self.http,
+            ProxyType::Socks4 => &self.socks4,
+            ProxyType::Socks5 => &self.socks5,
+        }
+    }
+
+    pub const fn get_mut(&mut self, proxy_type: ProxyType) -> &mut T {
+        match proxy_type {
+            ProxyType::Http => &mut self.http,
+            ProxyType::Socks4 => &mut self.socks4,
+            ProxyType::Socks5 => &mut self.socks5,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ProxyAuth {
     pub username: compact_str::CompactString,
     pub password: compact_str::CompactString,
@@ -126,10 +131,7 @@ pub struct Proxy {
 }
 
 impl Proxy {
-    fn as_reqwest_proxy(
-        &self,
-        force_remote_dns: bool,
-    ) -> crate::Result<reqwest::Proxy> {
+    fn as_reqwest_proxy(&self, force_remote_dns: bool) -> reqwest::Result<reqwest::Proxy> {
         let proxy = reqwest::Proxy::all(
             compact_str::format_compact!(
                 "{}://{}:{}",
@@ -152,7 +154,7 @@ impl Proxy {
         config: &Config,
         check_url_addrs: &[SocketAddr],
         tls_backend: rustls::ClientConfig,
-    ) -> crate::Result<()> {
+    ) -> reqwest::Result<()> {
         let Some(check_url) = config.checking.check_url.clone() else {
             return Ok(());
         };
@@ -181,50 +183,46 @@ impl Proxy {
         let start = Instant::now();
         let mut response = request.send().await?.error_for_status()?;
 
-        if config.exit_ip_enabled() {
-            let text = response.text().await?;
-            self.timeout = Some(start.elapsed());
-
-            self.exit_ip = if let Ok(httpbin) =
-                serde_json::from_str::<HttpbinResponse>(&text)
-            {
-                parse_ipv4(&httpbin.origin)
-            } else {
-                parse_ipv4(&text)
-            };
-        } else {
-            while response.chunk().await?.is_some() {}
-            self.timeout = Some(start.elapsed());
+        let mut body = config.exit_ip_enabled().then(Vec::new);
+        while let Some(chunk) = response.chunk().await? {
+            if let Some(kept) = &mut body {
+                if chunk.len() > MAX_EXIT_IP_BODY.saturating_sub(kept.len()) {
+                    body = None;
+                } else {
+                    kept.extend_from_slice(&chunk);
+                }
+            }
         }
+        self.timeout = Some(start.elapsed());
+        drop(response);
+
+        self.exit_ip = body.and_then(|body| parse_exit_ip(&String::from_utf8_lossy(&body)));
 
         Ok(())
     }
 
-    pub fn write_to(&self, buf: &mut Vec<u8>, include_protocol: bool) {
+    pub fn write_to(&self, buf: &mut String, include_protocol: bool) {
         if include_protocol {
-            buf.extend_from_slice(self.protocol.as_str_lowercase().as_bytes());
-            buf.extend_from_slice(b"://");
+            buf.push_str(self.protocol.as_str_lowercase());
+            buf.push_str("://");
         }
 
         if let Some(auth) = &self.auth {
-            buf.extend_from_slice(auth.username.as_bytes());
-            buf.push(b':');
-            buf.extend_from_slice(auth.password.as_bytes());
-            buf.push(b'@');
+            buf.push_str(&auth.username);
+            buf.push(':');
+            buf.push_str(&auth.password);
+            buf.push('@');
         }
 
-        buf.extend_from_slice(self.host.as_bytes());
-        buf.push(b':');
-        buf.extend_from_slice(itoa::Buffer::new().format(self.port).as_bytes());
+        buf.push_str(&self.host);
+        buf.push(':');
+        buf.push_str(itoa::Buffer::new().format(self.port));
     }
 
-    pub fn to_string(
-        &self,
-        include_protocol: bool,
-    ) -> compact_str::CompactString {
-        let mut buf = Vec::new();
+    pub fn to_compact_string(&self, include_protocol: bool) -> compact_str::CompactString {
+        let mut buf = String::new();
         self.write_to(&mut buf, include_protocol);
-        compact_str::CompactString::from_utf8_lossy(&buf)
+        buf.into()
     }
 }
 
@@ -248,5 +246,221 @@ impl Hash for Proxy {
         self.host.hash(state);
         self.port.hash(state);
         self.auth.hash(state);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::{Ipv4Addr, SocketAddr};
+
+    use compact_str::{CompactString, ToCompactString as _};
+
+    use super::{Duration, MAX_EXIT_IP_BODY, Proxy, ProxyAuth, ProxyType, ProxyTypeSet};
+    use crate::{
+        config::tests::test_config,
+        http::{
+            TlsProfile, build_rustls_config,
+            tests::{serve, serve_then_stall},
+        },
+        raw_config::RawConfig,
+    };
+
+    const EXIT_IP_REPLY: &str =
+        "HTTP/1.1 200 OK\r\nContent-Length: 8\r\nConnection: close\r\n\r\n5.6.7.8\n";
+    const FAILED_REPLY: &str =
+        "HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    const STALLED_REPLY: &str = "HTTP/1.1 200 OK\r\nContent-Length: 8\r\n\r\n5.6";
+
+    async fn check(
+        address: SocketAddr,
+        edit: impl FnOnce(&mut RawConfig),
+    ) -> (reqwest::Result<()>, Proxy) {
+        let config = test_config(move |raw| {
+            raw.checking.check_url = Some("http://check.test/".parse().unwrap());
+            raw.checking.timeout = Duration::from_millis(300);
+            edit(raw);
+        })
+        .await;
+        let mut proxy = Proxy {
+            protocol: ProxyType::Http,
+            host: address.ip().to_compact_string(),
+            port: address.port(),
+            auth: None,
+            timeout: None,
+            exit_ip: None,
+        };
+        let tls = build_rustls_config(TlsProfile::Checking).await.unwrap();
+        (proxy.check(&config, &[], tls).await, proxy)
+    }
+
+    fn proxy(auth: Option<ProxyAuth>) -> Proxy {
+        Proxy {
+            protocol: ProxyType::Socks5,
+            host: CompactString::const_new("1.2.3.4"),
+            port: 1080,
+            auth: auth.map(Box::new),
+            timeout: None,
+            exit_ip: None,
+        }
+    }
+
+    fn auth() -> ProxyAuth {
+        ProxyAuth {
+            username: CompactString::const_new("user"),
+            password: CompactString::const_new("pass"),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_working_proxy_gets_its_time_and_exit_ip() {
+        let (address, _) = serve(vec![EXIT_IP_REPLY]).await;
+        let (result, proxy) = check(address, |_| {}).await;
+        result.unwrap();
+        assert!(proxy.timeout.is_some());
+        assert_eq!(proxy.exit_ip, Some(Ipv4Addr::new(5, 6, 7, 8)));
+    }
+
+    #[tokio::test]
+    async fn without_json_output_the_body_is_only_read_through() {
+        let (address, _) = serve(vec![EXIT_IP_REPLY]).await;
+        let (result, proxy) = check(address, |raw| raw.output.json.enabled = false).await;
+        result.unwrap();
+        assert!(proxy.timeout.is_some());
+        assert_eq!(proxy.exit_ip, None);
+    }
+
+    #[tokio::test]
+    async fn a_huge_reply_passes_the_check_without_being_kept() {
+        let padding = " ".repeat(MAX_EXIT_IP_BODY.saturating_sub(7));
+        let bodies = [
+            format!(r#"{{"origin": "5.6.7.8"{padding}}}"#),
+            // Cut at the limit, this would read as 1.2.3.4.
+            format!("{padding}1.2.3.45"),
+        ];
+        drop(padding);
+        for body in bodies {
+            let reply = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            drop(body);
+            let (address, _) = serve(vec![reply.leak()]).await;
+            let (result, proxy) = check(address, |_| {}).await;
+            result.unwrap();
+            assert!(proxy.timeout.is_some());
+            assert_eq!(proxy.exit_ip, None);
+        }
+    }
+
+    #[tokio::test]
+    async fn an_error_status_fails_the_check() {
+        let (address, _) = serve(vec![FAILED_REPLY]).await;
+        let (result, proxy) = check(address, |_| {}).await;
+        assert!(result.is_err());
+        assert!(proxy.timeout.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_proxy_that_stalls_after_connecting_fails_the_check() {
+        let (address, _held) = serve_then_stall(STALLED_REPLY).await;
+        let (result, proxy) = check(address, |_| {}).await;
+        assert!(result.is_err());
+        assert!(proxy.timeout.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_proxy_gets_its_credentials_and_only_the_check_url() {
+        let (address, requests) = serve(vec![EXIT_IP_REPLY]).await;
+        let config = test_config(|raw| {
+            raw.checking.check_url = Some("http://check.test/".parse().unwrap());
+        })
+        .await;
+        let mut proxy = Proxy {
+            protocol: ProxyType::Http,
+            host: address.ip().to_compact_string(),
+            port: address.port(),
+            auth: Some(Box::new(auth())),
+            timeout: None,
+            exit_ip: None,
+        };
+        let tls = build_rustls_config(TlsProfile::Checking).await.unwrap();
+
+        proxy.check(&config, &[], tls).await.unwrap();
+
+        let request = requests.lock().pop().unwrap().to_ascii_lowercase();
+        assert!(request.starts_with("get http://check.test/ http/1.1\r\n"), "{request}");
+        // user:pass
+        assert!(request.contains("\r\nproxy-authorization: basic dxnlcjpwyxnz\r\n"), "{request}");
+    }
+
+    #[tokio::test]
+    async fn without_a_check_url_there_is_nothing_to_measure() {
+        let config = test_config(|raw| raw.checking.check_url = None).await;
+        let mut proxy = proxy(None);
+        let tls = build_rustls_config(TlsProfile::Checking).await.unwrap();
+
+        proxy.check(&config, &[], tls).await.unwrap();
+
+        assert!(proxy.timeout.is_none());
+        assert!(proxy.exit_ip.is_none());
+    }
+
+    #[test]
+    fn socks4_resolves_the_host_itself_only_with_addresses_to_use() {
+        for (proxy_type, scheme, without_addresses) in [
+            (ProxyType::Http, "http", "http"),
+            (ProxyType::Socks4, "socks4", "socks4a"),
+            (ProxyType::Socks5, "socks5h", "socks5h"),
+        ] {
+            assert_eq!(proxy_type.as_proxy_url_scheme(false), scheme);
+            assert_eq!(proxy_type.as_proxy_url_scheme(true), without_addresses);
+        }
+    }
+
+    #[test]
+    fn scheme_aliases_collapse_to_one_protocol() {
+        for (input, expected) in [
+            ("http", "http"),
+            ("HTTPS", "http"),
+            ("socks4", "socks4"),
+            ("Socks4a", "socks4"),
+            ("socks5", "socks5"),
+            ("SOCKS5H", "socks5"),
+        ] {
+            assert_eq!(input.parse::<ProxyType>().unwrap().as_str_lowercase(), expected);
+        }
+        assert!("ftp".parse::<ProxyType>().is_err());
+    }
+
+    #[test]
+    fn proxy_type_set_iterates_in_protocol_order() {
+        let mut set = ProxyTypeSet::default();
+        set.insert(ProxyType::Socks5);
+        set.insert(ProxyType::Http);
+
+        let names: Vec<_> = set.iter().map(ProxyType::as_str_lowercase).collect();
+        assert_eq!(names, ["http", "socks5"]);
+        assert!(set.contains(ProxyType::Http));
+        assert!(!set.contains(ProxyType::Socks4));
+    }
+
+    #[test]
+    fn text_output_matches_documented_format() {
+        assert_eq!(proxy(None).to_compact_string(false), "1.2.3.4:1080");
+        assert_eq!(proxy(None).to_compact_string(true), "socks5://1.2.3.4:1080");
+        assert_eq!(proxy(Some(auth())).to_compact_string(false), "user:pass@1.2.3.4:1080");
+        assert_eq!(proxy(Some(auth())).to_compact_string(true), "socks5://user:pass@1.2.3.4:1080");
+    }
+
+    #[test]
+    fn deduplication_ignores_check_results() {
+        let mut measured = proxy(None);
+        measured.timeout = Some(Duration::from_secs(1));
+        measured.exit_ip = Some(Ipv4Addr::LOCALHOST);
+
+        let mut seen = crate::HashSet::default();
+        assert!(seen.insert(measured));
+        assert!(!seen.insert(proxy(None)));
+        assert!(seen.insert(proxy(Some(auth()))));
     }
 }

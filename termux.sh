@@ -38,4 +38,5 @@ trap 'rm -f "${download_path}"' EXIT
 
 curl -fL --retry 3 --retry-all-errors -o "${download_path}" "https://github.com/monosans/${project_name}/releases/latest/download/${project_name}-binary-${target}.zip"
 unzip -qod "${install_path}" "${download_path}"
+chmod +x "${install_path}/${project_name}"
 printf "%s installed successfully.\nRun 'cd %s && ./%s'.\n" "${project_name}" "${install_path}" "${project_name}"

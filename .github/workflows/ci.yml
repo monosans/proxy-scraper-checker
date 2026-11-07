@@ -5,10 +5,9 @@ on:
       - main
   pull_request:
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
-permissions:
-  contents: read
+permissions: {}
 jobs:
   check:
     if: ${{ always() && github.event_name == 'pull_request' }}
@@ -19,6 +18,7 @@ jobs:
       - licenses
       - pre-commit
       - rustfmt
+      - test
       - udeps
     runs-on: ubuntu-26.04
     steps:
@@ -30,9 +30,10 @@ jobs:
       - licenses
     env:
       # renovate: datasource=pypi depName=cargo-zigbuild
-      CARGO_ZIGBUILD_VERSION: 0.24.0
+      CARGO_ZIGBUILD_VERSION: 0.24.1
       # renovate: datasource=pypi depName=ziglang
       ZIG_VERSION: 0.17.0
+      RUST_TARGET: ${{ matrix.target }}
     strategy:
       matrix:
         include:
@@ -216,7 +217,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           toolchain: beta
           target: ${{ matrix.target }}
@@ -229,9 +230,9 @@ jobs:
         env:
           CARGO_BUILD_WARNINGS: allow
       - if: ${{ matrix.builder == 'cross' }}
-        run: cross +beta build --features tui --release --target '${{ matrix.target }}' --locked
+        run: cross +beta build --features tui --release --target "${RUST_TARGET}" --locked
       - if: ${{ matrix.builder == 'zigbuild' }}
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: false
       # zig comes from its official PyPI package. cargo-zigbuild runs it as
@@ -244,19 +245,26 @@ jobs:
       # oldest one Rust supports on the target, so the binaries also start on
       # old distributions.
       - if: ${{ matrix.builder == 'zigbuild' }}
-        run: cargo +beta zigbuild --features tui --release --target '${{ matrix.target }}${{ matrix.glibc && format('.{0}', matrix.glibc) || '' }}' --locked
+        run: cargo +beta zigbuild --features tui --release --target "${RUST_TARGET}${GLIBC_SUFFIX}" --locked
+        env:
+          GLIBC_SUFFIX: ${{ matrix.glibc && format('.{0}', matrix.glibc) || '' }}
       - if: ${{ matrix.builder == 'cargo' }}
-        run: cargo +beta build --features tui --release --target '${{ matrix.target }}' --locked
+        run: cargo +beta build --features tui --release --target "${RUST_TARGET}" --locked
+        shell: bash
       - run: mkdir dist
-      - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
+      - run: echo -n "${GITHUB_SHA}" > dist/commit-sha.txt
         shell: bash
       - run: mv config.toml dist/
+      - run: mv config-schema.json dist/
       - run: mv LICENSE dist/
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: third-party-licenses
       - run: mv LICENSE-THIRD-PARTY dist/
-      - run: mv target/${{ matrix.target}}/release/${{ matrix.executable || 'proxy-scraper-checker' }} dist/
+      - run: mv "target/${RUST_TARGET}/release/${EXECUTABLE}" dist/
+        shell: bash
+        env:
+          EXECUTABLE: ${{ matrix.executable || 'proxy-scraper-checker' }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: proxy-scraper-checker-binary-${{ matrix.target }}
@@ -267,10 +275,10 @@ jobs:
       - licenses
     runs-on: ${{ matrix.runner }}
     permissions:
-      artifact-metadata: write
-      attestations: write
-      id-token: write
-      packages: write
+      artifact-metadata: write # record the attestation of the image
+      attestations: write # attest the image
+      id-token: write # sign the attestation
+      packages: write # push the image to ghcr.io
     strategy:
       matrix:
         include:
@@ -314,7 +322,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: type=raw,value=${{ github.sha }}-${{ matrix.tag }}
       - if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -346,31 +354,31 @@ jobs:
       - build-docker
     runs-on: ubuntu-26.04
     permissions:
-      artifact-metadata: write
-      attestations: write
-      id-token: write
-      packages: write
+      artifact-metadata: write # record the attestation of the image
+      attestations: write # attest the image
+      id-token: write # sign the attestation
+      packages: write # push the image to ghcr.io
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     steps:
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: >
-          docker manifest create ghcr.io/${{ github.repository }}:${{ github.sha }}
-          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-386
-          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
-          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm-v7
-          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64-v8
-          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-ppc64le
-          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-riscv64
-          --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-s390x
+          docker manifest create "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}"
+          --amend "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}-386"
+          --amend "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}-amd64"
+          --amend "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}-arm-v7"
+          --amend "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}-arm64-v8"
+          --amend "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}-ppc64le"
+          --amend "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}-riscv64"
+          --amend "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}-s390x"
       - id: push
         shell: bash
         run: |
-          digest=$(docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }} | tail -n 1)
+          digest=$(docker manifest push "ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}" | tail -n 1)
           if [[ ! "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
             echo "Unexpected output of docker manifest push: ${digest}" >&2
             exit 1
@@ -401,17 +409,21 @@ jobs:
         with:
           persist-credentials: false
       - run: mkdir -p dist
-      - run: echo -n '${{ github.sha }}' > dist/commit-sha.txt
+      - run: echo -n "${GITHUB_SHA}" > dist/commit-sha.txt
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: third-party-licenses
-      - run: mv {out,compose.yaml,config.toml,LICENSE,LICENSE-THIRD-PARTY} dist/
+      - run: mv {out,compose.yaml,config.toml,config-schema.json,LICENSE,LICENSE-THIRD-PARTY} dist/
       - name: Create Dockerfile
+        env:
+          DIGEST: ${{ needs.upload-docker-manifest.outputs.digest }}
         run: |
-          cat << 'EOF' > dist/Dockerfile
+          cat << EOF > dist/Dockerfile
           # syntax=docker.io/docker/dockerfile:1
 
-          FROM ghcr.io/${{ github.repository }}:${{ github.sha }}@${{ needs.upload-docker-manifest.outputs.digest }}
+          FROM ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}@${DIGEST}
+          EOF
+          cat << 'EOF' >> dist/Dockerfile
 
           ARG \
             UID=1000 \
@@ -419,8 +431,9 @@ jobs:
 
           USER root
 
-          RUN (getent group "${GID}" || groupmod --gid "${GID}" app) \
-            && usermod --uid "${UID}" --gid "${GID}" app
+          RUN groupmod --non-unique --gid "${GID}" app \
+            && usermod --non-unique --uid "${UID}" app \
+            && chown -R "${UID}:${GID}" /home/app
 
           USER app
           EOF
@@ -437,11 +450,11 @@ jobs:
       - upload-docker-prebuilt
     runs-on: ubuntu-26.04
     permissions:
-      actions: read
-      artifact-metadata: write
-      attestations: write
-      contents: write
-      id-token: write
+      actions: read # download the artifacts of this run
+      artifact-metadata: write # record the attestation of the archives
+      attestations: write # attest the archives
+      contents: write # publish the release and delete the previous ones
+      id-token: write # sign the attestation
     concurrency:
       group: release
       cancel-in-progress: false
@@ -517,7 +530,7 @@ jobs:
       matrix:
         include:
           - id: tui
-            features: "--features tui"
+            features: tui
           - id: default
             features: ""
       fail-fast: false
@@ -525,26 +538,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           toolchain: beta
           components: clippy
           cache-key: x86_64-unknown-linux-gnu-${{ matrix.id }}
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: cargo +beta clippy --all-targets ${{ matrix.features }} --
+      - run: cargo +beta clippy --all-targets --features "${FEATURES}" --
+        env:
+          FEATURES: ${{ matrix.features }}
   licenses:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           toolchain: beta
           cache: false
-      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+      - uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
         with:
-          tool: cargo-about@0.9.2
+          tool: cargo-about
           fallback: none
       # Every artifact ships the licenses of the code it compiles in. The tui
       # feature is what the release binaries are built with; the Docker images
@@ -561,23 +576,60 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.14"
           enable-cache: false
+      # uvx and the hook environments prek installs read neither pyproject.toml
+      # nor .npmrc, so their dependency cooldown is set here.
       - run: uvx --no-cache prek run --all-files --show-diff-on-failure
+        env:
+          NPM_CONFIG_MIN_RELEASE_AGE: "3" # days
+          UV_EXCLUDE_NEWER: 3 days
   rustfmt:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           toolchain: nightly
           components: rustfmt
           cache: false
       - run: cargo +nightly fmt --check
+  test:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - id: tui
+            runner: ubuntu-26.04
+            features: tui
+          - id: default
+            runner: ubuntu-26.04
+            features: ""
+          - id: macos
+            runner: macos-26
+            features: tui
+          # Some of the output tests only exist on Windows.
+          - id: windows
+            runner: windows-2025
+            features: tui
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
+        with:
+          toolchain: beta
+          cache-key: test-${{ matrix.id }}
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo +beta test --features "${FEATURES}" --locked
+        shell: bash
+        env:
+          FEATURES: ${{ matrix.features }}
   udeps:
     runs-on: ubuntu-26.04
     strategy:
@@ -586,18 +638,20 @@ jobs:
           - id: default
             features: ""
           - id: tui
-            features: "--features tui"
+            features: tui
       fail-fast: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           toolchain: nightly
           cache: false
-      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+      - uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
         with:
           tool: cargo-udeps
           fallback: none
-      - run: cargo +nightly udeps ${{ matrix.features }}
+      - run: cargo +nightly udeps --features "${FEATURES}"
+        env:
+          FEATURES: ${{ matrix.features }}

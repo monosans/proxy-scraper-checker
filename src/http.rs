@@ -20,6 +20,7 @@ static RETRY_STATUSES: &[reqwest::StatusCode] = &[
 ];
 
 #[derive(Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BasicAuth {
     pub username: compact_str::CompactString,
     pub password: Option<compact_str::CompactString>,
@@ -31,9 +32,7 @@ pub enum TlsProfile {
 }
 
 #[cfg_attr(target_os = "android", expect(clippy::unused_async))]
-pub async fn build_rustls_config(
-    profile: TlsProfile,
-) -> crate::Result<rustls::ClientConfig> {
+pub async fn build_rustls_config(profile: TlsProfile) -> crate::Result<rustls::ClientConfig> {
     let mut provider = rustls::crypto::aws_lc_rs::default_provider();
     if matches!(profile, TlsProfile::Checking) {
         provider.kx_groups = vec![
@@ -43,15 +42,12 @@ pub async fn build_rustls_config(
         ];
     }
 
-    let builder =
-        rustls::ClientConfig::builder_with_provider(Arc::new(provider))
-            .with_safe_default_protocol_versions()?;
+    let builder = rustls::ClientConfig::builder_with_provider(Arc::new(provider))
+        .with_safe_default_protocol_versions()?;
 
     #[cfg(not(target_os = "android"))]
     let builder = tokio::task::spawn_blocking(move || {
-        rustls_platform_verifier::BuilderVerifierExt::with_platform_verifier(
-            builder,
-        )
+        rustls_platform_verifier::BuilderVerifierExt::with_platform_verifier(builder)
     })
     .await??;
 
@@ -102,15 +98,11 @@ fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Duration> {
 }
 
 fn backoff(attempt: u32) -> Duration {
-    INITIAL_RETRY_DELAY
-        .saturating_mul(2_u32.saturating_pow(attempt))
-        .min(MAX_RETRY_DELAY)
+    INITIAL_RETRY_DELAY.saturating_mul(2_u32.saturating_pow(attempt)).min(MAX_RETRY_DELAY)
 }
 
 fn total_backoff() -> Duration {
-    (0..DEFAULT_MAX_RETRIES)
-        .map(backoff)
-        .fold(Duration::ZERO, Duration::saturating_add)
+    (0..DEFAULT_MAX_RETRIES).map(backoff).fold(Duration::ZERO, Duration::saturating_add)
 }
 
 fn calculate_retry_timeout(
@@ -139,8 +131,15 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
         next: reqwest_middleware::Next<'_>,
     ) -> reqwest_middleware::Result<reqwest::Response> {
         let mut attempt: u32 = 0;
+        let mut original = Some(req);
         loop {
-            let req = req.try_clone().ok_or_else(|| {
+            // Nothing can come after the last attempt to need a copy for.
+            let req = if attempt < DEFAULT_MAX_RETRIES {
+                original.as_ref().and_then(reqwest::Request::try_clone)
+            } else {
+                original.take()
+            }
+            .ok_or_else(|| {
                 reqwest_middleware::Error::middleware(io::Error::other(
                     "Request object is not cloneable",
                 ))
@@ -152,10 +151,8 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
                     if status.is_client_error() || status.is_server_error() {
                         if attempt < DEFAULT_MAX_RETRIES
                             && RETRY_STATUSES.contains(&status)
-                            && let Some(delay) = calculate_retry_timeout(
-                                Some(resp.headers()),
-                                attempt,
-                            )
+                            && let Some(delay) =
+                                calculate_retry_timeout(Some(resp.headers()), attempt)
                         {
                             drop(resp);
                             tokio::time::sleep(delay).await;
@@ -169,8 +166,7 @@ impl reqwest_middleware::Middleware for RetryMiddleware {
                 Err(err) => {
                     if attempt < DEFAULT_MAX_RETRIES
                         && err.is_connect()
-                        && let Some(delay) =
-                            calculate_retry_timeout(None, attempt)
+                        && let Some(delay) = calculate_retry_timeout(None, attempt)
                     {
                         drop(err);
                         tokio::time::sleep(delay).await;
@@ -199,9 +195,181 @@ pub async fn create_reqwest_client(
     }
 
     let client = builder.build()?;
-    let client_with_middleware = reqwest_middleware::ClientBuilder::new(client)
-        .with(RetryMiddleware)
-        .build();
+    let client_with_middleware =
+        reqwest_middleware::ClientBuilder::new(client).with(RetryMiddleware).build();
 
     Ok(client_with_middleware)
+}
+
+#[cfg(test)]
+pub mod tests {
+    use std::{
+        net::SocketAddr,
+        sync::Arc,
+        time::{Duration, SystemTime},
+    };
+
+    use reqwest::header::{HeaderMap, HeaderValue};
+    use tokio::{
+        io::{AsyncReadExt as _, AsyncWriteExt as _},
+        net::{TcpListener, TcpStream},
+        sync::oneshot,
+    };
+
+    use super::{backoff, calculate_retry_timeout, parse_retry_after};
+    use crate::config::tests::test_config;
+
+    const OK: &str = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
+    const UNAVAILABLE: &str = "HTTP/1.1 503 Service Unavailable\r\nRetry-After-Ms: \
+                               1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    const NOT_FOUND: &str =
+        "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
+    // The head of each request received, in order.
+    pub type Requests = Arc<parking_lot::Mutex<Vec<String>>>;
+
+    // Reads a request without a body.
+    async fn accept(listener: &TcpListener) -> (TcpStream, String) {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut request = Vec::new();
+        while !request.ends_with(b"\r\n\r\n") {
+            let mut chunk = [0_u8; 1024];
+            let read = socket.read(&mut chunk).await.unwrap();
+            assert_ne!(read, 0);
+            request.extend_from_slice(chunk.get(..read).unwrap());
+        }
+        (socket, String::from_utf8(request).unwrap())
+    }
+
+    // Answers one connection per reply, in order.
+    pub async fn serve<R>(replies: Vec<R>) -> (SocketAddr, Requests)
+    where
+        R: AsRef<[u8]> + Send + 'static,
+    {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let requests = Requests::default();
+        let received = Arc::clone(&requests);
+        tokio::spawn(async move {
+            for reply in replies {
+                let (mut socket, request) = accept(&listener).await;
+                received.lock().push(request);
+                socket.write_all(reply.as_ref()).await.unwrap();
+            }
+        });
+        (address, requests)
+    }
+
+    // Sends `reply`, then holds the connection open and silent for as long as
+    // the receiver is kept.
+    pub async fn serve_then_stall(
+        reply: &'static str,
+    ) -> (SocketAddr, oneshot::Receiver<TcpStream>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (held, holder) = oneshot::channel();
+        tokio::spawn(async move {
+            let (mut socket, _) = accept(&listener).await;
+            drop(listener);
+            socket.write_all(reply.as_bytes()).await.unwrap();
+            drop(held.send(socket));
+        });
+        (address, holder)
+    }
+
+    async fn get(address: SocketAddr) -> reqwest_middleware::Result<reqwest::Response> {
+        let config = test_config(|_| {}).await;
+        let client = super::create_reqwest_client(&config).await.unwrap();
+        drop(config);
+        let request = client.get(format!("http://{address}/"));
+        drop(client);
+        request.send().await
+    }
+
+    fn header(name: &'static str, value: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(name, HeaderValue::from_str(value).unwrap());
+        headers
+    }
+
+    #[tokio::test]
+    async fn a_temporary_failure_is_retried() {
+        let (address, requests) = serve(vec![UNAVAILABLE, OK]).await;
+        let response = get(address).await.unwrap();
+        assert_eq!(response.text().await.unwrap(), "ok");
+        assert_eq!(requests.lock().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn retries_run_out() {
+        let (address, requests) = serve(vec![UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, OK]).await;
+        get(address).await.unwrap_err();
+        assert_eq!(requests.lock().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn a_permanent_failure_is_not_retried() {
+        let (address, requests) = serve(vec![NOT_FOUND, OK]).await;
+        get(address).await.unwrap_err();
+        assert_eq!(requests.lock().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_request_that_cannot_be_repeated_is_refused() {
+        let (address, requests) = serve(vec![OK]).await;
+        let config = test_config(|_| {}).await;
+        let client = super::create_reqwest_client(&config).await.unwrap();
+        drop(config);
+
+        let error = client
+            .post(format!("http://{address}/"))
+            .body(reqwest::Body::wrap(String::from("streamed")))
+            .send()
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("Request object is not cloneable"), "{error}");
+        assert_eq!(requests.lock().len(), 0);
+    }
+
+    #[test]
+    fn retry_after_comes_in_three_forms() {
+        assert_eq!(
+            parse_retry_after(&header("retry-after-ms", "1500")),
+            Some(Duration::from_millis(1500))
+        );
+        assert_eq!(parse_retry_after(&header("retry-after", "3")), Some(Duration::from_secs(3)));
+
+        let date = httpdate::fmt_http_date(SystemTime::now() + Duration::from_secs(60));
+        let delay = parse_retry_after(&header("retry-after", &date)).unwrap();
+        assert!(delay > Duration::from_secs(50));
+
+        assert_eq!(parse_retry_after(&header("retry-after", "?")), None);
+        assert_eq!(parse_retry_after(&HeaderMap::new()), None);
+    }
+
+    #[test]
+    fn a_server_asking_for_too_long_a_wait_is_not_waited_for() {
+        assert_eq!(
+            calculate_retry_timeout(Some(&header("retry-after", "1")), 0),
+            Some(Duration::from_secs(1))
+        );
+        assert_eq!(calculate_retry_timeout(Some(&header("retry-after", "3600")), 0), None);
+    }
+
+    #[test]
+    fn backoff_doubles_up_to_a_limit() {
+        assert_eq!(backoff(0), Duration::from_millis(500));
+        assert_eq!(backoff(1), Duration::from_secs(1));
+        assert_eq!(backoff(10), Duration::from_secs(8));
+    }
+
+    #[test]
+    fn jitter_only_shortens_the_wait_slightly() {
+        for _ in 0_u8..100 {
+            let delay = calculate_retry_timeout(None, 1).unwrap();
+            assert!(delay <= Duration::from_secs(1));
+            assert!(delay >= Duration::from_millis(750));
+        }
+    }
 }

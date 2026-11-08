@@ -32,7 +32,7 @@ jobs:
       # renovate: datasource=pypi depName=cargo-zigbuild
       CARGO_ZIGBUILD_VERSION: 0.24.1
       # renovate: datasource=pypi depName=ziglang
-      ZIG_VERSION: 0.17.0
+      ZIG_VERSION: 0.17.1
       RUST_TARGET: ${{ matrix.target }}
     strategy:
       matrix:

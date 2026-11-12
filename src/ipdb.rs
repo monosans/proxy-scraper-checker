@@ -50,7 +50,12 @@ where
 
 async fn open_reader(path: PathBuf) -> crate::Result<maxminddb::Reader<maxminddb::Mmap>> {
     tokio::task::spawn_blocking(move || {
-        #[expect(unsafe_code, clippy::undocumented_unsafe_blocks)]
+        // SAFETY: a mapped file must not change while the reader is alive. This
+        // program never writes to a file once it's opened here: a download fills
+        // the temp file before checking it, then renames it over the database,
+        // which leaves the old file and any mapping of it as they were. Only
+        // another process writing to the cache directory could break this.
+        #[expect(unsafe_code)]
         unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(move || {
             compact_str::format_compact!("failed to open IP database: {}", path.display())
         })

@@ -30,7 +30,7 @@ log = { version = "=0.4.35", features = [
   "release_max_level_debug",
   "std",
 ] }
-maxminddb = { version = "=0.32.0", features = ["mmap"] }
+maxminddb = { version = "=0.33.0", features = ["mmap"] }
 mimalloc = { version = "=0.1.52", optional = true }
 parking_lot = "=0.13.0"
 rapidhash = { version = "=4.5.1", features = ["unsafe"] }

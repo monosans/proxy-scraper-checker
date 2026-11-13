@@ -1,10 +1,3 @@
-# On 32-bit Arm Linux, cargo-zigbuild adds a C file with the RTABI
-# unaligned-access helpers to the link command, so zig cc also compiles there
-# and clang reports the link-only arguments of rustc (`-fuse-ld=lld`,
-# `-nostartfiles`) as unused.
-[target.'cfg(all(target_arch = "arm", target_os = "linux"))']
-rustflags = ["-A", "linker_messages"]
-
 # The illumos and Solaris targets pass `-z ignore`, which the GNU ld in cross's
 # images reports as ignored, and `linker_messages` turns that into a warning.
 [target.'cfg(any(target_os = "illumos", target_os = "solaris"))']

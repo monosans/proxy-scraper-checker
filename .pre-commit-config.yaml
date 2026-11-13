@@ -21,15 +21,25 @@ repos:
           - --fix=lf
       - id: trailing-whitespace
   - repo: https://github.com/tombi-toml/tombi-pre-commit
-    rev: d89e7f1227a0574e4bd50f58c7ac72b08b245e04 # frozen: v1.9.0
+    rev: eb5a34a798c45a534791de7aa408a25100554273 # frozen: v1.11.1
     hooks:
       - id: tombi-format
         exclude: ^.*Cargo.lock$
-  - repo: https://github.com/rbubley/mirrors-prettier
-    rev: 331f33fa4dfbcbca7c3da3620c137fde0faab273 # frozen: v3.9.10
+  - repo: https://github.com/oxc-project/mirrors-oxfmt
+    rev: 45ab8ff3cdd7a4f08acb093f7f650b42bae5dd4f # frozen: v0.78.0
     hooks:
-      - id: prettier
+      - id: oxfmt
+        language: node
+        types_or:
+          - text
+        args:
+          - --no-error-on-unmatched-pattern
+        additional_dependencies:
+          - oxfmt@0.78.0
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: c92afdf2c6ca336aaa8f39e2bd8d48f62dbd8e1f # frozen: v1.31.1
+    rev: 06a39750ec31860bb44f2acf67182c40016cd1e7 # frozen: v1.32.0
     hooks:
       - id: zizmor
+        args:
+          - --no-progress
+          - --persona=pedantic

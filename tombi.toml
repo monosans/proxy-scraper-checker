@@ -2,7 +2,9 @@
 line-width = 100
 
 [[schemas]]
-# Dependabot still reads Cargo.toml as TOML 1.0, and TOML 1.1 syntax needs Cargo 1.94.
+# With TOML 1.1, tombi splits long inline tables over several lines. Switch only when:
+# - Dependabot reads TOML 1.1 (its toml-rb 4 reads only 1.0), or its security updates are off;
+# - Rust 1.94 is acceptable as the MSRV.
 toml-version = "v1.0.0"
 path = "tombi://www.schemastore.org/cargo.json"
 include = ["Cargo.toml"]

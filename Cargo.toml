@@ -7,6 +7,31 @@ repository = "https://github.com/monosans/proxy-scraper-checker"
 license = "MIT"
 publish = false
 
+[features]
+default = ["auto-allocator"]
+__mimalloc = ["dep:mimalloc"]
+auto-allocator = ["dep:mimalloc-auto", "dep:tikv-jemallocator-auto"]
+dhat = ["dep:dhat"]
+jemalloc = ["dep:tikv-jemallocator"]
+jemalloc_override = [
+  "jemalloc",
+  "tikv-jemallocator/override_allocator_on_supported_platforms",
+]
+mimalloc_override = ["__mimalloc", "mimalloc/override"]
+mimalloc_v2 = ["__mimalloc", "mimalloc/v2"]
+mimalloc_v2_no_thp = ["mimalloc_v2", "mimalloc/no_thp"]
+mimalloc_v3 = ["__mimalloc"]
+mimalloc_v3_no_thp = ["mimalloc_v3", "mimalloc/no_thp"]
+tokio-multi-thread = ["tokio/rt-multi-thread"]
+tui = [
+  "dep:crossterm",
+  "dep:futures",
+  "dep:ratatui",
+  "dep:tui-logger",
+  "dep:unicode-segmentation",
+  "dep:unicode-width",
+]
+
 [dependencies]
 async-trait = "=0.1.92"
 color-eyre = "=0.6.5"
@@ -98,31 +123,6 @@ webpki-roots = "=1.0.12"
 tikv-jemallocator-auto = { package = "tikv-jemallocator", version = "=0.7.0", default-features = false, features = [
   "override_allocator_on_supported_platforms",
 ], optional = true }
-
-[features]
-default = ["auto-allocator"]
-__mimalloc = ["dep:mimalloc"]
-auto-allocator = ["dep:mimalloc-auto", "dep:tikv-jemallocator-auto"]
-dhat = ["dep:dhat"]
-jemalloc = ["dep:tikv-jemallocator"]
-jemalloc_override = [
-  "jemalloc",
-  "tikv-jemallocator/override_allocator_on_supported_platforms",
-]
-mimalloc_override = ["__mimalloc", "mimalloc/override"]
-mimalloc_v2 = ["__mimalloc", "mimalloc/v2"]
-mimalloc_v2_no_thp = ["mimalloc_v2", "mimalloc/no_thp"]
-mimalloc_v3 = ["__mimalloc"]
-mimalloc_v3_no_thp = ["mimalloc_v3", "mimalloc/no_thp"]
-tokio-multi-thread = ["tokio/rt-multi-thread"]
-tui = [
-  "dep:crossterm",
-  "dep:futures",
-  "dep:ratatui",
-  "dep:tui-logger",
-  "dep:unicode-segmentation",
-  "dep:unicode-width",
-]
 
 [lints.clippy]
 absolute_paths = "allow"

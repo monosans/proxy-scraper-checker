@@ -12,7 +12,9 @@
       "datasourceTemplate": "docker"
     }
   ],
-  "dependencyDashboard": false,
+  "dependencyDashboard": {
+    "enabled": false
+  },
   "extends": [
     "config:recommended",
     ":disableRateLimiting",

@@ -7,7 +7,8 @@ services:
     init: true
     privileged: true
     volumes:
-      # The IP databases, so a recording doesn't include their download.
+      # Keeps the IP databases between recordings. The first run, and one after a
+      # database update, still downloads them inside the recording.
       - proxy_scraper_checker_cache:/root/.cache/proxy_scraper_checker
       - ../../out:/app/out
       - ../../config.toml:/app/config.toml:ro

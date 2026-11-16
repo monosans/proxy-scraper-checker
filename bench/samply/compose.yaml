@@ -7,4 +7,4 @@ services:
     privileged: true
     volumes:
       - ./out:/app/out
-      - ./config.toml:/app/config.toml
+      - ./config.toml:/app/config.toml:ro

@@ -1,10 +1,15 @@
 services:
   samply:
     build:
+      context: ../..
       dockerfile: bench/samply/Dockerfile
       pull: true
     init: true
     privileged: true
     volumes:
-      - ./out:/app/out
-      - ./config.toml:/app/config.toml:ro
+      # The IP databases, so a recording doesn't include their download.
+      - proxy_scraper_checker_cache:/root/.cache/proxy_scraper_checker
+      - ../../out:/app/out
+      - ../../config.toml:/app/config.toml:ro
+volumes:
+  proxy_scraper_checker_cache:

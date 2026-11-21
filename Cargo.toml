@@ -64,7 +64,7 @@ ratatui = { version = "=0.30.2", default-features = false, features = [
   "layout-cache",
   "std",
 ], optional = true }
-regex = "=1.13.1"
+regex = "=1.13.2"
 reqwest = { version = "=0.13.5", features = ["brotli", "gzip", "socks"] }
 reqwest-middleware = "=0.5.2"
 rlimit = "=0.11.0"

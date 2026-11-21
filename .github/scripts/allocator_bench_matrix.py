@@ -13,9 +13,9 @@ the build is what costs minutes. The scripts loop over them inside one job:
   frozen CIDR corpora; stresses the dedup HashSet, the sort and serde_json).
 * alloc_env: run-time allocator tuning. jemalloc reads MALLOC_CONF as conf
   source 3, which overrides the --with-malloc-conf baked in at build time;
-  mimalloc reads MIMALLOC_* at process load. MIMALLOC_ALLOW_THP=0 does what the
-  mimalloc_no_thp build feature does (both end in prctl(PR_SET_THP_DISABLE)),
-  so that feature needs no build of its own here.
+  mimalloc reads MIMALLOC_* at process load, and MIMALLOC_ALLOW_THP=0 takes the
+  same path as its no_thp build option (prctl(PR_SET_THP_DISABLE)), so turning
+  THP off needs no build of its own.
 """
 
 from __future__ import annotations

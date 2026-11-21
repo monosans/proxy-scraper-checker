@@ -17,7 +17,6 @@ jemalloc_override = [
   "tikv-jemallocator/override_allocator_on_supported_platforms",
 ]
 mimalloc = ["dep:mimalloc"]
-mimalloc_no_thp = ["mimalloc", "mimalloc/no_thp"]
 mimalloc_override = ["mimalloc", "mimalloc/override"]
 tokio-multi-thread = ["tokio/rt-multi-thread"]
 tui = [

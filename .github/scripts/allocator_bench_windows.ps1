@@ -40,7 +40,6 @@ $allocatorFeatures = $allocator -replace '_dup$', ''
 switch ($allocatorFeatures) {
   'system' { }
   'auto' { $noDefault = @() }
-  'mimalloc_v3_override' { $features += 'mimalloc_v3'; $features += 'mimalloc_override' }
   default { $features += $allocatorFeatures }
 }
 if ($mt -eq 'true') { $features += 'tokio-multi-thread' }

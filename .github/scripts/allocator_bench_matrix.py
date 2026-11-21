@@ -13,10 +13,9 @@ the build is what costs minutes. The scripts loop over them inside one job:
   frozen CIDR corpora; stresses the dedup HashSet, the sort and serde_json).
 * alloc_env: run-time allocator tuning. jemalloc reads MALLOC_CONF as conf
   source 3, which overrides the --with-malloc-conf baked in at build time;
-  mimalloc reads MIMALLOC_* at process load. This is also what replaces the old
-  mimalloc_v*_no_thp build features: MIMALLOC_ALLOW_THP=0 is strictly stronger,
-  since it additionally issues prctl(PR_SET_THP_DISABLE), and it covers v2 and
-  v3 with the same binary.
+  mimalloc reads MIMALLOC_* at process load. MIMALLOC_ALLOW_THP=0 does what the
+  mimalloc_no_thp build feature does (both end in prctl(PR_SET_THP_DISABLE)),
+  so that feature needs no build of its own here.
 """
 
 from __future__ import annotations
@@ -41,10 +40,9 @@ PLATFORMS = [
 #
 # It is knowingly a duplicate: `auto-allocator` only wires an allocator for
 # target_os macos (tikv-jemallocator-auto, the same package and features as
-# `jemalloc_override`) and target_env musl (mimalloc-auto: v2 with override and
-# no_thp), and the matching #[global_allocator]s in src/main.rs are gated the
-# same way. On the glibc and Windows platforms `auto` is therefore the same
-# program as `system`. It is kept anyway, for a reason: every "vs system" delta
+# `jemalloc_override`), and the matching #[global_allocator] in src/main.rs is
+# gated the same way. Off macOS `auto` is therefore the same program as
+# `system`. It is kept anyway, for a reason: every "vs system" delta
 # in the report compares two jobs on two different runner VMs, while the MAD
 # that sets the noise floor comes from reps inside one job on one machine. The
 # auto-vs-system spread on those platforms is therefore a direct measurement of
@@ -55,7 +53,7 @@ PLATFORMS = [
 # reasoning: mimalloc's `override` and jemalloc's
 # `override_allocator_on_supported_platforms` change what happens to the C
 # dependencies' allocations (here aws-lc-sys), never to Rust's.
-COMMON = ["system", "auto", "mimalloc_v2", "mimalloc_v3", "mimalloc_v3_override"]
+COMMON = ["system", "auto", "mimalloc", "mimalloc_override"]
 
 # jemalloc-sys shells out to `sh` and `mingw32-make` and has no gnu_target
 # mapping for aarch64-pc-windows-msvc, so it cannot be built on Windows at all.
@@ -102,7 +100,7 @@ JE_THP = "thp_never:MALLOC_CONF=thp:never _RJEM_MALLOC_CONF=thp:never"
 NOISE_DUPES = [
     ("ubuntu-26.04", "jemalloc_override"),
     ("alpine", "jemalloc_override"),
-    ("ubuntu-26.04", "mimalloc_v3"),
+    ("ubuntu-26.04", "mimalloc"),
     # Both macOS runners: the shipped default is not the system allocator
     # there, and it had no between-job measurement at all.
     # jemalloc rather than jemalloc_override because
@@ -135,15 +133,13 @@ def main() -> None:
     for platform, runner, alpine, family in PLATFORMS:
         allocators = COMMON + ([] if family == "windows" else JEMALLOC)
         if family == "windows":
-            # libmimalloc-sys/build.rs defines MI_MALLOC_OVERRIDE only when
-            # target_family != "windows", and skips -fno-builtin-malloc for
-            # MSVC ("overriding malloc is only available on windows in shared
-            # mode, but we only ever build a static lib"). The cell therefore
-            # compiles identical C to mimalloc_v3 and would only add a row
-            # labelled as an override that overrides nothing. exe_sha will not
-            # catch it either: the feature adds a #[used] static regardless of
-            # target, so the binaries differ while the behaviour does not.
-            allocators = [a for a in allocators if a != "mimalloc_v3_override"]
+            # mimalloc-sys/build.rs ignores `override` when target_os is
+            # windows, so the cell compiles identical C to `mimalloc` and would
+            # only add a row labelled as an override that overrides nothing.
+            # exe_sha will not catch it either: the feature adds a #[used]
+            # static regardless of target, so the binaries differ while the
+            # behaviour does not.
+            allocators = [a for a in allocators if a != "mimalloc_override"]
         allocators = allocators + [
             a + DUP_SUFFIX for p, a in NOISE_DUPES if p == platform
         ]

@@ -99,6 +99,25 @@ else
   exe_sha="$(shasum -a 256 "$exe" | cut -c1-16)"
 fi
 
+# A misspelt variable or option would leave a variant identical to its default
+# and still produce clean rows. jemalloc reports a conf pair it cannot parse on
+# stderr, so one probe with a bogus option proves the variables are read, and
+# every measured rep below is held to printing no such complaint.
+case "$ALLOC_ENVS" in
+  *MALLOC_CONF=*)
+    probe_vars="$(printf '%s' "$ALLOC_ENVS" | grep -o '[A-Z_]*MALLOC_CONF=' |
+      sort -u | sed 's/$/bench_probe:1/' | tr '\n' ' ')"
+    # shellcheck disable=SC2086
+    PROXY_SCRAPER_CHECKER_CONFIG=bench/config.check.toml \
+      env $probe_vars "$exe" >bench-probe.log 2>&1 || true
+    if ! grep -q '<jemalloc>: Invalid conf pair: bench_probe:1' bench-probe.log; then
+      echo "jemalloc ignored ${probe_vars}so the MALLOC_CONF variants would measure nothing" >&2
+      tail -n 20 bench-probe.log >&2
+      exit 1
+    fi
+    ;;
+esac
+
 results=bench-results.tsv
 if [ ! -f "$results" ]; then
   printf 'run_id\tcell_id\trep\tplatform\tlibc\tarch\tcores\ttoolchain\tallocator\talloc_env\tmt\tworkload\twall_ms\tcpu_user_ms\tcpu_sys_ms\tpeak_rss_kb\tpeak_extra_kb\tpeak_extra_kind\tmajor_pf\tminor_pf\tpf_kind\texit_code\tproxies_checked\tproxies_out\texe_sha\tthp\tpage_kb\n' > "$results"
@@ -248,6 +267,12 @@ fi
   if [ "$rc" != "0" ]; then
     echo "rep $i exited with $rc" >&2
     tail -n 40 "$log" "$timing" >&2
+    exit 1
+  fi
+  # On macOS the child's stderr lands in $timing, so look in both.
+  if grep -q '<jemalloc>:' "$log" "$timing"; then
+    echo "rep $i: jemalloc rejected part of ${alloc_env_vars:-its config}" >&2
+    grep -h '<jemalloc>:' "$log" "$timing" >&2
     exit 1
   fi
 

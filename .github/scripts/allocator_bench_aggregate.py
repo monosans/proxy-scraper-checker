@@ -364,6 +364,50 @@ def render_mt(stats: dict, out: list[str]) -> None:
     out.append("")
 
 
+def render_variants(stats: dict, out: list[str]) -> None:
+    """Put each run-time variant next to its own `default`, inside one job.
+
+    The scripts interleave a job's variants rep by rep on one runner, so these
+    pairs carry none of the between-job noise that swamps the `vs system`
+    timing columns. They are the only timing comparisons here that can stand
+    on their within-job spread alone.
+    """
+    rows = []
+    # key is (platform, libc, arch, workload, mt, allocator, alloc_env).
+    for key, series in sorted(stats.items()):
+        if key[6] == "default":
+            continue
+        base = stats.get((*key[:6], "default"))
+        if base is not None:
+            rows.append((key, series, base))
+    if not rows:
+        return
+
+    out.append("## Run-time variants vs their own default (same job)\n")
+    out.append(
+        "Negative means the variant won. Both sides ran interleaved on one "
+        "runner, so the timing deltas here are trustworthy, unlike the "
+        "between-job ones below.\n"
+    )
+    header = "| platform | workload | mt | allocator | env | n |"
+    divider = "| --- | --- | --- | --- | --- | ---: |"
+    for _, label, _ in METRICS:
+        header += f" {label} default | variant | delta |"
+        divider += " ---: | ---: | ---: |"
+    out.append(header)
+    out.append(divider)
+    for key, series, base in rows:
+        n = min(series["wall_ms"].n, base["wall_ms"].n)
+        line = f"| {key[0]} | {key[3]} | {key[4]} | `{key[5]}` | {key[6]} | {n} |"
+        for name, _, _ in METRICS:
+            line += (
+                f" {base[name].median:.0f} | {series[name].median:.0f} |"
+                f" {delta_cell(series[name], base[name])} |"
+            )
+        out.append(line)
+    out.append("")
+
+
 def main() -> None:
     root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "artifacts")
     rows = read_rows(root)
@@ -380,6 +424,7 @@ def main() -> None:
     stats = summarize(rows)
     floors = job_noise_floors(stats)
     render_mt(stats, out)
+    render_variants(stats, out)
     render(stats, out, floors)
     out.append(
         "Deltas are median-vs-median, qualified by the observed spread of the "

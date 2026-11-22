@@ -15,7 +15,10 @@ the build is what costs minutes. The scripts loop over them inside one job:
   source 3, which overrides the --with-malloc-conf baked in at build time;
   mimalloc reads MIMALLOC_* at process load, and MIMALLOC_ALLOW_THP=0 takes the
   same path as its no_thp build option (prctl(PR_SET_THP_DISABLE)), so turning
-  THP off needs no build of its own.
+  THP off needs no build of its own. glibc reads GLIBC_TUNABLES at startup, and
+  the Windows script maps `segment_heap` to the image's IFEO key. The scripts
+  interleave a job's variants rep by rep, so a variant against its own
+  `default` is the one comparison here free of between-job noise.
 """
 
 from __future__ import annotations
@@ -66,23 +69,29 @@ JEMALLOC = ["jemalloc", "jemalloc_override"]
 MT_PLATFORMS = {"ubuntu-26.04", "ubuntu-26.04-arm", "macos-26", "windows-2025"}
 MT_ALLOCATORS = {"system", "auto"}
 
-# Both spellings are set: jemalloc reads the prefixed name when built prefixed
-# (always on Apple, and on Linux without the override feature) and the plain
-# name when unprefixed. Setting the unused one is harmless.
-JE_TUNED = (
-    "tuned:MALLOC_CONF=dirty_decay_ms:1000,muzzy_decay_ms:0 "
-    "_RJEM_MALLOC_CONF=dirty_decay_ms:1000,muzzy_decay_ms:0"
-)
-JE_BG = "bg:MALLOC_CONF=background_thread:true _RJEM_MALLOC_CONF=background_thread:true"
+# Run-time variants exist only where they can change what ships, so each one is
+# a candidate for the default build. Variants that were measured and settled are
+# gone: jemalloc's decay tuning, thp:never and background_thread changed nothing
+# or cost RSS (background_thread +17..31% on scrape) in every job of run
+# 44974453662, and that comparison was within one job, so it was not noise.
+#
+# glibc gives every thread that allocates an arena of its own, up to 8 per core,
+# and the blocking pool (fs, getaddrinfo) adds threads to the single runtime one.
+GLIBC_ARENA1 = "arena1:GLIBC_TUNABLES=glibc.malloc.arena_max=1"
 
-# An earlier run split perfectly along THP: jemalloc cost +59..92% peak RSS on
-# the x86_64 runners, which report /sys/.../enabled = [always], and only +5..19%
-# on the arm64 ones, which report [madvise]. The mechanism is plausible enough
-# (jemalloc maps large aligned regions that khugepaged then backs with 2 MB
-# pages), but it is confounded with the architecture. opt.thp is a Linux-only
-# jemalloc option (it needs MADVISE_HUGE), so this variant tests it directly on
-# the always machines instead of inferring it from a correlation.
-JE_THP = "thp_never:MALLOC_CONF=thp:never _RJEM_MALLOC_CONF=thp:never"
+# macOS ships jemalloc (`auto`), which is prefixed on Apple and so reads only
+# _RJEM_MALLOC_CONF. narenas defaults to 4 per CPU, and cache_oblivious offsets
+# every large allocation by up to a page to spread cache indexes; both trade
+# memory for multithreaded throughput this program does not need.
+JE_NARENAS1 = "narenas1:_RJEM_MALLOC_CONF=narenas:1"
+JE_NO_CO = "no_co:_RJEM_MALLOC_CONF=cache_oblivious:false"
+JE_LEAN = "lean:_RJEM_MALLOC_CONF=narenas:1,cache_oblivious:false"
+
+# The segment heap (Windows 10 2004+) replaces the NT heap behind HeapAlloc,
+# which both Rust's System allocator and the UCRT's malloc (aws-lc) use. A
+# program opts in through its manifest; the bench script switches it per run
+# through the image's IFEO key instead, so it needs no second build.
+WIN_SEGMENT_HEAP = "segment_heap"
 
 
 # Between-job reproducibility is allocator-dependent, and the auto-vs-system
@@ -117,14 +126,13 @@ def alloc_envs(platform: str, family: str, allocator: str) -> str:
     variants = ["default"]
     if allocator.startswith("mimalloc") and family == "linux":
         variants.append("no_thp:MIMALLOC_ALLOW_THP=0")
-    if allocator.startswith("jemalloc"):
-        variants.append(JE_TUNED)
-        if family == "linux":
-            variants.append(JE_THP)
-        # jemalloc-sys lists musl in NO_BG_THREAD_TARGETS, and macOS compiles
-        # background threads out entirely, so the knob only exists on glibc.
+    if allocator == "system":
         if family == "linux" and not platform.startswith("alpine"):
-            variants.append(JE_BG)
+            variants.append(GLIBC_ARENA1)
+        if family == "windows":
+            variants.append(WIN_SEGMENT_HEAP)
+    if allocator == "auto" and family == "macos":
+        variants += [JE_NARENAS1, JE_NO_CO, JE_LEAN]
     return ";".join(variants)
 
 

@@ -43,8 +43,8 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 // (aws-lc). On glibc, musl and Windows the system allocator had the lowest peak
 // RSS and mimalloc/jemalloc saved no significant CPU. On musl mimalloc v3 cost
 // 40-77% more peak RSS than mallocng (17-50% with MIMALLOC_ALLOW_THP=0) and
-// jemalloc 7-17%. The BSDs ship jemalloc and Android ships Scudo as their libc
-// allocator already.
+// jemalloc 7-17%. FreeBSD and NetBSD ship jemalloc as their libc allocator
+// already, and Android ships Scudo (jemalloc on low-memory devices).
 
 // macOS: 12-58% lower peak RSS than libmalloc.
 #[cfg(all(feature = "auto-allocator", target_os = "macos"))]

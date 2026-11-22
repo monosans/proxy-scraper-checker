@@ -51,6 +51,21 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: tikv_jemallocator_auto::Jemalloc = tikv_jemallocator_auto::Jemalloc;
 
+// glibc gives threads that allocate an arena of their own, up to 8 per CPU, and
+// the blocking pool (fs, getaddrinfo) adds threads next to the runtime's one.
+// A single arena: 9-14% lower peak RSS on arm64 and 0-2% on x86_64 in
+// allocator-bench, with no measurable time cost. Not with tokio-multi-thread,
+// whose workers it slowed by up to 45%.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+fn use_one_malloc_arena() {
+    if !cfg!(feature = "tokio-multi-thread") {
+        // SAFETY: mallopt takes no pointers and only changes a malloc
+        // parameter. It returns 0 if glibc rejects it, which leaves the default.
+        #[expect(unsafe_code)]
+        let _: libc::c_int = unsafe { libc::mallopt(libc::M_ARENA_MAX, 1) };
+    }
+}
+
 type Error = color_eyre::Report;
 type Result<T> = color_eyre::Result<T>;
 
@@ -420,6 +435,10 @@ async fn run_without_tui(
 #[cfg_attr(feature = "tokio-multi-thread", tokio::main(flavor = "multi_thread"))]
 #[cfg_attr(not(feature = "tokio-multi-thread"), tokio::main(flavor = "current_thread"))]
 async fn main() -> Result<()> {
+    // First, so it applies before the blocking pool starts any thread.
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    use_one_malloc_arena();
+
     #[cfg(feature = "dhat")]
     let _profiler = dhat::Profiler::new_heap();
 

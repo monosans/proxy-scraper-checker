@@ -104,6 +104,9 @@ url = "=2.5.8"
 [dev-dependencies]
 tokio = { version = "=1.54.1", features = ["test-util"] }
 
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
+libc = "=0.2.191"
+
 [target.'cfg(not(target_os = "android"))'.dependencies]
 rustls-platform-verifier = "=0.7.1"
 

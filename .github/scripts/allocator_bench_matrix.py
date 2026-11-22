@@ -79,17 +79,11 @@ MT_ALLOCATORS = {"system", "auto"}
 # there still saved 8..14% for reasons nobody worked out, so neither the
 # variant nor a manifest opt-in shipped.
 #
-# glibc gives every thread that allocates an arena of its own, up to 8 per core,
-# and the blocking pool (fs, getaddrinfo) adds threads to the single runtime one.
-GLIBC_ARENA1 = "arena1:GLIBC_TUNABLES=glibc.malloc.arena_max=1"
-
-# macOS ships jemalloc (`auto`), which is prefixed on Apple and so reads only
-# _RJEM_MALLOC_CONF. narenas defaults to 4 per CPU, and cache_oblivious offsets
-# every large allocation by up to a page to spread cache indexes; both trade
-# memory for multithreaded throughput this program does not need.
-JE_NARENAS1 = "narenas1:_RJEM_MALLOC_CONF=narenas:1"
-JE_NO_CO = "no_co:_RJEM_MALLOC_CONF=cache_oblivious:false"
-JE_LEAN = "lean:_RJEM_MALLOC_CONF=narenas:1,cache_oblivious:false"
+# Two tunings won and now ship, so their variants are gone too: one glibc arena
+# (src/main.rs) and narenas:1,cache_oblivious:false baked into jemalloc on macOS
+# (.cargo/config.toml), both in runs 45024444992 and 45026762281. glibc's arena
+# limit is set with mallopt, which overrides GLIBC_TUNABLES, so no variant can
+# undo it any more.
 
 
 # Between-job reproducibility is allocator-dependent, and the auto-vs-system
@@ -119,15 +113,11 @@ NOISE_DUPES = [
 DUP_SUFFIX = "_dup"
 
 
-def alloc_envs(platform: str, family: str, allocator: str) -> str:
+def alloc_envs(family: str, allocator: str) -> str:
     allocator = allocator.removesuffix(DUP_SUFFIX)
     variants = ["default"]
     if allocator.startswith("mimalloc") and family == "linux":
         variants.append("no_thp:MIMALLOC_ALLOW_THP=0")
-    if allocator == "system" and family == "linux" and not platform.startswith("alpine"):
-        variants.append(GLIBC_ARENA1)
-    if allocator == "auto" and family == "macos":
-        variants += [JE_NARENAS1, JE_NO_CO, JE_LEAN]
     return ";".join(variants)
 
 
@@ -159,7 +149,7 @@ def main() -> None:
                         "alpine": alpine,
                         "allocator": allocator,
                         "mt": str(mt).lower(),
-                        "alloc_envs": alloc_envs(platform, family, allocator),
+                        "alloc_envs": alloc_envs(family, allocator),
                     }
                 )
 

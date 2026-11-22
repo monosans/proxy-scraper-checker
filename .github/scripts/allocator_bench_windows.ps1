@@ -273,8 +273,9 @@ foreach ($workload in $workloads) {
       # Work-done counters, so a clean exit 0 that scraped nothing cannot pass
       # as a measurement.
       $checked = 0
-      $m = [regex]::Match((Get-Content $log -Raw), 'Started checking (\d+) proxies')
-      if ($m.Success) { $checked = [int]$m.Groups[1].Value }
+      # The log groups thousands with commas.
+      $m = [regex]::Match((Get-Content $log -Raw), 'Started checking ([\d,]+) proxies')
+      if ($m.Success) { $checked = [int]($m.Groups[1].Value -replace ',', '') }
       $outFile = 'bench-out\proxies\all.txt'
       $outN = if (Test-Path $outFile) { @(Get-Content $outFile).Count } else { 0 }
 

@@ -281,9 +281,10 @@ fi
 
   # Work-done counters, so a clean exit 0 that scraped nothing cannot pass as a
   # measurement. The aggregator additionally asserts these agree across every
-  # rep and every cell of a platform.
+  # rep and every cell of a platform. The log groups thousands with commas.
   proxies_checked="$(sed -n \
-    's/.*Started checking \([0-9][0-9]*\) proxies.*/\1/p' "$log" | head -n 1)"
+    's/.*Started checking \([0-9][0-9,]*\) proxies.*/\1/p' "$log" |
+    head -n 1 | tr -d ,)"
   proxies_checked="${proxies_checked:-0}"
   if [ -f "$out_dir/proxies/all.txt" ]; then
     proxies_out="$(wc -l < "$out_dir/proxies/all.txt" | tr -d ' ')"
@@ -354,7 +355,7 @@ IFS="$old_ifs"
 done
 
 if [ "$WORKLOAD" = "tls" ]; then
-  # Prove the tunnel actually carried TLS. "Started checking 2000 proxies" is
+  # Prove the tunnel actually carried TLS. "Started checking 2,000 proxies" is
   # logged before the first check runs, so proxies_checked cannot tell a run of
   # 2000 handshakes from a run of 2000 refused connects, and the second one
   # would quietly be a duplicate of the check workload wearing the tls label.

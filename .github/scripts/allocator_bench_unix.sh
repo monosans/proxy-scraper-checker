@@ -5,7 +5,7 @@
 #
 # Inputs (env):
 #   ALLOCATOR          system | auto | jemalloc | jemalloc_override |
-#                      mimalloc_v2 | mimalloc_v3 | mimalloc_v3_override,
+#                      mimalloc | mimalloc_override,
 #                      optionally with a "_dup" suffix, which builds the same
 #                      binary under a second job so the report can show the
 #                      between-job noise for that allocator. The suffix is
@@ -46,7 +46,6 @@ allocator_features="${ALLOCATOR%_dup}"
 case "$allocator_features" in
   system) ;;
   auto) no_default="" ;;
-  mimalloc_v3_override) features="mimalloc_v3,mimalloc_override" ;;
   *) features="$allocator_features" ;;
 esac
 if [ "$TOKIO_MULTI_THREAD" = "true" ]; then

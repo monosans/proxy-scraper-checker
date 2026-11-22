@@ -76,74 +76,7 @@ public static extern bool GetProcessMemoryInfo(IntPtr hProcess, out PROCESS_MEMO
 
 [DllImport("kernel32.dll", SetLastError = true)]
 public static extern bool GetProcessTimes(IntPtr hProcess, out long creation, out long exit, out long kernel, out long user);
-
-[StructLayout(LayoutKind.Sequential)]
-public struct PROCESS_BASIC_INFORMATION {
-    public IntPtr ExitStatus;
-    public IntPtr PebBaseAddress;
-    public IntPtr AffinityMask;
-    public IntPtr BasePriority;
-    public UIntPtr UniqueProcessId;
-    public IntPtr InheritedFromUniqueProcessId;
-}
-
-[DllImport("ntdll.dll")]
-public static extern int NtQueryInformationProcess(IntPtr hProcess, int infoClass, out PROCESS_BASIC_INFORMATION info, int size, out int returned);
-
-[DllImport("kernel32.dll", SetLastError = true)]
-public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr address, byte[] buffer, IntPtr size, out IntPtr read);
 '@
-}
-
-# --- segment heap ----------------------------------------------------------
-# FrontEndHeapDebugOptions = 8 in the image's IFEO key makes the loader create
-# the process heap as a segment heap, the same switch the manifest's heapType
-# flips. It is keyed by file name, so it reaches nothing but this binary.
-$ifeoKey = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\' +
-  (Split-Path -Leaf $exe)
-
-function Set-SegmentHeap([bool]$on) {
-  if ($on) {
-    New-Item -Path $ifeoKey -Force | Out-Null
-    New-ItemProperty -Path $ifeoKey -Name FrontEndHeapDebugOptions -PropertyType DWord -Value 8 -Force | Out-Null
-  }
-  elseif (Test-Path $ifeoKey) {
-    Remove-Item -Path $ifeoKey -Recurse -Force
-  }
-}
-
-# Reads which heap the loader actually gave the process, so a switch that did
-# nothing cannot pass as a measurement: PEB.ProcessHeap is at 0x30 on 64-bit
-# Windows, and both heap headers keep their signature at 0x10. The loader fills
-# ProcessHeap in after CreateProcess returns, hence the wait.
-function Get-HeapKind([System.Diagnostics.Process]$p) {
-  $pbi = New-Object Psapi+PROCESS_BASIC_INFORMATION
-  $len = 0
-  $size = [System.Runtime.InteropServices.Marshal]::SizeOf($pbi)
-  if ([Psapi]::NtQueryInformationProcess($p.Handle, 0, [ref]$pbi, $size, [ref]$len) -ne 0) {
-    return 'unknown'
-  }
-  $buf = New-Object byte[] 8
-  $read = [IntPtr]::Zero
-  $sw = [System.Diagnostics.Stopwatch]::StartNew()
-  while ($sw.ElapsedMilliseconds -lt 2000 -and -not $p.HasExited) {
-    $slot = [IntPtr]($pbi.PebBaseAddress.ToInt64() + 0x30)
-    if ([Psapi]::ReadProcessMemory($p.Handle, $slot, $buf, [IntPtr]8, [ref]$read)) {
-      $heap = [BitConverter]::ToInt64($buf, 0)
-      if ($heap -ne 0) {
-        if (-not [Psapi]::ReadProcessMemory($p.Handle, [IntPtr]($heap + 0x10), $buf, [IntPtr]4, [ref]$read)) {
-          return 'unknown'
-        }
-        switch ('{0:X8}' -f [BitConverter]::ToUInt32($buf, 0)) {
-          'DDEEDDEE' { return 'segment' }
-          'FFEEFFEE' { return 'nt' }
-          default { return 'unknown' }
-        }
-      }
-    }
-    Start-Sleep -Milliseconds 1
-  }
-  return 'unknown'
 }
 
 $cores = $env:NUMBER_OF_PROCESSORS
@@ -254,24 +187,21 @@ function Start-TlsServer {
 # Workloads and tuning variants are loops inside the job, not matrix axes:
 # neither needs a rebuild, and the build is what costs minutes.
 #
-# Repetitions outside, tuning variants inside, as in allocator_bench_unix.sh:
-# drift in the machine then spreads evenly over the variants instead of landing
-# entirely on whichever one ran last.
-$checkHeap = $allocEnvs -contains 'segment_heap'
+# allocator_bench_unix.sh interleaves the tuning variants across repetitions so
+# that drift in the machine cannot land on whichever variant ran last. This
+# script deliberately does not: allocator_bench_matrix.py only ever emits the
+# variants for Linux allocators, so every Windows cell has exactly one
+# ("default") and the interleaving would be a no-op.
 foreach ($workload in $workloads) {
   if ($workload -eq 'tls' -and -not (Start-TlsServer)) { continue }
 
-  $cellRows = @{}
   foreach ($allocEnv in $allocEnvs) {
-    $cellRows[$allocEnv.Split(':')[0]] = [System.Collections.Generic.List[object]]::new()
-  }
+    $allocEnvName = $allocEnv.Split(':')[0]
+    $cellId = "$platform|$allocator|mt=$mt|$workload|$allocEnvName"
+    Write-Host "--- $cellId ---"
+    $rows = @()
 
-  for ($i = 1; $i -le ($warmups + $reps); $i++) {
-    foreach ($allocEnv in $allocEnvs) {
-      $allocEnvName = $allocEnv.Split(':')[0]
-      $cellId = "$platform|$allocator|mt=$mt|$workload|$allocEnvName"
-      if ($i -eq 1) { Write-Host "--- $cellId ---" }
-      Set-SegmentHeap ($allocEnvName -eq 'segment_heap')
+    for ($i = 1; $i -le ($warmups + $reps); $i++) {
       $psi = New-Object System.Diagnostics.ProcessStartInfo
       $psi.FileName = $exe
       $psi.UseShellExecute = $false
@@ -309,23 +239,6 @@ foreach ($workload in $workloads) {
       # deadlocks as soon as the other fills its buffer.
       $stdout = $p.StandardOutput.ReadToEndAsync()
       $stderr = $p.StandardError.ReadToEndAsync()
-      # Once per variant, on the first (warmup) rep, which is discarded anyway:
-      # polling the PEB costs this script CPU while the process runs.
-      # Only the variant is asserted: Windows 11 on arm64 already hands this
-      # binary a segment heap by default, and that is worth knowing, not fatal.
-      if ($checkHeap -and $i -eq 1) {
-        $heapKind = Get-HeapKind $p
-        Write-Host "$cellId process heap: $heapKind"
-        if ($heapKind -eq 'unknown') {
-          Write-Host "::warning::$cellId could not read the process heap type"
-        }
-        elseif ($allocEnvName -eq 'segment_heap' -and $heapKind -ne 'segment') {
-          throw "$cellId got a $heapKind process heap, expected a segment heap"
-        }
-        elseif ($allocEnvName -ne 'segment_heap' -and $heapKind -eq 'segment') {
-          Write-Host "::notice::$cellId already runs on a segment heap, so segment_heap repeats it here"
-        }
-      }
       $p.WaitForExit()
       $sw.Stop()
 
@@ -409,17 +322,11 @@ foreach ($workload in $workloads) {
         $mem.PageFaultCount, 'win_total', $exitCode, $checked, $outN, $exeSha,
         'n/a', 4) -join "`t"
       Add-Content -Path $results -Value $row -Encoding utf8
-      $cellRows[$allocEnvName].Add([pscustomobject]@{
+      $rows += [pscustomobject]@{
         wall = $wallMs; cpu = $userMs + $sysMs
         rss  = $peakRssKb; commit = $peakCommitKb
-      })
+      }
     }
-  }
-
-  foreach ($allocEnv in $allocEnvs) {
-    $allocEnvName = $allocEnv.Split(':')[0]
-    $cellId = "$platform|$allocator|mt=$mt|$workload|$allocEnvName"
-    $rows = $cellRows[$allocEnvName]
 
     # Median rather than mean, MAD rather than stddev: with 5 reps a single
     # descheduled run would drag a mean far enough to invent a difference.
@@ -465,4 +372,3 @@ foreach ($workload in $workloads) {
 }
 
 Stop-TlsServer
-Set-SegmentHeap $false

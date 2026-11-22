@@ -15,10 +15,9 @@ the build is what costs minutes. The scripts loop over them inside one job:
   source 3, which overrides the --with-malloc-conf baked in at build time;
   mimalloc reads MIMALLOC_* at process load, and MIMALLOC_ALLOW_THP=0 takes the
   same path as its no_thp build option (prctl(PR_SET_THP_DISABLE)), so turning
-  THP off needs no build of its own. glibc reads GLIBC_TUNABLES at startup, and
-  the Windows script maps `segment_heap` to the image's IFEO key. The scripts
-  interleave a job's variants rep by rep, so a variant against its own
-  `default` is the one comparison here free of between-job noise.
+  THP off needs no build of its own. glibc reads GLIBC_TUNABLES at startup. The
+  unix script interleaves a job's variants rep by rep, so a variant against its
+  own `default` is the one comparison here free of between-job noise.
 """
 
 from __future__ import annotations
@@ -74,6 +73,11 @@ MT_ALLOCATORS = {"system", "auto"}
 # gone: jemalloc's decay tuning, thp:never and background_thread changed nothing
 # or cost RSS (background_thread +17..31% on scrape) in every job of run
 # 44974453662, and that comparison was within one job, so it was not noise.
+# The Windows segment heap, switched per run through the image's IFEO key, cost
+# windows-2025 +1..+22% peak working set in runs 45024444992 and 45026762281.
+# Windows 11 on arm64 already gives this binary a segment heap, and forcing it
+# there still saved 8..14% for reasons nobody worked out, so neither the
+# variant nor a manifest opt-in shipped.
 #
 # glibc gives every thread that allocates an arena of its own, up to 8 per core,
 # and the blocking pool (fs, getaddrinfo) adds threads to the single runtime one.
@@ -86,12 +90,6 @@ GLIBC_ARENA1 = "arena1:GLIBC_TUNABLES=glibc.malloc.arena_max=1"
 JE_NARENAS1 = "narenas1:_RJEM_MALLOC_CONF=narenas:1"
 JE_NO_CO = "no_co:_RJEM_MALLOC_CONF=cache_oblivious:false"
 JE_LEAN = "lean:_RJEM_MALLOC_CONF=narenas:1,cache_oblivious:false"
-
-# The segment heap (Windows 10 2004+) replaces the NT heap behind HeapAlloc,
-# which both Rust's System allocator and the UCRT's malloc (aws-lc) use. A
-# program opts in through its manifest; the bench script switches it per run
-# through the image's IFEO key instead, so it needs no second build.
-WIN_SEGMENT_HEAP = "segment_heap"
 
 
 # Between-job reproducibility is allocator-dependent, and the auto-vs-system
@@ -126,11 +124,8 @@ def alloc_envs(platform: str, family: str, allocator: str) -> str:
     variants = ["default"]
     if allocator.startswith("mimalloc") and family == "linux":
         variants.append("no_thp:MIMALLOC_ALLOW_THP=0")
-    if allocator == "system":
-        if family == "linux" and not platform.startswith("alpine"):
-            variants.append(GLIBC_ARENA1)
-        if family == "windows":
-            variants.append(WIN_SEGMENT_HEAP)
+    if allocator == "system" and family == "linux" and not platform.startswith("alpine"):
+        variants.append(GLIBC_ARENA1)
     if allocator == "auto" and family == "macos":
         variants += [JE_NARENAS1, JE_NO_CO, JE_LEAN]
     return ";".join(variants)

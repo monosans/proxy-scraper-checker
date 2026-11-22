@@ -1627,6 +1627,7 @@ dependencies = [
  "httpdate",
  "ipnet",
  "itoa",
+ "libc",
  "log",
  "maxminddb",
  "mimalloc",

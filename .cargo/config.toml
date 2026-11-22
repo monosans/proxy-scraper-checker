@@ -1,3 +1,11 @@
+# Baked into jemalloc on macOS, the only place auto-allocator uses it. One arena
+# instead of four per CPU, and no page-sized random offset on large allocations:
+# 1.5-11% lower peak RSS in allocator-bench, with no measurable time cost.
+# tikv-jemalloc-sys reads the target-prefixed name, so other targets never see it.
+[env]
+AARCH64_APPLE_DARWIN_JEMALLOC_SYS_WITH_MALLOC_CONF = "narenas:1,cache_oblivious:false"
+X86_64_APPLE_DARWIN_JEMALLOC_SYS_WITH_MALLOC_CONF = "narenas:1,cache_oblivious:false"
+
 # Skip crate versions published less than 3 days ago, like the uv and npm cooldowns.
 [registry]
 global-min-publish-age = "3 days"

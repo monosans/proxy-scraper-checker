@@ -311,17 +311,19 @@ foreach ($workload in $workloads) {
       $stderr = $p.StandardError.ReadToEndAsync()
       # Once per variant, on the first (warmup) rep, which is discarded anyway:
       # polling the PEB costs this script CPU while the process runs.
+      # Only the variant is asserted: Windows 11 on arm64 already hands this
+      # binary a segment heap by default, and that is worth knowing, not fatal.
       if ($checkHeap -and $i -eq 1) {
         $heapKind = Get-HeapKind $p
-        $wantHeap = if ($allocEnvName -eq 'segment_heap') { 'segment' } else { 'nt' }
+        Write-Host "$cellId process heap: $heapKind"
         if ($heapKind -eq 'unknown') {
           Write-Host "::warning::$cellId could not read the process heap type"
         }
-        elseif ($heapKind -ne $wantHeap) {
-          throw "$cellId got a $heapKind process heap, expected $wantHeap"
+        elseif ($allocEnvName -eq 'segment_heap' -and $heapKind -ne 'segment') {
+          throw "$cellId got a $heapKind process heap, expected a segment heap"
         }
-        else {
-          Write-Host "$cellId process heap: $heapKind"
+        elseif ($allocEnvName -ne 'segment_heap' -and $heapKind -eq 'segment') {
+          Write-Host "::notice::$cellId already runs on a segment heap, so segment_heap repeats it here"
         }
       }
       $p.WaitForExit()

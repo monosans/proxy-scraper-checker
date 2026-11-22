@@ -37,6 +37,11 @@
       "groupName": "python",
       "automerge": false,
       "minimumReleaseAge": null
+    },
+    {
+      "description": "git-refs gives a commit no release timestamp, so a cooldown would hold back every new commit of a git dependency (mimalloc) forever",
+      "matchDatasources": ["git-refs"],
+      "minimumReleaseAge": null
     }
   ],
   "pre-commit": { "enabled": true },

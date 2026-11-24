@@ -99,7 +99,7 @@ tui-logger = { version = "=0.18.3", features = [
 ], optional = true }
 unicode-segmentation = { version = "=1.13.3", optional = true }
 unicode-width = { version = "=0.2.3", optional = true }
-url = "=2.5.8"
+url = "=2.5.9"
 
 [dev-dependencies]
 tokio = { version = "=1.54.1", features = ["test-util"] }

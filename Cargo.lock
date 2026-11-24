@@ -1354,8 +1354,8 @@ dependencies = [
 
 [[package]]
 name = "mimalloc"
-version = "3.7.0"
-source = "git+https://github.com/microsoft/mimalloc?rev=1d8fd85aa3abe719cd9c42c855f1fc27dbccf84d#1d8fd85aa3abe719cd9c42c855f1fc27dbccf84d"
+version = "3.7.1"
+source = "git+https://github.com/microsoft/mimalloc?rev=bc44251a1198409399bca17e319914795e8903d1#bc44251a1198409399bca17e319914795e8903d1"
 dependencies = [
  "mimalloc-sys",
  "rustversion",
@@ -1363,8 +1363,8 @@ dependencies = [
 
 [[package]]
 name = "mimalloc-sys"
-version = "3.7.0"
-source = "git+https://github.com/microsoft/mimalloc?rev=1d8fd85aa3abe719cd9c42c855f1fc27dbccf84d#1d8fd85aa3abe719cd9c42c855f1fc27dbccf84d"
+version = "3.7.1"
+source = "git+https://github.com/microsoft/mimalloc?rev=bc44251a1198409399bca17e319914795e8903d1#bc44251a1198409399bca17e319914795e8903d1"
 dependencies = [
  "cc",
  "rustversion",

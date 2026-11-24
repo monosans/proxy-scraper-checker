@@ -609,6 +609,11 @@ jobs:
           - id: default
             runner: ubuntu-26.04
             features: ""
+          # mimalloc ships in no build, so this is the only job that compiles
+          # it, and its digest updates automerge on the strength of it.
+          - id: mimalloc
+            runner: ubuntu-26.04
+            features: mimalloc_override
           - id: macos
             runner: macos-26
             features: tui

@@ -29,7 +29,11 @@
       "groupName": "oxfmt"
     },
     { "matchCurrentVersion": "!/^0/", "matchUpdateTypes": ["minor"], "automerge": true },
-    { "matchUpdateTypes": ["lockFileMaintenance", "patch", "replacement"], "automerge": true },
+    {
+      "description": "Patch, digest, lock file and replacement updates merge themselves once CI passes. digest is the git rev of mimalloc, which the mimalloc test job builds",
+      "matchUpdateTypes": ["digest", "lockFileMaintenance", "patch", "replacement"],
+      "automerge": true
+    },
     { "matchManagers": ["github-actions", "pre-commit"], "automerge": true },
     {
       "description": "A new Python is reviewed by hand. A cooldown would count from the last rebuild of an image tag, which keeps part of the update out of the PR",

@@ -143,6 +143,7 @@ nursery = { level = "deny", priority = -1 }
 pattern_type_mismatch = "allow"
 pedantic = { level = "deny", priority = -1 }
 question_mark_used = "allow"
+rest_pattern_accessible_field = "allow"
 restriction = { level = "deny", priority = -1 }
 separated_literal_suffix = "allow"
 shadow_reuse = "allow"

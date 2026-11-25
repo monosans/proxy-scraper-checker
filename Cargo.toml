@@ -118,6 +118,12 @@ tikv-jemallocator-auto = { package = "tikv-jemallocator", version = "=0.7.0", de
   "override_allocator_on_supported_platforms",
 ], optional = true }
 
+[lints.cargo]
+correctness = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+style = { level = "deny", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
+
 [lints.clippy]
 absolute_paths = "allow"
 all = { level = "deny", priority = -1 }

@@ -90,6 +90,7 @@ fn fits(spans: &[Span<'_>], entry: &[Span<'_>], width: usize) -> bool {
     line_width(spans).saturating_add(line_width(entry)) <= width
 }
 
+#[expect(clippy::cast_precision_loss, reason = "loses precision only past 2^53 bytes")]
 fn megabytes(bytes: usize) -> f64 {
     (bytes as f64) / 1_000_000.0_f64
 }
@@ -300,6 +301,7 @@ impl Columns {
 
 fn protocol_row(name: &'static str, progress: ProtocolProgress, checked: bool) -> Row {
     if checked {
+        #[expect(clippy::cast_precision_loss, reason = "loses precision only past 2^53 proxies")]
         let share = (progress.proxies_working as f64) / (progress.proxies_checked.max(1) as f64)
             * 100.0_f64;
         Row {

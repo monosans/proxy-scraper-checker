@@ -61,7 +61,7 @@ fn use_one_malloc_arena() {
     if !cfg!(feature = "tokio-multi-thread") {
         // SAFETY: mallopt takes no pointers and only changes a malloc
         // parameter. It returns 0 if glibc rejects it, which leaves the default.
-        #[expect(unsafe_code)]
+        #[expect(unsafe_code, reason = "mallopt is FFI, sound per the SAFETY note above")]
         let _: libc::c_int = unsafe { libc::mallopt(libc::M_ARENA_MAX, 1) };
     }
 }
@@ -296,7 +296,7 @@ fn watch_signals(
                 stop_on_signal(
                     signal_name,
                     signal(kind)
-                        .map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
+                        .map(async move |mut signal| signal.recv().await.map(move |()| signal)),
                     stop.clone(),
                 );
             }
@@ -309,12 +309,12 @@ fn watch_signals(
 
         stop_on_signal(
             "Ctrl-C",
-            ctrl_c().map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
+            ctrl_c().map(async move |mut signal| signal.recv().await.map(move |()| signal)),
             stop.clone(),
         );
         stop_on_signal(
             "console close",
-            ctrl_close().map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
+            ctrl_close().map(async move |mut signal| signal.recv().await.map(move |()| signal)),
             stop,
         );
     }

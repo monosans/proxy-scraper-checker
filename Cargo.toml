@@ -127,17 +127,13 @@ suspicious = { level = "deny", priority = -1 }
 [lints.clippy]
 absolute_paths = "allow"
 all = { level = "deny", priority = -1 }
-allow_attributes_without_reason = "allow"
 arbitrary_source_item_ordering = "allow"
 as_conversions = "allow"
 blanket_clippy_restriction_lints = "allow"
 cargo = { level = "deny", priority = -1 }
-cast_precision_loss = "allow"
-cognitive_complexity = "allow"
 else_if_without_else = "allow"
 float_arithmetic = "allow"
 implicit_return = "allow"
-integer_division_remainder_used = "allow"
 iter_over_hash_type = "allow"
 min_ident_chars = "allow"
 missing_docs_in_private_items = "allow"
@@ -155,11 +151,10 @@ single_call_fn = "allow"
 single_char_lifetime_names = "allow"
 std_instead_of_alloc = "allow"
 std_instead_of_core = "allow"
-too_many_lines = "allow"
-unwrap_used = "allow"
 
 [lints.rust]
 ambiguous_negative_literals = "deny"
+closure_returning_async_block = "deny"
 dead_code_pub_in_binary = "deny"
 deprecated_in_future = "deny"
 deprecated_safe = { level = "deny", priority = -1 }
@@ -175,6 +170,7 @@ missing_copy_implementations = "deny"
 missing_docs = "deny"
 non_ascii_idents = "deny"
 nonstandard_style = { level = "deny", priority = -1 }
+raw_borrows_via_references = "deny"
 redundant_imports = "deny"
 redundant_lifetimes = "deny"
 refining_impl_trait = { level = "deny", priority = -1 }

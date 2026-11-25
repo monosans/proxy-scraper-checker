@@ -1,4 +1,7 @@
-#![expect(clippy::wildcard_enum_match_arm)]
+#![expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "keys and events the TUI does not bind are ignored"
+)]
 
 use std::{mem::ManuallyDrop, sync::Arc, time::Duration};
 

@@ -296,7 +296,7 @@ fn watch_signals(
                 stop_on_signal(
                     signal_name,
                     signal(kind)
-                        .map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
+                        .map(async move |mut signal| signal.recv().await.map(move |()| signal)),
                     stop.clone(),
                 );
             }
@@ -309,12 +309,12 @@ fn watch_signals(
 
         stop_on_signal(
             "Ctrl-C",
-            ctrl_c().map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
+            ctrl_c().map(async move |mut signal| signal.recv().await.map(move |()| signal)),
             stop.clone(),
         );
         stop_on_signal(
             "console close",
-            ctrl_close().map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
+            ctrl_close().map(async move |mut signal| signal.recv().await.map(move |()| signal)),
             stop,
         );
     }

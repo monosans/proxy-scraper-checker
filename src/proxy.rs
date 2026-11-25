@@ -226,7 +226,7 @@ impl Proxy {
     }
 }
 
-#[expect(clippy::missing_trait_methods)]
+#[expect(clippy::missing_trait_methods, reason = "ne is the negation of eq")]
 impl PartialEq for Proxy {
     fn eq(&self, other: &Self) -> bool {
         self.protocol == other.protocol
@@ -236,7 +236,7 @@ impl PartialEq for Proxy {
     }
 }
 
-#[expect(clippy::missing_trait_methods)]
+#[expect(clippy::missing_trait_methods, reason = "hash_slice hashes each element with hash")]
 impl Hash for Proxy {
     fn hash<H>(&self, state: &mut H)
     where

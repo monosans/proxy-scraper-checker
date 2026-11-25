@@ -1,4 +1,4 @@
-use std::fmt::Write as _;
+use compact_str::ToCompactString as _;
 
 pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
     let mut result = compact_str::CompactString::const_new("");
@@ -6,7 +6,7 @@ pub fn pretty_error(e: &crate::Error) -> compact_str::CompactString {
         if i != 0 {
             result.push_str(" \u{2192} ");
         }
-        write!(&mut result, "{cause}").unwrap();
+        result.push_str(&cause.to_compact_string());
     }
     result
 }

@@ -55,7 +55,7 @@ async fn open_reader(path: PathBuf) -> crate::Result<maxminddb::Reader<maxminddb
         // the temp file before checking it, then renames it over the database,
         // which leaves the old file and any mapping of it as they were. Only
         // another process writing to the cache directory could break this.
-        #[expect(unsafe_code)]
+        #[expect(unsafe_code, reason = "mapping the file is sound for the reasons above")]
         unsafe { maxminddb::Reader::open_mmap(&path) }.wrap_err_with(move || {
             compact_str::format_compact!("failed to open IP database: {}", path.display())
         })

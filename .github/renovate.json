@@ -2,6 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "branchTopic": "{{{depNameSanitized}}}-{{{newMajor}}}{{#if separateMinorPatch}}{{#if isPatch}}.{{{newMinor}}}{{/if}}{{/if}}{{#if separateMultipleMinor}}{{#if isMinor}}.{{{newMinor}}}{{/if}}{{/if}}.x",
   "configMigration": true,
+  "customDatasources": {
+    "chrome": {
+      "defaultRegistryUrlTemplate": "https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions",
+      "transformTemplates": [
+        "{\"releases\": [$distinct(versions.$split(version, \".\")[0]).{\"version\": $}]}"
+      ]
+    }
+  },
   "customManagers": [
     {
       "customType": "regex",
@@ -10,6 +18,15 @@
       "matchStrings": ["python-version: \"(?<currentValue>\\d+\\.\\d+)\""],
       "depNameTemplate": "docker.io/python",
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Keep the User-Agent on the current stable Chrome. Its reduced form only carries the major version",
+      "managerFilePatterns": ["/^config\\.toml$/"],
+      "matchStrings": ["Chrome/(?<currentValue>\\d+)\\.0\\.0\\.0"],
+      "depNameTemplate": "chrome",
+      "datasourceTemplate": "custom.chrome",
+      "versioningTemplate": "loose"
     }
   ],
   "dependencyDashboard": { "enabled": false },
@@ -45,6 +62,12 @@
     {
       "description": "git-refs gives a commit no release timestamp, so a cooldown would hold back every new commit of a git dependency (mimalloc) forever",
       "matchDatasources": ["git-refs"],
+      "minimumReleaseAge": null
+    },
+    {
+      "description": "A new Chrome merges itself. The version API gives no release dates, so a cooldown would hold it back forever",
+      "matchPackageNames": ["chrome"],
+      "automerge": true,
       "minimumReleaseAge": null
     }
   ],

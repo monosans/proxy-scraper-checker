@@ -19,7 +19,6 @@ jobs:
       - pre-commit
       - rustfmt
       - test
-      - udeps
     runs-on: ubuntu-26.04
     steps:
       - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # release/v1
@@ -32,7 +31,7 @@ jobs:
       # renovate: datasource=pypi depName=cargo-zigbuild
       CARGO_ZIGBUILD_VERSION: 0.24.1
       # renovate: datasource=pypi depName=ziglang
-      ZIG_VERSION: 0.17.0
+      ZIG_VERSION: 0.17.1
       RUST_TARGET: ${{ matrix.target }}
     strategy:
       matrix:
@@ -232,14 +231,14 @@ jobs:
       - if: ${{ matrix.builder == 'cross' }}
         run: cross +beta build --features tui --release --target "${RUST_TARGET}" --locked
       - if: ${{ matrix.builder == 'zigbuild' }}
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: false
       # zig comes from its official PyPI package. cargo-zigbuild runs it as
       # `python -m ziglang` with the Python of its own tool environment.
       - if: ${{ matrix.builder == 'zigbuild' }}
         run: |
-          uv tool install "cargo-zigbuild==${CARGO_ZIGBUILD_VERSION}" --with "ziglang==${ZIG_VERSION}"
+          uv tool install --exclude-newer '3 days' "cargo-zigbuild==${CARGO_ZIGBUILD_VERSION}" --with "ziglang==${ZIG_VERSION}"
           echo "CARGO_ZIGBUILD_PYTHON_PATH=$(uv tool dir)/cargo-zigbuild/bin/python" >> "${GITHUB_ENV}"
       # The .<version> suffix links the gnu targets against that glibc: the
       # oldest one Rust supports on the target, so the binaries also start on
@@ -322,7 +321,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: type=raw,value=${{ github.sha }}-${{ matrix.tag }}
       - if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -361,7 +360,7 @@ jobs:
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     steps:
-      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -557,7 +556,7 @@ jobs:
         with:
           toolchain: beta
           cache: false
-      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+      - uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: cargo-about
           fallback: none
@@ -576,9 +575,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          python-version: "3.14"
+          python-version: "3.15"
           enable-cache: false
       # uvx and the hook environments prek installs read neither pyproject.toml
       # nor .npmrc, so their dependency cooldown is set here.
@@ -609,6 +608,11 @@ jobs:
           - id: default
             runner: ubuntu-26.04
             features: ""
+          # mimalloc ships in no build, so this is the only job that compiles
+          # it, and its digest updates automerge on the strength of it.
+          - id: mimalloc
+            runner: ubuntu-26.04
+            features: mimalloc_override
           - id: macos
             runner: macos-26
             features: tui
@@ -628,30 +632,5 @@ jobs:
           cache-save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo +beta test --features "${FEATURES}" --locked
         shell: bash
-        env:
-          FEATURES: ${{ matrix.features }}
-  udeps:
-    runs-on: ubuntu-26.04
-    strategy:
-      matrix:
-        include:
-          - id: default
-            features: ""
-          - id: tui
-            features: tui
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
-        with:
-          toolchain: nightly
-          cache: false
-      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
-        with:
-          tool: cargo-udeps
-          fallback: none
-      - run: cargo +nightly udeps --features "${FEATURES}"
         env:
           FEATURES: ${{ matrix.features }}

@@ -1,6 +1,15 @@
 <!--
 Pull requests are squash-merged, so write the title in the Conventional Commits
 style: `fix: ...`, `feat: ...`, `docs: ...`, `refactor: ...`, `test: ...`, `chore: ...`.
+
+CI runs the linters and tests. To catch failures before you push, run:
+
+uvx prek run --all-files
+cargo +nightly fmt --check
+cargo +beta clippy --all-targets --features tui --
+cargo +beta clippy --all-targets --
+cargo +beta test --features tui --locked
+cargo +beta test --locked
 -->
 
 ## Summary
@@ -17,8 +26,5 @@ style: `fix: ...`, `feat: ...`, `docs: ...`, `refactor: ...`, `test: ...`, `chor
 
 ## Checklist
 
-- [ ] `uvx prek run --all-files` passes.
-- [ ] `cargo +nightly fmt --check` passes.
-- [ ] `cargo +beta clippy --all-targets --features tui --` and `cargo +beta clippy --all-targets --` pass.
-- [ ] `cargo +beta test --features tui --locked` and `cargo +beta test --locked` pass, and new behavior has tests.
+- [ ] New behavior has tests.
 - [ ] `config.toml`, `config-schema.json` and `README.md` match any change to the options or the output.

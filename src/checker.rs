@@ -79,6 +79,11 @@ async fn resolve_check_url(config: &Config) -> Vec<SocketAddr> {
     if let Ok(Ok(addrs)) = lookup.await { addrs } else { Vec::new() }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the workers share seven handles with the setup around them, which would all become \
+              arguments"
+)]
 pub async fn check_all(
     config: Arc<Config>,
     proxies: Vec<Proxy>,

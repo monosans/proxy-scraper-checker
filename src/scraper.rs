@@ -26,6 +26,37 @@ struct ScrapedProxies {
     counts: crate::proxy::PerProxyType<usize>,
 }
 
+impl ScrapedProxies {
+    fn merge(&mut self, new_proxies: HashSet<Proxy>) {
+        if self.proxies.is_empty() {
+            #[cfg(feature = "tui")]
+            for proxy in &new_proxies {
+                let count = self.counts.get_mut(proxy.protocol);
+                *count = count.saturating_add(1);
+            }
+
+            self.proxies = new_proxies;
+        } else {
+            // extend() reserves from the iterator's size hint; inserting one at a
+            // time does not, and this runs while the shared lock is held.
+            #[cfg(feature = "tui")]
+            self.proxies.reserve(new_proxies.len());
+
+            #[cfg(feature = "tui")]
+            for proxy in new_proxies {
+                let protocol = proxy.protocol;
+                if self.proxies.insert(proxy) {
+                    let count = self.counts.get_mut(protocol);
+                    *count = count.saturating_add(1);
+                }
+            }
+
+            #[cfg(not(feature = "tui"))]
+            self.proxies.extend(new_proxies);
+        }
+    }
+}
+
 pub async fn scrape_all(
     config: Arc<Config>,
     http_client: reqwest_middleware::ClientWithMiddleware,
@@ -241,33 +272,7 @@ async fn scrape_one(
     drop(source);
 
     let mut scraped = proxies.lock();
-
-    if scraped.proxies.is_empty() {
-        #[cfg(feature = "tui")]
-        for proxy in &new_proxies {
-            let count = scraped.counts.get_mut(proxy.protocol);
-            *count = count.saturating_add(1);
-        }
-
-        scraped.proxies = new_proxies;
-    } else {
-        // extend() reserves from the iterator's size hint; inserting one at a
-        // time does not, and this runs while the shared lock is held.
-        #[cfg(feature = "tui")]
-        scraped.proxies.reserve(new_proxies.len());
-
-        #[cfg(feature = "tui")]
-        for proxy in new_proxies {
-            let protocol = proxy.protocol;
-            if scraped.proxies.insert(proxy) {
-                let count = scraped.counts.get_mut(protocol);
-                *count = count.saturating_add(1);
-            }
-        }
-
-        #[cfg(not(feature = "tui"))]
-        scraped.proxies.extend(new_proxies);
-    }
+    scraped.merge(new_proxies);
 
     #[cfg(feature = "tui")]
     let counts = scraped.counts;

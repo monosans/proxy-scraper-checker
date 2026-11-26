@@ -34,30 +34,37 @@ static GLOBAL: dhat::Alloc = dhat::Alloc;
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-#[cfg(feature = "__mimalloc")]
+#[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 // auto-allocator replaces the system allocator only where that measurably
-// wins, and both replacements also take over malloc for the C dependencies
-// (aws-lc). On glibc and Windows the system allocator had the lowest peak RSS
-// and mimalloc/jemalloc saved no significant CPU. The BSDs ship jemalloc and
-// Android ships Scudo as their libc allocator already.
+// wins, and the replacement also takes over malloc for the C dependencies
+// (aws-lc). On glibc, musl and Windows the system allocator had the lowest peak
+// RSS and mimalloc/jemalloc saved no significant CPU. On musl mimalloc v3 cost
+// 40-77% more peak RSS than mallocng (17-50% with MIMALLOC_ALLOW_THP=0) and
+// jemalloc 7-17%. FreeBSD and NetBSD ship jemalloc as their libc allocator
+// already, and Android ships Scudo (jemalloc on low-memory devices).
 
 // macOS: 12-58% lower peak RSS than libmalloc.
 #[cfg(all(feature = "auto-allocator", target_os = "macos"))]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator_auto::Jemalloc = tikv_jemallocator_auto::Jemalloc;
 
-// musl: 8-18% less CPU than mallocng when checking. mimalloc rather than
-// jemalloc because jemalloc fixes the page size at build time, and a
-// cross-compiled build assumes 4 KiB pages and aborts on 16/64 KiB kernels
-// (Raspberry Pi 5, Asahi, ppc64le). v2 with no_thp costs 5-25% peak RSS over
-// mallocng; v3 or letting it madvise(MADV_HUGEPAGE) costs up to 60%.
-// mimalloc needs 64-bit atomics, which armv5te lacks.
-#[cfg(all(feature = "auto-allocator", target_env = "musl", target_has_atomic = "64"))]
-#[global_allocator]
-static GLOBAL: mimalloc_auto::MiMalloc = mimalloc_auto::MiMalloc;
+// glibc gives threads that allocate an arena of their own, up to 8 per CPU, and
+// the blocking pool (fs, getaddrinfo) adds threads next to the runtime's one.
+// A single arena: 9-14% lower peak RSS on arm64 and 0-2% on x86_64 in
+// allocator-bench, with no measurable time cost. Not with tokio-multi-thread,
+// whose workers it slowed by up to 45%.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+fn use_one_malloc_arena() {
+    if !cfg!(feature = "tokio-multi-thread") {
+        // SAFETY: mallopt takes no pointers and only changes a malloc
+        // parameter. It returns 0 if glibc rejects it, which leaves the default.
+        #[expect(unsafe_code, reason = "mallopt is FFI, sound per the SAFETY note above")]
+        let _: libc::c_int = unsafe { libc::mallopt(libc::M_ARENA_MAX, 1) };
+    }
+}
 
 type Error = color_eyre::Report;
 type Result<T> = color_eyre::Result<T>;
@@ -289,7 +296,7 @@ fn watch_signals(
                 stop_on_signal(
                     signal_name,
                     signal(kind)
-                        .map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
+                        .map(async move |mut signal| signal.recv().await.map(move |()| signal)),
                     stop.clone(),
                 );
             }
@@ -302,12 +309,12 @@ fn watch_signals(
 
         stop_on_signal(
             "Ctrl-C",
-            ctrl_c().map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
+            ctrl_c().map(async move |mut signal| signal.recv().await.map(move |()| signal)),
             stop.clone(),
         );
         stop_on_signal(
             "console close",
-            ctrl_close().map(|mut signal| async move { signal.recv().await.map(move |()| signal) }),
+            ctrl_close().map(async move |mut signal| signal.recv().await.map(move |()| signal)),
             stop,
         );
     }
@@ -428,6 +435,10 @@ async fn run_without_tui(
 #[cfg_attr(feature = "tokio-multi-thread", tokio::main(flavor = "multi_thread"))]
 #[cfg_attr(not(feature = "tokio-multi-thread"), tokio::main(flavor = "current_thread"))]
 async fn main() -> Result<()> {
+    // First, so it applies before the blocking pool starts any thread.
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    use_one_malloc_arena();
+
     #[cfg(feature = "dhat")]
     let _profiler = dhat::Profiler::new_heap();
 

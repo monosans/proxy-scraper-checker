@@ -25,16 +25,27 @@ from __future__ import annotations
 import json
 import os
 
-# (label, runner, alpine, os_family)
+# (label, runner, wrapper, os_family). The wrapper picks the workflow step:
+# `native` runs the bench script on the runner, `alpine` runs it in a musl
+# container, and `xenial` builds the release-style binary (glibc 2.17 through
+# cargo-zigbuild) on the runner and runs it in an Ubuntu 16.04 container.
+#
+# The xenial rows exist because the runners only show what the newest systems
+# do. musl is linked statically and macOS gets jemalloc, so neither depends on
+# the user's OS, but glibc is the user's own, and releases start on glibc 2.17.
+# 16.04 ships 2.23, which predates the malloc tcache (2.26), so it stands for
+# the old systems where glibc malloc is weakest.
 PLATFORMS = [
-    ("ubuntu-26.04", "ubuntu-26.04", False, "linux"),
-    ("ubuntu-26.04-arm", "ubuntu-26.04-arm", False, "linux"),
-    ("alpine", "ubuntu-26.04", True, "linux"),
-    ("alpine-arm", "ubuntu-26.04-arm", True, "linux"),
-    ("macos-26", "macos-26", False, "macos"),
-    ("macos-26-intel", "macos-26-intel", False, "macos"),
-    ("windows-2025", "windows-2025", False, "windows"),
-    ("windows-11-vs2026-arm", "windows-11-vs2026-arm", False, "windows"),
+    ("ubuntu-26.04", "ubuntu-26.04", "native", "linux"),
+    ("ubuntu-26.04-arm", "ubuntu-26.04-arm", "native", "linux"),
+    ("ubuntu-16.04", "ubuntu-26.04", "xenial", "linux"),
+    ("ubuntu-16.04-arm", "ubuntu-26.04-arm", "xenial", "linux"),
+    ("alpine", "ubuntu-26.04", "alpine", "linux"),
+    ("alpine-arm", "ubuntu-26.04-arm", "alpine", "linux"),
+    ("macos-26", "macos-26", "native", "macos"),
+    ("macos-26-intel", "macos-26-intel", "native", "macos"),
+    ("windows-2025", "windows-2025", "native", "windows"),
+    ("windows-11-vs2026-arm", "windows-11-vs2026-arm", "native", "windows"),
 ]
 
 # `auto` is the shipped default feature set, so leaving it out would mean never
@@ -102,6 +113,9 @@ NOISE_DUPES = [
     ("ubuntu-26.04", "jemalloc_override"),
     ("alpine", "jemalloc_override"),
     ("ubuntu-26.04", "mimalloc"),
+    # The question the xenial rows answer is whether mimalloc beats an old
+    # glibc, so that comparison gets its own measured floor.
+    ("ubuntu-16.04", "mimalloc"),
     # Both macOS runners: the shipped default is not the system allocator
     # there, and it had no between-job measurement at all.
     # jemalloc rather than jemalloc_override because
@@ -123,7 +137,7 @@ def alloc_envs(family: str, allocator: str) -> str:
 
 def main() -> None:
     cells = []
-    for platform, runner, alpine, family in PLATFORMS:
+    for platform, runner, wrapper, family in PLATFORMS:
         allocators = COMMON + ([] if family == "windows" else JEMALLOC)
         if family == "windows":
             # mimalloc-sys/build.rs ignores `override` when target_os is
@@ -146,7 +160,7 @@ def main() -> None:
                         "label": f"{platform} {allocator} mt={str(mt).lower()}",
                         "platform": platform,
                         "runner": runner,
-                        "alpine": alpine,
+                        "wrapper": wrapper,
                         "allocator": allocator,
                         "mt": str(mt).lower(),
                         "alloc_envs": alloc_envs(family, allocator),

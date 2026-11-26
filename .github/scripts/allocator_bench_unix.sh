@@ -18,6 +18,13 @@
 #   RUN_ID             identifies one dispatch of the whole matrix
 #   REPS               measured repetitions (default 5)
 #   WARMUPS            discarded leading repetitions (default 1)
+#   BENCH_PHASE        all (default) | build | run, so a wrapper can build on
+#                      the runner and measure somewhere else
+#   BENCH_CARGO        cargo subcommand that builds (default "build"; the xenial
+#                      wrapper uses "zigbuild")
+#   BENCH_TARGET       --target to build for, glibc suffix included (default:
+#                      the host)
+#   BENCH_TOOLCHAIN    rustc version to record when rustc is not on PATH
 #
 # Workloads and tuning variants are loops inside the job, not matrix axes:
 # neither needs a rebuild, and the build is what costs minutes.
@@ -30,6 +37,9 @@ ALLOC_ENVS="${ALLOC_ENVS:-default}"
 RUN_ID="${RUN_ID:-0}"
 PLATFORM_LABEL="${PLATFORM_LABEL:-unknown}"
 TOKIO_MULTI_THREAD="${TOKIO_MULTI_THREAD:-false}"
+BENCH_PHASE="${BENCH_PHASE:-all}"
+BENCH_CARGO="${BENCH_CARGO:-build}"
+BENCH_TARGET="${BENCH_TARGET:-}"
 
 # --- feature selection -----------------------------------------------------
 # "system" and "auto" are not features. "system" is --no-default-features with
@@ -52,17 +62,22 @@ if [ "$TOKIO_MULTI_THREAD" = "true" ]; then
   features="${features:+$features,}tokio-multi-thread"
 fi
 
-build_args=(build --release --locked)
+build_args=("$BENCH_CARGO" --release --locked)
 [ -n "$no_default" ] && build_args+=("$no_default")
 [ -n "$features" ] && build_args+=(--features "$features")
+[ -n "$BENCH_TARGET" ] && build_args+=(--target "$BENCH_TARGET")
 
-echo "::group::cargo ${build_args[*]}"
-cargo "${build_args[@]}"
-echo "::endgroup::"
+if [ "$BENCH_PHASE" != "run" ]; then
+  echo "::group::cargo ${build_args[*]}"
+  cargo "${build_args[@]}"
+  echo "::endgroup::"
+fi
 
 # The Alpine wrapper redirects CARGO_TARGET_DIR so the container's root-owned
-# artifacts stay out of the runner's ./target.
-exe="${CARGO_TARGET_DIR:-target}/release/proxy-scraper-checker"
+# artifacts stay out of the runner's ./target. cargo-zigbuild leaves the glibc
+# suffix out of the directory name.
+exe="${CARGO_TARGET_DIR:-target}/${BENCH_TARGET:+${BENCH_TARGET%%.*}/}release/proxy-scraper-checker"
+[ "$BENCH_PHASE" = "build" ] && exit 0
 
 # --- platform probes -------------------------------------------------------
 # Recorded per row because a row cannot be interpreted without them. The THP
@@ -92,7 +107,7 @@ case "$uname_s" in
 esac
 thp="${thp:-unknown}"
 
-toolchain="$(rustc -V | cut -d' ' -f2)"
+toolchain="${BENCH_TOOLCHAIN:-$(rustc -V | cut -d' ' -f2)}"
 if command -v sha256sum >/dev/null 2>&1; then
   exe_sha="$(sha256sum "$exe" | cut -c1-16)"
 else

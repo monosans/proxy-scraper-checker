@@ -53,11 +53,15 @@ jobs:
       REPS: ${{ inputs.reps }}
       WARMUPS: ${{ inputs.warmups }}
       RUN_ID: ${{ github.run_id }}
+      # renovate: datasource=pypi depName=cargo-zigbuild
+      CARGO_ZIGBUILD_VERSION: 0.24.1
+      # renovate: datasource=pypi depName=ziglang
+      ZIG_VERSION: 0.17.1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - if: ${{ !matrix.cell.alpine }}
+      - if: ${{ matrix.cell.wrapper != 'alpine' }}
         uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
         with:
           toolchain: beta
@@ -66,13 +70,25 @@ jobs:
           # allocator features, so they share almost every dependency, and ~50
           # per-cell caches would push the CI caches out of the 10 GB quota.
           cache-shared-key: allocator-bench-${{ matrix.cell.runner }}
-      - if: ${{ !matrix.cell.alpine && runner.os != 'Windows' }}
+      - if: ${{ matrix.cell.wrapper == 'native' && runner.os != 'Windows' }}
         shell: bash
         run: bash .github/scripts/allocator_bench_unix.sh
-      - if: ${{ !matrix.cell.alpine && runner.os == 'Windows' }}
+      - if: ${{ matrix.cell.wrapper == 'native' && runner.os == 'Windows' }}
         shell: pwsh
         run: ./.github/scripts/allocator_bench_windows.ps1
-      - if: ${{ matrix.cell.alpine }}
+      # The same cargo-zigbuild and zig as the release builds in ci.yml.
+      - if: ${{ matrix.cell.wrapper == 'xenial' }}
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: false
+      - if: ${{ matrix.cell.wrapper == 'xenial' }}
+        run: |
+          uv tool install --exclude-newer '3 days' "cargo-zigbuild==${CARGO_ZIGBUILD_VERSION}" --with "ziglang==${ZIG_VERSION}"
+          echo "CARGO_ZIGBUILD_PYTHON_PATH=$(uv tool dir)/cargo-zigbuild/bin/python" >> "${GITHUB_ENV}"
+      - if: ${{ matrix.cell.wrapper == 'xenial' }}
+        shell: bash
+        run: bash .github/scripts/allocator_bench_xenial.sh
+      - if: ${{ matrix.cell.wrapper == 'alpine' }}
         shell: bash
         env:
           RUST_IMAGE: rust:alpine

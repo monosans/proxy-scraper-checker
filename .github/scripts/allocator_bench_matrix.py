@@ -34,7 +34,9 @@ import os
 # do. musl is linked statically and macOS gets jemalloc, so neither depends on
 # the user's OS, but glibc is the user's own, and releases start on glibc 2.17.
 # 16.04 ships 2.23, which predates the malloc tcache (2.26), so it stands for
-# the old systems where glibc malloc is weakest.
+# the old systems where glibc malloc is weakest. Run 45861740593 ranked them as
+# on 26.04: the system allocator had the lowest peak RSS, mimalloc cost 46-72%
+# more (17-34% without THP), and no time delta cleared the between-job noise.
 PLATFORMS = [
     ("ubuntu-26.04", "ubuntu-26.04", "native", "linux"),
     ("ubuntu-26.04-arm", "ubuntu-26.04-arm", "native", "linux"),

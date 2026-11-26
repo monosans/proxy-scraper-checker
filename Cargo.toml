@@ -65,7 +65,7 @@ ratatui = { version = "=0.30.2", default-features = false, features = [
 regex = "=1.13.2"
 reqwest = { version = "=0.13.5", features = ["brotli", "gzip", "socks"] }
 reqwest-middleware = "=0.5.2"
-rlimit = "=0.11.0"
+rlimit = "=0.12.0"
 rustls = { version = "=0.23.46", default-features = false, features = [
   "aws_lc_rs",
   "brotli",

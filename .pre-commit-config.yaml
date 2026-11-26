@@ -26,7 +26,7 @@ repos:
       - id: tombi-format
         exclude: ^.*Cargo.lock$
   - repo: https://github.com/oxc-project/mirrors-oxfmt
-    rev: b082b2f0f22aabef0f5cea2bd183dd85c08ba9ca # frozen: v0.79.0
+    rev: 1fa61b696bac4277fb1ea87154eb3304a8bf9067 # frozen: v0.80.0
     hooks:
       - id: oxfmt
         language: node
@@ -35,7 +35,7 @@ repos:
         args:
           - --no-error-on-unmatched-pattern
         additional_dependencies:
-          - oxfmt@0.79.0
+          - oxfmt@0.80.0
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     rev: c7d31dc612dffdd4d3b2f2b88b9660d3ab057ee8 # frozen: v1.33.1
     hooks:

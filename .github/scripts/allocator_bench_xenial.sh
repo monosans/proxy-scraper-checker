@@ -12,12 +12,18 @@ target="$(uname -m)-unknown-linux-gnu.2.17"
 BENCH_PHASE=build BENCH_CARGO=zigbuild BENCH_TARGET="$target" \
   bash .github/scripts/allocator_bench_unix.sh
 
-# uv's Linux builds need glibc 2.17, so the runner's binary works in there.
-# It supplies a current Python for bench/tls_server.py, which needs 3.7+ while
+# uv supplies a current Python for bench/tls_server.py, which needs 3.7+ while
 # 16.04 ships 3.5; the Python only serves the tls workload and is never measured.
+# The runner's own uv can't go in: its aarch64 build needs glibc 2.28. The
+# official image of the same version carries a static musl build instead.
+uv_image="ghcr.io/astral-sh/uv:$(uv --version | cut -d' ' -f2)"
+uv_container="$(docker create "$uv_image")"
+docker cp "$uv_container:/uv" bench-uv
+docker rm "$uv_container" >/dev/null
+
 docker run --rm \
   -v "$PWD:/work" \
-  -v "$(command -v uv):/usr/local/bin/uv:ro" \
+  -v "$PWD/bench-uv:/usr/local/bin/uv:ro" \
   -w /work \
   -e ALLOCATOR \
   -e TOKIO_MULTI_THREAD \

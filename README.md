@@ -1,6 +1,6 @@
 # <img src="assets/logo.svg" alt="" width="40" align="top"> proxy-scraper-checker
 
-![TUI Demo](https://github.com/user-attachments/assets/0ac37021-d11c-4f68-b80d-bafdbaeb00bb)
+![The TUI during a run: per-protocol progress, the fastest proxies so far and logs](assets/tui.png)
 
 A proxy scraper and checker written in Rust.
 
@@ -9,10 +9,10 @@ It collects HTTP/SOCKS4/SOCKS5 proxies from any number of sources, verifies each
 ## Features
 
 - Async Rust, shipped as a single binary for Windows, Linux, macOS, Android, FreeBSD, NetBSD, illumos and Solaris. Nothing to install.
-- Proxies are pattern-matched out of raw text, HTML or JSON, so any source works untouched. `scheme://user:pass@host:port` and CIDR ranges are understood, from URLs or local files.
+- Proxies are pattern-matched out of raw text, HTML or JSON, so sources need no cleanup as long as host and port stay together. `scheme://user:pass@host:port` and CIDR ranges are understood, from URLs or local files.
 - Every proxy has to fetch a real URL _in full_ to survive, so ones that connect and then stall get dropped. Results are deduplicated across sources.
 - Each working proxy comes with its response time, and with its exit IP when `check_url` returns one. ASN and city-level geolocation are looked up in offline MaxMind databases, so there are no per-proxy API calls.
-- The interactive TUI shows per-protocol progress and logs as the run goes.
+- The interactive TUI follows the run through scraping, checking and saving, with per-protocol results, the fastest proxies so far, speed and time left. It rearranges itself for narrow screens, so it also fits a phone held upright. Without a terminal it prints plain logs, with a progress line every 30 seconds of checking, so it also runs under cron and in Docker.
 - Output is JSON with metadata, plus ready-to-paste plain text lists.
 
 ## Related
@@ -25,7 +25,7 @@ Checking opens hundreds of simultaneous connections to untrusted hosts. Your ISP
 
 ## Quick start
 
-Every option is documented inline in `config.toml`. The binary reads `config.toml` from the current directory; set `PROXY_SCRAPER_CHECKER_CONFIG` to point it somewhere else.
+Every option is documented inline in `config.toml`. The binary reads `config.toml` from the current directory; set `PROXY_SCRAPER_CHECKER_CONFIG` to point it somewhere else. Colors follow the terminal's theme and turn off with `NO_COLOR`.
 
 Pre-built archives are produced by CI from the latest commit on `main` and published as the [latest release](https://github.com/monosans/proxy-scraper-checker/releases/latest), see [Verifying downloads](#verifying-downloads). Open the section for your system.
 
@@ -92,7 +92,7 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 
 1. Run `uname -m` and download the archive from the matching row. The glibc build suits most distributions (Ubuntu, Debian, Fedora, Arch and so on). Each glibc download notes the oldest glibc it runs on (`ldd --version` prints yours). Take the musl build on Alpine, on an older glibc, or if the glibc build refuses to start.
 
-   Several rows share `i686`, `armv7l` or `armv6l`. On `i686`, take the row without SSE2 only if `grep -w sse2 /proc/cpuinfo` prints nothing. On `armv7l` and `armv6l`, the system has hardware floating point if `/lib/ld-linux-armhf.so.3` (glibc), `/lib/ld-musl-armhf.so.1` or `/lib/ld-musl-armv7.so.1` (musl) exists; otherwise take a row without hardware floating point. The Thumb-2 build also needs `neon` in `/proc/cpuinfo`.
+   Several rows share `i686`, `armv7l`, `armv6l` or `riscv64`. On `i686`, take the row without SSE2 only if `grep -w sse2 /proc/cpuinfo` prints nothing. On `armv7l` and `armv6l`, the system has hardware floating point if `/lib/ld-linux-armhf.so.3` (glibc), `/lib/ld-musl-armhf.so.1` or `/lib/ld-musl-armv7.so.1` (musl) exists; otherwise take a row without hardware floating point. The Thumb-2 build also needs `neon` in `/proc/cpuinfo`. On `riscv64`, take the RVA23 build only if the processor implements the RVA23 profile.
 
    | Processor                                                         | `uname -m`    | glibc                                                   | musl                                       |
    | ----------------------------------------------------------------- | ------------- | ------------------------------------------------------- | ------------------------------------------ |
@@ -103,16 +103,17 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
    | 32-bit Intel or AMD                                               | `i686`        | [Download][i686-unknown-linux-gnu] (2.17+)              | [Download][i686-unknown-linux-musl]        |
    | 64-bit RISC-V                                                     | `riscv64`     | [Download][riscv64gc-unknown-linux-gnu] (2.29+)         | [Download][riscv64gc-unknown-linux-musl]   |
    | LoongArch                                                         | `loongarch64` | [Download][loongarch64-unknown-linux-gnu] (2.36+)       | [Download][loongarch64-unknown-linux-musl] |
-   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu] (2.39+)       | [Download][powerpc64le-unknown-linux-musl] |
+   | 64-bit PowerPC, little-endian                                     | `ppc64le`     | [Download][powerpc64le-unknown-linux-gnu] (2.32+)       | [Download][powerpc64le-unknown-linux-musl] |
    | 64-bit PowerPC, big-endian                                        | `ppc64`       | [Download][powerpc64-unknown-linux-gnu] (2.39+)         | [Download][powerpc64-unknown-linux-musl]   |
    | 32-bit PowerPC                                                    | `ppc`         | [Download][powerpc-unknown-linux-gnu] (2.39+)           | —                                          |
    | IBM Z                                                             | `s390x`       | [Download][s390x-unknown-linux-gnu] (2.17+)             | —                                          |
    | 64-bit SPARC                                                      | `sparc64`     | [Download][sparc64-unknown-linux-gnu] (2.39+)           | —                                          |
-   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi] (2.39+)       | [Download][armv5te-unknown-linux-musleabi] |
+   | 32-bit ARMv5                                                      | `armv5tel`    | [Download][armv5te-unknown-linux-gnueabi] (2.23+)       | [Download][armv5te-unknown-linux-musleabi] |
    | 32-bit x86 without SSE2 (Pentium III, Athlon XP and older)        | `i686`        | [Download][i586-unknown-linux-gnu] (2.17+)              | [Download][i586-unknown-linux-musl]        |
-   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi] (2.39+)         | [Download][armv7-unknown-linux-musleabi]   |
-   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi] (2.39+)           | [Download][arm-unknown-linux-musleabi]     |
-   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] (2.39+) | —                                          |
+   | 32-bit ARMv7 without hardware floating point                      | `armv7l`      | [Download][armv7-unknown-linux-gnueabi] (2.27+)         | [Download][armv7-unknown-linux-musleabi]   |
+   | 32-bit ARMv6 without hardware floating point                      | `armv6l`      | [Download][arm-unknown-linux-gnueabi] (2.17+)           | [Download][arm-unknown-linux-musleabi]     |
+   | 32-bit ARMv7 with NEON, Thumb-2 build                             | `armv7l`      | [Download][thumbv7neon-unknown-linux-gnueabihf] (2.23+) | —                                          |
+   | 64-bit RISC-V with the RVA23 profile                              | `riscv64`     | [Download][riscv64a23-unknown-linux-gnu] (2.39+)        | —                                          |
 
 2. Extract the archive to a dedicated folder.
 
@@ -147,6 +148,7 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
 [powerpc64-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64-unknown-linux-musl.zip
 [powerpc64le-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64le-unknown-linux-gnu.zip
 [powerpc64le-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-powerpc64le-unknown-linux-musl.zip
+[riscv64a23-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64a23-unknown-linux-gnu.zip
 [riscv64gc-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64gc-unknown-linux-gnu.zip
 [riscv64gc-unknown-linux-musl]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-riscv64gc-unknown-linux-musl.zip
 [s390x-unknown-linux-gnu]: https://github.com/monosans/proxy-scraper-checker/releases/latest/download/proxy-scraper-checker-binary-s390x-unknown-linux-gnu.zip
@@ -167,6 +169,8 @@ Pre-built archives are produced by CI from the latest commit on `main` and publi
    ```bash
    bash <(curl -fsSL 'https://raw.githubusercontent.com/monosans/proxy-scraper-checker/main/termux.sh')
    ```
+
+   Running it again updates the binary and resets `config.toml`.
 
 2. Edit the config in a text editor:
 
@@ -376,6 +380,8 @@ Results land in `./out`; `output.path` is ignored in Docker.
    cargo run --features tui --release --locked
    ```
 
+   Leave out `--features tui` to get plain log output instead of the interactive interface.
+
 The binary lands in `target/release/proxy-scraper-checker` on Linux/macOS, or `target\release\proxy-scraper-checker.exe` on Windows.
 
 </details>
@@ -402,6 +408,16 @@ gh attestation verify <archive> \
 
 The Docker images are attested the same way, and the prebuilt Docker archives pin the image by digest, so `docker compose build` uses exactly the image CI built.
 
+## Keys
+
+| Key                  | Action                                                                |
+| -------------------- | --------------------------------------------------------------------- |
+| `q`, `ESC`           | Stop the run and save the working proxies found so far. Again to quit |
+| `Ctrl-C`             | Stop the run and leave the TUI at once. The save still happens        |
+| `↑`, `PageUp`, `k`   | Scroll the logs up                                                    |
+| `↓`, `PageDown`, `j` | Scroll the logs down                                                  |
+| `End`                | Back to the latest log lines                                          |
+
 ## Output
 
 ```
@@ -416,6 +432,8 @@ out/
 ```
 
 A text line is `host:port`, or `username:password@host:port` for a proxy that needs credentials, with `protocol://` in front of either in `all.txt`.
+
+The JSON files hold an array of entries like this one:
 
 ```json
 {
@@ -433,20 +451,18 @@ A text line is `host:port`, or `username:password@host:port` for a proxy that ne
   "geolocation": {
     "country": { "iso_code": "US", "names": { "en": "United States" } },
     "city": { "names": { "en": "Chicago" } },
-    "location": {
-      "latitude": 41.85,
-      "longitude": -87.65,
-      "time_zone": "America/Chicago"
-    }
+    "location": { "latitude": 41.85, "longitude": -87.65, "time_zone": "America/Chicago" }
   }
 }
 ```
 
 `timeout` is how long the whole request took, in seconds: connection, request and the complete response. That is also what `sort_by_speed` orders by. `exit_ip` is the address the target site actually saw, so comparing it with `host` spots proxies that forward through somewhere else.
 
-`exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns the exit IP, so pointing it at an ordinary web page leaves all three `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
+`exit_ip`, `asn` and `geolocation` are only filled in when `check_url` returns an IPv4 exit address, so pointing it at an ordinary web page leaves all three `null`. A database that fails to download doesn't stop the run: the copy from an earlier run is used, and without one its field stays `null`. `geolocation` mirrors the GeoLite2 City record (abbreviated above); fields the database has no data for are omitted, and names are English only.
 
-Stopping a run early, with `ESC` or `q` in the TUI or `Ctrl-C` anywhere, writes out the working proxies found so far. If none has been found yet, the previous run's files are left as they were.
+Stopping a run early writes out the working proxies found so far, whether from the [keys](#keys) above or with `Ctrl-C` or `SIGTERM` when there is no TUI. A run that ends with no proxies to write leaves the previous run's files as they were.
+
+With `sort_by_speed = false` the text files list the same proxies in the same order on every run, so committing them to a repository shows a diff only when the list changed.
 
 ## Sponsors
 

@@ -40,7 +40,6 @@ $allocatorFeatures = $allocator -replace '_dup$', ''
 switch ($allocatorFeatures) {
   'system' { }
   'auto' { $noDefault = @() }
-  'mimalloc_v3_override' { $features += 'mimalloc_v3'; $features += 'mimalloc_override' }
   default { $features += $allocatorFeatures }
 }
 if ($mt -eq 'true') { $features += 'tokio-multi-thread' }
@@ -226,6 +225,14 @@ foreach ($workload in $workloads) {
         $hsBefore = [int](Get-Content 'bench-tls-handshakes.txt' -Raw).Trim()
       }
 
+      # See allocator_bench_unix.sh: a run with nothing to write leaves the
+      # previous output in place, which proxies_out would otherwise count.
+      foreach ($previous in 'bench-out\proxies', 'bench-out\proxies.json', 'bench-out\proxies_pretty.json') {
+        if (Test-Path -LiteralPath $previous) {
+          Remove-Item -LiteralPath $previous -Recurse -Force
+        }
+      }
+
       $sw = [System.Diagnostics.Stopwatch]::StartNew()
       $p = [System.Diagnostics.Process]::Start($psi)
       # Drain both pipes concurrently; reading one to completion first
@@ -266,8 +273,9 @@ foreach ($workload in $workloads) {
       # Work-done counters, so a clean exit 0 that scraped nothing cannot pass
       # as a measurement.
       $checked = 0
-      $m = [regex]::Match((Get-Content $log -Raw), 'Started checking (\d+) proxies')
-      if ($m.Success) { $checked = [int]$m.Groups[1].Value }
+      # The log groups thousands with commas.
+      $m = [regex]::Match((Get-Content $log -Raw), 'Started checking ([\d,]+) proxies')
+      if ($m.Success) { $checked = [int]($m.Groups[1].Value -replace ',', '') }
       $outFile = 'bench-out\proxies\all.txt'
       $outN = if (Test-Path $outFile) { @(Get-Content $outFile).Count } else { 0 }
 

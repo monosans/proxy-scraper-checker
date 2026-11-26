@@ -13,10 +13,11 @@ the build is what costs minutes. The scripts loop over them inside one job:
   frozen CIDR corpora; stresses the dedup HashSet, the sort and serde_json).
 * alloc_env: run-time allocator tuning. jemalloc reads MALLOC_CONF as conf
   source 3, which overrides the --with-malloc-conf baked in at build time;
-  mimalloc reads MIMALLOC_* at process load. This is also what replaces the old
-  mimalloc_v*_no_thp build features: MIMALLOC_ALLOW_THP=0 is strictly stronger,
-  since it additionally issues prctl(PR_SET_THP_DISABLE), and it covers v2 and
-  v3 with the same binary.
+  mimalloc reads MIMALLOC_* at process load, and MIMALLOC_ALLOW_THP=0 takes the
+  same path as its no_thp build option (prctl(PR_SET_THP_DISABLE)), so turning
+  THP off needs no build of its own. glibc reads GLIBC_TUNABLES at startup. The
+  unix script interleaves a job's variants rep by rep, so a variant against its
+  own `default` is the one comparison here free of between-job noise.
 """
 
 from __future__ import annotations
@@ -39,23 +40,22 @@ PLATFORMS = [
 # `auto` is the shipped default feature set, so leaving it out would mean never
 # measuring the configuration users actually get.
 #
-# It is knowingly a duplicate: `auto-allocator` wires tikv-jemallocator-auto
-# only under [target.'cfg(target_os = "macos")'.dependencies] (Cargo.toml) and
-# the matching #[global_allocator] in src/main.rs is gated on target_os macos,
-# so off macOS `auto` is the same program as `system`, and on macOS it is the
-# same package and feature set as `jemalloc_override`. It is kept anyway, for a
-# reason: every "vs system" delta in the report compares two jobs on two
-# different runner VMs, while the MAD that sets the noise floor comes from reps
-# inside one job on one machine. The auto-vs-system spread on a non-macOS
-# platform is therefore a direct measurement of the between-job noise the
-# report otherwise has no way to see. Read it first, and distrust any delta
-# that is not comfortably larger than it.
+# It is knowingly a duplicate: `auto-allocator` only wires an allocator for
+# target_os macos (tikv-jemallocator-auto, the same package and features as
+# `jemalloc_override`), and the matching #[global_allocator] in src/main.rs is
+# gated the same way. Off macOS `auto` is therefore the same program as
+# `system`. It is kept anyway, for a reason: every "vs system" delta
+# in the report compares two jobs on two different runner VMs, while the MAD
+# that sets the noise floor comes from reps inside one job on one machine. The
+# auto-vs-system spread on those platforms is therefore a direct measurement of
+# the between-job noise the report otherwise has no way to see. Read it first,
+# and distrust any delta that is not comfortably larger than it.
 #
 # The `*_override` rows answer the override question with data rather than
 # reasoning: mimalloc's `override` and jemalloc's
 # `override_allocator_on_supported_platforms` change what happens to the C
 # dependencies' allocations (here aws-lc-sys), never to Rust's.
-COMMON = ["system", "auto", "mimalloc_v2", "mimalloc_v3", "mimalloc_v3_override"]
+COMMON = ["system", "auto", "mimalloc", "mimalloc_override"]
 
 # jemalloc-sys shells out to `sh` and `mingw32-make` and has no gnu_target
 # mapping for aarch64-pc-windows-msvc, so it cannot be built on Windows at all.
@@ -68,23 +68,22 @@ JEMALLOC = ["jemalloc", "jemalloc_override"]
 MT_PLATFORMS = {"ubuntu-26.04", "ubuntu-26.04-arm", "macos-26", "windows-2025"}
 MT_ALLOCATORS = {"system", "auto"}
 
-# Both spellings are set: jemalloc reads the prefixed name when built prefixed
-# (always on Apple, and on Linux without the override feature) and the plain
-# name when unprefixed. Setting the unused one is harmless.
-JE_TUNED = (
-    "tuned:MALLOC_CONF=dirty_decay_ms:1000,muzzy_decay_ms:0 "
-    "_RJEM_MALLOC_CONF=dirty_decay_ms:1000,muzzy_decay_ms:0"
-)
-JE_BG = "bg:MALLOC_CONF=background_thread:true _RJEM_MALLOC_CONF=background_thread:true"
-
-# An earlier run split perfectly along THP: jemalloc cost +59..92% peak RSS on
-# the x86_64 runners, which report /sys/.../enabled = [always], and only +5..19%
-# on the arm64 ones, which report [madvise]. The mechanism is plausible enough
-# (jemalloc maps large aligned regions that khugepaged then backs with 2 MB
-# pages), but it is confounded with the architecture. opt.thp is a Linux-only
-# jemalloc option (it needs MADVISE_HUGE), so this variant tests it directly on
-# the always machines instead of inferring it from a correlation.
-JE_THP = "thp_never:MALLOC_CONF=thp:never _RJEM_MALLOC_CONF=thp:never"
+# Run-time variants exist only where they can change what ships, so each one is
+# a candidate for the default build. Variants that were measured and settled are
+# gone: jemalloc's decay tuning, thp:never and background_thread changed nothing
+# or cost RSS (background_thread +17..31% on scrape) in every job of run
+# 44974453662, and that comparison was within one job, so it was not noise.
+# The Windows segment heap, switched per run through the image's IFEO key, cost
+# windows-2025 +1..+22% peak working set in runs 45024444992 and 45026762281.
+# Windows 11 on arm64 already gives this binary a segment heap, and forcing it
+# there still saved 8..14% for reasons nobody worked out, so neither the
+# variant nor a manifest opt-in shipped.
+#
+# Two tunings won and now ship, so their variants are gone too: one glibc arena
+# (src/main.rs) and narenas:1,cache_oblivious:false baked into jemalloc on macOS
+# (.cargo/config.toml), both in runs 45024444992 and 45026762281. glibc's arena
+# limit is set with mallopt, which overrides GLIBC_TUNABLES, so no variant can
+# undo it any more.
 
 
 # Between-job reproducibility is allocator-dependent, and the auto-vs-system
@@ -102,10 +101,9 @@ JE_THP = "thp_never:MALLOC_CONF=thp:never _RJEM_MALLOC_CONF=thp:never"
 NOISE_DUPES = [
     ("ubuntu-26.04", "jemalloc_override"),
     ("alpine", "jemalloc_override"),
-    ("ubuntu-26.04", "mimalloc_v3"),
-    # Both macOS runners: this is the only platform whose result actually
-    # decides anything, since it is the one place the shipped default is not
-    # the system allocator, and it had no between-job measurement at all.
+    ("ubuntu-26.04", "mimalloc"),
+    # Both macOS runners: the shipped default is not the system allocator
+    # there, and it had no between-job measurement at all.
     # jemalloc rather than jemalloc_override because
     # `auto` resolves to the same package and features as jemalloc_override
     # there, so the override variant already has a second job to compare with.
@@ -115,19 +113,11 @@ NOISE_DUPES = [
 DUP_SUFFIX = "_dup"
 
 
-def alloc_envs(platform: str, family: str, allocator: str) -> str:
+def alloc_envs(family: str, allocator: str) -> str:
     allocator = allocator.removesuffix(DUP_SUFFIX)
     variants = ["default"]
     if allocator.startswith("mimalloc") and family == "linux":
         variants.append("no_thp:MIMALLOC_ALLOW_THP=0")
-    if allocator.startswith("jemalloc"):
-        variants.append(JE_TUNED)
-        if family == "linux":
-            variants.append(JE_THP)
-        # jemalloc-sys lists musl in NO_BG_THREAD_TARGETS, and macOS compiles
-        # background threads out entirely, so the knob only exists on glibc.
-        if family == "linux" and not platform.startswith("alpine"):
-            variants.append(JE_BG)
     return ";".join(variants)
 
 
@@ -136,15 +126,13 @@ def main() -> None:
     for platform, runner, alpine, family in PLATFORMS:
         allocators = COMMON + ([] if family == "windows" else JEMALLOC)
         if family == "windows":
-            # libmimalloc-sys/build.rs defines MI_MALLOC_OVERRIDE only when
-            # target_family != "windows", and skips -fno-builtin-malloc for
-            # MSVC ("overriding malloc is only available on windows in shared
-            # mode, but we only ever build a static lib"). The cell therefore
-            # compiles identical C to mimalloc_v3 and would only add a row
-            # labelled as an override that overrides nothing. exe_sha will not
-            # catch it either: the feature adds a #[used] static regardless of
-            # target, so the binaries differ while the behaviour does not.
-            allocators = [a for a in allocators if a != "mimalloc_v3_override"]
+            # mimalloc-sys/build.rs ignores `override` when target_os is
+            # windows, so the cell compiles identical C to `mimalloc` and would
+            # only add a row labelled as an override that overrides nothing.
+            # exe_sha will not catch it either: the feature adds a #[used]
+            # static regardless of target, so the binaries differ while the
+            # behaviour does not.
+            allocators = [a for a in allocators if a != "mimalloc_override"]
         allocators = allocators + [
             a + DUP_SUFFIX for p, a in NOISE_DUPES if p == platform
         ]
@@ -161,7 +149,7 @@ def main() -> None:
                         "alpine": alpine,
                         "allocator": allocator,
                         "mt": str(mt).lower(),
-                        "alloc_envs": alloc_envs(platform, family, allocator),
+                        "alloc_envs": alloc_envs(family, allocator),
                     }
                 )
 

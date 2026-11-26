@@ -12,7 +12,7 @@ path = "./out"
 sort_by_speed = true
 
 # proxies/all.txt (with protocol prefix) plus one file per protocol (without).
-# The proxies/ directory is deleted and rewritten on every run.
+# The proxies/ directory is replaced on every run that has something to write.
 # At least one of [output.txt] and [output.json] must stay enabled.
 [output.txt]
 enabled = true
@@ -23,6 +23,9 @@ enabled = true
 
 # The ASN and geolocation databases are GeoLite Data created by MaxMind, available
 # from https://www.maxmind.com, under https://www.maxmind.com/en/geolite2/eula.
+#
+# A failed download doesn't stop the run. The copy from an earlier run is used, and
+# without one the field stays null in the output.
 
 # Network owner of the exit IP. Offline database (~9 MB), downloaded on the first run
 # and again only when a newer one is published. Only works if check_url reveals the
@@ -45,7 +48,8 @@ include_geolocation = true
 # Any other page (https://google.com, say) still proves the proxy works, but leaves
 # exit_ip, asn and geolocation null no matter what is enabled above.
 #
-# Set to "" to skip checking entirely and output everything scraped.
+# Set to "" to skip checking entirely and output everything scraped. The ASN and
+# geolocation databases are then not downloaded.
 check_url = "https://ipv4.icanhazip.com"
 
 # How many proxies to check at once. A run takes roughly
@@ -59,32 +63,39 @@ max_concurrent_checks = 512
 # and then stalls is rejected rather than reported as working. Checks are never retried.
 timeout = 10.0
 
-# Seconds allowed to connect. Nearly every proxy in a public list is dead and costs
-# exactly this before being dropped, so this value decides how long a run takes far
-# more than `timeout` does. Lower it to finish sooner and keep only fast proxies.
+# Seconds allowed to connect: reaching the proxy, its handshake and, for an https
+# check_url, the TLS handshake through it. That is most of a check, so a proxy slower
+# than this fails however high `timeout` is. Nearly every proxy in a public list is dead
+# and costs exactly this before being dropped, so this value decides how long a run
+# takes far more than `timeout` does. Lower it to finish sooner and keep only fast
+# proxies, raise it to also keep slow ones.
 connect_timeout = 5.0
 
 # Sent to check_url. Some sites reject unknown or empty User-Agents.
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/159.0.0.0 Safari/537.36"
 
 [scraping]
 # Discard a source that yields more than this many proxies (0 = no limit). The whole
 # source is dropped, not truncated. Keep it above 65534 so a /16 CIDR still fits.
+# A reply over 1 KiB per proxy allowed here is dropped as well, while it downloads.
 max_proxies_per_source = 100000
 
-# Seconds to fetch one source, connection included. Sources are fetched in parallel and
-# retried twice. Does not limit the ASN and geolocation database downloads.
+# Seconds to fetch one source, connection included. Sources are fetched in parallel, and
+# one that fails to connect or answers 408, 429, 500, 502, 503 or 504 is retried up to
+# twice. The ASN and geolocation downloads have no such limit: they only give up after a
+# minute without data.
 timeout = 10.0
 
 # Seconds allowed to connect to a source.
 connect_timeout = 5.0
 
-# Fetch sources through this proxy, e.g. "socks5://user:pass@host:port".
-# Has no effect on proxy checking. Leave empty to connect directly.
+# Fetch sources and the ASN and geolocation databases through this proxy, e.g.
+# "socks5://user:pass@host:port". Has no effect on proxy checking. Leave empty to connect
+# directly, or through the system's proxy settings (such as HTTPS_PROXY) if it has any.
 proxy = ""
 
 # Sent when fetching sources.
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/159.0.0.0 Safari/537.36"
 
 # Sources are grouped by protocol. The group decides the protocol, unless an entry
 # carries its own scheme. Setting enabled = false on a group skips its sources and
@@ -92,9 +103,10 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 #
 # Duplicates are removed across all sources, so overlapping lists are fine.
 #
-# Any text format works, since proxies are pattern-matched out, so HTML and JSON
-# need no cleanup. Recognized forms:
+# Any text format works as long as host and port stay together, since proxies are
+# pattern-matched out, so HTML and JSON need no cleanup. Recognized forms:
 #   1.2.3.4:8080
+#   proxy.example.com:8080
 #   socks5://1.2.3.4:1080
 #   user:pass@1.2.3.4:8080
 #   1.2.3.0/24:8080          CIDR, /16 to /32, expanded to every host
@@ -111,66 +123,58 @@ urls = [
   #   { url = "https://some.api/endpoint", basic_auth = { username = "user", password = "password123" } },
   #   { url = "https://some.api/endpoint", headers = { Authorization = "Bearer YOUR_API_KEY" } },
 
-  "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http",
-  "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=text",
-  "https://proxyspace.pro/https.txt",
   "https://raw.githubusercontent.com/6yyn/free-proxy-list/refs/heads/main/http.txt",
-  "https://raw.githubusercontent.com/Bes-js/public-proxy-list/refs/heads/main/proxies.txt",
+  "https://raw.githubusercontent.com/Dahono-com/free-proxy-list/refs/heads/main/proxies/https.txt",
   "https://raw.githubusercontent.com/EDT-Pages/Proxy-List/refs/heads/main/data/http.json",
+  "https://raw.githubusercontent.com/MuhammadUsamaMX/Free-Proxy-Hunter/refs/heads/main/proxies/https.txt",
+  "https://raw.githubusercontent.com/NikolaiT/free-proxy-list/refs/heads/main/proxies/http_working.txt",
+  "https://raw.githubusercontent.com/ProxcyDev/Proxies/refs/heads/master/http.txt",
+  "https://raw.githubusercontent.com/ProxyScrape/free-proxy-list/refs/heads/main/proxies/protocols/http/data.txt",
   "https://raw.githubusercontent.com/Tianndev/free-proxy/refs/heads/main/proxy/http.txt",
-  "https://raw.githubusercontent.com/anutmagang/Free-HighQuality-Proxy-Socks/refs/heads/main/results/all.txt",
-  "https://raw.githubusercontent.com/databay-labs/free-proxy-list/refs/heads/master/http.txt",
-  "https://raw.githubusercontent.com/dinoz0rg/proxy-list/refs/heads/main/checked_proxies/http.txt",
-  "https://raw.githubusercontent.com/hproxy-com/free-proxy-list/refs/heads/main/http.txt",
+  "https://raw.githubusercontent.com/elliottophellia/proxylist/refs/heads/master/results/http/global/http_checked.txt",
   "https://raw.githubusercontent.com/hproxy-com/free-proxy-list/refs/heads/main/https.txt",
-  "https://raw.githubusercontent.com/maximilianfeix/free-proxy-list/refs/heads/main/https.txt",
-  "https://raw.githubusercontent.com/mmpx12/proxy-list/refs/heads/master/http.txt",
+  "https://raw.githubusercontent.com/proxio-io/proxy-list/refs/heads/main/http.txt",
   "https://raw.githubusercontent.com/proxmint/free-proxy-list/refs/heads/main/proxies/http.txt",
-  "https://raw.githubusercontent.com/stormsia/proxy-list/refs/heads/main/http.txt",
+  "https://raw.githubusercontent.com/themiralay/Proxy-List-World/refs/heads/master/data.txt",
+  "https://raw.githubusercontent.com/vmheaven/VMHeaven.io-Free-Proxy-List/refs/heads/main/http.txt",
   "https://raw.githubusercontent.com/vmheaven/VMHeaven.io-Free-Proxy-List/refs/heads/main/https.txt",
-  "https://raw.githubusercontent.com/watchttvv/free-proxy-list/refs/heads/main/proxy.txt",
-  "https://raw.githubusercontent.com/xyzs996/free-proxy-health-list/refs/heads/main/proxies/protocols/http/data.txt",
-  "https://raw.githubusercontent.com/xyzs996/free-proxy-health-list/refs/heads/main/proxies/protocols/https/data.txt",
+  "https://raw.githubusercontent.com/vmheaven/VMHeaven.io-Free-Proxy-List/refs/heads/main/verified/http.txt",
+  "https://raw.githubusercontent.com/vmheaven/VMHeaven.io-Free-Proxy-List/refs/heads/main/verified/https.txt",
   "https://raw.githubusercontent.com/zloi-user/hideip.me/refs/heads/main/connect.txt",
 ]
 
 [scraping.socks4]
 enabled = true
 urls = [
-  "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks4",
-  "https://raw.githubusercontent.com/Anonym0usWork1221/Free-Proxies/refs/heads/main/proxy_files/socks4_proxies.txt",
-  "https://raw.githubusercontent.com/databay-labs/free-proxy-list/refs/heads/master/socks4.txt",
+  "https://raw.githubusercontent.com/Ch4120N/Ch4120N-Proxy-List/refs/heads/master/proxies/socks4.txt",
+  "https://raw.githubusercontent.com/Ciara-12/PROXY-free/refs/heads/main/socks4.txt",
+  "https://raw.githubusercontent.com/Dahono-com/free-proxy-list/refs/heads/main/proxies/socks4.txt",
+  "https://raw.githubusercontent.com/NikolaiT/free-proxy-list/refs/heads/main/proxies/socks4_working.txt",
+  "https://raw.githubusercontent.com/cmahmud/proxies/refs/heads/main/alive/socks4.txt",
+  "https://raw.githubusercontent.com/elliottophellia/proxylist/refs/heads/master/results/socks4/global/socks4_checked.txt",
   "https://raw.githubusercontent.com/hproxy-com/free-proxy-list/refs/heads/main/socks4.txt",
+  "https://raw.githubusercontent.com/litportnet/free-proxy-list/refs/heads/main/proxies/socks4.txt",
+  "https://raw.githubusercontent.com/mauricegift/free-proxies/refs/heads/master/files/socks4.json",
+  "https://raw.githubusercontent.com/maximilianfeix/free-proxy-list/refs/heads/main/socks4.txt",
+  "https://raw.githubusercontent.com/officialputuid/KangProxy/refs/heads/main/socks4/socks4.txt",
   "https://raw.githubusercontent.com/proxio-io/proxy-list/refs/heads/main/socks4.txt",
   "https://raw.githubusercontent.com/proxmint/free-proxy-list/refs/heads/main/proxies/socks4.txt",
-  "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks4_proxies.txt",
   "https://raw.githubusercontent.com/vmheaven/VMHeaven.io-Free-Proxy-List/refs/heads/main/socks4.txt",
+  "https://raw.githubusercontent.com/vmheaven/VMHeaven.io-Free-Proxy-List/refs/heads/main/verified/socks4.txt",
+  "https://raw.githubusercontent.com/xyzs996/free-proxy-health-list/refs/heads/main/proxies/protocols/socks4/data.txt",
 ]
 
 [scraping.socks5]
 enabled = true
 urls = [
-  "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5",
+  "https://raw.githubusercontent.com/Argh94/Proxy-List/refs/heads/main/SOCKS5.txt",
   "https://raw.githubusercontent.com/EDT-Pages/Proxy-List/refs/heads/main/data/socks5.json",
-  "https://raw.githubusercontent.com/ProxyScrape/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt",
-  "https://raw.githubusercontent.com/Tianndev/free-proxy/refs/heads/main/proxy/socks5.txt",
-  "https://raw.githubusercontent.com/TuanMinPay/live-proxy/refs/heads/master/socks5.txt",
-  "https://raw.githubusercontent.com/VPSLabCloud/VPSLab-Free-Proxy-List/refs/heads/main/socks5_all.txt",
-  "https://raw.githubusercontent.com/databay-labs/free-proxy-list/refs/heads/master/socks5.txt",
-  "https://raw.githubusercontent.com/dinoz0rg/proxy-list/refs/heads/main/checked_proxies/socks5.txt",
-  "https://raw.githubusercontent.com/dpangestuw/Free-Proxy/refs/heads/main/socks5_proxies.txt",
-  "https://raw.githubusercontent.com/elliottophellia/proxylist/refs/heads/master/results/socks5/global/socks5_checked.txt",
+  "https://raw.githubusercontent.com/NikolaiT/free-proxy-list/refs/heads/main/proxies/socks5_working.txt",
   "https://raw.githubusercontent.com/hproxy-com/free-proxy-list/refs/heads/main/socks5.txt",
-  "https://raw.githubusercontent.com/iplocate/free-proxy-list/refs/heads/main/protocols/socks5.txt",
   "https://raw.githubusercontent.com/litportnet/free-proxy-list/refs/heads/main/proxies/socks5.txt",
-  "https://raw.githubusercontent.com/maximilianfeix/free-proxy-list/refs/heads/main/socks5.txt",
-  "https://raw.githubusercontent.com/nguyenduytan/NDT-Proxy-Scraper/refs/heads/main/socks5.txt",
-  "https://raw.githubusercontent.com/proxifly/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt",
-  "https://raw.githubusercontent.com/proxy-free/free-proxy-list/refs/heads/main/socks5.txt",
+  "https://raw.githubusercontent.com/proxmint/free-proxy-list/refs/heads/main/proxies/socks5.txt",
+  "https://raw.githubusercontent.com/rtwo2/FastNodes/refs/heads/main/sub/protocols/socks5.txt",
   "https://raw.githubusercontent.com/stormsia/proxy-list/refs/heads/main/socks5.txt",
-  "https://raw.githubusercontent.com/sunny9577/proxy-scraper/refs/heads/master/generated/socks5_proxies.txt",
   "https://raw.githubusercontent.com/vmheaven/VMHeaven.io-Free-Proxy-List/refs/heads/main/socks5.txt",
-  "https://raw.githubusercontent.com/wyattowalsh/proxywhirl/refs/heads/main/web/public/proxy-lists/socks5.txt",
-  "https://raw.githubusercontent.com/z3a4/free-proxy-list/refs/heads/main/proxies/unchecked/socks5-proxies.txt",
   "https://raw.githubusercontent.com/zloi-user/hideip.me/refs/heads/main/socks5.txt",
 ]

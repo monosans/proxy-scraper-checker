@@ -1,3 +1,4 @@
+comment_width = 100
 condense_wildcard_suffixes = true
 error_on_unformatted = true
 float_literal_trailing_zero = "Always"
@@ -7,7 +8,6 @@ format_strings = true
 group_imports = "StdExternalCrate"
 hex_literal_case = "Upper"
 imports_granularity = "Crate"
-max_width = 80
 newline_style = "Unix"
 normalize_comments = true
 normalize_doc_attributes = true

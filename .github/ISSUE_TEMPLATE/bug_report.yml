@@ -1,0 +1,94 @@
+name: 🐛 Bug report
+description: Report a crash, wrong results or an install problem.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        If your connection drops during a run, lower `max_concurrent_checks`
+        first: see the [safety
+        warning](https://github.com/monosans/proxy-scraper-checker#safety-warning).
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you start
+      options:
+        - label: >-
+            I searched the [existing
+            issues](https://github.com/monosans/proxy-scraper-checker/issues?q=is%3Aissue)
+            and found nothing about this.
+          required: true
+        - label: >-
+            I can reproduce this on the [latest
+            release](https://github.com/monosans/proxy-scraper-checker/releases/latest).
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "What happened?"
+      description: What you did, what you expected and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |-
+        1. Download ...
+        2. Change ... in config.toml
+        3. Run ...
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: "How do you run it?"
+      options:
+        - Pre-built archive
+        - Termux script
+        - Docker
+        - Built from source
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and version
+      placeholder: Windows 11, Ubuntu 24.04, Android 14
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Archive
+      description: >-
+        The name of the archive you downloaded, or the CPU architecture for
+        Docker and source builds.
+      placeholder: proxy-scraper-checker-binary-x86_64-unknown-linux-gnu
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: >-
+        The contents of `commit-sha.txt` from the archive, or `git rev-parse
+        HEAD` for a source build.
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Changed settings from config.toml
+      description: >-
+        Only what differs from the default `config.toml`. Remove credentials
+        and private source URLs.
+      render: toml
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >-
+        Set `debug = true` in `config.toml` and paste the output, including
+        any panic message. Remove credentials and private source URLs.
+      render: text

@@ -32,9 +32,11 @@ docker run --rm \
   -e BENCH_TOOLCHAIN="$(rustc -V | cut -d' ' -f2)" \
   -e GITHUB_STEP_SUMMARY=/work/xenial-summary.md \
   ubuntu:16.04 bash -euc '
+    # ca-certificates because rustls-platform-verifier refuses to start
+    # without a system trust store, which any real install has.
     apt-get update -qq
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-      time openssl >/dev/null
+      ca-certificates time openssl >/dev/null
     uv venv -q --managed-python --python 3 /opt/py
     PATH="/opt/py/bin:$PATH" exec bash .github/scripts/allocator_bench_unix.sh
   '

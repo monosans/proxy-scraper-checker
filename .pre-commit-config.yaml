@@ -1,7 +1,7 @@
 exclude: ^about\.hbs$
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
     hooks:
       - id: check-case-conflict
       - id: check-executables-have-shebangs
@@ -14,21 +14,32 @@ repos:
       - id: check-xml
       - id: destroyed-symlinks
       - id: end-of-file-fixer
+        exclude: \.svg$
       - id: fix-byte-order-marker
       - id: mixed-line-ending
         args:
           - --fix=lf
       - id: trailing-whitespace
   - repo: https://github.com/tombi-toml/tombi-pre-commit
-    rev: v1.8.7
+    rev: 1066584123cce44a99b4818c2b2c4a7e732ff8e9 # frozen: v1.11.3
     hooks:
       - id: tombi-format
         exclude: ^.*Cargo.lock$
-  - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.9.10
+  - repo: https://github.com/oxc-project/mirrors-oxfmt
+    rev: b082b2f0f22aabef0f5cea2bd183dd85c08ba9ca # frozen: v0.79.0
     hooks:
-      - id: prettier
+      - id: oxfmt
+        language: node
+        types_or:
+          - text
+        args:
+          - --no-error-on-unmatched-pattern
+        additional_dependencies:
+          - oxfmt@0.79.0
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.31.1
+    rev: c7d31dc612dffdd4d3b2f2b88b9660d3ab057ee8 # frozen: v1.33.1
     hooks:
       - id: zizmor
+        args:
+          - --no-progress
+          - --persona=pedantic

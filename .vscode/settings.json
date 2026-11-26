@@ -1,1 +1,8 @@
-{ "rust-analyzer.cargo.features": ["tui"] }
+{
+  "[rust]": { "editor.defaultFormatter": "rust-lang.rust-analyzer" },
+  "[toml]": { "editor.defaultFormatter": "tombi-toml.tombi" },
+  "rust-analyzer.cargo.extraEnv": { "RUSTUP_TOOLCHAIN": "beta" },
+  "rust-analyzer.cargo.features": ["tui"],
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.rustfmt.extraArgs": ["+nightly"]
+}

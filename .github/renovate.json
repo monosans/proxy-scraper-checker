@@ -1,8 +1,35 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "branchTopic": "{{{depNameSanitized}}}-{{{newMajor}}}{{#if separateMinorPatch}}{{#if isPatch}}.{{{newMinor}}}{{/if}}{{/if}}{{#if separateMultipleMinor}}{{#if isMinor}}.{{{newMinor}}}{{/if}}{{/if}}.x",
   "configMigration": true,
-  "dependencyDashboard": false,
-  "docker-compose": { "enabled": true },
+  "customDatasources": {
+    "chrome": {
+      "defaultRegistryUrlTemplate": "https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions",
+      "transformTemplates": [
+        "{\"releases\": [$distinct(versions.$split(version, \".\")[0]).{\"version\": $}]}"
+      ]
+    }
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Keep CI on the newest Python",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.yml$/"],
+      "matchStrings": ["python-version: \"(?<currentValue>\\d+\\.\\d+)\""],
+      "depNameTemplate": "docker.io/python",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Keep the User-Agent on the current stable Chrome. Its reduced form only carries the major version",
+      "managerFilePatterns": ["/^config\\.toml$/"],
+      "matchStrings": ["Chrome/(?<currentValue>\\d+)\\.0\\.0\\.0"],
+      "depNameTemplate": "chrome",
+      "datasourceTemplate": "custom.chrome",
+      "versioningTemplate": "loose"
+    }
+  ],
+  "dependencyDashboard": { "enabled": false },
   "extends": [
     "config:recommended",
     ":disableRateLimiting",
@@ -14,19 +41,37 @@
   "minimumReleaseAge": "3 days",
   "packageRules": [
     {
-      "matchCurrentVersion": "!/^0/",
-      "matchUpdateTypes": ["minor"],
-      "automerge": true
+      "description": "The hook's npm package and the mirror's tag are one oxfmt version, so they go in one pull request",
+      "matchPackageNames": ["oxfmt", "oxc-project/mirrors-oxfmt"],
+      "groupName": "oxfmt"
     },
+    { "matchCurrentVersion": "!/^0/", "matchUpdateTypes": ["minor"], "automerge": true },
     {
-      "matchUpdateTypes": ["lockFileMaintenance", "patch", "replacement"],
+      "description": "Patch, digest, lock file and replacement updates merge themselves once CI passes. digest is the git rev of mimalloc, which the mimalloc test job builds",
+      "matchUpdateTypes": ["digest", "lockFileMaintenance", "patch", "replacement"],
       "automerge": true
     },
     { "matchManagers": ["github-actions", "pre-commit"], "automerge": true },
-    { "matchManagers": ["cargo"], "minimumReleaseAge": null }
+    {
+      "description": "A new Python is reviewed by hand. A cooldown would count from the last rebuild of an image tag, which keeps part of the update out of the PR",
+      "matchPackageNames": ["python", "docker.io/python"],
+      "groupName": "python",
+      "automerge": false,
+      "minimumReleaseAge": null
+    },
+    {
+      "description": "git-refs gives a commit no release timestamp, so a cooldown would hold back every new commit of a git dependency (mimalloc) forever",
+      "matchDatasources": ["git-refs"],
+      "minimumReleaseAge": null
+    },
+    {
+      "description": "A new Chrome merges itself. The version API gives no release dates, so a cooldown would hold it back forever",
+      "matchPackageNames": ["chrome"],
+      "automerge": true,
+      "minimumReleaseAge": null
+    }
   ],
   "pre-commit": { "enabled": true },
   "rollbackPrs": true,
-  "semanticCommits": "enabled",
-  "schedule": ["at any time"]
+  "semanticCommits": "enabled"
 }

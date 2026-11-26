@@ -5,7 +5,7 @@
 #
 # Inputs (env):
 #   ALLOCATOR          system | auto | jemalloc | jemalloc_override |
-#                      mimalloc_v2 | mimalloc_v3 | mimalloc_v3_override,
+#                      mimalloc | mimalloc_override,
 #                      optionally with a "_dup" suffix, which builds the same
 #                      binary under a second job so the report can show the
 #                      between-job noise for that allocator. The suffix is
@@ -46,7 +46,6 @@ allocator_features="${ALLOCATOR%_dup}"
 case "$allocator_features" in
   system) ;;
   auto) no_default="" ;;
-  mimalloc_v3_override) features="mimalloc_v3,mimalloc_override" ;;
   *) features="$allocator_features" ;;
 esac
 if [ "$TOKIO_MULTI_THREAD" = "true" ]; then
@@ -99,6 +98,25 @@ if command -v sha256sum >/dev/null 2>&1; then
 else
   exe_sha="$(shasum -a 256 "$exe" | cut -c1-16)"
 fi
+
+# A misspelt variable or option would leave a variant identical to its default
+# and still produce clean rows. jemalloc reports a conf pair it cannot parse on
+# stderr, so one probe with a bogus option proves the variables are read, and
+# every measured rep below is held to printing no such complaint.
+case "$ALLOC_ENVS" in
+  *MALLOC_CONF=*)
+    probe_vars="$(printf '%s' "$ALLOC_ENVS" | grep -o '[A-Z_]*MALLOC_CONF=' |
+      sort -u | sed 's/$/bench_probe:1/' | tr '\n' ' ')"
+    # shellcheck disable=SC2086
+    PROXY_SCRAPER_CHECKER_CONFIG=bench/config.check.toml \
+      env $probe_vars "$exe" >bench-probe.log 2>&1 || true
+    if ! grep -q '<jemalloc>: Invalid conf pair: bench_probe:1' bench-probe.log; then
+      echo "jemalloc ignored ${probe_vars}so the MALLOC_CONF variants would measure nothing" >&2
+      tail -n 20 bench-probe.log >&2
+      exit 1
+    fi
+    ;;
+esac
 
 results=bench-results.tsv
 if [ ! -f "$results" ]; then
@@ -223,6 +241,10 @@ fi
     hs_before="$(cat bench-tls-handshakes.txt 2>/dev/null || echo 0)"
   fi
 
+  # A run with nothing to write leaves the previous output in place, so clear
+  # it, or proxies_out would count the files of an earlier workload.
+  rm -rf "$out_dir/proxies" "$out_dir/proxies.json" "$out_dir/proxies_pretty.json"
+
   set +e
   # ALLOC_ENV is deliberately word-split: it carries zero or more VAR=VAL pairs.
   # shellcheck disable=SC2086
@@ -245,6 +267,12 @@ fi
   if [ "$rc" != "0" ]; then
     echo "rep $i exited with $rc" >&2
     tail -n 40 "$log" "$timing" >&2
+    exit 1
+  fi
+  # On macOS the child's stderr lands in $timing, so look in both.
+  if grep -q '<jemalloc>:' "$log" "$timing"; then
+    echo "rep $i: jemalloc rejected part of ${alloc_env_vars:-its config}" >&2
+    grep -h '<jemalloc>:' "$log" "$timing" >&2
     exit 1
   fi
 
@@ -278,9 +306,10 @@ fi
 
   # Work-done counters, so a clean exit 0 that scraped nothing cannot pass as a
   # measurement. The aggregator additionally asserts these agree across every
-  # rep and every cell of a platform.
+  # rep and every cell of a platform. The log groups thousands with commas.
   proxies_checked="$(sed -n \
-    's/.*Started checking \([0-9][0-9]*\) proxies.*/\1/p' "$log" | head -n 1)"
+    's/.*Started checking \([0-9][0-9,]*\) proxies.*/\1/p' "$log" |
+    head -n 1 | tr -d ,)"
   proxies_checked="${proxies_checked:-0}"
   if [ -f "$out_dir/proxies/all.txt" ]; then
     proxies_out="$(wc -l < "$out_dir/proxies/all.txt" | tr -d ' ')"
@@ -351,7 +380,7 @@ IFS="$old_ifs"
 done
 
 if [ "$WORKLOAD" = "tls" ]; then
-  # Prove the tunnel actually carried TLS. "Started checking 2000 proxies" is
+  # Prove the tunnel actually carried TLS. "Started checking 2,000 proxies" is
   # logged before the first check runs, so proxies_checked cannot tell a run of
   # 2000 handshakes from a run of 2000 refused connects, and the second one
   # would quietly be a duplicate of the check workload wearing the tls label.

@@ -9,6 +9,6 @@ services:
     volumes:
       - proxy_scraper_checker_cache:/home/app/.cache/proxy_scraper_checker
       - ./out:/app/out
-      - ./config.toml:/app/config.toml
+      - ./config.toml:/app/config.toml:ro
 volumes:
   proxy_scraper_checker_cache:

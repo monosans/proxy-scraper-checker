@@ -1,13 +1,16 @@
 services:
   samply:
     build:
+      context: ../..
       dockerfile: bench/samply/Dockerfile
-      args:
-        - "UID=${UID:-1000}"
-        - "GID=${GID:-1000}"
       pull: true
     init: true
     privileged: true
     volumes:
-      - ./out:/app/out
-      - ./config.toml:/app/config.toml
+      # Keeps the IP databases between recordings. The first run, and one after a
+      # database update, still downloads them inside the recording.
+      - proxy_scraper_checker_cache:/root/.cache/proxy_scraper_checker
+      - ../../out:/app/out
+      - ../../config.toml:/app/config.toml:ro
+volumes:
+  proxy_scraper_checker_cache:

@@ -9,8 +9,3 @@ X86_64_APPLE_DARWIN_JEMALLOC_SYS_WITH_MALLOC_CONF = "narenas:1,cache_oblivious:f
 # Skip crate versions published less than 3 days ago, like the uv and npm cooldowns.
 [registry]
 global-min-publish-age = "3 days"
-
-# The illumos and Solaris targets pass `-z ignore`, which the GNU ld in cross's
-# images reports as ignored, and `linker_messages` turns that into a warning.
-[target.'cfg(any(target_os = "illumos", target_os = "solaris"))']
-rustflags = ["-A", "linker_messages"]
